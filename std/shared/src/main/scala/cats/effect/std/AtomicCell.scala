@@ -125,55 +125,53 @@ object AtomicCell {
   def apply[F[_]]: ApplyPartiallyApplied[F] =
     new ApplyPartiallyApplied(dummy = true)
 
-  private[std] final class ApplyPartiallyApplied[F[_]](private val dummy: Boolean)
-      extends AnyVal {
+  final class ApplyPartiallyApplied[F[_]](private val dummy: Boolean) extends AnyVal {
 
     /**
      * Initializes the `AtomicCell` using the provided value.
      */
-    def of[A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
-      Mutex[F].map(mutex => new Impl(init, mutex))
+    def of[A](init: A)(implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
+      AtomicCell.concurrent(init)
+
+    @deprecated("Use the version that only requires Concurrent", since = "3.5.0")
+    private[std] def of[A](init: A, F: Async[F]): F[AtomicCell[F, A]] =
+      of(init)(F)
 
     /**
      * Initializes the `AtomicCell` using the default empty value of the provided type.
      */
-    def empty[A](implicit M: Monoid[A], F: Async[F]): F[AtomicCell[F, A]] =
-      of(init = M.empty)
+    def empty[A](implicit M: Monoid[A], F: Concurrent[F]): F[AtomicCell[F, A]] =
+      of(M.empty)
+
+    @deprecated("Use the version that only requires Concurrent", since = "3.5.0")
+    private[std] def empty[A](M: Monoid[A], F: Async[F]): F[AtomicCell[F, A]] =
+      of(M.empty)(F)
   }
 
-  private final class Impl[F[_], A](
-      init: A,
+  private[effect] def concurrent[F[_], A](init: A)(
+      implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
+    (Ref.of[F, A](init), Mutex[F]).mapN { (ref, m) => new ConcurrentImpl(ref, m) }
+
+  private final class ConcurrentImpl[F[_], A](
+      ref: Ref[F, A],
       mutex: Mutex[F]
   )(
-      implicit F: Async[F]
+      implicit F: Concurrent[F]
   ) extends AtomicCell[F, A] {
-    private var cell: A = init
-
     override def get: F[A] =
-      mutex.lock.surround {
-        F.delay {
-          cell
-        }
-      }
+      mutex.lock.surround(ref.get)
 
     override def set(a: A): F[Unit] =
-      mutex.lock.surround {
-        F.delay {
-          cell = a
-        }
-      }
+      mutex.lock.surround(ref.set(a))
 
     override def modify[B](f: A => (A, B)): F[B] =
       evalModify(a => F.pure(f(a)))
 
     override def evalModify[B](f: A => F[(A, B)]): F[B] =
       mutex.lock.surround {
-        F.delay(cell).flatMap(f).flatMap {
+        ref.get.flatMap(f).flatMap {
           case (a, b) =>
-            F.delay {
-              cell = a
-              b
-            }
+            ref.set(a).as(b)
         }
       }
 
