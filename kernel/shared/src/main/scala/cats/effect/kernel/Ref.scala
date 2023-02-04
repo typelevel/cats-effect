@@ -34,8 +34,7 @@ import cats.syntax.all._
  * mutable data as `AtomicReference#compareAndSet` and friends are not threadsafe and are
  * dependent upon object reference equality.
  *
- * @see
- *   [[cats.effect.std.AtomicCell]]
+ * See also `cats.effect.std.AtomicCell` class from `cats-effect-std` for an alternative.
  */
 abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 
