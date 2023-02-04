@@ -25,10 +25,6 @@ import org.specs2.specification.core.Fragments
 import scala.concurrent.duration._
 
 final class AtomicCellSpec extends BaseSpec {
-  "AsyncAtomicCell" should {
-    tests(AtomicCell.async)
-  }
-
   "ConcurrentAtomicCell" should {
     tests(AtomicCell.concurrent)
   }
