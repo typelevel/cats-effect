@@ -31,7 +31,7 @@ import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
  * @param threadCount
  *   the number of threads to load balance between
  */
-private final class ScalQueue[A <: AnyRef](threadCount: Int) {
+private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
 
   /**
    * Calculates the next power of 2 using bitwise operations. This value actually represents the
