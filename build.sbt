@@ -379,7 +379,8 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.specs2" %%% "specs2-core" % Specs2Version % Test
     ),
     mimaBinaryIssueFilters ++= Seq(
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef"),
+      ProblemFilters.exclude[Problem]("cats.effect.kernel.GenConcurrent#Memoize*")
     )
   )
   .jsSettings(
@@ -603,7 +604,21 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // introduced by #3324, which specialized CallbackStack for JS
       // internal API change
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.CallbackStack.clearCurrent")
+        "cats.effect.CallbackStack.clearCurrent"),
+      // #3393, ContState is a private class:
+      ProblemFilters.exclude[MissingTypesProblem]("cats.effect.ContState"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
+      // #3393, IOFiberConstants is a (package) private class/object:
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateInitial"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWaiting"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWinner"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateResult"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -750,6 +765,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         // mystery filters that became required in 3.4.0
         ProblemFilters.exclude[DirectMissingMethodProblem](
           "cats.effect.tracing.TracingConstants.*"),
+        // introduced by #3225, which added the BatchingMacrotaskExecutor
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.FiberAwareExecutionContext"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
+          "cats.effect.unsafe.ES2021FiberMonitor.this"),
         // introduced by #3324, which specialized CallbackStack for JS
         // internal API change
         ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")

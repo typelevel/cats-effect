@@ -804,8 +804,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
    * Note that in this case the acquire action should know how to cleanup after itself in case
-   * it gets canceled, since Resource will only guarantee release when acquire succeeds and
-   * fails (and when the actions in `use` or `flatMap` fail, succeed, or get canceled)
+   * it gets canceled, since Resource will only guarantee release when acquire succeeds (and
+   * when the actions in `use` or `flatMap` fail, succeed, or get canceled)
    *
    * TODO make sure this api, which is more general than makeFull, doesn't allow for
    * interruptible releases
@@ -874,8 +874,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * fiber waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
    * Note that in this case the acquire action should know how to cleanup after itself in case
-   * it gets canceled, since Resource will only guarantee release when acquire succeeds and
-   * fails (and when the actions in `use` or `flatMap` fail, succeed, or get canceled)
+   * it gets canceled, since Resource will only guarantee release when acquire succeeds (and
+   * when the actions in `use` or `flatMap` fail, succeed, or get canceled)
    *
    * @tparam F
    *   the effect type in which the resource is acquired and released
@@ -899,8 +899,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * fiber waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
    * Note that in this case the acquire action should know how to cleanup after itself in case
-   * it gets canceled, since Resource will only guarantee release when acquire succeeds and
-   * fails (and when the actions in `use` or `flatMap` fail, succeed, or get canceled)
+   * it gets canceled, since Resource will only guarantee release when acquire succeeds (and
+   * when the actions in `use` or `flatMap` fail, succeed, or get canceled)
    *
    * @tparam F
    *   the effect type in which the resource is acquired and released
@@ -1382,12 +1382,15 @@ abstract private[effect] class ResourceConcurrent[F[_]]
     fa.race(fb)
 
   override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] = {
-    Resource.eval(F.ref(false)).flatMap { allocated =>
-      val fa2 = F.uncancelable(poll => poll(fa.allocatedCase) <* allocated.set(true))
+    Resource.eval(F.ref(List.empty[Resource.ExitCase => F[Unit]])).flatMap { release =>
+      val fa2 = F.uncancelable { poll =>
+        poll(fa.allocatedCase).flatMap { case (a, r) => release.update(r :: _).as(a) }
+      }
       Resource
-        .makeCaseFull[F, F[(A, Resource.ExitCase => F[Unit])]](poll => poll(F.memoize(fa2)))(
-          (memo, exit) => allocated.get.ifM(memo.flatMap(_._2.apply(exit)), F.unit))
-        .map(memo => Resource.eval(memo.map(_._1)))
+        .makeCaseFull[F, F[A]](poll => poll(F.memoize(fa2))) { (_, exit) =>
+          release.get.flatMap(_.foldMapM(_(exit)))
+        }
+        .map(memo => Resource.eval(memo))
     }
   }
 }

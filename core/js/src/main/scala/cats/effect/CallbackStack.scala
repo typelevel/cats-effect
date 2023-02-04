@@ -36,24 +36,22 @@ private final class CallbackStackOps[A](private val callbacks: js.Array[A => Uni
    * Invokes *all* non-null callbacks in the queue, starting with the current one. Returns true
    * iff *any* callbacks were invoked.
    */
-  @inline def apply(oc: A, _invoked: Boolean): Boolean = {
-    var i = callbacks.length - 1
-    var invoked = _invoked
-    while (i >= 0) {
-      val cb = callbacks(i)
-      if (cb ne null) {
-        cb(oc)
-        invoked = true
-      }
-      i -= 1
-    }
-    invoked
-  }
+  @inline def apply(oc: A, invoked: Boolean): Boolean =
+    callbacks
+      .asInstanceOf[js.Dynamic]
+      .reduceRight( // skips deleted indices, but there can still be nulls
+        (acc: Boolean, cb: A => Unit) =>
+          if (cb ne null) { cb(oc); true }
+          else acc,
+        invoked)
+      .asInstanceOf[Boolean]
 
   /**
    * Removes the current callback from the queue.
    */
-  @inline def clearCurrent(handle: CallbackStack.Handle): Unit = callbacks(handle) = null
+  @inline def clearCurrent(handle: Int): Unit =
+    // deleting an index from a js.Array makes it sparse (aka "holey"), so no memory leak
+    js.special.delete(callbacks, handle)
 
   @inline def currentHandle(): CallbackStack.Handle = callbacks.length - 1
 
