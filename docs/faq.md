@@ -74,9 +74,11 @@ Note that this is just a specific example to demonstrate why running an non-bloc
 Cats Effect 3.4.0 introduced a default-enabled *starvation checker*, which produces warnings like the following:
 
 ```
-[WARNING] Your CPU is probably starving. Consider increasing the granularity
-of your delays or adding more cedes. This may also be a sign that you are
-unintentionally running blocking I/O operations (such as File or InetAddress)
+2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous 
+event (such as a new connection, an upstream response, or a timer) was in excess
+of 40 milliseconds. Your CPU is probably starving. Consider increasing the 
+granularity of your delays or adding more cedes. This may also be a sign that you
+are unintentionally running blocking I/O operations (such as File or InetAddress)
 without the blocking combinator.
 ```
 
