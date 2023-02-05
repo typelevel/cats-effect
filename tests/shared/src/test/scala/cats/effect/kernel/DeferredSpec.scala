@@ -160,7 +160,7 @@ class DeferredSpec extends BaseSpec { outer =>
       import cats.syntax.all._
 
       for {
-        d <- Deferred[IO, Int]
+        d <- deferredI
         attemptCompletion = { (n: Int) => d.complete(n).void }
         res <- List(
           IO.race(attemptCompletion(1), attemptCompletion(2)).void,
@@ -168,6 +168,16 @@ class DeferredSpec extends BaseSpec { outer =>
         ).parSequence
         r <- IO { (res == List((), ())) must beTrue }
       } yield r
+    }
+
+    "handle lots of canceled gets" in real {
+      List(10, 100, 1000).traverse_ { n =>
+        deferredU.flatMap { d =>
+          (d.get.background.surround(IO.cede).replicateA_(n) *> d.complete(())).background.surround {
+            d.get.as(1).parReplicateA(n).map(_.sum must be_==(n))
+          }
+        }.replicateA_(100)
+      }.as(true)
     }
 
   }
