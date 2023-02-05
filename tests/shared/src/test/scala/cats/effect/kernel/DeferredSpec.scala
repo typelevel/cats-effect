@@ -171,13 +171,18 @@ class DeferredSpec extends BaseSpec { outer =>
     }
 
     "handle lots of canceled gets" in real {
-      List(10, 100, 1000).traverse_ { n =>
-        deferredU.flatMap { d =>
-          (d.get.background.surround(IO.cede).replicateA_(n) *> d.complete(())).background.surround {
-            d.get.as(1).parReplicateA(n).map(_.sum must be_==(n))
-          }
-        }.replicateA_(100)
-      }.as(true)
+      List(10, 100, 1000)
+        .traverse_ { n =>
+          deferredU
+            .flatMap { d =>
+              (d.get.background.surround(IO.cede).replicateA_(n) *> d
+                .complete(())).background.surround {
+                d.get.as(1).parReplicateA(n).map(_.sum must be_==(n))
+              }
+            }
+            .replicateA_(100)
+        }
+        .as(true)
     }
 
   }
