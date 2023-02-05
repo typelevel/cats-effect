@@ -190,8 +190,7 @@ class DeferredSpec extends BaseSpec { outer =>
         d <- deferredU
 
         range = 0.until(512)
-        fibers <- range.toVector.traverse(_ => d.get.start)
-        _ <- IO.sleep(1.millis)
+        fibers <- range.toVector.traverse(_ => d.get.start <* IO.sleep(1.millis))
 
         // these are mostly randomly chosen
         // the consecutive runs are significant, but only loosely so
