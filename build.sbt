@@ -906,8 +906,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
       // introduced by #3347
       // private stuff
-      ProblemFilters.exclude[MissingClassProblem](
-        "cats.effect.std.AtomicCell$Impl")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.AtomicCell$Impl")
     )
   )
   .jsSettings(
