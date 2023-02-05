@@ -34,8 +34,7 @@ import cats.syntax.all._
  * mutable data as `AtomicReference#compareAndSet` and friends are not threadsafe and are
  * dependent upon object reference equality.
  *
- * @see
- *   [[cats.effect.std.AtomicCell]]
+ * See also `cats.effect.std.AtomicCell` class from `cats-effect-std` for an alternative.
  */
 abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 
@@ -99,11 +98,6 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * Like `tryModify` but does not complete until the update has been successfully made.
    */
   def modify[B](f: A => (A, B)): F[B]
-
-  /**
-   * Like `modify` but the evaluation of the return value is wrapped in the effect type `F`.
-   */
-  def flatModify[B](f: A => (A, F[B]))(implicit F: FlatMap[F]): F[B] = F.flatten(modify(f))
 
   /**
    * Update the value of this ref with a state computation.

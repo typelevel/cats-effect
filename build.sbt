@@ -114,7 +114,7 @@ val MacOS = "macos-latest"
 
 val Scala212 = "2.12.17"
 val Scala213 = "2.13.10"
-val Scala3 = "3.2.1"
+val Scala3 = "3.2.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
@@ -379,7 +379,8 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.specs2" %%% "specs2-core" % Specs2Version % Test
     ),
     mimaBinaryIssueFilters ++= Seq(
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef"),
+      ProblemFilters.exclude[Problem]("cats.effect.kernel.GenConcurrent#Memoize*")
     )
   )
   .jsSettings(
@@ -604,6 +605,19 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // internal API change
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.CallbackStack.clearCurrent"),
+      // #3393, ContState is a private class:
+      ProblemFilters.exclude[MissingTypesProblem]("cats.effect.ContState"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
+      // #3393, IOFiberConstants is a (package) private class/object:
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateInitial"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWaiting"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWinner"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateResult"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
     ) ++ {
       if (tlIsScala3.value) {
@@ -751,6 +765,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         // mystery filters that became required in 3.4.0
         ProblemFilters.exclude[DirectMissingMethodProblem](
           "cats.effect.tracing.TracingConstants.*"),
+        // introduced by #3225, which added the BatchingMacrotaskExecutor
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.FiberAwareExecutionContext"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
+          "cats.effect.unsafe.ES2021FiberMonitor.this"),
         // introduced by #3324, which specialized CallbackStack for JS
         // internal API change
         ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")
@@ -888,7 +907,11 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // introduced by #3346
       // private stuff
       ProblemFilters.exclude[MissingClassProblem](
-        "cats.effect.std.Mutex$Impl")
+        "cats.effect.std.Mutex$Impl"),
+      // introduced by #3347
+      // private stuff
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.std.AtomicCell$Impl")
     )
   )
   .jsSettings(

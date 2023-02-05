@@ -19,6 +19,8 @@ package unsafe
 
 import scala.concurrent.duration._
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 class SchedulerSpec extends BaseSpec {
 
   "Default scheduler" should {
@@ -41,6 +43,17 @@ class SchedulerSpec extends BaseSpec {
         case (realTime, currentTime) =>
           (realTime.toMillis - currentTime) should be_<=(1L)
       }
+    }
+    "cancel" in real {
+      val scheduler = IORuntime.global.scheduler
+      for {
+        ref <- IO(new AtomicBoolean(true))
+        cancel <- IO(scheduler.sleep(200.millis, () => ref.set(false)))
+        _ <- IO.sleep(100.millis)
+        _ <- IO(cancel.run())
+        _ <- IO.sleep(200.millis)
+        didItCancel <- IO(ref.get())
+      } yield didItCancel
     }
   }
 

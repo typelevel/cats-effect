@@ -45,8 +45,8 @@ class AsyncSpec extends BaseSpec with Discipline {
 
   final class AsyncIO[A](val io: IO[A])
 
-  implicit
-  def asyncForAsyncIO: Async[AsyncIO] = new Async[AsyncIO] with StackSafeMonad[AsyncIO] {
+  implicit def asyncForAsyncIO: Async[AsyncIO] = new Async[AsyncIO]
+    with StackSafeMonad[AsyncIO] {
     def pure[A](x: A): AsyncIO[A] = liftIO(IO.pure(x))
     def raiseError[A](e: Throwable): AsyncIO[A] = liftIO(IO.raiseError(e))
     def suspend[A](hint: Sync.Type)(thunk: => A): AsyncIO[A] = liftIO(IO.suspend(hint)(thunk))
