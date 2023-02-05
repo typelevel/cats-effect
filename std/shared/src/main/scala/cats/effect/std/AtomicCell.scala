@@ -29,11 +29,11 @@ import cats.syntax.all._
  * calling fiber.
  *
  * {{{
- *   final class ParkingLot(data: AtomicCell[IO, ArraySeq[Boolean]], rnd: Random[IO]) {
+ *   final class ParkingLot(data: AtomicCell[IO, Vector[Boolean]], rnd: Random[IO]) {
  *     def getSpot: IO[Option[Int]] =
  *       data.evalModify { spots =>
  *         val availableSpots = spots.zipWithIndex.collect { case (true, idx) => idx }
- *         rnd.shuffleList(availableSpots).map { shuffled =>
+ *         rnd.shuffleVector(availableSpots).map { shuffled =>
  *           val acquired = shuffled.headOption
  *           val next = acquired.fold(spots)(a => spots.updated(a, false)) // mark the chosen spot as taken
  *           (next, shuffled.headOption)
