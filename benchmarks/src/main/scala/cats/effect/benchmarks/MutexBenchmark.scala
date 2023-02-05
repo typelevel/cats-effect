@@ -83,4 +83,25 @@ class MutexBenchmark {
   def highContentionAsync(): Unit = {
     highContentionImpl(mutex = Mutex.async)
   }
+
+  private def cancellationImpl(mutex: IO[Mutex[IO]]): Unit = {
+    mutex
+      .flatMap { m =>
+        m.lock.surround {
+          m.lock.use_.start.flatMap(_.cancel).parReplicateA_(fibers)
+        }
+      }
+      .replicateA_(iterations)
+      .unsafeRunSync()
+  }
+
+  @Benchmark
+  def cancellationConcurrent(): Unit = {
+    cancellationImpl(mutex = Mutex.concurrent)
+  }
+
+  @Benchmark
+  def cancellationAsync(): Unit = {
+    cancellationImpl(mutex = Mutex.async)
+  }
 }
