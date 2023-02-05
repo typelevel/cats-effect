@@ -74,10 +74,10 @@ object Mutex {
         concurrent[F](F)
     }
 
-  def async[F[_]](implicit F: Async[F]): F[Mutex[F]] =
+  private[effect] def async[F[_]](implicit F: Async[F]): F[Mutex[F]] =
     in[F, F](F, F)
 
-  def concurrent[F[_]](implicit F: Concurrent[F]): F[Mutex[F]] =
+  private[effect] def concurrent[F[_]](implicit F: Concurrent[F]): F[Mutex[F]] =
     Semaphore[F](n = 1).map(sem => new ConcurrentImpl[F](sem))
 
   /**
