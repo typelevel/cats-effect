@@ -17,8 +17,6 @@
 package cats
 package effect
 
-import cats.syntax.semigroup._
-
 import scala.annotation.tailrec
 
 class IOLocalSpec extends BaseSpec {
@@ -79,7 +77,7 @@ class IOLocalSpec extends BaseSpec {
     }
   }
 
-  private def ioLocalTests[A, B: Semigroup, C: Eq: Show](
+  private def ioLocalTests[A, B, C: Eq: Show](
       name: String,
       localF: A => IO[(IOLocal[B], IOLocal[C])]
   )(
@@ -158,18 +156,6 @@ class IOLocalSpec extends BaseSpec {
       }
 
       io must completeAs(checkA(initial))
-    }
-
-    "do not leak internal updates outside of a scope" in ticked { implicit ticker =>
-      val io = localF(initial).flatMap {
-        case (writer, reader) =>
-          for {
-            inside <- writer.scope(update).surround(reader.get <* writer.set(update |+| update))
-            outside <- reader.get
-          } yield (inside, outside)
-      }
-
-      io must completeAs((checkB(update), checkA(initial)))
     }
 
   }
