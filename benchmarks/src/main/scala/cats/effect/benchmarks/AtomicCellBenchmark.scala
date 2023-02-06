@@ -44,45 +44,68 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class AtomicCellBenchmark {
+  @Param(Array("10", "50", "100"))
+  var fibers: Int = _
+
   @Param(Array("1000"))
-  var size: Int = _
-
-  @Param(Array("10", "100", "1000"))
-  var count: Int = _
-
-  @Param(Array("10000"))
   var iterations: Int = _
 
-  def initialSpots(): Vector[Boolean] = {
-    Vector.tabulate(size) { i => (i % 2) == 0 }
+  private def happyPathImpl(cell: IO[AtomicCell[IO, Int]]): Unit = {
+    cell
+      .flatMap { c => c.evalUpdate(i => IO(i + 1)).replicateA_(fibers) }
+      .replicateA_(iterations)
+      .unsafeRunSync()
   }
 
-  private def evalModifyImpl(cell: IO[AtomicCell[IO, Vector[Boolean]]]): Unit = {
-    (cell, Random.scalaUtilRandomSeedLong[IO](seed = 135L))
-      .flatMapN {
-        case (data, rnd) =>
-          data
-            .evalModify { spots =>
-              val availableSpots = spots.zipWithIndex.collect { case (true, idx) => idx }
-              rnd.shuffleVector(availableSpots).map { shuffled =>
-                val acquired = shuffled.headOption
-                val next = acquired.fold(spots)(a => spots.updated(a, false))
-                (next, shuffled.headOption)
-              }
-            }
-            .replicateA_(count)
+  @Benchmark
+  def happyPathConcurrent(): Unit = {
+    happyPathImpl(cell = AtomicCell.concurrent(0))
+  }
+
+  @Benchmark
+  def happyPathAsync(): Unit = {
+    happyPathImpl(cell = AtomicCell.async(0))
+  }
+
+  private def highContentionImpl(cell: IO[AtomicCell[IO, Int]]): Unit = {
+    cell
+      .flatMap { c => c.evalUpdate(i => IO(i + 1)).parReplicateA_(fibers) }
+      .replicateA_(iterations)
+      .unsafeRunSync()
+  }
+
+  @Benchmark
+  def highContentionConcurrent(): Unit = {
+    highContentionImpl(cell = AtomicCell.concurrent(0))
+  }
+
+  @Benchmark
+  def highContentionAsync(): Unit = {
+    highContentionImpl(cell = AtomicCell.async(0))
+  }
+
+  private def cancellationImpl(cell: IO[AtomicCell[IO, Int]]): Unit = {
+    cell
+      .flatMap { c =>
+        c.evalUpdate { _ =>
+          c.evalUpdate(i => IO(i + 1))
+            .start
+            .flatMap(fiber => IO.cede >> fiber.cancel)
+            .parReplicateA_(fibers)
+            .as(-1)
+        }
       }
       .replicateA_(iterations)
       .unsafeRunSync()
   }
 
   @Benchmark
-  def evalModifyConcurrent(): Unit = {
-    evalModifyImpl(cell = AtomicCell.concurrent(initialSpots()))
+  def cancellationConcurrent(): Unit = {
+    cancellationImpl(cell = AtomicCell.concurrent(0))
   }
 
   @Benchmark
-  def evalModifyAsync(): Unit = {
-    evalModifyImpl(cell = AtomicCell.async(initialSpots()))
+  def cancellationAsync(): Unit = {
+    cancellationImpl(cell = AtomicCell.async(0))
   }
 }

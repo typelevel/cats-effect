@@ -44,10 +44,10 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class MutexBenchmark {
-  @Param(Array("10", "100", "1000"))
+  @Param(Array("10", "50", "100"))
   var fibers: Int = _
 
-  @Param(Array("10000"))
+  @Param(Array("1000"))
   var iterations: Int = _
 
   private def happyPathImpl(mutex: IO[Mutex[IO]]): Unit = {
@@ -88,7 +88,7 @@ class MutexBenchmark {
     mutex
       .flatMap { m =>
         m.lock.surround {
-          m.lock.use_.start.flatMap(_.cancel).parReplicateA_(fibers)
+          m.lock.use_.start.flatMap(fiber => IO.cede >> fiber.cancel).parReplicateA_(fibers)
         }
       }
       .replicateA_(iterations)
