@@ -1,7 +1,7 @@
 jvm_highcore_task:
   container:
     image: sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2
-    cpu: 8
+    cpu: 4
     memory: 8G
   matrix:
     - script: sbt '++ 2.12' testsJVM/test
@@ -11,7 +11,7 @@ jvm_highcore_task:
 jvm_arm_highcore_task:
   arm_container:
     image: sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2
-    cpu: 8
+    cpu: 4
     memory: 8G
   matrix:
     - script: sbt '++ 2.12' testsJVM/test
