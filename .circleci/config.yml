@@ -19,7 +19,7 @@ jobs:
 workflows:
   ci:
     jobs:
-      - test-arm:
+      - test-native-arm:
           matrix:
             parameters:
               scala-version: ["2.13", "3"]
