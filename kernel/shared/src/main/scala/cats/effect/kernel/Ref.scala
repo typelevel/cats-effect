@@ -100,6 +100,34 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
   def modify[B](f: A => (A, B)): F[B]
 
   /**
+   * Like [[modify]] but schedules resulting effect right after modification.
+   *
+   * Both modification and finalizer are uncancelable, if you need cancellation mechanic in
+   * finalizer please see [[flatModifyFull]].
+   *
+   * @see
+   *   [[modify]]
+   * @see
+   *   [[flatModifyFull]]
+   */
+  def flatModify[B](f: A => (A, F[B]))(implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(_ => F.flatten(modify(f)))
+
+  /**
+   * Like [[modify]] but schedules resulting effect right after modification.
+   *
+   * Unlike [[flatModify]] finalizer cancellation could be masked via supplied `Poll`.
+   * Modification itself is still uncancelable.
+   *
+   * @see
+   *   [[modify]]
+   * @see
+   *   [[flatModify]]
+   */
+  def flatModifyFull[B](f: (Poll[F], A) => (A, F[B]))(implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(poll => F.flatten(modify(f(poll, _))))
+
+  /**
    * Update the value of this ref with a state computation.
    *
    * The current value of this ref is used as the initial state and the computed output state is
@@ -112,6 +140,35 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * Like [[tryModifyState]] but retries the modification until successful.
    */
   def modifyState[B](state: State[A, B]): F[B]
+
+  /**
+   * Like [[modifyState]] but schedules resulting effect right after state computation & update.
+   *
+   * Both modification and finalizer are uncancelable, if you need cancellation mechanic in
+   * finalizer please see [[flatModifyStateFull]].
+   *
+   * @see
+   *   [[modifyState]]
+   * @see
+   *   [[flatModifyStateFull]]
+   */
+  def flatModifyState[B](state: State[A, F[B]])(implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(_ => F.flatten(modifyState(state)))
+
+  /**
+   * Like [[modifyState]] but schedules resulting effect right after modification.
+   *
+   * Unlike [[flatModifyState]] finalizer cancellation could be masked via supplied `Poll[F]`.
+   * Modification itself is still uncancelable.
+   *
+   * @see
+   *   [[modifyState]]
+   * @see
+   *   [[flatModifyState]]
+   */
+  def flatModifyStateFull[B](state: Poll[F] => State[A, F[B]])(
+      implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(poll => F.flatten(modifyState(state(poll))))
 
   /**
    * Modify the context `F` using transformation `f`.
