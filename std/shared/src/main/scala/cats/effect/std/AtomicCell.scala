@@ -200,20 +200,24 @@ object AtomicCell {
       implicit F: Async[F]
   ) extends AtomicCell[F, A] {
     private var cell: A = init
+
     override def get: F[A] =
       mutex.lock.surround {
         F.delay {
           cell
         }
       }
+
     override def set(a: A): F[Unit] =
       mutex.lock.surround {
         F.delay {
           cell = a
         }
       }
+
     override def modify[B](f: A => (A, B)): F[B] =
       evalModify(a => F.pure(f(a)))
+
     override def evalModify[B](f: A => F[(A, B)]): F[B] =
       mutex.lock.surround {
         F.delay(cell).flatMap(f).flatMap {
@@ -224,10 +228,13 @@ object AtomicCell {
             }
         }
       }
+
     override def evalUpdate(f: A => F[A]): F[Unit] =
       evalModify(a => f(a).map(aa => (aa, ())))
+
     override def evalGetAndUpdate(f: A => F[A]): F[A] =
       evalModify(a => f(a).map(aa => (aa, a)))
+
     override def evalUpdateAndGet(f: A => F[A]): F[A] =
       evalModify(a => f(a).map(aa => (aa, aa)))
   }
