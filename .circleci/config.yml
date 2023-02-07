@@ -1,7 +1,7 @@
 version: 2.1
 
 jobs:
-  test-arm:
+  test-native-arm:
     parameters:
       scala-version:
         type: string
