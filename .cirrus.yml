@@ -1,8 +1,8 @@
 jvm_highcore_task:
   container:
-      image: sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2
-      cpu: 8
-      memory: 8G
+    image: sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2
+    cpu: 8
+    memory: 8G
   matrix:
     - script: sbt '++ 2.12' testsJVM/test
     - script: sbt '++ 2.13' testsJVM/test
@@ -10,9 +10,9 @@ jvm_highcore_task:
 
 jvm_arm_highcore_task:
   arm_container:
-      image: sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2
-      cpu: 8
-      memory: 8G
+    image: sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2
+    cpu: 8
+    memory: 8G
   matrix:
     - script: sbt '++ 2.12' testsJVM/test
     - script: sbt '++ 2.13' testsJVM/test
@@ -20,10 +20,9 @@ jvm_arm_highcore_task:
 
 native_arm_task:
   arm_container:
-      image: sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2
-      cpu: 2
-      memory: 8G
-  install_script: sudo apt-get install clang
+    dockerfile: .cirrus/Dockerfile
+    cpu: 2
+    memory: 8G
   matrix:
     - script: sbt '++ 2.12' testsNative/test
     - script: sbt '++ 2.13' testsNative/test
