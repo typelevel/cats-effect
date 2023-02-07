@@ -904,6 +904,10 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
+      // introduced by #3346
+      // private stuff
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.std.Mutex$Impl"),
       // introduced by #3347
       // private stuff
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.AtomicCell$Impl")
