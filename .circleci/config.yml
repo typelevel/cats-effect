@@ -1,0 +1,25 @@
+version: 2.1
+
+jobs:
+  test-arm:
+    parameters:
+      scala-version:
+        type: string
+    machine:
+      image: ubuntu-2004:current
+    resource_class: arm.medium
+    steps:
+      - checkout
+      - run: uname -a
+      - run:
+          name: Install clang
+          command: sudo apt-get install clang
+      - run: sbt '++ << parameters.scala-version >>' rootNative/test
+
+workflows:
+  ci:
+    jobs:
+      - test-arm:
+          matrix:
+            parameters:
+              scala-version: ["2.13", "3"]
