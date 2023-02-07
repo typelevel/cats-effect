@@ -14,7 +14,9 @@ jobs:
       - run:
           name: Install clang
           command: sudo apt-get install clang
-      - run: sbt '++ << parameters.scala-version >>' testsNative/test
+      - run:
+          command: sbt '++ << parameters.scala-version >>' testsNative/test
+          no_output_timeout: 60m
 
 workflows:
   ci:
