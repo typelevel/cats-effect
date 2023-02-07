@@ -28,7 +28,7 @@ import sbtcrossproject.CrossProject
 import JSEnv._
 
 // sbt-git workarounds
-ThisBuild / useConsoleForROGit := !(ThisBuild / githubIsWorkflowBuild).value
+ThisBuild / useConsoleForROGit := !Option(System.getenv("CI")).contains("true")
 
 ThisBuild / git.gitUncommittedChanges := {
   if ((ThisBuild / githubIsWorkflowBuild).value) {
