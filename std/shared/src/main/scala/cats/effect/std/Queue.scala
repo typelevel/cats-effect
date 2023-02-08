@@ -26,7 +26,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.collection.mutable.ListBuffer
 
-import java.util.concurrent.atomic.{AtomicLong, AtomicLongArray, AtomicReference}
+import java.util.concurrent.atomic.{AtomicLong, AtomicLongArray}
 
 /**
  * A purely functional, concurrent data structure which allows insertion and retrieval of
@@ -492,8 +492,6 @@ object Queue {
   }
 
   private val EitherUnit: Either[Nothing, Unit] = Right(())
-  private val FailureSignal: Throwable = new RuntimeException
-    with scala.util.control.NoStackTrace
 
   /*
    * Does not correctly handle bound = 0 because take waiters are async[Unit]
@@ -1037,97 +1035,6 @@ object Queue {
 
     private[this] def project(idx: Long): Int =
       ((idx & Int.MaxValue) % bound).toInt
-  }
-
-  final class UnsafeUnbounded[A] {
-    private[this] val first = new AtomicReference[Cell]
-    private[this] val last = new AtomicReference[Cell]
-
-    def size(): Int = {
-      var current = first.get()
-      var count = 0
-      while (current != null) {
-        count += 1
-        current = current.get()
-      }
-      count
-    }
-
-    def put(data: A): () => Unit = {
-      val cell = new Cell(data)
-
-      val prevLast = last.getAndSet(cell)
-
-      if (prevLast eq null)
-        first.set(cell)
-      else
-        prevLast.set(cell)
-
-      cell
-    }
-
-    @tailrec
-    def take(): A = {
-      val taken = first.get()
-      if (taken ne null) {
-        val next = taken.get()
-        if (first.compareAndSet(taken, next)) { // WINNING
-          if ((next eq null) && !last.compareAndSet(taken, null)) {
-            // we emptied the first, but someone put at the same time
-            // in this case, they might have seen taken in the last slot
-            // at which point they would *not* fix up the first pointer
-            // instead of fixing first, they would have written into taken
-            // so we fix first for them. but we might be ahead, so we loop
-            // on taken.get() to wait for them to make it not-null
-
-            var next2 = taken.get()
-            while (next2 eq null) {
-              next2 = taken.get()
-            }
-
-            first.set(next2)
-          }
-
-          val ret = taken.data()
-          taken() // Attempt to clear out data we've consumed
-          ret
-        } else {
-          take() // We lost, try again
-        }
-      } else {
-        if (last.get() ne null) {
-          take() // Waiting for prevLast.set(cell), so recurse
-        } else {
-          throw FailureSignal
-        }
-      }
-    }
-
-    def debug(): String = {
-      val f = first.get()
-
-      if (f == null) {
-        "[]"
-      } else {
-        f.debug()
-      }
-    }
-
-    private final class Cell(private[this] final var _data: A)
-        extends AtomicReference[Cell]
-        with (() => Unit) {
-
-      def data(): A = _data
-
-      final override def apply(): Unit = {
-        _data = null.asInstanceOf[A] // You want a lazySet here
-      }
-
-      def debug(): String = {
-        val tail = get()
-        s"${_data} -> ${if (tail == null) "[]" else tail.debug()}"
-      }
-    }
   }
 
   implicit def catsInvariantForQueue[F[_]: Functor]: Invariant[Queue[F, *]] =
