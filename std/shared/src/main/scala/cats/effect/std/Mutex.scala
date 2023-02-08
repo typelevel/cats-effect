@@ -115,9 +115,11 @@ object Mutex {
     }
 
     private[this] val _release: F[Unit] = F.delay {
-      try { // pass the buck
-        waiters.take().apply(Either.unit)
-      } catch { // release
+      try { // look for a waiter
+        var waiter: Either[Throwable, Unit] => Unit = null
+        while (waiter eq null) waiter = waiters.take()
+        waiter(Either.unit) // pass the buck
+      } catch { // no waiter found, so release
         case FailureSignal => locked.set(false)
       }
     }
