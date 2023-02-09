@@ -95,32 +95,47 @@ object Mutex {
   }
 
   private final class AsyncImpl[F[_]](implicit F: Async[F]) extends Mutex[F] {
-    private[this] val locked = new AtomicBoolean(false)
-    private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]
+    import AsyncImpl._
 
-    private[this] val acquire: F[Unit] = F.asyncCheckAttempt { cb =>
-      F.delay {
-        if (locked.compareAndSet(false, true)) { // acquired
-          Either.unit
-        } else {
-          val cancel = waiters.put(cb)
-          if (locked.compareAndSet(false, true)) { // try again
-            cancel()
-            Either.unit
+    private[this] val locked = new AtomicBoolean(false)
+    private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Boolean] => Unit]
+
+    private[this] val acquire: F[Unit] = F
+      .asyncCheckAttempt[Boolean] { cb =>
+        F.delay {
+          if (locked.compareAndSet(false, true)) { // acquired
+            RightTrue
           } else {
-            Left(Some(F.delay(cancel())))
+            val cancel = waiters.put(cb)
+            if (locked.compareAndSet(false, true)) { // try again
+              cancel()
+              RightTrue
+            } else {
+              Left(Some(F.delay(cancel())))
+            }
           }
         }
       }
-    }
+      .flatMap { acquired =>
+        if (acquired) F.unit // home free
+        else acquire // wokened, but need to acquire
+      }
 
     private[this] val _release: F[Unit] = F.delay {
       try { // look for a waiter
-        var waiter: Either[Throwable, Unit] => Unit = null
+        var waiter = waiters.take()
         while (waiter eq null) waiter = waiters.take()
-        waiter(Either.unit) // pass the buck
-      } catch { // no waiter found, so release
-        case FailureSignal => locked.set(false)
+        waiter(RightTrue) // pass the buck
+      } catch { // no waiter found
+        case FailureSignal =>
+          locked.set(false) // release
+          try {
+            var waiter = waiters.take()
+            while (waiter eq null) waiter = waiters.take()
+            waiter(RightFalse) // waken any new waiters
+          } catch {
+            case FailureSignal => // do nothing
+          }
       }
     }
 
@@ -131,6 +146,11 @@ object Mutex {
 
     override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Mutex[G] =
       new Mutex.TransformedMutex(this, f)
+  }
+
+  private object AsyncImpl {
+    private val RightTrue = Right(true)
+    private val RightFalse = Right(false)
   }
 
   private final class TransformedMutex[F[_], G[_]](
