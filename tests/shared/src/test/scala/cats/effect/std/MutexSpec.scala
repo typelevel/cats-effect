@@ -123,5 +123,9 @@ final class MutexSpec extends BaseSpec {
       }
       p must completeAs(())
     }
+
+    "not deadlock when highly contended" in real {
+      mutex.flatMap(_.lock.use_.parReplicateA_(10)).replicateA_(10000).as(true)
+    }
   }
 }
