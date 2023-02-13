@@ -149,7 +149,7 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
-  private[unsafe] def workerThreads(): Array[WorkerThread] = workerThreads
+  private[unsafe] def getWorkerThreads: Array[WorkerThread] = workerThreads
 
   /**
    * Tries to steal work from other worker threads. This method does a linear search of the

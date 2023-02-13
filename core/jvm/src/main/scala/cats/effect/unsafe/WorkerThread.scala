@@ -418,11 +418,11 @@ private final class WorkerThread(
           if (pool.blockedThreadDetectionEnabled) {
             // TODO prefetch pool.workerThread or Thread.State.BLOCKED ?
             // TODO check that branch elimination makes it free when off
-            var otherIdx = random.nextInt(pool.workerThreads().length)
+            var otherIdx = random.nextInt(pool.getWorkerThreads.length)
             if (otherIdx == idx) {
-              otherIdx = idx + Math.max(1, random.nextInt(pool.workerThreads().length - 1))
+              otherIdx = idx + Math.max(1, random.nextInt(pool.getWorkerThreads.length - 1))
             }
-            val thread = pool.workerThreads()(otherIdx)
+            val thread = pool.getWorkerThreads(otherIdx)
             val state = thread.getState()
             val parked = thread.parked.get()
             if (!parked && (state == Thread.State.BLOCKED || state == Thread
