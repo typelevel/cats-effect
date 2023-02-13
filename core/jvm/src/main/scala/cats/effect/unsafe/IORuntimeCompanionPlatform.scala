@@ -63,7 +63,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         threadPrefix,
         blockerThreadPrefix,
         runtimeBlockingExpiration,
-        blockedThreadDetectionEnabled,
+        blockedThreadDetectionEnabled && (threads > 1),
         reportFailure)
 
     val unregisterMBeans =

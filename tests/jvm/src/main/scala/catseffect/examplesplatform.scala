@@ -96,9 +96,7 @@ package examples {
 
     // Loop prevents other worker threads from being parked and hence not
     // performing the blocked check
-    lazy val loop: IO[Unit] = IO.unit >> loop
-
     val run =
-      loop.start >> IO(Thread.sleep(2.seconds.toMillis))
+      IO.unit.foreverM.start >> IO(Thread.sleep(2.seconds.toMillis))
   }
 }
