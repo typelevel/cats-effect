@@ -63,8 +63,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         threadPrefix,
         blockerThreadPrefix,
         runtimeBlockingExpiration,
-        reportFailure,
-        blockedThreadDetectionEnabled)
+        blockedThreadDetectionEnabled,
+        reportFailure)
 
     val unregisterMBeans =
       if (isStackTracing) {
