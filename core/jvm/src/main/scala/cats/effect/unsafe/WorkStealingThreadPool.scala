@@ -75,7 +75,7 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * References to worker threads and their local queues.
    */
-  private[unsafe] val workerThreads: Array[WorkerThread] = new Array(threadCount)
+  private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
   private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
@@ -148,6 +148,8 @@ private[effect] final class WorkStealingThreadPool(
       i += 1
     }
   }
+
+  private[unsafe] def workerThreads(): Array[WorkerThread] = workerThreads
 
   /**
    * Tries to steal work from other worker threads. This method does a linear search of the
