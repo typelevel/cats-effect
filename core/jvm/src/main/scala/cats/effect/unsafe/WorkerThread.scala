@@ -420,7 +420,10 @@ private final class WorkerThread(
             // TODO check that branch elimination makes it free when off
             var otherIdx = random.nextInt(pool.getWorkerThreads.length)
             if (otherIdx == idx) {
-              otherIdx = idx + Math.max(1, random.nextInt(pool.getWorkerThreads.length - 1))
+              otherIdx =
+                (idx + Math.max(1, random.nextInt(pool.getWorkerThreads.length - 1))) % pool
+                  .getWorkerThreads
+                  .length
             }
             val thread = pool.getWorkerThreads(otherIdx)
             val state = thread.getState()
