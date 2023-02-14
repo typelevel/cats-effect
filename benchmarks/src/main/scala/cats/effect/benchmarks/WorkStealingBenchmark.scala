@@ -170,6 +170,7 @@ class WorkStealingBenchmark {
       "io-compute",
       "io-blocker",
       60.seconds,
+      false,
       _.printStackTrace())
 
     val cancelationCheckThreshold =

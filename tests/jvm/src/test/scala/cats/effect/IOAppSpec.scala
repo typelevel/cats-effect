@@ -320,6 +320,15 @@ class IOAppSpec extends Specification {
           val h = platform(MainThreadReportFailure, List.empty)
           h.awaitStatus() mustEqual 0
         }
+
+        "warn on blocked threads" in {
+          val h = platform(BlockedThreads, List.empty)
+          h.awaitStatus()
+          val err = h.stderr()
+          err must contain(
+            "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
+        }
+
       }
     }
     ()

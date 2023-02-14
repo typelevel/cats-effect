@@ -46,7 +46,7 @@ private final class WorkerThread(
     // Local queue instance with exclusive write access.
     private[this] var queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
-    private[this] var parked: AtomicBoolean,
+    private[unsafe] var parked: AtomicBoolean,
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
     private[this] val external: ScalQueue[AnyRef],
@@ -415,6 +415,26 @@ private final class WorkerThread(
 
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
+          if (pool.blockedThreadDetectionEnabled) {
+            // TODO prefetch pool.workerThread or Thread.State.BLOCKED ?
+            // TODO check that branch elimination makes it free when off
+            var otherIdx = random.nextInt(pool.getWorkerThreads.length)
+            if (otherIdx == idx) {
+              otherIdx =
+                (idx + Math.max(1, random.nextInt(pool.getWorkerThreads.length - 1))) % pool
+                  .getWorkerThreads
+                  .length
+            }
+            val thread = pool.getWorkerThreads(otherIdx)
+            val state = thread.getState()
+            val parked = thread.parked.get()
+            if (!parked && (state == Thread.State.BLOCKED || state == Thread
+                .State
+                .WAITING || state == Thread.State.TIMED_WAITING)) {
+              System.err.println(mkWarning(state, thread.getStackTrace()))
+            }
+          }
+
           // Obtain a fiber or batch of fibers from the external queue.
           val element = external.poll(rnd)
           if (element.isInstanceOf[Array[Runnable]]) {
@@ -650,6 +670,26 @@ private final class WorkerThread(
           }
       }
     }
+  }
+
+  private[this] def mkWarning(state: Thread.State, stackTrace: Array[StackTraceElement]) = {
+    def formatTrace(st: Array[StackTraceElement]): String = {
+      val sb = new StringBuilder()
+      var i = 0
+      while (i < st.length) {
+        sb.append("  at ")
+        sb.append(st(i).toString())
+        if (i != st.length - 1)
+          sb.append("\n")
+        i += 1
+      }
+      sb.toString()
+    }
+    s"""|[WARNING] A Cats Effect worker thread was detected to be in a blocked state ($state)
+        |${formatTrace(stackTrace)}
+        |This is very likely to be due to suspending a blocking call in IO via
+        |`IO.delay` or `IO.apply`. If this is the case then you should use
+        |`IO.blocking` or `IO.interruptible` instead.""".stripMargin
   }
 
   /**

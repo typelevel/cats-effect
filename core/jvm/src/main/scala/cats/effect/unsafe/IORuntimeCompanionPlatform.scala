@@ -33,20 +33,37 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
   private[this] final val DefaultBlockerPrefix = "io-compute-blocker"
 
+  @deprecated("Preserved for binary-compatibility", "3.5.0")
+  def createWorkStealingComputeThreadPool(
+      threads: Int,
+      threadPrefix: String,
+      blockerThreadPrefix: String,
+      runtimeBlockingExpiration: Duration,
+      reportFailure: Throwable => Unit
+  ): (WorkStealingThreadPool, () => Unit) = createWorkStealingComputeThreadPool(
+    threads,
+    threadPrefix,
+    blockerThreadPrefix,
+    runtimeBlockingExpiration,
+    reportFailure,
+    false
+  )
+
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute",
       blockerThreadPrefix: String = DefaultBlockerPrefix,
       runtimeBlockingExpiration: Duration = 60.seconds,
-      reportFailure: Throwable => Unit = _.printStackTrace())
-      : (WorkStealingThreadPool, () => Unit) = {
+      reportFailure: Throwable => Unit = _.printStackTrace(),
+      blockedThreadDetectionEnabled: Boolean = false): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool(
         threads,
         threadPrefix,
         blockerThreadPrefix,
         runtimeBlockingExpiration,
+        blockedThreadDetectionEnabled && (threads > 1),
         reportFailure)
 
     val unregisterMBeans =

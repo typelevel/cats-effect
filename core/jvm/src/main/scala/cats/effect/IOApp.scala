@@ -240,6 +240,20 @@ trait IOApp {
     Console[IO].printStackTrace(err)
 
   /**
+   * Configures whether to enable blocked thread detection. This is relatively expensive so is
+   * off by default and probably not something that you want to permanently enable in
+   * production.
+   *
+   * If enabled, the compute pool will attempt to detect when blocking operations have been
+   * erroneously wrapped in `IO.apply` or `IO.delay` instead of `IO.blocking` or
+   * `IO.interruptible` and will report stacktraces of this to stderr.
+   *
+   * This may be of interest if you've been getting warnings about CPU starvation printed to
+   * stderr. [[https://typelevel.org/cats-effect/docs/core/starvation-and-tuning]]
+   */
+  protected def blockedThreadDetectionEnabled: Boolean = false
+
+  /**
    * Controls whether non-daemon threads blocking application exit are logged to stderr when the
    * `IO` produced by `run` has completed. This mechanism works by starting a daemon thread
    * which periodically polls all active threads on the system, checking for any remaining
@@ -317,7 +331,9 @@ trait IOApp {
         val (compute, compDown) =
           IORuntime.createWorkStealingComputeThreadPool(
             threads = computeWorkerThreadCount,
-            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
+            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
+            blockedThreadDetectionEnabled = blockedThreadDetectionEnabled
+          )
 
         val (blocking, blockDown) =
           IORuntime.createDefaultBlockingExecutionContext()

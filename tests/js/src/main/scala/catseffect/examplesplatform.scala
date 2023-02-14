@@ -115,4 +115,9 @@ package examples {
     def run(args: List[String]): IO[ExitCode] = IO.never
   }
 
+  // stub
+  object BlockedThreads extends IOApp.Simple {
+    val run = IO.never
+  }
+
 }
