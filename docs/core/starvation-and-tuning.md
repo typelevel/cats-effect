@@ -86,7 +86,20 @@ This section contains a very much *not* comprehensive list of common root causes
 
 The easiest and most obvious source of CPU starvation is when blocking tasks are being run on the compute thread pool. One example of this can be seen above, but usually it's a lot less straightforwardly obvious than that one, and tracking down what is or is not blocking in third party libraries (particularly those written for Java) can be challenging. Once the offending code is found, it is relatively easy to swap an `IO(...)` for `IO.blocking(...)` or `IO.interruptible(...)`.
 
-When looking for unexpectedly blocking tasks, the easiest place to start is to simply take a bunch of thread dumps at random. <kbd>Ctrl</kbd>-<kbd>\\</kbd> (or `kill -3 <pid>`) will dump a full list of threads and their current stack traces to standard error. Do a few of these at random intervals and check all of the threads named `io-compute-`. If *any* of them are ever in the `BLOCKED` state, take a look at the stack trace: you have found a rogue blocking task. (note that the stack trace will not be enriched, so you don't get the benefits of fiber tracing in this context, but you should still be able to see the line number where you wrapped the blocking call in `IO`, and this is what needs to be adjusted)
+If your application is an `IOApp` then the easiest way to find these offending expressions is to enable thread blocking detection like this:
+
+```scala
+object Example extends IOApp.Simple {
+
+  override protected def blockedThreadDetectionEnabled = true
+
+  val run: IO[Unit] = ???
+}
+```
+
+This instructs the Cats Effect runtime threads to periodically sample the state of a randomly chosen sibling thread. If that thread is found to be in a blocked state then a stack trace will be printed to stderr, which should allow you to directly identify the code that should be wrapped in `IO.blocking` or `IO.interruptible`. Whilst not guaranteed to find problems, this random sampling should find recurrent causes of thread blocking with a high degree of probability.
+
+If you are not using `IOApp` then the easiest place to start is to simply take a bunch of thread dumps at random. <kbd>Ctrl</kbd>-<kbd>\\</kbd> (or `kill -3 <pid>`) will dump a full list of threads and their current stack traces to standard error. Do a few of these at random intervals and check all of the threads named `io-compute-`. If *any* of them are ever in the `BLOCKED` state, take a look at the stack trace: you have found a rogue blocking task. (note that the stack trace will not be enriched, so you don't get the benefits of fiber tracing in this context, but you should still be able to see the line number where you wrapped the blocking call in `IO`, and this is what needs to be adjusted)
 
 Swapping in an `IO.blocking` is the easiest solution here and will generally resolve the issue. Though, you do still need to be careful, since too much `IO.blocking` can create thread allocation pressure, which may result in CPU starvation of a different variety (see below).
 
