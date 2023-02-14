@@ -43,8 +43,14 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   def fromThenable[A](iot: IO[Thenable[A]]): IO[A] =
     asyncForIO.fromThenable(iot)
 
+  def fromThenableCancelable[A](iot: IO[(Thenable[A], IO[Unit])]): IO[A] =
+    asyncForIO.fromThenableCancelable(iot)
+
   def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
     asyncForIO.fromPromise(iop)
+
+  def fromPromiseCancelable[A](iop: IO[(Promise[A], IO[Unit])]): IO[A] =
+    asyncForIO.fromPromiseCancelable(iop)
 
   def realTimeDate: IO[js.Date] = asyncForIO.realTimeDate
 

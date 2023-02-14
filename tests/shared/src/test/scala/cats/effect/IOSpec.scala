@@ -28,7 +28,7 @@ import cats.syntax.all._
 import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.{ExecutionContext, TimeoutException}
+import scala.concurrent.{CancellationException, ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
 
 import Prop.forAll
@@ -1479,6 +1479,18 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         forAll { (ioa: IO[Int]) =>
           val normalized = ioa.onCancel(IO.never)
           normalized eqv IO.fromFuture(IO(normalized.unsafeToFuture()))
+        }
+      }
+
+      "round trip cancelable through s.c.Future" in ticked { implicit ticker =>
+        forAll { (ioa: IO[Int]) =>
+          ioa eqv IO
+            .fromFutureCancelable(
+              IO(ioa.unsafeToFutureCancelable()).map {
+                case (fut, fin) => (fut, IO.fromFuture(IO(fin())))
+              }
+            )
+            .recoverWith { case _: CancellationException => IO.canceled *> IO.never[Int] }
         }
       }
 

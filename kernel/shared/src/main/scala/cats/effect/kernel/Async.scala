@@ -207,12 +207,26 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   /**
    * Lifts a [[scala.concurrent.Future]] into an `F` effect.
+   *
+   * @see
+   *   [[fromFutureCancelable]] for a cancelable version
    */
   def fromFuture[A](fut: F[Future[A]]): F[A] =
     flatMap(fut) { f =>
       flatMap(executionContext) { implicit ec =>
         async_[A](cb => f.onComplete(t => cb(t.toEither)))
       }
+    }
+
+  /**
+   * Like [[fromFuture]], but is cancelable via the provided finalizer.
+   */
+  def fromFutureCancelable[A](futCancel: F[(Future[A], F[Unit])]): F[A] =
+    flatMap(futCancel) {
+      case (fut, fin) =>
+        flatMap(executionContext) { implicit ec =>
+          async[A](cb => as(delay(fut.onComplete(t => cb(t.toEither))), Some(fin)))
+        }
     }
 
   /**
