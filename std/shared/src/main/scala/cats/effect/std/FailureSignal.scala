@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.std
 
-package object std {
-
-  private[std] val FailureSignal: Throwable = new RuntimeException
-    with scala.util.control.NoStackTrace
-
-}
+private object FailureSignal extends RuntimeException with scala.util.control.NoStackTrace
