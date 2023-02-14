@@ -3,6 +3,48 @@ id: recipes
 title: Recipes
 ---
 
+## Start a supervised task that outlives the creating scope
+
+If you need to run an action in a fiber in a "start-and-forget" manner, you'll want to use [Supervisor](std/supervisor.md). 
+This lets you safely evaluate an effect in the background without waiting for it to complete and ensuring that the fiber and all its resources are cleaned up at the end.
+You can configure a`Supervisor` to  wait for all supervised fibers to complete at the end its lifecycle, or to simply cancel any remaining active fibers.
+
+Here is a very simple example of `Supervisor` telling a joke:
+
+```scala mdoc:silent
+import scala.concurrent.duration._
+
+import cats.effect.{IO, IOApp}
+import cats.effect.std.Supervisor
+import cats.syntax.all._
+
+object Joke extends IOApp.Simple {
+
+  val run =
+    Supervisor[IO](await = true).use { supervisor =>
+      for {
+        _ <- supervisor.supervise(IO.sleep(50.millis) >> IO.print("MOO!"))
+        _ <- IO.println("Q: Knock, knock!")
+        _ <- IO.println("A: Who's there?")
+        _ <- IO.println("Q: Interrupting cow.")
+        _ <- IO.print("A: Interrupting cow") >> IO.sleep(50.millis) >> IO.println(" who?")
+      } yield ()
+    }
+
+}
+```
+
+This should print:
+
+```
+Q: Knock, knock!
+A: Who's there?
+Q: Interrupting cow.
+A: Interrupting cowMOO! who?
+```
+
+Here is a more practical example of `Supervisor` using a simplified model of an HTTP server:
+
 ```scala mdoc:invisible:reset-object
 import scala.concurrent.duration._
 
@@ -25,13 +67,6 @@ final case class HttpServer(handler: Request => IO[Response]) {
 val longRunningTask: Map[String, List[String]] => IO[Unit] = _ => IO.sleep(10.minutes)
 ```
 
-## Start a supervised task that outlives the creating scope
-
-If you need to run an action in a fiber in a "start-and-forget" manner, you'll want to use [Supervisor](std/supervisor.md). 
-This lets you safely evaluate an effect in the background without waiting for it to complete and ensuring that the fiber and all its resources are cleaned up at the end.
-You can configure a`Supervisor` to  wait for all supervised fibers to complete at the end its lifecycle, or to simply cancel any remaining active fibers.
-
-Here is an example of `Supervisor` in action using a simplified model of an HTTP server:
 
 ```scala mdoc:silent
 import cats.effect.{IO, IOApp}
@@ -54,5 +89,5 @@ object Server extends IOApp.Simple {
 
 ```
 
-In this example, `longRunningTask` is started, but the server returns to the client without waiting for the task to finish.
-
+In this example, `longRunningTask` is started in the background.
+The server returns to the client without waiting for the task to finish.
