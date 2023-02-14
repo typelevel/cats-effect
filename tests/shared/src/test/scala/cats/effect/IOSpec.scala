@@ -28,7 +28,7 @@ import cats.syntax.all._
 import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.{ExecutionContext, TimeoutException}
+import scala.concurrent.{CancellationException, ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
 
 import Prop.forAll
@@ -339,12 +339,12 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         ioa must completeAs(44)
       }
 
-      "result in an null if lifting a pure null value" in ticked { implicit ticker =>
+      "result in a null if lifting a pure null value" in ticked { implicit ticker =>
         // convoluted in order to avoid scalac warnings
         IO.pure(null).map(_.asInstanceOf[Any]).map(_ == null) must completeAs(true)
       }
 
-      "result in an NPE if delaying a null value" in ticked { implicit ticker =>
+      "result in a null if delaying a null value" in ticked { implicit ticker =>
         IO(null).map(_.asInstanceOf[Any]).map(_ == null) must completeAs(true)
         IO.delay(null).map(_.asInstanceOf[Any]).map(_ == null) must completeAs(true)
       }
@@ -354,7 +354,6 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           .attempt
           .map(_.left.toOption.get.isInstanceOf[NullPointerException]) must completeAs(true)
       }
-
     }
 
     "fibers" should {
@@ -653,6 +652,53 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         } yield value
 
         test.attempt.flatMap { n => IO(n mustEqual Right(42)) }
+      }
+
+      "calling async callback with null during registration (ticked)" in ticked {
+        implicit ticker =>
+          IO.async[Int] { cb => IO(cb(null)).as(None) }
+            .map(_ + 1)
+            .attempt
+            .flatMap(e =>
+              IO(e must beLeft(beAnInstanceOf[NullPointerException])).void) must completeAs(())
+      }
+
+      "calling async callback with null after registration (ticked)" in ticked {
+        implicit ticker =>
+          val test = for {
+            cbp <- Deferred[IO, Either[Throwable, Int] => Unit]
+            fib <- IO.async[Int] { cb => cbp.complete(cb).as(None) }.start
+            _ <- IO(ticker.ctx.tickAll())
+            cb <- cbp.get
+            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(cb(null))
+            e <- fib.joinWithNever.attempt
+            _ <- IO(e must beLeft(beAnInstanceOf[NullPointerException]))
+          } yield ()
+
+          test must completeAs(())
+      }
+
+      "calling async callback with null during registration (real)" in real {
+        IO.async[Int] { cb => IO(cb(null)).as(None) }
+          .map(_ + 1)
+          .attempt
+          .flatMap(e => IO(e must beLeft(beAnInstanceOf[NullPointerException])))
+      }
+
+      "calling async callback with null after registration (real)" in real {
+        for {
+          cbp <- Deferred[IO, Either[Throwable, Int] => Unit]
+          latch <- Deferred[IO, Unit]
+          fib <- IO.async[Int] { cb => cbp.complete(cb) *> latch.get.as(None) }.start
+          cb <- cbp.get
+          _r <- IO.both(
+            latch.complete(()) *> IO.sleep(0.1.second) *> IO(cb(null)),
+            fib.joinWithNever.attempt
+          )
+          (_, r) = _r
+          _ <- IO(r must beLeft(beAnInstanceOf[NullPointerException]))
+        } yield ok
       }
 
       "complete a fiber with Canceled under finalizer on poll" in ticked { implicit ticker =>
@@ -1125,6 +1171,26 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         IO.cede.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
       }
 
+      "cancel a long sleep with a short one" in real {
+        IO.sleep(10.seconds).race(IO.sleep(50.millis)).flatMap { res =>
+          IO {
+            res must beRight(())
+          }
+        }
+      }
+
+      "cancel a long sleep with a short one through evalOn" in real {
+        IO.executionContext flatMap { ec =>
+          val ec2 = new ExecutionContext {
+            def execute(r: Runnable) = ec.execute(r)
+            def reportFailure(t: Throwable) = ec.reportFailure(t)
+          }
+
+          val ioa = IO.sleep(10.seconds).race(IO.sleep(50.millis))
+          ioa.evalOn(ec2) flatMap { res => IO(res must beRight(())) }
+        }
+      }
+
       "await uncancelable blocks in cancelation" in ticked { implicit ticker =>
         var started = false
 
@@ -1413,6 +1479,18 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         forAll { (ioa: IO[Int]) =>
           val normalized = ioa.onCancel(IO.never)
           normalized eqv IO.fromFuture(IO(normalized.unsafeToFuture()))
+        }
+      }
+
+      "round trip cancelable through s.c.Future" in ticked { implicit ticker =>
+        forAll { (ioa: IO[Int]) =>
+          ioa eqv IO
+            .fromFutureCancelable(
+              IO(ioa.unsafeToFutureCancelable()).map {
+                case (fut, fin) => (fut, IO.fromFuture(IO(fin())))
+              }
+            )
+            .recoverWith { case _: CancellationException => IO.canceled *> IO.never[Int] }
         }
       }
 
@@ -1760,6 +1838,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         arbitraryIOWithoutContextShift,
         implicitly,
         implicitly)
+    }
+
+    "produce a specialized version of Deferred" in real {
+      IO.deferred[Unit].flatMap(d => IO((d must haveClass[IODeferred[_]]).pendingUntilFixed))
     }
 
     platformSpecs

@@ -23,7 +23,7 @@ import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-class DispatcherSpec extends BaseSpec {
+class DispatcherSpec extends BaseSpec with DetectPlatform {
 
   override def executionTimeout = 30.seconds
 
@@ -34,6 +34,12 @@ class DispatcherSpec extends BaseSpec {
       sequential(D)
 
       awaitTermination(D)
+
+      "not hang" in real {
+        D.use(dispatcher => IO(dispatcher.unsafeRunAndForget(IO.unit)))
+          .replicateA(if (isJS || isNative) 1 else 10000)
+          .as(true)
+      }
     }
 
     "await = false" >> {
@@ -71,7 +77,7 @@ class DispatcherSpec extends BaseSpec {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
             }
-          } *> gate.await.timeoutTo(2.seconds, IO(false must beTrue))
+          } *> gate.await
         }
 
         vec <- results.get
@@ -142,7 +148,7 @@ class DispatcherSpec extends BaseSpec {
           _ <- rec.use(_ => gate1.acquireN(2)).start
 
           // if both are not run in parallel, then this will hang
-          _ <- gate2.acquireN(2).timeoutTo(2.seconds, IO(false must beTrue))
+          _ <- gate2.acquireN(2)
         } yield ok
       }
     }
@@ -165,9 +171,7 @@ class DispatcherSpec extends BaseSpec {
         _ <- {
           val rec = dispatcher flatMap { runner =>
             Resource eval {
-              subjects
-                .parTraverse_(act => IO(runner.unsafeRunAndForget(act)))
-                .timeoutTo(2.seconds, IO(false must beTrue))
+              subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act)))
             }
           }
 
@@ -188,7 +192,7 @@ class DispatcherSpec extends BaseSpec {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
             }
-          } *> gate.await.timeoutTo(2.seconds, IO(false must beTrue))
+          } *> gate.await
         }
 
         vec <- results.get
@@ -296,9 +300,7 @@ class DispatcherSpec extends BaseSpec {
             _ <- cdl.await // make sure the execution of fiber has started
           } yield ()
         }.start
-        _ <- releaseInner
-          .await
-          .timeoutTo(2.seconds, IO(false must beTrue)) // release process has started
+        _ <- releaseInner.await // release process has started
         released1 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
         _ <- fiberLatch.release
         released2 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
@@ -323,10 +325,7 @@ class DispatcherSpec extends BaseSpec {
             } yield ()
           }
 
-          test.handleError(_ => ()) >> canceled
-            .get
-            .as(ok)
-            .timeoutTo(2.seconds, IO(false must beTrue))
+          test.handleError(_ => ()) >> canceled.get.as(ok)
         }
       }
     }

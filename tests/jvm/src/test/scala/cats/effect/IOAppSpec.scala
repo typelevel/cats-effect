@@ -200,7 +200,13 @@ class IOAppSpec extends Specification {
           h.awaitStatus()
           val err = h.stderr()
           err must not(contain("[WARNING] Failed to register Cats Effect CPU"))
-          err must contain("[WARNING] Your CPU is probably starving")
+          err must contain("[WARNING] Your app's responsiveness")
+          // we use a regex because time has too many corner cases - a test run at just the wrong
+          // moment on new year's eve, etc
+          err must beMatching(
+            // (?s) allows matching across line breaks
+            """(?s)^\d{4}-[01]\d-[0-3]\dT[012]\d:[0-6]\d:[0-6]\d(?:\.\d{1,3})?Z \[WARNING\] Your app's responsiveness.*"""
+          )
         }
 
         "custom runtime installed as global" in {
@@ -309,6 +315,20 @@ class IOAppSpec extends Specification {
           val h = platform(EvalOnMainThread, List.empty)
           h.awaitStatus() mustEqual 0
         }
+
+        "use configurable reportFailure for MainThread" in {
+          val h = platform(MainThreadReportFailure, List.empty)
+          h.awaitStatus() mustEqual 0
+        }
+
+        "warn on blocked threads" in {
+          val h = platform(BlockedThreads, List.empty)
+          h.awaitStatus()
+          val err = h.stderr()
+          err must contain(
+            "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
+        }
+
       }
     }
     ()

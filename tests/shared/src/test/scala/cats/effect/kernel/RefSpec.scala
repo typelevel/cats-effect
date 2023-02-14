@@ -22,7 +22,7 @@ import cats.data.State
 
 import scala.concurrent.duration._
 
-class RefSpec extends BaseSpec { outer =>
+class RefSpec extends BaseSpec with DetectPlatform { outer =>
 
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
@@ -103,23 +103,24 @@ class RefSpec extends BaseSpec { outer =>
       op must completeAs(true)
     }
 
-    "tryUpdate - should fail to update if modification has occurred" in ticked {
-      implicit ticker =>
-        val updateRefUnsafely: Ref[IO, Int] => Unit = { (ref: Ref[IO, Int]) =>
-          unsafeRun(ref.update(_ + 1))
-          ()
-        }
-
-        val op = for {
-          r <- Ref[IO].of(0)
-          result <- r.tryUpdate { currentValue =>
-            updateRefUnsafely(r)
-            currentValue + 1
+    if (!isJS && !isNative) // concurrent modification impossible
+      "tryUpdate - should fail to update if modification has occurred" in ticked {
+        implicit ticker =>
+          val updateRefUnsafely: Ref[IO, Int] => Unit = { (ref: Ref[IO, Int]) =>
+            unsafeRun(ref.update(_ + 1))
+            ()
           }
-        } yield result
 
-        op must completeAs(false)
-    }
+          val op = for {
+            r <- Ref[IO].of(0)
+            result <- r.tryUpdate { currentValue =>
+              updateRefUnsafely(r)
+              currentValue + 1
+            }
+          } yield result
+
+          op must completeAs(false)
+      }
 
     "tryModifyState - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {
@@ -138,6 +139,43 @@ class RefSpec extends BaseSpec { outer =>
 
       op must completeAs(true)
     }
+
+    "flatModify - finalizer should be uncancelable" in ticked { implicit ticker =>
+      var passed = false
+      val op = for {
+        ref <- Ref[IO].of(0)
+        _ <- ref
+          .flatModify(_ => (1, IO.canceled >> IO { passed = true }))
+          .start
+          .flatMap(_.join)
+          .void
+        result <- ref.get
+      } yield result == 1
+
+      op must completeAs(true)
+      passed must beTrue
+    }
+
+    "flatModifyFull - finalizer should mask cancellation" in ticked { implicit ticker =>
+      var passed = false
+      var failed = false
+      val op = for {
+        ref <- Ref[IO].of(0)
+        _ <- ref
+          .flatModifyFull { (poll, _) =>
+            (1, poll(IO.canceled >> IO { failed = true }).onCancel(IO { passed = true }))
+          }
+          .start
+          .flatMap(_.join)
+          .void
+        result <- ref.get
+      } yield result == 1
+
+      op must completeAs(true)
+      passed must beTrue
+      failed must beFalse
+    }
+
   }
 
 }

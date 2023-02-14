@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * Or to run the benchmark from within sbt:
  *
- * jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.WorkStealingBenchmark
+ * Jmh / run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.WorkStealingBenchmark
  *
  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread". Please note that
  * benchmarks should be usually executed at least in 10 iterations (as a rule of thumb), but
@@ -165,24 +165,13 @@ class WorkStealingBenchmark {
       (ExecutionContext.fromExecutor(executor), () => executor.shutdown())
     }
 
-    val (scheduler, schedDown) = {
-      val executor = Executors.newSingleThreadScheduledExecutor { r =>
-        val t = new Thread(r)
-        t.setName("io-scheduler")
-        t.setDaemon(true)
-        t.setPriority(Thread.MAX_PRIORITY)
-        t
-      }
-      (Scheduler.fromScheduledExecutor(executor), () => executor.shutdown())
-    }
-
-    val compute =
-      new WorkStealingThreadPool(
-        256,
-        "io-compute",
-        "io-blocker",
-        60.seconds,
-        _.printStackTrace())
+    val compute = new WorkStealingThreadPool(
+      256,
+      "io-compute",
+      "io-blocker",
+      60.seconds,
+      false,
+      _.printStackTrace())
 
     val cancelationCheckThreshold =
       System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt
@@ -190,11 +179,10 @@ class WorkStealingBenchmark {
     IORuntime(
       compute,
       blocking,
-      scheduler,
+      compute,
       () => {
         compute.shutdown()
         blockDown()
-        schedDown()
       },
       IORuntimeConfig(
         cancelationCheckThreshold,

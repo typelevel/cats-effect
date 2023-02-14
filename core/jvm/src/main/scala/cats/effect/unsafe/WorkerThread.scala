@@ -23,7 +23,7 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.collection.mutable
 import scala.concurrent.{BlockContext, CanAwait}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
 
 import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
@@ -46,12 +46,13 @@ private final class WorkerThread(
     // Local queue instance with exclusive write access.
     private[this] var queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
-    private[this] var parked: AtomicBoolean,
+    private[unsafe] var parked: AtomicBoolean,
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
     private[this] val external: ScalQueue[AnyRef],
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
+    private[this] var sleepersQueue: SleepersQueue,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -144,6 +145,14 @@ private final class WorkerThread(
     }
   }
 
+  def sleep(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
+    // note that blockers aren't owned by the pool, meaning we only end up here if !blocking
+    val sleepers = sleepersQueue
+    val scb = SleepCallback.create(delay, callback, System.nanoTime(), sleepers)
+    sleepers += scb
+    scb
+  }
+
   /**
    * Checks whether this [[WorkerThread]] operates within the [[WorkStealingThreadPool]]
    * provided as an argument to this method. The implementation checks whether the provided
@@ -232,6 +241,7 @@ private final class WorkerThread(
     val self = this
     random = ThreadLocalRandom.current()
     val rnd = random
+    val RightUnit = IOFiber.RightUnit
 
     /*
      * A counter (modulo `ExternalQueueTicks`) which represents the
@@ -317,6 +327,19 @@ private final class WorkerThread(
       }
     }
 
+    def parkUntilNextSleeper(): Unit = {
+      if (!isInterrupted()) {
+        val now = System.nanoTime()
+        val head = sleepersQueue.head()
+        val nanos = head.triggerTime - now
+        LockSupport.parkNanos(pool, nanos)
+
+        if (parked.getAndSet(false)) {
+          pool.doneSleeping()
+        }
+      }
+    }
+
     while (!done.get()) {
 
       if (blocking) {
@@ -329,6 +352,7 @@ private final class WorkerThread(
         queue = null
         parked = null
         fiberBag = null
+        sleepersQueue = null
 
         // Add this thread to the cached threads data structure, to be picked up
         // by another thread in the future.
@@ -368,8 +392,49 @@ private final class WorkerThread(
         state = 4
       }
 
+      val sleepers = sleepersQueue
+
+      if (sleepers.nonEmpty) {
+        val now = System.nanoTime()
+
+        var cont = true
+        while (cont) {
+          val head = sleepers.head()
+
+          if (head.triggerTime - now <= 0) {
+            if (head.get()) {
+              head.callback(RightUnit)
+            }
+            sleepers.popHead()
+            cont = sleepers.nonEmpty
+          } else {
+            cont = false
+          }
+        }
+      }
+
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
+          if (pool.blockedThreadDetectionEnabled) {
+            // TODO prefetch pool.workerThread or Thread.State.BLOCKED ?
+            // TODO check that branch elimination makes it free when off
+            var otherIdx = random.nextInt(pool.getWorkerThreads.length)
+            if (otherIdx == idx) {
+              otherIdx =
+                (idx + Math.max(1, random.nextInt(pool.getWorkerThreads.length - 1))) % pool
+                  .getWorkerThreads
+                  .length
+            }
+            val thread = pool.getWorkerThreads(otherIdx)
+            val state = thread.getState()
+            val parked = thread.parked.get()
+            if (!parked && (state == Thread.State.BLOCKED || state == Thread
+                .State
+                .WAITING || state == Thread.State.TIMED_WAITING)) {
+              System.err.println(mkWarning(state, thread.getStackTrace()))
+            }
+          }
+
           // Obtain a fiber or batch of fibers from the external queue.
           val element = external.poll(rnd)
           if (element.isInstanceOf[Array[Runnable]]) {
@@ -467,7 +532,12 @@ private final class WorkerThread(
               // Announce that the worker thread is parking.
               pool.transitionWorkerToParked()
               // Park the thread.
-              parkLoop()
+              if (sleepers.isEmpty) {
+                parkLoop()
+              } else {
+                parkUntilNextSleeper()
+              }
+
               // After the worker thread has been unparked, look for work in the
               // external queue.
               state = 3
@@ -508,7 +578,12 @@ private final class WorkerThread(
               pool.notifyIfWorkPending(rnd)
             }
             // Park the thread.
-            parkLoop()
+            if (sleepers.isEmpty) {
+              parkLoop()
+            } else {
+              parkUntilNextSleeper()
+            }
+
             // After the worker thread has been unparked, look for work in the
             // external queue.
             state = 3
@@ -597,6 +672,26 @@ private final class WorkerThread(
     }
   }
 
+  private[this] def mkWarning(state: Thread.State, stackTrace: Array[StackTraceElement]) = {
+    def formatTrace(st: Array[StackTraceElement]): String = {
+      val sb = new StringBuilder()
+      var i = 0
+      while (i < st.length) {
+        sb.append("  at ")
+        sb.append(st(i).toString())
+        if (i != st.length - 1)
+          sb.append("\n")
+        i += 1
+      }
+      sb.toString()
+    }
+    s"""|[WARNING] A Cats Effect worker thread was detected to be in a blocked state ($state)
+        |${formatTrace(stackTrace)}
+        |This is very likely to be due to suspending a blocking call in IO via
+        |`IO.delay` or `IO.apply`. If this is the case then you should use
+        |`IO.blocking` or `IO.interruptible` instead.""".stripMargin
+  }
+
   /**
    * A mechanism for executing support code before executing a blocking action.
    *
@@ -659,7 +754,7 @@ private final class WorkerThread(
         // for unparking.
         val idx = index
         val clone =
-          new WorkerThread(idx, queue, parked, external, fiberBag, pool)
+          new WorkerThread(idx, queue, parked, external, fiberBag, sleepersQueue, pool)
         pool.replaceWorker(idx, clone)
         pool.blockedWorkerThreadCounter.incrementAndGet()
         clone.start()
@@ -674,6 +769,7 @@ private final class WorkerThread(
     queue = pool.localQueues(newIdx)
     parked = pool.parkedSignals(newIdx)
     fiberBag = pool.fiberBags(newIdx)
+    sleepersQueue = pool.sleepersQueues(newIdx)
 
     // Reset the name of the thread to the regular prefix.
     val prefix = pool.threadPrefix

@@ -22,10 +22,6 @@ import cats.data.State
 import cats.effect.kernel.Ref.TransformedRef
 import cats.syntax.all._
 
-import scala.annotation.tailrec
-
-import java.util.concurrent.atomic.AtomicReference
-
 /**
  * A thread-safe, concurrent mutable reference.
  *
@@ -38,8 +34,7 @@ import java.util.concurrent.atomic.AtomicReference
  * mutable data as `AtomicReference#compareAndSet` and friends are not threadsafe and are
  * dependent upon object reference equality.
  *
- * @see
- *   [[cats.effect.std.AtomicCell]]
+ * See also `cats.effect.std.AtomicCell` class from `cats-effect-std` for an alternative.
  */
 abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 
@@ -105,6 +100,34 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
   def modify[B](f: A => (A, B)): F[B]
 
   /**
+   * Like [[modify]] but schedules resulting effect right after modification.
+   *
+   * Both modification and finalizer are uncancelable, if you need cancellation mechanic in
+   * finalizer please see [[flatModifyFull]].
+   *
+   * @see
+   *   [[modify]]
+   * @see
+   *   [[flatModifyFull]]
+   */
+  def flatModify[B](f: A => (A, F[B]))(implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(_ => F.flatten(modify(f)))
+
+  /**
+   * Like [[modify]] but schedules resulting effect right after modification.
+   *
+   * Unlike [[flatModify]] finalizer cancellation could be masked via supplied `Poll`.
+   * Modification itself is still uncancelable.
+   *
+   * @see
+   *   [[modify]]
+   * @see
+   *   [[flatModify]]
+   */
+  def flatModifyFull[B](f: (Poll[F], A) => (A, F[B]))(implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(poll => F.flatten(modify(f(poll, _))))
+
+  /**
    * Update the value of this ref with a state computation.
    *
    * The current value of this ref is used as the initial state and the computed output state is
@@ -117,6 +140,35 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * Like [[tryModifyState]] but retries the modification until successful.
    */
   def modifyState[B](state: State[A, B]): F[B]
+
+  /**
+   * Like [[modifyState]] but schedules resulting effect right after state computation & update.
+   *
+   * Both modification and finalizer are uncancelable, if you need cancellation mechanic in
+   * finalizer please see [[flatModifyStateFull]].
+   *
+   * @see
+   *   [[modifyState]]
+   * @see
+   *   [[flatModifyStateFull]]
+   */
+  def flatModifyState[B](state: State[A, F[B]])(implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(_ => F.flatten(modifyState(state)))
+
+  /**
+   * Like [[modifyState]] but schedules resulting effect right after modification.
+   *
+   * Unlike [[flatModifyState]] finalizer cancellation could be masked via supplied `Poll[F]`.
+   * Modification itself is still uncancelable.
+   *
+   * @see
+   *   [[modifyState]]
+   * @see
+   *   [[flatModifyState]]
+   */
+  def flatModifyStateFull[B](state: Poll[F] => State[A, F[B]])(
+      implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(poll => F.flatten(modifyState(state(poll))))
 
   /**
    * Modify the context `F` using transformation `f`.
@@ -242,8 +294,7 @@ object Ref {
    *   }
    * }}}
    */
-  def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] =
-    new SyncRef[F, A](new AtomicReference[A](a))
+  def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef(a)
 
   /**
    * Builds a `Ref` value for data types that are [[Sync]] Like [[of]] but initializes state
@@ -295,86 +346,6 @@ object Ref {
      *   [[Ref.empty]]
      */
     def empty[A: Monoid]: F[Ref[F, A]] = of(Monoid[A].empty)
-  }
-
-  final private class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F])
-      extends Ref[F, A] {
-    def get: F[A] = F.delay(ar.get)
-
-    def set(a: A): F[Unit] = F.delay(ar.set(a))
-
-    override def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
-
-    override def getAndUpdate(f: A => A): F[A] = {
-      @tailrec
-      def spin: A = {
-        val a = ar.get
-        val u = f(a)
-        if (!ar.compareAndSet(a, u)) spin
-        else a
-      }
-      F.delay(spin)
-    }
-
-    def access: F[(A, A => F[Boolean])] =
-      F.delay {
-        val snapshot = ar.get
-        def setter = (a: A) => F.delay(ar.compareAndSet(snapshot, a))
-        (snapshot, setter)
-      }
-
-    def tryUpdate(f: A => A): F[Boolean] =
-      F.map(tryModify(a => (f(a), ())))(_.isDefined)
-
-    def tryModify[B](f: A => (A, B)): F[Option[B]] =
-      F.delay {
-        val c = ar.get
-        val (u, b) = f(c)
-        if (ar.compareAndSet(c, u)) Some(b)
-        else None
-      }
-
-    def update(f: A => A): F[Unit] = {
-      @tailrec
-      def spin(): Unit = {
-        val a = ar.get
-        val u = f(a)
-        if (!ar.compareAndSet(a, u)) spin()
-      }
-      F.delay(spin())
-    }
-
-    override def updateAndGet(f: A => A): F[A] = {
-      @tailrec
-      def spin: A = {
-        val a = ar.get
-        val u = f(a)
-        if (!ar.compareAndSet(a, u)) spin
-        else u
-      }
-      F.delay(spin)
-    }
-
-    def modify[B](f: A => (A, B)): F[B] = {
-      @tailrec
-      def spin: B = {
-        val c = ar.get
-        val (u, b) = f(c)
-        if (!ar.compareAndSet(c, u)) spin
-        else b
-      }
-      F.delay(spin)
-    }
-
-    def tryModifyState[B](state: State[A, B]): F[Option[B]] = {
-      val f = state.runF.value
-      tryModify(a => f(a).value)
-    }
-
-    def modifyState[B](state: State[A, B]): F[B] = {
-      val f = state.runF.value
-      modify(a => f(a).value)
-    }
   }
 
   final private[kernel] class TransformedRef[F[_], G[_], A](

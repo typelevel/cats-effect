@@ -18,11 +18,37 @@ package cats.effect
 
 import cats.effect.unsafe.WeakBag
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
-// `result` is published by a volatile store on the atomic integer extended by this class.
-// `wasFinalizing` and `handle` are published in terms of the `suspended` atomic variable in `IOFiber`
-private final class ContState(var wasFinalizing: Boolean) extends AtomicInteger(0) {
-  var result: Either[Throwable, Any] = _
+/**
+ * Possible states (held in the `AtomicReference`):
+ *   - "initial": `get() == null`
+ *   - "waiting": `get() == waiting` (sentinel)
+ *   - "result": `get()` is the result from the callback
+ *
+ * Note: A `null` result is forbidden, so "initial" is always different from "result". Also,
+ * `waitingSentinel` is private, so that can also be differentiated from a result (by object
+ * identity).
+ *
+ * `wasFinalizing` and `handle` are published in terms of the `suspended` atomic variable in
+ * `IOFiber`
+ */
+private final class ContState(var wasFinalizing: Boolean)
+    extends AtomicReference[Either[Throwable, Any]] {
+
+  val waiting: Either[Throwable, Any] =
+    ContState.waitingSentinel // this is just a reference to the sentinel
+
   var handle: WeakBag.Handle = _
+}
+
+private object ContState {
+
+  /**
+   * This is a sentinel, signifying a "waiting" state of `ContState`; only its identity is
+   * important. It must be private (so that no user code can access it), and it mustn't be used
+   * for any other purpose.
+   */
+  private val waitingSentinel: Either[Throwable, Any] =
+    new Right(null)
 }

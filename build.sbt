@@ -28,7 +28,7 @@ import sbtcrossproject.CrossProject
 import JSEnv._
 
 // sbt-git workarounds
-ThisBuild / useConsoleForROGit := !(ThisBuild / githubIsWorkflowBuild).value
+ThisBuild / useConsoleForROGit := !Option(System.getenv("CI")).contains("true")
 
 ThisBuild / git.gitUncommittedChanges := {
   if ((ThisBuild / githubIsWorkflowBuild).value) {
@@ -41,7 +41,7 @@ ThisBuild / git.gitUncommittedChanges := {
   }
 }
 
-ThisBuild / tlBaseVersion := "3.4"
+ThisBuild / tlBaseVersion := "3.5"
 ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
@@ -113,10 +113,11 @@ val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
 val Scala212 = "2.12.17"
-val Scala213 = "2.13.8"
-val Scala3 = "3.2.0"
+val Scala213 = "2.13.10"
+val Scala3 = "3.2.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
+ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
 
@@ -136,9 +137,9 @@ ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
-    UseRef.Public("actions", "setup-node", "v2.4.0"),
-    name = Some("Setup NodeJS v16 LTS"),
-    params = Map("node-version" -> "16"),
+    UseRef.Public("actions", "setup-node", "v3"),
+    name = Some("Setup NodeJS v18 LTS"),
+    params = Map("node-version" -> "18"),
     cond = Some("matrix.ci == 'ciJS'")
   ),
   WorkflowStep.Run(
@@ -153,14 +154,15 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   )
 )
 
-ThisBuild / githubWorkflowBuild := Seq(
+ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
   WorkflowStep.Sbt(
-    List("root/scalafixAll --check"),
-    name = Some("Check that scalafix has been run"),
+    List(s"root${platform}/scalafixAll --check"),
+    name = Some(s"Check that scalafix has been run on $platform"),
     cond = Some(
-      s"matrix.scala != '$Scala3' && matrix.os != 'windows-latest'"
+      s"matrix.ci == 'ci${platform}' && matrix.scala != '$Scala3' && matrix.java == '${OldGuardJava.render}' && matrix.os == '$PrimaryOS'"
     ) // windows has file lock issues due to shared sources
-  ),
+  )
+} ++ Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
@@ -290,12 +292,14 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.9.0"
-val Specs2Version = "4.17.0"
+val Specs2Version = "4.19.2"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
 
-val MacrotaskExecutorVersion = "1.1.0"
+val MacrotaskExecutorVersion = "1.1.1"
+
+val ScalacCompatVersion = "0.1.0"
 
 tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
@@ -306,9 +310,9 @@ addCommandAlias(CI.JS.command, CI.JS.toString)
 addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
 addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
-addCommandAlias(
+tlReplaceCommandAlias(
   "prePR",
-  "; root/clean; root/scalafixAll; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
+  "; root/clean; +root/headerCreate; root/scalafixAll; scalafmtSbt; +root/scalafmtAll")
 
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
@@ -373,13 +377,17 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % CatsVersion,
       "org.specs2" %%% "specs2-core" % Specs2Version % Test
+    ),
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef"),
+      ProblemFilters.exclude[Problem]("cats.effect.kernel.GenConcurrent#Memoize*")
     )
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
   .nativeSettings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.4.0"
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.5.0"
   )
 
 /**
@@ -436,6 +444,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime
+    ),
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -587,6 +598,26 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.NonDaemonThreadLogger.this"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$"),
+      // introduced by #3284
+      // internal API change
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.CallbackStack.apply"),
+      // introduced by #3324, which specialized CallbackStack for JS
+      // internal API change
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.CallbackStack.clearCurrent"),
+      // #3393, ContState is a private class:
+      ProblemFilters.exclude[MissingTypesProblem]("cats.effect.ContState"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
+      // #3393, IOFiberConstants is a (package) private class/object:
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateInitial"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWaiting"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWinner"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateResult"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
     ) ++ {
       if (tlIsScala3.value) {
@@ -730,7 +761,18 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[DirectMissingMethodProblem](
           "cats.effect.unsafe.FiberAwareExecutionContext.liveFibers"),
         // introduced by #3222. Optimized ArrayStack internal API
-        ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*")
+        ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*"),
+        // mystery filters that became required in 3.4.0
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.tracing.TracingConstants.*"),
+        // introduced by #3225, which added the BatchingMacrotaskExecutor
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.FiberAwareExecutionContext"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
+          "cats.effect.unsafe.ES2021FiberMonitor.this"),
+        // introduced by #3324, which specialized CallbackStack for JS
+        // internal API change
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")
       )
     },
     mimaBinaryIssueFilters ++= {
@@ -752,14 +794,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           ProblemFilters.exclude[MissingTypesProblem]("cats.effect.tracing.Tracing$"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.tracing.Tracing.computeValue"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.enhancedExceptions"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.traceBufferLogSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.traceBufferLogSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.enhancedExceptions"),
           ProblemFilters.exclude[ReversedMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.canExecuteBlockingCode"),
           ProblemFilters.exclude[ReversedMissingMethodProblem](
@@ -841,6 +875,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-effect-std",
     libraryDependencies ++= Seq(
+      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
       "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     ),
@@ -868,7 +903,17 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity")
+        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
+      // introduced by #3346
+      // private stuff
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Mutex$Impl"),
+      // introduced by #3347
+      // private stuff
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.AtomicCell$Impl"),
+      // introduced by #3409
+      // extracted UnsafeUnbounded private data structure
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded$Cell")
     )
   )
   .jsSettings(

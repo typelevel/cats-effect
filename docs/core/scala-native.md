@@ -3,11 +3,11 @@ id: scala-native
 title: Scala Native
 ---
 
-Cats Effect supports [Scala Native](https://github.com/scala-native/scala-native) since `3.4.0`.
+Cats Effect supports [Scala Native](https://github.com/scala-native/scala-native) since `3.3.14`.
 
 ## Scala Native example
 
-Here's an example of a Hello world project compiled to a native executable 
+Here's an example of a Hello world project compiled to a native executable
 using [sbt-scala-native plugin](https://github.com/scala-native/scala-native).
 
 ```scala
@@ -22,7 +22,7 @@ lazy val root = project.in(file("."))
   .enablePlugins(ScalaNativePlugin)
   .settings(
     name                := "cats-effect-3-hello-world",
-    libraryDependencies += "org.typelevel" %%% "cats-effect" % "3.4.0",
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % "3.4.6",
     Compile / mainClass := Some("com.example.Main")
  )
 
@@ -38,7 +38,7 @@ object Main extends IOApp.Simple {
 
 The code can be compiled using `sbt nativeLink` and a native executable can then
 be found under `target/scala-2.13/cats-effect-3-hello-world-out`, and executed as any native
-executable with the benefit of a really fast startup time ([hyperfine](https://github.com/sharkdp/hyperfine) 
+executable with the benefit of a really fast startup time ([hyperfine](https://github.com/sharkdp/hyperfine)
 is a command line benchmarking tool written in Rust)
 
 ```sh
@@ -58,7 +58,7 @@ the package command of scala-cli, like in the [example](../faq.md#Scala-Native-E
 
 The [Scala Native](https://github.com/scala-native/scala-native) runtime is [single-threaded](https://scala-native.org/en/latest/user/lang.html#multithreading), similarly to ScalaJS. That's why the `IO#unsafeRunSync` is not available.
 Be careful with `IO.blocking(...)` as it blocks the thread since there is no dedicated blocking thread pool.
-For more in-depth details, see the [article](https://typelevel.org/blog/2022/09/19/typelevel-native.html#how-does-it-work) with explanations of how the Native runtime works. 
+For more in-depth details, see the [article](https://typelevel.org/blog/2022/09/19/typelevel-native.html#how-does-it-work) with explanations of how the Native runtime works.
 
 ## Showcase projects
 

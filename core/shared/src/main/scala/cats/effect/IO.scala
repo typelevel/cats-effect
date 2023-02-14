@@ -38,7 +38,7 @@ import cats.data.Ior
 import cats.effect.instances.spawn
 import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleDuration
-import cats.effect.std.{Console, Env, UUIDGen}
+import cats.effect.std.{Backpressure, Console, Env, Supervisor, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
 
@@ -364,7 +364,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     Resource.make(startOn(ec))(_.cancel).map(_.join)
 
   def forceR[B](that: IO[B]): IO[B] =
-    handleError(_ => ()).productR(that)
+    // cast is needed here to trick the compiler into avoiding the IO[Any]
+    asInstanceOf[IO[Unit]].handleError(_ => ()).productR(that)
 
   /**
    * Monadic bind on `IO`, used for sequentially composing two `IO` actions, where the value
@@ -496,6 +497,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    */
   def map[B](f: A => B): IO[B] = IO.Map(this, f, Tracing.calculateTracingEvent(f))
 
+  /**
+   * Applies rate limiting to this `IO` based on provided backpressure semantics.
+   *
+   * @return
+   *   an Option which denotes if this `IO` was run or not according to backpressure semantics
+   */
+  def metered(backpressure: Backpressure[IO]): IO[Option[A]] =
+    backpressure.metered(this)
+
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
 
@@ -608,6 +618,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       IO.unit
     else
       flatMap(_ => replicateA_(n - 1))
+
+  /**
+   * Starts this `IO` on the supervisor.
+   *
+   * @return
+   *   a [[cats.effect.kernel.Fiber]] that represents a handle to the started fiber.
+   */
+  def supervise(supervisor: Supervisor[IO]): IO[Fiber[IO, Throwable, A @uncheckedVariance]] =
+    supervisor.supervise(this)
 
   /**
    * Logs the value of this `IO` _(even if it is an error or if it was cancelled)_ to the
@@ -734,6 +753,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def timed: IO[(FiniteDuration, A)] =
     Clock[IO].timed(this)
 
+  /**
+   * Lifts this `IO` into a resource. The resource has a no-op release.
+   */
+  def toResource: Resource[IO, A] = Resource.eval(this)
+
   def product[B](that: IO[B]): IO[(A, B)] =
     flatMap(a => that.map(b => (a, b)))
 
@@ -800,6 +824,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    */
   def void: IO[Unit] =
     map(_ => ())
+
+  def voidError(implicit ev: A <:< Unit): IO[Unit] = {
+    val _ = ev
+    asInstanceOf[IO[Unit]].handleError(_ => ())
+  }
 
   /**
    * Converts the source `IO` into any `F` type that implements the [[LiftIO]] type class.
@@ -1187,7 +1216,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
         G.uncancelable { poll =>
           lift(k(resume)) flatMap {
             case Some(fin) => G.onCancel(poll(get), lift(fin))
-            case None => poll(get)
+            case None => get
           }
         }
       }
@@ -1237,7 +1266,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
-        G.uncancelable { poll => lift(IO.delay(k(resume))).flatMap(_ => poll(get)) }
+        G.uncancelable(_ => lift(IO.delay(k(resume))).flatMap(_ => get))
       }
     }
 
@@ -1457,10 +1486,16 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * }}}
    *
    * @see
-   *   [[IO#unsafeToFuture]]
+   *   [[IO#unsafeToFuture]], [[fromFutureCancelable]]
    */
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
     asyncForIO.fromFuture(fut)
+
+  /**
+   * Like [[fromFuture]], but is cancelable via the provided finalizer.
+   */
+  def fromFutureCancelable[A](fut: IO[(Future[A], IO[Unit])]): IO[A] =
+    asyncForIO.fromFutureCancelable(fut)
 
   /**
    * Run two IO tasks concurrently, and return the first to finish, either in success or error.
@@ -2042,7 +2077,7 @@ private object SyncStep {
               case Left(io) => Left(io.attempt)
               case Right((a, limit)) => Right((a.asRight[Throwable], limit))
             }
-            .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
+            .handleError(t => (t.asLeft, limit - 1).asRight)
 
         case IO.HandleErrorWith(ioe, f, _) =>
           interpret(ioe, limit - 1)

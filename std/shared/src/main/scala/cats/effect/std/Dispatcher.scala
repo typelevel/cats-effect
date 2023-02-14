@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Outcome, Ref, Resource}
+import cats.effect.kernel.{Async, Outcome, Resource}
 import cats.syntax.all._
 
 import scala.annotation.tailrec
@@ -96,8 +96,9 @@ object Dispatcher {
   private[this] val Completed: Either[Throwable, Unit] = Right(())
 
   @deprecated(
-    "3.4.0",
-    "use parallel or sequential instead; the former corresponds to the current semantics of this method")
+    message =
+      "use '.parallel' or '.sequential' instead; the former corresponds to the current semantics of '.apply'",
+    since = "3.4.0")
   def apply[F[_]: Async]: Resource[F, Dispatcher[F]] = parallel[F](await = false)
 
   /**
@@ -247,13 +248,11 @@ object Dispatcher {
 
       _ <- {
         def dispatcher(
-            doneR: Ref[F, Boolean],
+            doneR: AtomicBoolean,
             latch: AtomicReference[() => Unit],
             state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
 
           val step = for {
-            _ <- F.delay(latch.set(Noop)) // reset latch
-
             regs <- F delay {
               val buffer = mutable.ListBuffer.empty[Registration]
               var i = 0
@@ -288,17 +287,21 @@ object Dispatcher {
               }
           } yield ()
 
-          // if we're marked as done, yield immediately to give other fibers a chance to shut us down
-          // we might loop on this a few times since we're marked as done before the supervisor is canceled
-          doneR.get.ifM(F.cede, step)
+          F.delay(latch.set(Noop)) *> // reset latch
+            // if we're marked as done, yield immediately to give other fibers a chance to shut us down
+            // we might loop on this a few times since we're marked as done before the supervisor is canceled
+            F.delay(doneR.get()).ifM(F.cede, step)
         }
 
         0.until(workers).toList traverse_ { n =>
-          Resource.eval(F.ref(false)) flatMap { doneR =>
+          Resource.eval(F.delay(new AtomicBoolean(false))) flatMap { doneR =>
             val latch = latches(n)
             val worker = dispatcher(doneR, latch, states(n))
             val release = F.delay(latch.getAndSet(Open)())
-            Resource.make(supervisor.supervise(worker))(_ => doneR.set(true) >> release)
+            Resource.make(supervisor.supervise(worker)) { _ =>
+              // published by release
+              F.delay(doneR.lazySet(true)) *> release
+            }
           }
         }
       }
