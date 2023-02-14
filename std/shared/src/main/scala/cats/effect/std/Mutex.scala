@@ -99,7 +99,7 @@ object Mutex {
 
     private[this] val locked = new AtomicBoolean(false)
     private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Boolean] => Unit]
-    private[this] val failureSignal = FailureSignal // prefetch
+    private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
     private[this] val acquire: F[Unit] = F
       .asyncCheckAttempt[Boolean] { cb =>
@@ -128,14 +128,14 @@ object Mutex {
         while (waiter eq null) waiter = waiters.take()
         waiter(RightTrue) // pass the buck
       } catch { // no waiter found
-        case `failureSignal` =>
+        case FailureSignal =>
           locked.set(false) // release
           try {
             var waiter = waiters.take()
             while (waiter eq null) waiter = waiters.take()
             waiter(RightFalse) // waken any new waiters
           } catch {
-            case `failureSignal` => // do nothing
+            case FailureSignal => // do nothing
           }
       }
     }

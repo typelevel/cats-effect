@@ -505,7 +505,7 @@ object Queue {
     private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
     private[this] val offerers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
 
-    private[this] val failureSignal = FailureSignal // prefetch
+    private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
     // private[this] val takers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
     // private[this] val offerers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
@@ -522,7 +522,7 @@ object Queue {
             notifyOne(takers)
             F.unit
           } catch {
-            case `failureSignal` =>
+            case FailureSignal =>
               // capture whether or not we were successful in our retry
               var succeeded = false
 
@@ -557,7 +557,7 @@ object Queue {
                     // we're immediately complete, so no point in creating a finalizer
                     None
                   } catch {
-                    case `failureSignal` =>
+                    case FailureSignal =>
                       // our retry failed, meaning the queue is still full and we're listening, so suspend
                       // println(s"failed offer size = ${buffer.size()}")
                       Some(F.delay(clear()))
@@ -586,7 +586,7 @@ object Queue {
         notifyOne(takers)
         true
       } catch {
-        case `failureSignal` =>
+        case FailureSignal =>
           false
       }
     }
@@ -605,7 +605,7 @@ object Queue {
             notifyOne(offerers)
             F.pure(result)
           } catch {
-            case `failureSignal` =>
+            case FailureSignal =>
               // buffer was empty
               // capture the fact that our retry succeeded and the value we were able to take
               var received = false
@@ -641,7 +641,7 @@ object Queue {
                           // this is the thing that `async` doesn't allow us to do
                           G.unit
                         } catch {
-                          case `failureSignal` =>
+                          case FailureSignal =>
                             // println(s"failed take size = ${buffer.size()}")
                             // our retry failed, we're registered as a listener, so suspend
                             poll(get).onCancel(lift(F.delay(clear())))
@@ -673,7 +673,7 @@ object Queue {
         notifyOne(offerers)
         Some(back)
       } catch {
-        case `failureSignal` =>
+        case FailureSignal =>
           None
       }
     }
@@ -696,7 +696,7 @@ object Queue {
                 took = true
                 back
               } catch {
-                case `failureSignal` => null
+                case FailureSignal => null
               }
 
             if (took) {
@@ -747,7 +747,7 @@ object Queue {
           }
         } catch {
           // there are no takers, so don't notify anything
-          case `failureSignal` => false
+          case FailureSignal => false
         }
 
       if (retry) {
@@ -760,7 +760,7 @@ object Queue {
   private final class UnboundedAsyncQueue[F[_], A]()(implicit F: Async[F]) extends Queue[F, A] {
     private[this] val buffer = new UnsafeUnbounded[A]()
     private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
-    private[this] val failureSignal = FailureSignal // prefetch
+    private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
     def offer(a: A): F[Unit] = F delay {
       buffer.put(a)
@@ -780,7 +780,7 @@ object Queue {
         // attempt to take from the buffer. if it's empty, this will raise an exception
         F.pure(buffer.take())
       } catch {
-        case `failureSignal` =>
+        case FailureSignal =>
           // buffer was empty
           // capture the fact that our retry succeeded and the value we were able to take
           var received = false
@@ -811,7 +811,7 @@ object Queue {
                 // don't bother with a finalizer since we're already complete
                 None
               } catch {
-                case `failureSignal` =>
+                case FailureSignal =>
                   // println(s"failed take size = ${buffer.size()}")
                   // our retry failed, we're registered as a listener, so suspend
                   Some(F.delay(clear()))
@@ -828,7 +828,7 @@ object Queue {
       try {
         Some(buffer.take())
       } catch {
-        case `failureSignal` =>
+        case FailureSignal =>
           None
       }
     }
@@ -855,7 +855,7 @@ object Queue {
           }
         } catch {
           // there are no takers, so don't notify anything
-          case `failureSignal` => false
+          case FailureSignal => false
         }
 
       if (retry) {
@@ -877,7 +877,7 @@ object Queue {
 
     private[this] val LookAheadStep = Math.max(2, Math.min(bound / 4, 4096)) // TODO tunable
 
-    private[this] val failureSignal = FailureSignal // prefetch
+    private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
     0.until(bound).foreach(i => sequenceBuffer.set(i, i.toLong))
 
@@ -979,7 +979,7 @@ object Queue {
               back += take()
               true
             } catch {
-              case `failureSignal` => false
+              case FailureSignal => false
             }
 
           if (next) {

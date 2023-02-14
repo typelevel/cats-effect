@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference
 private final class UnsafeUnbounded[A] {
   private[this] val first = new AtomicReference[Cell]
   private[this] val last = new AtomicReference[Cell]
-  private[this] val failureSignal = FailureSignal // prefetch
+  private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
   def size(): Int = {
     var current = first.get()
@@ -80,7 +80,7 @@ private final class UnsafeUnbounded[A] {
       if (last.get() ne null) {
         take() // Waiting for prevLast.set(cell), so recurse
       } else {
-        throw failureSignal
+        throw FailureSignal
       }
     }
   }
