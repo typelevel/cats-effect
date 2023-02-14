@@ -11,7 +11,7 @@ import cats.effect._
 final case class Request(path: String, paramaters: Map[String, List[String]])
 
 sealed trait Response extends Product with Serializable
-final case object NotFound extends Response
+case object NotFound extends Response
 final case class Ok(payload: String) extends Response
 
 // dummy case class representing the bound server
