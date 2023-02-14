@@ -30,13 +30,12 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
    * @param fut
    *   The `java.util.concurrent.CompletableFuture` to suspend in `F[_]`
    */
-  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] = flatMap(fut) { cf =>
-    cont {
-      new Cont[F, A, A] {
-        def apply[G[_]](
-            implicit
-            G: MonadCancelThrow[G]): (Either[Throwable, A] => Unit, G[A], F ~> G) => G[A] = {
-          (resume, get, lift) =>
+  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] = uncancelable { poll =>
+    flatMap(poll(fut)) { cf =>
+      cont {
+        new Cont[F, A, A] {
+          def apply[G[_]](implicit G: MonadCancelThrow[G])
+              : (Either[Throwable, A] => Unit, G[A], F ~> G) => G[A] = { (resume, get, lift) =>
             G.uncancelable { poll =>
               val go = delay {
                 cf.handle[Unit] {
@@ -57,6 +56,7 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
 
               G.productR(lift(go))(await)
             }
+          }
         }
       }
     }
