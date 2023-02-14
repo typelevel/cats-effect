@@ -110,5 +110,22 @@ final class MutexSpec extends BaseSpec {
 
       p must completeAs(true)
     }
+
+    "gracefully handle canceled waiters" in ticked { implicit ticker =>
+      val p = mutex.flatMap { m =>
+        m.lock.surround {
+          for {
+            f <- m.lock.useForever.start
+            _ <- IO.sleep(1.second)
+            _ <- f.cancel
+          } yield ()
+        }
+      }
+      p must completeAs(())
+    }
+
+    "not deadlock when highly contended" in real {
+      mutex.flatMap(_.lock.use_.parReplicateA_(10)).replicateA_(10000).as(true)
+    }
   }
 }

@@ -51,10 +51,7 @@ class MutexBenchmark {
   var iterations: Int = _
 
   private def happyPathImpl(mutex: IO[Mutex[IO]]): Unit = {
-    mutex
-      .flatMap { m => m.lock.use_.replicateA_(fibers) }
-      .replicateA_(iterations)
-      .unsafeRunSync()
+    mutex.flatMap { m => m.lock.use_.replicateA_(fibers * iterations) }.unsafeRunSync()
   }
 
   @Benchmark

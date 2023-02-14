@@ -20,7 +20,6 @@ package std
 import cats.syntax.all._
 
 class UnsafeUnboundedSpec extends BaseSpec {
-  import Queue.UnsafeUnbounded
 
   "unsafe unbounded queue" should {
     val length = 1000
