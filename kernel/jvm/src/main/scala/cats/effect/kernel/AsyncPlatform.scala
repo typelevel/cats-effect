@@ -32,37 +32,36 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
    */
   def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] = uncancelable { poll =>
     flatMap(poll(fut)) { cf =>
-      onCancel(
-        poll(cont {
-          new Cont[F, A, A] {
-            def apply[G[_]](implicit G: MonadCancelThrow[G])
-                : (Either[Throwable, A] => Unit, G[A], F ~> G) => G[A] = {
-              (resume, get, lift) =>
-                G.uncancelable { poll =>
-                  val go = delay {
-                    cf.handle[Unit] {
-                      case (a, null) => resume(Right(a))
-                      case (_, t) =>
-                        resume(Left(t match {
-                          case e: CompletionException if e.getCause ne null => e.getCause
-                          case _ => t
-                        }))
-                    }
-                  }
-
-                  val await = G.onCancel(
-                    poll(get),
-                    // if cannot cancel, fallback to get
-                    G.ifM(lift(delay(cf.cancel(false))))(G.unit, G.void(get))
-                  )
-
-                  G.productR(lift(go))(await)
+      poll(cont {
+        new Cont[F, A, A] {
+          def apply[G[_]](implicit G: MonadCancelThrow[G])
+              : (Either[Throwable, A] => Unit, G[A], F ~> G) => G[A] = { (resume, get, lift) =>
+            G.uncancelable { poll =>
+              val go = delay {
+                cf.handle[Unit] {
+                  case (a, null) => resume(Right(a))
+                  case (_, t) =>
+                    resume(Left(t match {
+                      case e: CompletionException if e.getCause ne null => e.getCause
+                      case _ => t
+                    }))
                 }
+              }
+
+              // if cannot cancel, fallback to get
+              val cancelAndWait =
+                G.ifM(lift(delay(cf.cancel(false))))(G.unit, G.void(get))
+
+              val await = G.onCancel(
+                poll(get),
+                cancelAndWait
+              )
+
+              G.onCancel(G.productR(lift(go))(await), cancelAndWait)
             }
           }
-        }),
-        void(delay(cf.cancel(false)))
-      )
+        }
+      })
     }
   }
 
