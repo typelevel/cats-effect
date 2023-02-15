@@ -16,7 +16,8 @@
 
 package cats.effect
 
-import cats.effect.std.Semaphore
+import cats.effect.std.{Random, Semaphore}
+import cats.effect.unsafe.WorkStealingThreadPool
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
@@ -31,6 +32,7 @@ import java.util.concurrent.{
   CountDownLatch,
   Executors
 }
+import java.util.concurrent.atomic.AtomicReference
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
@@ -136,6 +138,39 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
           .attempt
 
         test must completeAs(Left(e))
+      }
+
+      "wrapped j.u.c.CompletableFuture doesn't leak when canceled" in real {
+        sealed trait InitializationState
+        case object Uninitialized extends InitializationState
+        case class Initialized(fut: CompletableFuture[Int]) extends InitializationState
+
+        Random
+          .scalaUtilRandom[IO]
+          .flatMap { rand =>
+            // jitter to give the cpu starvation checker a chance to run at all
+            val jitter = rand.nextIntBounded(10).flatMap(n => IO.sleep(n.millis))
+
+            val run: IO[Boolean] =
+              IO(new AtomicReference[InitializationState](Uninitialized)).flatMap { ref =>
+                val fut = IO {
+                  val fut = new CompletableFuture[Int]
+                  ref.set(Initialized(fut))
+                  fut
+                }
+                IO.race(IO.fromCompletableFuture[Int](fut).void, jitter) >>
+                  IO {
+                    ref.get match {
+                      case Uninitialized => true
+                      case Initialized(f) => f.isCancelled()
+                    }
+                  }
+
+              }
+
+            run.replicateA(1000).map(_.reduce(_ && _))
+          }
+          .flatMap { res => IO { res mustEqual true } }
       }
 
       "interrupt well-behaved blocking synchronous effect" in real {
