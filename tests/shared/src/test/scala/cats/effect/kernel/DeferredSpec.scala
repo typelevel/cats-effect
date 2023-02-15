@@ -18,6 +18,8 @@ package cats
 package effect
 package kernel
 
+import cats.syntax.all._
+
 import scala.concurrent.duration._
 
 class DeferredSpec extends BaseSpec { outer =>
