@@ -618,7 +618,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ContStateWinner"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateResult"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateResult")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions

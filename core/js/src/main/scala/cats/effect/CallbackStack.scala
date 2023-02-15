@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,6 +57,8 @@ private final class CallbackStackOps[A](private val callbacks: js.Array[A => Uni
 
   @inline def clear(): Unit =
     callbacks.length = 0 // javascript is crazy!
+
+  @inline def pack(bound: Int): Int = bound
 }
 
 private object CallbackStack {
