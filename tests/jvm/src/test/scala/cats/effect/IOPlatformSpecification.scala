@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.effect.std.{Random, Semaphore}
-import cats.effect.unsafe.WorkStealingThreadPool
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
