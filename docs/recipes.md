@@ -16,7 +16,6 @@ import scala.concurrent.duration._
 
 import cats.effect.{IO, IOApp}
 import cats.effect.std.Supervisor
-import cats.syntax.all._
 
 object Joke extends IOApp.Simple {
 
