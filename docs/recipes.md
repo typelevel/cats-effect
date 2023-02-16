@@ -80,9 +80,9 @@ object Server extends IOApp.Simple {
   }
 
   val run =
-    Supervisor[IO](await = true).use { supervisor =>
-      HttpServer(handler(supervisor)).resource.use(_ => IO.never)
-    }
+    Supervisor[IO](await = true).flatMap { supervisor =>
+      HttpServer(handler(supervisor)).resource
+    }.useForever
 
 }
 
