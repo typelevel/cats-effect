@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import cats.effect.{BaseSpec, IO}
 import cats.effect.testkit.TestControl
-import cats.effect.std.Random
+import cats.effect.unsafe.IORuntimeConfig
 
 import scala.concurrent.duration._
 
@@ -49,33 +49,24 @@ class AsyncPlatformSpec extends BaseSpec {
         override def cancel(mayInterruptIfRunning: Boolean) = false
       }
 
-      def step(n: Int): IO[Unit] =
-        if (n == 0) IO.unit
-        else IO.unit >> step(n - 1)
-
-      def go(random: Random[IO]) = for {
+      def go = for {
         started <- IO(new AtomicBoolean)
-        fiber <-
-          // simulate different yield points
-          (random.betweenInt(0, 2048).flatMap(step(_)) *>
-            IO.fromCompletableFuture {
-              IO {
-                started.set(true)
-                mkcf()
-              }
-            }).start
+        fiber <- IO.fromCompletableFuture {
+          IO {
+            started.set(true)
+            mkcf()
+          }
+        }.start
         _ <- IO.cede.whileM_(IO(!started.get))
         _ <- fiber.cancel
       } yield ()
 
-      Random.scalaUtilRandom[IO].flatMap { random =>
-        TestControl
-          .executeEmbed(go(random))
-          .as(false)
-          .recover { case _: TestControl.NonTerminationException => true }
-          .replicateA(1000)
-          .map(_.forall(identity(_)))
-      }
+      TestControl
+        .executeEmbed(go, IORuntimeConfig(1, 2))
+        .as(false)
+        .recover { case _: TestControl.NonTerminationException => true }
+        .replicateA(1000)
+        .map(_.forall(identity(_)))
     }
   }
 }
