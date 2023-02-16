@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 
 package cats.effect
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 private final class IODeferred[A] extends Deferred[IO, A] {
   import IODeferred.Sentinel
 
   private[this] val cell = new AtomicReference[AnyRef](Sentinel)
   private[this] val callbacks = CallbackStack[Right[Nothing, A]](null)
+  private[this] val clearCounter = new AtomicInteger
 
   def complete(a: A): IO[Boolean] = IO {
     if (cell.compareAndSet(Sentinel, a.asInstanceOf[AnyRef])) {
@@ -42,11 +43,19 @@ private final class IODeferred[A] extends Deferred[IO, A] {
         val stack = callbacks.push(cb)
         val handle = stack.currentHandle()
 
+        def clear(): Unit = {
+          stack.clearCurrent(handle)
+          val clearCount = clearCounter.incrementAndGet()
+          if ((clearCount & (clearCount - 1)) == 0) // power of 2
+            clearCounter.addAndGet(-callbacks.pack(clearCount))
+          ()
+        }
+
         val back = cell.get()
         if (back eq Sentinel) {
-          Left(Some(IO(stack.clearCurrent(handle))))
+          Left(Some(IO(clear())))
         } else {
-          stack.clearCurrent(handle)
+          clear()
           Right(back.asInstanceOf[A])
         }
       }
