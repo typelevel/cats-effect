@@ -331,7 +331,4 @@ object IOLocal {
     def getAndReset: IO[A] =
       underlying.get.flatMap(s => underlying.reset.as(getter(s)))
   }
-
-  def local[E](e: E): IO[Local[IO, E]] =
-    IOLocal(e).map(_.toLocal)
 }

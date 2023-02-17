@@ -19,19 +19,18 @@ package effect
 
 import cats.mtl.Local
 import cats.mtl.laws.discipline._
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import java.util.concurrent.CancellationException
 
-class IOLocalLocalSpec extends BaseSpec with Discipline {
+class IOMtlLocalSpec extends BaseSpec with Discipline {
   sequential
 
   implicit val ticker = Ticker()
 
   implicit val local: Local[IO, Int] =
     // Don't try this at home
-    unsafeRun(IOLocal.local(0)).fold(
+    unsafeRun(IO.local(0)).fold(
       throw new CancellationException("canceled"),
       throw _,
       _.get
