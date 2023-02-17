@@ -20,22 +20,17 @@ import cats.effect.{BaseSpec, FiberIO, IO, Outcome}
 import cats.effect.std.CountDownLatch
 import cats.effect.testkit.TestInstances
 
-import org.specs2.specification.core.Execution
-
 import scala.concurrent.duration._
 
 class FiberMonitorSpec extends BaseSpec with TestInstances {
 
   "FiberMonitor" should {
 
-    "show only active fibers in a live snapshot" in Execution.withEnvAsync { env =>
-      // make an isolated runtime
-      val runtime = IORuntime.builder().build()
-
+    "show only active fibers in a live snapshot" in realWithRuntime { (runtime: IORuntime) =>
       val waitingPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ WAITING((.|\n)*)"
       val completedPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ COMPLETED"
 
-      val go = for {
+      for {
         cdl <- CountDownLatch[IO](1)
         fiber <- cdl.await.start // create a 'waiting' fiber
         fiberId <- IO(extractFiberId(fiber))
@@ -55,9 +50,6 @@ class FiberMonitorSpec extends BaseSpec with TestInstances {
         _ <- IO(fiber.toString must beMatching(completedPattern))
         _ <- IO(makeSnapshot(runtime) must have size 1) // only root fiber
       } yield ok
-
-      go.unsafeToFuture()(runtime)
-        .andThen { case _ => runtime.shutdown() }(env.executionContext)
     }
 
   }
