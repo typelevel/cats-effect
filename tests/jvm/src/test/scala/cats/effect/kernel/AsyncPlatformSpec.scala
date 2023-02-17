@@ -43,7 +43,7 @@ class AsyncPlatformSpec extends BaseSpec {
       } yield ok
     }
 
-    "backpressure on CompletableFuture cancelation" in ticked { implicit ticker =>
+    "backpressure on CompletableFuture cancelation" in real {
       // a non-cancelable, never-completing CompletableFuture
       def mkcf() = new CompletableFuture[Unit] {
         override def cancel(mayInterruptIfRunning: Boolean) = false
@@ -66,7 +66,7 @@ class AsyncPlatformSpec extends BaseSpec {
         .as(false)
         .recover { case _: TestControl.NonTerminationException => true }
         .replicateA(1000)
-        .map(_.forall(identity(_))) must completeAs(true)
+        .map(_.forall(identity(_)))
     }
   }
 }
