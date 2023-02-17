@@ -1273,6 +1273,17 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         (IO.raiseError[Unit](TestException), IO.never[Unit]).parTupled.void must failAs(
           TestException)
       }
+
+      "short-circuit on canceled" in ticked { implicit ticker =>
+        (IO.never[Unit], IO.canceled)
+          .parTupled
+          .start
+          .flatMap(_.join.map(_.isCanceled)) must completeAs(true)
+        (IO.canceled, IO.never[Unit])
+          .parTupled
+          .start
+          .flatMap(_.join.map(_.isCanceled)) must completeAs(true)
+      }
     }
 
     "miscellaneous" should {
