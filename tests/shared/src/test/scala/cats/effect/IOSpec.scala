@@ -1284,6 +1284,20 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           .start
           .flatMap(_.join.map(_.isCanceled)) must completeAs(true)
       }
+
+      "run finalizers when canceled" in ticked { implicit ticker =>
+        val tsk = IO.ref(0).flatMap { ref =>
+          val t = IO.never[Unit].onCancel(ref.update(_ + 1))
+          for {
+            fib <- (t, t).parTupled.start
+            _ <- IO { ticker.ctx.tickAll() }
+            _ <- fib.cancel
+            c <- ref.get
+          } yield c
+        }
+
+        tsk must completeAs(2)
+      }
     }
 
     "miscellaneous" should {
