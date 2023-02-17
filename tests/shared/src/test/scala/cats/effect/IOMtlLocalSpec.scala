@@ -26,7 +26,7 @@ import java.util.concurrent.CancellationException
 class IOMtlLocalSpec extends BaseSpec with Discipline {
   sequential
 
-  implicit val ticker = Ticker()
+  implicit val ticker: Ticker = Ticker()
 
   implicit val local: Local[IO, Int] =
     // Don't try this at home
