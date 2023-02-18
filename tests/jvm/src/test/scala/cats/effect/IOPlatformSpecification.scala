@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.effect.std.Semaphore
-import cats.effect.unsafe.WorkStealingThreadPool
+import cats.effect.unsafe.{IORuntime, WorkStealingThreadPool}
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
@@ -319,6 +319,34 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
             delay.race(IO.sleep(2.seconds)).flatMap(res => IO(res must beLeft)).map(_.toResult)
 
           case _ => IO.pure(skipped("test not running against WSTP"))
+        }
+      }
+
+      // this test ensures that the parkUntilNextSleeper bit works
+      "run a timer when parking thread" in {
+        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+
+        implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+
+        try {
+          val test = IO.sleep(500.millis) *> IO.pure(true)
+          test.unsafeRunTimed(5.seconds) must beSome(true)
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
+      // this test ensures that we always see the timer, even when it fires just as we're about to park
+      "run a timer when detecting just prior to park" in {
+        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+
+        implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+
+        try {
+          val test = IO.sleep(1.milli) *> IO.pure(true)
+          test.unsafeRunTimed(1.second) must beSome(true)
+        } finally {
+          runtime.shutdown()
         }
       }
     }
