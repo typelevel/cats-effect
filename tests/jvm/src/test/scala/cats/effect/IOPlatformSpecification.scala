@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.effect.std.Semaphore
-import cats.effect.unsafe.WorkStealingThreadPool
+import cats.effect.unsafe.{IORuntime, WorkStealingThreadPool}
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
@@ -319,6 +319,25 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
             delay.race(IO.sleep(2.seconds)).flatMap(res => IO(res must beLeft)).map(_.toResult)
 
           case _ => IO.pure(skipped("test not running against WSTP"))
+        }
+      }
+
+      "safely detect hard-blocked threads even while blockers are being created" in {
+        val (compute, shutdown) =
+          IORuntime.createWorkStealingComputeThreadPool(blockedThreadDetectionEnabled = true)
+
+        implicit val runtime: IORuntime =
+          IORuntime.builder().setCompute(compute, shutdown).build()
+
+        try {
+          val test = for {
+            _ <- IO.unit.foreverM.start.replicateA_(200)
+            _ <- 0.until(200).toList.parTraverse_(_ => IO.blocking(()))
+          } yield ok // we can't actually test this directly because the symptom is vaporizing a worker
+
+          test.unsafeRunSync()
+        } finally {
+          runtime.shutdown()
         }
       }
     }
