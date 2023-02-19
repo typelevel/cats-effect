@@ -322,6 +322,25 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         }
       }
 
+      "safely detect hard-blocked threads even while blockers are being created" in {
+        val (compute, shutdown) =
+          IORuntime.createWorkStealingComputeThreadPool(blockedThreadDetectionEnabled = true)
+
+        implicit val runtime: IORuntime =
+          IORuntime.builder().setCompute(compute, shutdown).build()
+
+        try {
+          val test = for {
+            _ <- IO.unit.foreverM.start.replicateA_(200)
+            _ <- 0.until(200).toList.parTraverse_(_ => IO.blocking(()))
+          } yield ok // we can't actually test this directly because the symptom is vaporizing a worker
+
+          test.unsafeRunSync()
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
       // this test ensures that the parkUntilNextSleeper bit works
       "run a timer when parking thread" in {
         val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)

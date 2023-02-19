@@ -428,8 +428,12 @@ private final class WorkerThread(
             }
             val thread = pool.getWorkerThreads(otherIdx)
             val state = thread.getState()
-            val parked = thread.parked.get()
-            if (!parked && (state == Thread.State.BLOCKED || state == Thread
+            val parked = thread.parked
+
+            // we have to check for null since there's a race here when threads convert to blockers
+            // by reading parked *after* reading state, we avoid misidentifying blockers as blocked
+            if (parked != null && !parked
+                .get() && (state == Thread.State.BLOCKED || state == Thread
                 .State
                 .WAITING || state == Thread.State.TIMED_WAITING)) {
               System.err.println(mkWarning(state, thread.getStackTrace()))
