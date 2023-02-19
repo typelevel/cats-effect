@@ -348,6 +348,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
 
         try {
+          // longer sleep all-but guarantees this timer is fired *after* the worker is parked
           val test = IO.sleep(500.millis) *> IO.pure(true)
           test.unsafeRunTimed(5.seconds) must beSome(true)
         } finally {
@@ -362,6 +363,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
 
         try {
+          // shorter sleep makes it more likely this timer fires *before* the worker is parked
           val test = IO.sleep(1.milli) *> IO.pure(true)
           test.unsafeRunTimed(1.second) must beSome(true)
         } finally {
