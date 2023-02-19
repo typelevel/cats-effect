@@ -340,6 +340,36 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
           runtime.shutdown()
         }
       }
+
+      // this test ensures that the parkUntilNextSleeper bit works
+      "run a timer when parking thread" in {
+        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+
+        implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+
+        try {
+          // longer sleep all-but guarantees this timer is fired *after* the worker is parked
+          val test = IO.sleep(500.millis) *> IO.pure(true)
+          test.unsafeRunTimed(5.seconds) must beSome(true)
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
+      // this test ensures that we always see the timer, even when it fires just as we're about to park
+      "run a timer when detecting just prior to park" in {
+        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+
+        implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+
+        try {
+          // shorter sleep makes it more likely this timer fires *before* the worker is parked
+          val test = IO.sleep(1.milli) *> IO.pure(true)
+          test.unsafeRunTimed(1.second) must beSome(true)
+        } finally {
+          runtime.shutdown()
+        }
+      }
     }
   }
 }
