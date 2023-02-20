@@ -25,7 +25,7 @@ final class WstpSpec {
 
   def go(): Unit = {
     val tsk1 = IO { ctr.incrementAndGet() }.foreverM
-    val fib1 = tsk1.unsafeRunFiber((), _ => (), null)(runtime)
+    val fib1 = tsk1.unsafeRunFiber((), _ => (), { (_: Any) => () })(runtime)
     for (_ <- 1 to 10) {
       val tsk2 = IO.blocking { Thread.sleep(5L) }
       tsk2.unsafeRunFiber((), _ => (), _ => ())(runtime)
