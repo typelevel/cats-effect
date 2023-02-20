@@ -1,9 +1,9 @@
 package cats.effect
 package unsafe
 
-import java.util.concurrent.atomic.AtomicLong
-
 import scala.concurrent.duration._
+
+import java.util.concurrent.atomic.AtomicLong
 
 final class WstpSpec {
 
