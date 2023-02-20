@@ -14,7 +14,7 @@ final class WstpSpec {
     threadPrefix = "testWorker",
     blockerThreadPrefix = "testBlocker",
     runtimeBlockingExpiration = 3.seconds,
-    reportFailure0 = _.printStackTrace(),
+    reportFailure0 = _.printStackTrace()
   )
 
   val runtime = IORuntime
