@@ -117,51 +117,40 @@ class Server(atomicCell: AtomicCell[IO, Int]) {
 }
 ```
 
-Here is a larger example that shows multiple `Worker` instances modifying `AtomicCell` in concurrent fashion:
+To better present real-life use-case scenario, let's imagine that we have a `Service` that performs some HTTP request to external service holding exchange rates over time:
 
 ```scala mdoc:silent
-class Worker(workerId: Int, atomicCell: AtomicCell[IO, Int]) {
-  def update(input: Int): IO[Int] =
-    IO.pure(input + 1 )
+case class Response(exchangeRate: Double)
+trait Service{
+  def query(): IO[Response]
+}
 
-  private def putStrValue(value: Int): IO[Unit] =
-   IO.blocking(println(s"Worker #$workerId >> $value"))
+object StubService extends Service{
+  override def query(): IO[Response] = Random
+    .scalaUtilRandom[IO]
+    .flatMap(random => random.nextDouble)
+    .map(Response(_))
+}
+```
+To simplify we model the `StubService` to just return some random `Double` values.
 
-  def performUpdate: IO[Int] = {
-    for {
-      after <- atomicCell.evalUpdateAndGet{ current =>
-        putStrValue(current) *> update(current)
-      }
-      _ <- putStrValue(after)
-    } yield  after
+Now, say that we want to have a cache that holds the highest exchange rate that is ever returned by our service, we can have the proxy implementation based on `AtomicCell` like below:
+
+```scala mcdoc:silent
+class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
+
+  def queryCache(): IO[Response] = {
+    atomicCell.evalModify(current => {
+      requestService.query().map(result => 
+        if(result.exchangeRate > current) 
+          (result.exchangeRate, result) 
+        else 
+          (current, result))
+    })
   }
 
-}
-object RefExample extends IOApp.Simple {
-
-  val run: IO[Unit] =
-    for {
-      cell <- AtomicCell[IO].of(0)
-      w1 = new Worker(1, cell)
-      w2 = new Worker(2, cell)
-      w3 = new Worker(3, cell)
-      _ <- List(
-        w1.performUpdate,
-        w2.performUpdate,
-        w3.performUpdate,
-      ).parSequence.void
-    } yield ()
+  def getHistoryMax(): IO[Double] = atomicCell.get
 }
 
-```
-
-The above code should yield results that look like below, note that the order of Workers may differ, but the actual results not:
-```
-Worker #1 >> 0
-Worker #1 >> 1
-Worker #2 >> 1
-Worker #2 >> 2
-Worker #3 >> 2
-Worker #3 >> 3
 ```
 
