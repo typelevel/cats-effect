@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.effect.std.Semaphore
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, WorkStealingThreadPool}
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
@@ -31,6 +32,7 @@ import java.util.concurrent.{
   CountDownLatch,
   Executors
 }
+import java.util.concurrent.atomic.AtomicLong
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
@@ -258,6 +260,47 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         } must completeAs(true)
       }
 
+      "not lose cedeing threads from the bypass when blocker transitioning" in {
+        // writing this test in terms of IO seems to not reproduce the issue
+        0.until(5) foreach { _ =>
+          val wstp = new WorkStealingThreadPool(
+            threadCount = 2,
+            threadPrefix = "testWorker",
+            blockerThreadPrefix = "testBlocker",
+            runtimeBlockingExpiration = 3.seconds,
+            reportFailure0 = _.printStackTrace())
+
+          val runtime = IORuntime
+            .builder()
+            .setCompute(wstp, () => wstp.shutdown())
+            .setConfig(IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2))
+            .build()
+
+          try {
+            val ctr = new AtomicLong
+
+            val tsk1 = IO { ctr.incrementAndGet() }.foreverM
+            val fib1 = tsk1.unsafeRunFiber((), _ => (), { (_: Any) => () })(runtime)
+            for (_ <- 1 to 10) {
+              val tsk2 = IO.blocking { Thread.sleep(5L) }
+              tsk2.unsafeRunFiber((), _ => (), _ => ())(runtime)
+            }
+            fib1.join.unsafeRunFiber((), _ => (), _ => ())(runtime)
+
+            Thread.sleep(1000L)
+            val results = 0.until(3).toList map { _ =>
+              Thread.sleep(100L)
+              ctr.get()
+            }
+
+            results must not[List[Long]](beEqualTo(List.fill(3)(results.head)))
+          } finally {
+            runtime.shutdown()
+          }
+        }
+
+        ok
+      }
     }
   }
 }
