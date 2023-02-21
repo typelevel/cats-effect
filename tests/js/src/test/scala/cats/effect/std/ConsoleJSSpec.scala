@@ -23,6 +23,9 @@ class ConsoleJSSpec extends BaseSpec {
     "work in any JS environment" in real {
       Console[IO].println("printing") *> Console[IO].errorln("erroring") *> IO(true)
     }
+    "println should not hang for large strings" in real {
+      Console[IO].println("foo" * 10000).as(true)
+    }
   }
 
 }
