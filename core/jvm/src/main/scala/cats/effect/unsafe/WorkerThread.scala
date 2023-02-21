@@ -633,6 +633,14 @@ private final class WorkerThread(
       // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
 
+      // We'll transfer our local queue to the new/cached thread;
+      // don't forget to also transfer our cede bypass (if any):
+      val bypass = cedeBypass
+      if (bypass ne null) {
+        queue.enqueue(bypass, external, random)
+        cedeBypass = null
+      }
+
       // Logically enter the blocking region.
       blocking = true
 
