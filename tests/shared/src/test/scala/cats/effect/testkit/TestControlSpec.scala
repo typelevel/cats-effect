@@ -114,6 +114,22 @@ class TestControlSpec extends BaseSpec {
       }
     }
 
+    "only detect a deadlock when results are unavailable" in real {
+      TestControl.execute(IO.unit) flatMap { control =>
+        for {
+          r1 <- control.results
+          _ <- IO(r1 must beNone)
+
+          _ <- control.tick
+          id <- control.isDeadlocked
+          _ <- IO(id must beFalse)
+
+          r2 <- control.results
+          _ <- IO(r2 must beSome)
+        } yield ok
+      }
+    }
+
     "produce Duration.Zero from nextInterval when no tasks" in real {
       TestControl.execute(deadlock) flatMap { control =>
         for {
