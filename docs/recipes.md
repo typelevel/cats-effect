@@ -103,14 +103,14 @@ Assume we have the following function:
 
 ```scala mdoc:silent
 def update(input: Int): IO[Int] =
-  IO.defer(input + 1 )
+  IO(input + 1 )
 ```
 If we want to concurrently update a variable using our `update` function it's not possible to do it directly with `Ref`, luckily `AtomicCell` has `evalUpdate`:
 
 ```scala mdoc:silent
 class Server(atomicCell: AtomicCell[IO, Int]) {
   def update(input: Int): IO[Int] =
-    IO.defer(input + 1 )
+    IO(input + 1 )
 
   def performUpdate(input: Int): IO[Int] = 
     atomicCell.evalUpdate(i => update(i))
