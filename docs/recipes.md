@@ -140,7 +140,7 @@ Now, say that we want to have a cache that holds the highest exchange rate that 
 class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
 
   def queryCache(): IO[Response] = {
-    atomicCell.evalModify(current => {
+    atomicCell evalModify (current => {
       requestService.query().map(result => 
         if (result.exchangeRate > current) 
           (result.exchangeRate, result) 
