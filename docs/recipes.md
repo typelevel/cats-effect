@@ -142,7 +142,7 @@ class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
   def queryCache(): IO[Response] = {
     atomicCell.evalModify(current => {
       requestService.query().map(result => 
-        if(result.exchangeRate > current) 
+        if (result.exchangeRate > current) 
           (result.exchangeRate, result) 
         else 
           (current, result))
