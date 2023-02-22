@@ -122,8 +122,11 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
   /**
    * Like [[modify]] but schedules resulting effect right after modification.
    *
-   * Unlike [[flatModify]] finalizer cancellation could be masked via supplied `Poll`.
+   * Unlike [[flatModify]] finalizer cancellation could be unmasked via supplied `Poll`.
    * Modification itself is still uncancelable.
+   *
+   * When used as part of a state machine, cancelable regions should usually have an `onCancel`
+   * finalizer to update the state to reflect that the effect will not be performed.
    *
    * @see
    *   [[modify]]
