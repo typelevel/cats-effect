@@ -213,8 +213,8 @@ object Queue {
         }
       }
 
-    def tryOffer(a: A): F[Boolean] = {
-      val modificationF = stateR modify {
+    def tryOffer(a: A): F[Boolean] =
+      stateR.flatModify {
         case SyncState(offerers, takers) if takers.nonEmpty =>
           val (taker, tail) = takers.dequeue
           SyncState(offerers, tail) -> taker.complete(a).as(true)
@@ -222,9 +222,6 @@ object Queue {
         case st =>
           st -> F.pure(false)
       }
-
-      modificationF.flatten.uncancelable
-    }
 
     val take: F[A] =
       F.deferred[A] flatMap { latch =>
@@ -245,8 +242,8 @@ object Queue {
         F uncancelable { poll => modificationF.flatten *> poll(latch.get).onCancel(cleanupF) }
       }
 
-    val tryTake: F[Option[A]] = {
-      val modificationF = stateR modify {
+    val tryTake: F[Option[A]] =
+      stateR.flatModify {
         case SyncState(offerers, takers) if offerers.nonEmpty =>
           val (offerer, tail) = offerers.dequeue
           SyncState(tail, takers) -> F
@@ -256,9 +253,6 @@ object Queue {
         case st =>
           st -> none[A].pure[F]
       }
-
-      modificationF.flatten.uncancelable
-    }
 
     val size: F[Int] = F.pure(0)
   }
@@ -306,20 +300,17 @@ object Queue {
       }
 
     def tryOffer(a: A): F[Boolean] =
-      state
-        .modify {
-          case State(queue, size, takers, offerers) if takers.nonEmpty =>
-            val (taker, rest) = takers.dequeue
-            State(queue.enqueue(a), size + 1, rest, offerers) -> taker.complete(()).as(true)
+      state.flatModify {
+        case State(queue, size, takers, offerers) if takers.nonEmpty =>
+          val (taker, rest) = takers.dequeue
+          State(queue.enqueue(a), size + 1, rest, offerers) -> taker.complete(()).as(true)
 
-          case State(queue, size, takers, offerers) if size < capacity =>
-            State(queue.enqueue(a), size + 1, takers, offerers) -> F.pure(true)
+        case State(queue, size, takers, offerers) if size < capacity =>
+          State(queue.enqueue(a), size + 1, takers, offerers) -> F.pure(true)
 
-          case s =>
-            onTryOfferNoCapacity(s, a)
-        }
-        .flatten
-        .uncancelable
+        case s =>
+          onTryOfferNoCapacity(s, a)
+      }
 
     val take: F[A] =
       F.uncancelable { poll =>
@@ -377,22 +368,19 @@ object Queue {
       }
 
     val tryTake: F[Option[A]] =
-      state
-        .modify {
-          case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
-            val (a, rest) = queue.dequeue
-            State(rest, size - 1, takers, offerers) -> F.pure(a.some)
+      state.flatModify {
+        case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
+          val (a, rest) = queue.dequeue
+          State(rest, size - 1, takers, offerers) -> F.pure(a.some)
 
-          case State(queue, size, takers, offerers) if queue.nonEmpty =>
-            val (a, rest) = queue.dequeue
-            val (release, tail) = offerers.dequeue
-            State(rest, size - 1, takers, tail) -> release.complete(()).as(a.some)
+        case State(queue, size, takers, offerers) if queue.nonEmpty =>
+          val (a, rest) = queue.dequeue
+          val (release, tail) = offerers.dequeue
+          State(rest, size - 1, takers, tail) -> release.complete(()).as(a.some)
 
-          case s =>
-            s -> F.pure(none[A])
-        }
-        .flatten
-        .uncancelable
+        case s =>
+          s -> F.pure(none[A])
+      }
 
     val size: F[Int] = state.get.map(_.size)
 

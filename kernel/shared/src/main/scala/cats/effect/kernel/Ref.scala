@@ -102,8 +102,14 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
   /**
    * Like [[modify]] but schedules resulting effect right after modification.
    *
-   * Both modification and finalizer are uncancelable, if you need cancellation mechanic in
-   * finalizer please see [[flatModifyFull]].
+   * Useful for implementing effectful transition of a state machine, in which an effect is
+   * performed based on current state and the state must be updated to reflect that this effect
+   * will be performed.
+   *
+   * Both modification and finalizer are within a single uncancelable region, to prevent
+   * canceled finalizers from leaving the Ref's value permanently out of sync with effects
+   * actually performed. if you need cancellation mechanic in finalizer please see
+   * [[flatModifyFull]].
    *
    * @see
    *   [[modify]]

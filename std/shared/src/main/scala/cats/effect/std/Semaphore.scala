@@ -231,17 +231,14 @@ object Semaphore {
 
           if (n == 0) F.unit
           else
-            state
-              .modify {
-                case State(permits, waiting) =>
-                  if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
-                  else {
-                    val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
-                    State(newN, waitingNow) -> wakeup.traverse_(_.complete)
-                  }
-              }
-              .flatten
-              .uncancelable
+            state.flatModify {
+              case State(permits, waiting) =>
+                if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
+                else {
+                  val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
+                  State(newN, waitingNow) -> wakeup.traverse_(_.complete)
+                }
+            }
         }
 
         def available: F[Long] = state.get.map(_.permits)
