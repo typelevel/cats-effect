@@ -352,7 +352,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
             case Outcome.Succeeded(fa) => f.cancel *> fa.map(Left(_))
             case Outcome.Errored(ea) => f.cancel *> raiseError(ea)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fb) => fb.map(Right(_))
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => poll(canceled) *> never
@@ -363,7 +363,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
             case Outcome.Succeeded(fb) => f.cancel *> fb.map(Right(_))
             case Outcome.Errored(eb) => f.cancel *> raiseError(eb)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fa) => fa.map(Left(_))
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => poll(canceled) *> never

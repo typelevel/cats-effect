@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
-import cats.effect.testkit.TestContext
+import cats.effect.testkit.{TestContext, TestControl}
 import cats.kernel.laws.SerializableLaws.serializable
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
@@ -866,24 +866,24 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             Outcome.canceled[IO, Throwable, Unit])
         }
 
-        "succeed if lhs cancels" in ticked { implicit ticker =>
-          IO.race(IO.canceled, IO.pure(1)) must completeAs(Right(1))
+        "cancel if lhs cancels and rhs succeeds" in ticked { implicit ticker =>
+          IO.race(IO.canceled, IO.sleep(1.milli) *> IO.pure(1)).void must selfCancel
         }
 
-        "succeed if rhs cancels" in ticked { implicit ticker =>
-          IO.race(IO.pure(1), IO.canceled) must completeAs(Left(1))
+        "cancel if rhs cancels and lhs succeeds" in ticked { implicit ticker =>
+          IO.race(IO.sleep(1.milli) *> IO.pure(1), IO.canceled).void must selfCancel
         }
 
-        "fail if lhs cancels and rhs fails" in ticked { implicit ticker =>
+        "cancel if lhs cancels and rhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.canceled, IO.raiseError[Unit](TestException)).void must failAs(
-            TestException)
+          IO.race(IO.canceled, IO.sleep(1.milli) *> IO.raiseError[Unit](TestException))
+            .void must selfCancel
         }
 
-        "fail if rhs cancels and lhs fails" in ticked { implicit ticker =>
+        "cancel if rhs cancels and lhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.raiseError[Unit](TestException), IO.canceled).void must failAs(
-            TestException)
+          IO.race(IO.sleep(1.milli) *> IO.raiseError[Unit](TestException), IO.canceled)
+            .void must selfCancel
         }
 
         "cancel both fibers" in ticked { implicit ticker =>
@@ -910,6 +910,42 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               res must beRight(())
             }
           }
+        }
+
+        "immediately cancel when timing out canceled" in real {
+          val program = IO.canceled.timeout(2.seconds)
+
+          val test = TestControl.execute(program.start.flatMap(_.join)) flatMap { ctl =>
+            ctl.tickFor(1.second) *> ctl.results
+          }
+
+          test flatMap { results =>
+            IO {
+              results must beLike { case Some(Outcome.Succeeded(Outcome.Canceled())) => ok }
+            }
+          }
+        }
+
+        "immediately cancel when timing out and forgetting canceled" in real {
+          val program = IO.canceled.timeoutAndForget(2.seconds)
+          val test = TestControl.execute(program.start.flatMap(_.join)) flatMap { ctl =>
+            ctl.tickFor(1.second) *> ctl.results
+          }
+
+          test flatMap { results =>
+            IO {
+              results must beLike { case Some(Outcome.Succeeded(Outcome.Canceled())) => ok }
+            }
+          }
+        }
+
+        "timeout a suspended timeoutAndForget" in real {
+          val program = IO.never.timeoutAndForget(2.seconds).timeout(1.second)
+          val test = TestControl.execute(program.start.flatMap(_.join)) flatMap { ctl =>
+            ctl.tickFor(1.second) *> ctl.results
+          }
+
+          test.flatMap(results => IO(results must beSome))
         }
 
         "return the left when racing against never" in ticked { implicit ticker =>

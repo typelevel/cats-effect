@@ -107,8 +107,6 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] 
         "race derives from racePair (left)" -> forAll(laws.raceDerivesFromRacePairLeft[A, B] _),
         "race derives from racePair (right)" -> forAll(
           laws.raceDerivesFromRacePairRight[A, B] _),
-        "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
-        "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
         "race never non-canceled identity (left)" -> forAll(
           laws.raceNeverNoncanceledIdentityLeft[A] _),
         "race never non-canceled identity (right)" -> forAll(
@@ -197,8 +195,6 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] 
         "race derives from racePair (left)" -> forAll(laws.raceDerivesFromRacePairLeft[A, B] _),
         "race derives from racePair (right)" -> forAll(
           laws.raceDerivesFromRacePairRight[A, B] _),
-        "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
-        "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
         "race never non-canceled identity (left)" -> forAll(
           laws.raceNeverNoncanceledIdentityLeft[A] _),
         "race never non-canceled identity (right)" -> forAll(

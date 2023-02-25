@@ -346,7 +346,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
             case Outcome.Errored(ea) =>
               F.raiseError[(Either[A, B], ExitCase => F[Unit])](ea).guarantee(cancelLoser(f))
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fb) =>
                   fb.map { case (b, fin) => (Either.right[A, B](b), fin) }
                 case Outcome.Errored(eb) =>
@@ -369,7 +369,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
             case Outcome.Errored(eb) =>
               F.raiseError[(Either[A, B], ExitCase => F[Unit])](eb).guarantee(cancelLoser(f))
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fa) =>
                   fa.map { case (a, fin) => (Either.left[A, B](a), fin) }
                 case Outcome.Errored(ea) =>
