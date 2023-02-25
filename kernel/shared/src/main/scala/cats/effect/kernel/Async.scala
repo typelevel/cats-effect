@@ -25,6 +25,7 @@ import scala.annotation.{nowarn, tailrec}
 import scala.concurrent.{ExecutionContext, Future}
 
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -149,6 +150,32 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
     async[A](cb => as(delay(k(cb)), None))
+
+  /**
+   * Like [[Sync.blocking]] but intended for blocking operations that are not interruptible but
+   * can be externally canceled, typically by closing a resource. This should not be used to
+   * implement cancelation via thread interruption; instead use [[Sync.interruptible]] or
+   * [[Sync.interruptibleMany]].
+   *
+   * {{{
+   * Async[F].blockingCancelable(Async[F].blocking(socket.close()))(socket.read(buffer))
+   * }}}
+   *
+   * @param cancel
+   *   An effect that externally cancels the blocking operation.
+   *
+   * @param thunk
+   *   The side effect which is to be suspended in `F[_]` and evaluated on a blocking execution
+   *   context
+   */
+  def blockingCancelable[A](cancel: F[Unit])(thunk: => A): F[A] =
+    flatMap(delay(new AtomicBoolean(false))) { completed =>
+      map(
+        race(
+          guarantee(blocking(thunk), delay(completed.set(true))),
+          onCancel(never[A], ifM(delay(completed.get()))(unit, cancel))
+        ))(_.merge)
+    }
 
   /**
    * An effect that never terminates.

@@ -66,7 +66,8 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
    * execution of the blocking operation to a separate threadpool to avoid blocking on the main
    * execution context. See the thread-model documentation for more information on why this is
    * necessary. Note that the created effect will be uncancelable; if you need cancelation then
-   * you should use [[Sync.interruptible]] or [[Sync.interruptibleMany]].
+   * you should use [[Async.blockingCancelable]], [[Sync.interruptible]], or
+   * [[Sync.interruptibleMany]].
    *
    * {{{
    * Sync[F].blocking(scala.io.Source.fromFile("path").mkString)

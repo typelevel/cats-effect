@@ -69,4 +69,23 @@ class AsyncPlatformSpec extends BaseSpec {
         .map(_.forall(identity(_)))
     }
   }
+
+  "blockingCancelable" should {
+    "externally cancel a blocking op" in real {
+      IO(new Object)
+        .flatMap { blocker =>
+          Async[IO].blockingCancelable(IO {
+            blocker.synchronized {
+              blocker.notify()
+            }
+          }) {
+            blocker.synchronized {
+              blocker.wait()
+            }
+          }
+        }
+        .timeoutTo(1.second, IO.unit)
+        .as(ok)
+    }
+  }
 }
