@@ -172,7 +172,10 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
     flatMap(delay(new AtomicBoolean(false))) { completed =>
       map(
         race(
-          guarantee(blocking(thunk), delay(completed.set(true))),
+          blocking(
+            try thunk
+            finally completed.set(true)
+          ),
           onCancel(never[A], ifM(delay(completed.get()))(unit, cancel))
         ))(_.merge)
     }
