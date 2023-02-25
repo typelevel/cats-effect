@@ -217,6 +217,58 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     Resource.make(start(fa))(_.cancel)(this).map(_.join)
 
   /**
+   * Given an effect which might be [[uncancelable]] and a finalizer, produce an effect which
+   * can be canceled by running the finalizer. This combinator is useful for handling scenarios
+   * in which an effect is inherently uncancelable but may be canceled through setting some
+   * external state. A trivial example of this might be the following (assuming an [[Async]]
+   * instance):
+   *
+   * {{{
+   *   val flag = new AtomicBoolean(false)
+   *   val fa = F blocking {
+   *     while (!flag.get()) {
+   *       Thread.sleep(10)
+   *     }
+   *   }
+   *
+   *   F.cancelable(fa, F.delay(flag.set(true)))
+   * }}}
+   *
+   * Without `cancelable`, effects constructed by `blocking`, `delay`, and similar are
+   * inherently uncancelable. Simply adding an `onCancel` to such effects is insufficient to
+   * resolve this, despite the fact that under *some* circumstances (such as the above), it is
+   * possible to enrich an otherwise-uncancelable effect with early termination. `cancelable`
+   * addresses this use-case.
+   *
+   * Note that there is no free lunch here. If an effect truly cannot be prematurely terminated,
+   * `cancelable` will not allow for cancelation. As an example, if you attempt to cancel
+   * `uncancelable(_ => never)`, the cancelation will hang forever (in other words, it will be
+   * itself equivalent to `never`). Applying `cancelable` will not change this in any way. Thus,
+   * attempting to cancel `cancelable(uncancelable(_ => never), unit)` will ''also'' hang
+   * forever. As in all cases, cancelation will only return when all finalizers have run and the
+   * fiber has fully terminated.
+   *
+   * If `fa` self-cancels and the `cancelable` itself is uncancelable, the resulting fiber will
+   * be equal to `never` (similar to [[race]]. Under normal circumstances, if `fa` self-cancels,
+   * that cancelation will be propagated to the calling context.
+   *
+   * @param fa
+   *   the effect to be canceled
+   * @param fin
+   *   an effect which orchestrates some external state which terminates `fa`
+   * @see
+   *   [[uncancelable]]
+   * @see
+   *   [[onCancel]]
+   */
+  def cancelable[A](fa: F[A], fin: F[Unit]): F[A] =
+    uncancelable { poll =>
+      start(fa) flatMap { fiber =>
+        poll(fiber.join).onCancel(fin *> fiber.cancel).flatMap(_.embed(poll(canceled *> never)))
+      }
+    }
+
+  /**
    * A non-terminating effect that never completes, which causes a fiber to semantically block
    * indefinitely. This is the purely functional, asynchronous equivalent of an infinite while
    * loop in Java, but no native threads are blocked.
