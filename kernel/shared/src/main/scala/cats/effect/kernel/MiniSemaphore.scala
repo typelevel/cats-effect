@@ -81,16 +81,13 @@ private[kernel] object MiniSemaphore {
           }
 
         def release: F[Unit] =
-          state
-            .modify {
-              case State(waiting, permits) =>
-                if (waiting.nonEmpty)
-                  State(waiting.tail, permits) -> waiting.head.complete(()).void
-                else
-                  State(waiting, permits + 1) -> ().pure[F]
-            }
-            .flatten
-            .uncancelable
+          state.flatModify {
+            case State(waiting, permits) =>
+              if (waiting.nonEmpty)
+                State(waiting.tail, permits) -> waiting.head.complete(()).void
+              else
+                State(waiting, permits + 1) -> ().pure[F]
+          }
 
         def withPermit[A](fa: F[A]): F[A] =
           F.uncancelable { poll => poll(acquire) >> poll(fa).guarantee(release) }
