@@ -169,14 +169,18 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   context
    */
   def blockingCancelable[A](cancel: F[Unit])(thunk: => A): F[A] =
-    flatMap(delay(new AtomicBoolean(false))) { completed =>
+    flatMap2(deferred[Unit], delay(new AtomicBoolean(false))) { (gate, completed) =>
       map(
         race(
-          blocking(
-            try thunk
-            finally completed.set(true)
-          ),
-          onCancel(never[A], ifM(delay(completed.get()))(unit, cancel))
+          productR(gate.get)( // ensure cancelation fiber started before blocking
+            blocking(
+              try thunk
+              finally completed.set(true)
+            )),
+          onCancel(
+            productR(gate.complete(()))(never[A]),
+            ifM(delay(completed.get()))(unit, cancel)
+          )
         ))(_.merge)
     }
 
