@@ -249,8 +249,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * fiber has fully terminated.
    *
    * If `fa` self-cancels and the `cancelable` itself is uncancelable, the resulting fiber will
-   * be equal to `never` (similar to [[race]]. Under normal circumstances, if `fa` self-cancels,
-   * that cancelation will be propagated to the calling context.
+   * be equal to `never` (similar to [[race]]). Under normal circumstances, if `fa`
+   * self-cancels, that cancelation will be propagated to the calling context.
    *
    * @param fa
    *   the effect to be canceled

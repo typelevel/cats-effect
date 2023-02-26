@@ -395,7 +395,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * fiber has fully terminated.
    *
    * If the `IO` self-cancels and the `cancelable` itself is uncancelable, the resulting fiber
-   * will be equal to `never` (similar to [[race]]. Under normal circumstances, if `IO`
+   * will be equal to `never` (similar to [[race]]). Under normal circumstances, if `IO`
    * self-cancels, that cancelation will be propagated to the calling context.
    *
    * @param fin
