@@ -121,11 +121,11 @@ To better present real-life use-case scenario, let's imagine that we have a `Ser
 
 ```scala mdoc:silent
 case class Response(exchangeRate: Double)
-trait Service{
+trait Service {
   def query(): IO[Response]
 }
 
-object StubService extends Service{
+object StubService extends Service {
   override def query(): IO[Response] = Random
     .scalaUtilRandom[IO]
     .flatMap(random => random.nextDouble)
@@ -140,8 +140,8 @@ Now, say that we want to have a cache that holds the highest exchange rate that 
 class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
 
   def queryCache(): IO[Response] = {
-    atomicCell evalModify (current => {
-      requestService.query().map(result => 
+    atomicCell evalModify { current => 
+      requestService.query().map { result => 
         if (result.exchangeRate > current) 
           (result.exchangeRate, result) 
         else 
