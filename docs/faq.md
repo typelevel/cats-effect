@@ -49,6 +49,68 @@ Hello world
 
 See [here](core/scala-native.md) for details.
 
+## How can I loop over a collection inside of `IO`?
+
+`traverse`!
+
+The `traverse` method is, in some sense, Cats' equivalent of `foreach`, but much more powerful in that it allows each iteration of the loop to be wrapped in an effect (such as `IO`) and can produce a value. This also allows it to generalize nicely to run operations in parallel, with the `parTraverse` method.
+
+```scala mdoc:reset:silent
+import cats.effect._
+import cats.syntax.all._
+
+val names = List("daniel", "chris", "joseph", "renee", "bethany", "grace")
+val program: IO[List[Unit]] = names.traverse(name => IO.println(s"Hi, $name!"))
+```
+
+In the above example, `traverse` will iterate over every element of the `List`, running the function `String => IO[Unit]` which it was passed, assembling the results into a resulting `List` wrapped in a single outer `IO`.
+
+> You *must* have `import cats.syntax.all_` (or `cats.syntax.traverse._`) in scope, otherwise this will not work! `traverse` is a method that is implicitly enriched onto collections like `List`, `Vector`, and such, meaning that it must be brought into scope using an import (unfortunately!).
+
+Of course, in the above example, we don't really care about the results, since our `IO` is constantly producing `Unit`. This pattern is so common that we have a special combinator for it: `traverse_`.
+
+```scala mdoc:reset:silent
+import cats.effect._
+import cats.syntax.all._
+
+val names = List("daniel", "chris", "joseph", "renee", "bethany", "grace")
+val program: IO[Unit] = names.traverse_(name => IO.println(s"Hi, $name!"))
+```
+
+This efficiently discards the results of each `IO` (which are all `()`) anyway, producing a single `IO[Unit]` at the end.
+
+This type of pattern generalizes extremely well, both to actions which *do* return results, as well as to more advanced forms of execution, such as parallelism. For example, let's define and use a `fetchUri` method which uses [Http4s](https://http4s.org) to load the contents of a URI. We will then iterate over our list of `names` *in parallel*, fetching all of the contents into a single data structure:
+
+```scala
+import cats.effect._
+import cats.syntax.all_
+
+import org.http4s.ember.client.EmberClientBuilder
+
+// just as an example...
+val Prefix = "https://www.scb.se/en/finding-statistics/sverige-i-siffror/namesearch/Search/?nameSearchInput="
+val Extract = """(\d+(?:\s*\d+)*) persons""".r
+
+val names = List("daniel", "chris", "joseph", "renee", "bethany", "grace")
+
+val program: IO[Unit] = EmberClientBuilder.default[IO].build use { client =>
+  def fetchUri(uri: String): IO[String] = client.expect[String](uri)
+
+  val counts: List[(String, Int)] = names parTraverse { name => 
+    fetchUri(Prefix + name) map { body =>
+      val Extract(countStr) = body  // who needs html parsing?
+      name -> countStr.toInt
+    }
+  }
+
+  counts.traverse_(IO.println(_))
+}
+```
+
+The above `program` creates a new HTTP client (with associated connection pooling and other production configurations), then *in parallel* iterates over the list of names, constructs a search URL for each name, runs an HTTP `GET` on that URL, "parses" the contents using a naive regular expression extracting the count of persons who have that given name, producing the results of the whole process as a `List[(String, Int)]`. Then, given this list of `counts`, we *sequentially* iterate over the results and print out each tuple. Finally, we fully clean up the client resources (e.g. closing the connection pool). If any of the HTTP `GET`s produces an error, all resources will be closed and the remaining connections will be safely terminated.
+
+In general, any time you have a problem where you have a collection, `Struct[A]` and an *effectful* function `A => IO[B]` and your goal is to get an `IO[Struct[B]]`, the answer is going to be `traverse`. This works for almost any definition of `Struct` that you can think of! For example, you can do this for `Option[A]` as well. You can even enable this functionality for custom structures by defining an instance of the [`Traverse` typeclass](https://typelevel.org/cats/typeclasses/traverse.html) for your custom datatype (hint: most classes or algebras which have a shape like `Struct[A]` where they *contain a value of type `A`* can easily implement `Traverse`).
+
 ## Why is my `IO(...)` running on a blocking thread?
 
 Cats Effect guarantees that `IO.blocking(...)` will run on a blocking thread. However, in many situations it may also run a non-blocking operation `IO(...)` (or `IO.delay(...)`) on a blocking thread. Do not be alarmed! This is an optimization.
