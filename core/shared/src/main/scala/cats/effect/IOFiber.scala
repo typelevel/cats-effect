@@ -123,8 +123,7 @@ private final class IOFiber[A](
       case 5 => blockingR()
       case 6 => cedeR()
       case 7 => autoCedeR()
-      case 8 => executeRunnableR()
-      case 9 => ()
+      case 8 => () // DoneR
     }
   }
 
@@ -1383,23 +1382,6 @@ private final class IOFiber[A](
     val io = resumeIO.asInstanceOf[IO[Any]]
     resumeIO = null
     runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
-  }
-
-  private[this] def executeRunnableR(): Unit = {
-    val runnable = resumeIO.asInstanceOf[Runnable]
-    resumeIO = null
-
-    try runnable.run()
-    catch {
-      case t if NonFatal(t) =>
-        currentCtx.reportFailure(t)
-      case t: Throwable =>
-        onFatalFailure(t)
-        ()
-    } finally {
-      resumeTag = DoneR
-      currentCtx = null
-    }
   }
 
   /* Implementations of continuations */
