@@ -39,7 +39,7 @@ class IOFiberSpec extends BaseSpec with DetectPlatform {
       }
 
       "toString a suspended fiber" in real {
-        // these are separate methods to have them in the trace:
+        // separate method to have it in the trace:
         def foreverNever =
           IO.async[Unit](_ => IO.pure(Some(IO.unit)))
         val pattern =
