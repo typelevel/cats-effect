@@ -49,7 +49,7 @@ class IOFiberSpec extends BaseSpec with DetectPlatform {
         val pattern =
           raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ SUSPENDED(: release @ fiber.IOFiberSpec.completeLatch\$$[0-9]\(((.*IOFiberSpec.scala:[0-9]{2})|(Unknown Source))\))?"
         for {
-          latch <- CountDownLatch[IO](1)
+          latch <- CountDownLatch[IO](1) // `Deferred` makes the trace non-deterministic
           f <- foreverNever(latch).start
           _ <- latch.await
           _ <- IO.sleep(1.milli)
