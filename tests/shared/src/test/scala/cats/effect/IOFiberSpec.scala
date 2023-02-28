@@ -17,7 +17,6 @@
 package fiber // Get out of CE package b/c trace filtering
 
 import cats.effect.{BaseSpec, DetectPlatform, IO}
-import cats.effect.std.CountDownLatch
 
 import scala.concurrent.duration._
 
@@ -41,18 +40,13 @@ class IOFiberSpec extends BaseSpec with DetectPlatform {
 
       "toString a suspended fiber" in real {
         // these are separate methods to have them in the trace:
-        def completeLatch(latch: CountDownLatch[IO]) =
-          latch.release
-        def foreverNever(latch: CountDownLatch[IO]) =
-          IO.async[Unit](_ =>
-            completeLatch(latch).map(_ => Some(IO.unit))) // not `as` for better trace
+        def foreverNever =
+          IO.async[Unit](_ => IO.pure(Some(IO.unit)))
         val pattern =
-          raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ SUSPENDED(: release @ fiber.IOFiberSpec.completeLatch\$$[0-9]\(((.*IOFiberSpec.scala:[0-9]{2})|(Unknown Source))\))?"
+          raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ SUSPENDED(: async @ fiber.IOFiberSpec.foreverNever\$$[0-9]\(((.*IOFiberSpec.scala:[0-9]{2})|(Unknown Source))\))?"
         for {
-          latch <- CountDownLatch[IO](1) // `Deferred` makes the trace non-deterministic
-          f <- foreverNever(latch).start
-          _ <- latch.await
-          _ <- IO.sleep(1.milli)
+          f <- foreverNever.start
+          _ <- IO.sleep(100.milli)
           s <- IO(f.toString)
           _ <- f.cancel
           _ <- IO(s must beMatching(pattern))
