@@ -20,6 +20,8 @@ import cats.effect.{BaseSpec, DetectPlatform, IO}
 
 import scala.concurrent.duration._
 
+import java.util.concurrent.CountDownLatch
+
 class IOFiberSpec extends BaseSpec with DetectPlatform {
 
   "IOFiber" should {
@@ -39,14 +41,19 @@ class IOFiberSpec extends BaseSpec with DetectPlatform {
       }
 
       "toString a suspended fiber" in real {
-        def foreverNever = IO.async_[Unit](_ => ())
+        // these are separate methods to have them in the trace:
+        def completeLatch(latch: CountDownLatch) =
+          IO.apply(latch.countDown())
+        def foreverNever(latch: CountDownLatch) =
+          IO.async[Unit](_ => completeLatch(latch).as(Some(IO.unit)))
         val pattern =
-          raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ SUSPENDED(: async_? @ fiber.IOFiberSpec.foreverNever\$$[0-9]\(((.*IOFiberSpec.scala:[0-9]{2})|(Unknown Source))\))?"
+          raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ SUSPENDED(: apply @ fiber.IOFiberSpec.completeLatch\$$[0-9]\(((.*IOFiberSpec.scala:[0-9]{2})|(Unknown Source))\))?"
         for {
-          f <- foreverNever.start
+          latch <- IO { new CountDownLatch(1) }
+          f <- foreverNever(latch).start
+          _ <- IO.blocking(latch.await())
           _ <- IO.sleep(1.milli)
           s <- IO(f.toString)
-          // _ <- IO.println(s)
           _ <- f.cancel
           _ <- IO(s must beMatching(pattern))
         } yield ok
@@ -57,15 +64,11 @@ class IOFiberSpec extends BaseSpec with DetectPlatform {
     }
 
     "toString a completed fiber" in real {
-      def done = IO.unit.start
       val pattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ COMPLETED"
       for {
-        f <- done.start
-        _ <- IO.sleep(1.milli)
-        s <- IO(f.toString)
-        // _ <- IO.println(s)
-        _ <- f.cancel
-        _ <- IO(s must beMatching(pattern))
+        f <- IO.unit.start
+        _ <- f.joinWithNever
+        _ <- IO(f.toString must beMatching(pattern))
       } yield ok
     }
   }
