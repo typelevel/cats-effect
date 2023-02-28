@@ -26,7 +26,14 @@ import org.specs2.matcher.MatchResult
 import scala.concurrent.duration._
 import scala.io.Source
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream, PipedInputStream, PipedOutputStream, PrintStream}
+import java.io.{
+  ByteArrayInputStream,
+  ByteArrayOutputStream,
+  InputStream,
+  PipedInputStream,
+  PipedOutputStream,
+  PrintStream
+}
 import java.nio.charset.{Charset, StandardCharsets}
 
 class ConsoleJVMSpec extends BaseSpec {
