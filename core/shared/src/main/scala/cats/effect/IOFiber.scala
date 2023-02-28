@@ -1480,7 +1480,7 @@ private final class IOFiber[A](
   }
 
   private[effect] def isDone: Boolean =
-    resumeTag == DoneR
+    outcome ne null
 
   private[effect] def captureTrace(): Trace =
     if (tracingEvents ne null) {
