@@ -17,7 +17,6 @@
 package cats.effect.std
 
 import cats.{~>, Show}
-import cats.effect.kernel.Sync
 
 import java.nio.charset.Charset
 
@@ -100,13 +99,7 @@ trait Console[F[_]] extends ConsoleCrossPlatform[F] {
 
 }
 
-object Console extends ConsoleCompanionCrossPlatform {
-
-  /**
-   * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Sync]].
-   */
-  def make[F[_]](implicit F: Sync[F]): Console[F] =
-    new SyncConsole[F]
+object Console extends ConsoleCompanionPlatform {
 
   private[std] abstract class MapKConsole[F[_], G[_]](self: Console[F], f: F ~> G)
       extends Console[G] {
