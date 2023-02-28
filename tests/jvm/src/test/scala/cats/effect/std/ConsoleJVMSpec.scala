@@ -264,8 +264,10 @@ class ConsoleJVMSpec extends BaseSpec {
               read1 <- IO.readLine.timeout(100.millis).attempt
               _ <- IO(read1 should beLeft)
               _ <- IO(out.write("unblocked\n".getBytes()))
-              read2 <- IO.readLine
-              _ <- IO(read2 must beEqualTo("unblocked"))
+              read2 <- Console[IO].readLineWithCharset(StandardCharsets.US_ASCII).attempt
+              _ <- IO(read2 should beLeft)
+              read3 <- IO.readLine
+              _ <- IO(read3 must beEqualTo("unblocked"))
             } yield ok
           }
         }
