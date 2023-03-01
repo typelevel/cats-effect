@@ -18,6 +18,7 @@ package cats.effect;
 
 abstract class IOTag {
   final byte tag;
+
   protected IOTag(byte tag) {
     this.tag = tag;
   }
