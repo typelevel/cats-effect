@@ -620,7 +620,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ContStateResult"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.IOFiberConstants.ContStateResult")
+        "cats.effect.IOFiberConstants.ContStateResult"),
+      // introduced by #3471
+      // make `IO#tag` a field
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont#Get.tag"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.tag")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
