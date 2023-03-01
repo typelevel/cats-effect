@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.{ArrayBlockingQueue, CompletableFuture, TimeUnit}
 
-abstract private[effect] class IOPlatform[+A](tag: Byte) extends IOTag(tag) {
+abstract private[effect] class IOPlatform[+A](tag: Byte) extends IOTag(tag) with Serializable {
   self: IO[A] =>
 
   /**
