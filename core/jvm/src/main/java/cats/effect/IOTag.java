@@ -16,7 +16,10 @@
 
 package cats.effect;
 
-abstract class IOTag {
+import java.io.Serializable;
+
+@SuppressWarnings("serial")
+abstract class IOTag implements Serializable {
   final byte tag;
 
   protected IOTag(byte tag) {
