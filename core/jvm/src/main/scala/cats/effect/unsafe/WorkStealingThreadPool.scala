@@ -510,17 +510,21 @@ private[effect] final class WorkStealingThreadPool(
    *   the runnable to be executed
    */
   override def execute(runnable: Runnable): Unit = {
+    println(s"SRP WSTP: inside execute")
     val pool = this
     val thread = Thread.currentThread()
 
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
       if (worker.isOwnedBy(pool)) {
+        println(s"SRP WSTP: schedule if worker owned by pool")
         worker.schedule(runnable)
       } else {
+        println(s"SRP WSTP: schedule external 1")
         scheduleExternal(runnable)
       }
     } else {
+      println(s"SRP WSTP: schedule external 2 ${thread.getName()}")
       scheduleExternal(runnable)
     }
   }

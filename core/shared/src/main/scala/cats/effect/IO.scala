@@ -938,7 +938,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * should never be totally silent.
    */
   def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit = {
-    val _ = unsafeRunFiber((), _ => (), _ => ())
+    println(
+      s"SRP unsafeRunAndForget: report unhandled errors? ${runtime.config.reportUnhandledFiberErrors}")
+    val _ =
+      unsafeRunFiber((), _ => (), _ => ())
     ()
   }
 
@@ -1014,6 +1017,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
             canceled
           },
           { t =>
+            println(s"SRP unsafeRunFiber: inside failure outcome")
             runtime.fiberErrorCbs.remove(failure)
             failure(t)
           },

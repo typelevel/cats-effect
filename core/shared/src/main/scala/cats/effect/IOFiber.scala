@@ -113,6 +113,7 @@ private final class IOFiber[A](
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
+    println("SRP fiber run")
     readBarrier()
     (resumeTag: @switch) match {
       case 0 => execR()
@@ -1015,12 +1016,14 @@ private final class IOFiber[A](
    */
   private[this] def done(oc: OutcomeIO[A]): Unit = {
     // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
+    println("SRP fiber done")
     _join = IO.pure(oc)
     _cancel = IO.unit
 
     outcome = oc
 
     try {
+      println(s"SRP outcome stack: ${oc}")
       if (!callbacks(oc, false) && runtime.config.reportUnhandledFiberErrors) {
         oc match {
           case Outcome.Errored(e) => currentCtx.reportFailure(e)

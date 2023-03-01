@@ -416,6 +416,7 @@ private final class WorkerThread(
 
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
+          println("SRP WT case 0")
           if (pool.blockedThreadDetectionEnabled) {
             // TODO prefetch pool.workerThread or Thread.State.BLOCKED ?
             // TODO check that branch elimination makes it free when off
@@ -483,6 +484,7 @@ private final class WorkerThread(
         case 1 =>
           // Check the external queue after a failed dequeue from the local
           // queue (due to the local queue being empty).
+          println("SRP WT case 1")
           val element = external.poll(rnd)
           if (element.isInstanceOf[Array[Runnable]]) {
             val batch = element.asInstanceOf[Array[Runnable]]
@@ -557,6 +559,7 @@ private final class WorkerThread(
           }
 
         case 2 =>
+          println("SRP WT case 2")
           // Try stealing fibers from other worker threads.
           val fiber = pool.stealFromOtherWorkerThread(index, rnd, self)
           if (fiber ne null) {
@@ -611,7 +614,14 @@ private final class WorkerThread(
         case 3 =>
           // Check the external queue after a failed dequeue from the local
           // queue (due to the local queue being empty).
+          println("SRP WT case 3")
           val element = external.poll(rnd)
+          println(s"SRP WT case 3: found element $element")
+          println(
+            s"SRP WT case 3: element is array of runnable? ${element.isInstanceOf[Array[Runnable]]}")
+          println(
+            s"SRP WT case 3: element is single runnable? ${element.isInstanceOf[Runnable]}")
+
           if (element.isInstanceOf[Array[Runnable]]) {
             val batch = element.asInstanceOf[Array[Runnable]]
             // Announce that the current thread is no longer looking for work.
@@ -636,6 +646,7 @@ private final class WorkerThread(
             state = 4
           } else if (element.isInstanceOf[Runnable]) {
             val fiber = element.asInstanceOf[Runnable]
+            println(s"SRP WT case 3: runnable element is fiber $fiber")
             // Announce that the current thread is no longer looking for work.
 
             if (isStackTracing) {
@@ -648,10 +659,12 @@ private final class WorkerThread(
             // The dequeued element is a single fiber. Execute it immediately.
             try fiber.run()
             catch {
-              case t if NonFatal(t) => pool.reportFailure(t)
-              case t: Throwable => IOFiber.onFatalFailure(t)
+              case t if NonFatal(t) =>
+                println("SRP fiber run: non fatal"); pool.reportFailure(t)
+              case t: Throwable =>
+                println("SRP fiber run: yes fatal"); IOFiber.onFatalFailure(t)
             }
-
+            println("SRP WT case 3: after the fiber run call")
             // Transition to executing fibers from the local queue.
             state = 4
           } else {
@@ -662,6 +675,7 @@ private final class WorkerThread(
           }
 
         case _ =>
+          println("SRP WT case _")
           if (sleepers.nonEmpty) {
             val now = System.nanoTime()
 
