@@ -1966,103 +1966,80 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def toString: String = s"IO($value)"
   }
 
-  private[effect] final case class Error(t: Throwable) extends IO[Nothing](1) {
-  }
+  private[effect] final case class Error(t: Throwable) extends IO[Nothing](1)
 
   private[effect] final case class Delay[+A](thunk: () => A, event: TracingEvent)
-      extends IO[A](2) {
-  }
+      extends IO[A](2)
 
-  private[effect] case object RealTime extends IO[FiniteDuration](3) {
-  }
+  private[effect] case object RealTime extends IO[FiniteDuration](3)
 
-  private[effect] case object Monotonic extends IO[FiniteDuration](4) {
-  }
+  private[effect] case object Monotonic extends IO[FiniteDuration](4)
 
-  private[effect] case object ReadEC extends IO[ExecutionContext](5) {
-  }
+  private[effect] case object ReadEC extends IO[ExecutionContext](5)
 
   private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A, event: TracingEvent)
-      extends IO[A](6) {
-  }
+      extends IO[A](6)
 
   private[effect] final case class FlatMap[E, +A](
       ioe: IO[E],
       f: E => IO[A],
       event: TracingEvent)
-      extends IO[A](7) {
-  }
+      extends IO[A](7)
 
-  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]](8) {
-  }
+  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]](8)
 
   private[effect] final case class HandleErrorWith[+A](
       ioa: IO[A],
       f: Throwable => IO[A],
       event: TracingEvent)
-      extends IO[A](9) {
-  }
+      extends IO[A](9)
 
-  private[effect] case object Canceled extends IO[Unit](10) {
-  }
+  private[effect] case object Canceled extends IO[Unit](10)
 
-  private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A](11) {
-  }
+  private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A](11)
 
   private[effect] final case class Uncancelable[+A](
       body: Poll[IO] => IO[A],
       event: TracingEvent)
-      extends IO[A](12) {
-  }
+      extends IO[A](12) {}
   private[effect] object Uncancelable {
     // INTERNAL, it's only created by the runloop itself during the execution of `Uncancelable`
-    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int, self: IOFiber[_]) extends IO[A](13) {
-    }
+    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int, self: IOFiber[_]) extends IO[A](13)
   }
 
   // Low level construction that powers `async`
   private[effect] final case class IOCont[K, R](body: Cont[IO, K, R], event: TracingEvent)
-      extends IO[R](14) {
-  }
+      extends IO[R](14)
   private[effect] object IOCont {
     // INTERNAL, it's only created by the runloop itself during the execution of `IOCont`
-    final case class Get[A](state: ContState) extends IO[A](15) {
-    }
+    final case class Get[A](state: ContState) extends IO[A](15)
   }
 
-  private[effect] case object Cede extends IO[Unit](16) {
-  }
+  private[effect] case object Cede extends IO[Unit](16)
 
-  private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]](17) {
-  }
+  private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]](17)
 
   private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]](18) {
-  }
+      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]](18)
 
-  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit](19) {
-  }
+  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit](19)
 
-  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A](20) {
-  }
+  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext)
+      extends IO[A](20)
 
   private[effect] final case class Blocking[+A](
       hint: Sync.Type,
       thunk: () => A,
       event: TracingEvent)
-      extends IO[A](21) {
-  }
+      extends IO[A](21)
 
   private[effect] final case class Local[+A](f: IOLocalState => (IOLocalState, A))
-      extends IO[A](22) {
-  }
+      extends IO[A](22)
 
-  private[effect] case object IOTrace extends IO[Trace](23) {
-  }
+  private[effect] case object IOTrace extends IO[Trace](23)
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
-  private[effect] case object EndFiber extends IO[Nothing](-1) {
-  }
+  private[effect] case object EndFiber extends IO[Nothing](-1)
 
 }
 

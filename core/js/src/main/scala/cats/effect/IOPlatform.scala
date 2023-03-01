@@ -19,7 +19,7 @@ package cats.effect
 import scala.concurrent.Future
 import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
 
-abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
+abstract private[effect] class IOPlatform[+A](private[effect] val tag: Byte) { self: IO[A] =>
 
   /**
    * Evaluates the effect and produces the result in a JavaScript `Promise`.

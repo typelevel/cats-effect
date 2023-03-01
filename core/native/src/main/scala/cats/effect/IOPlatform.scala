@@ -16,4 +16,4 @@
 
 package cats.effect
 
-abstract private[effect] class IOPlatform[+A]
+abstract private[effect] class IOPlatform[+A](private[effect] val tag: Byte)
