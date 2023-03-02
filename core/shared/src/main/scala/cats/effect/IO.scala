@@ -865,7 +865,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * should never be totally silent.
    */
   def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit = {
-    val _ = unsafeRunFiber((), _ => (), _ => ())
+    val _ = unsafeRunFiber(
+      (),
+      t => {
+        if (NonFatal(t) && runtime.config.reportUnhandledFiberErrors) {
+          runtime.compute.reportFailure(t)
+        } else {
+          // fatal failure
+          t.printStackTrace()
+        }
+      },
+      _ => ())
     ()
   }
 
