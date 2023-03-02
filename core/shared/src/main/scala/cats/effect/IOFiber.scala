@@ -77,7 +77,7 @@ private final class IOFiber[A](
   suspended: AtomicBoolean =>
 
   import IOFiber._
-  import IO._
+  import IO.{println => _, _}
   import IOFiberConstants._
   import TracingConstants._
 
