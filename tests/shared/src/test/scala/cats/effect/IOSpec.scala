@@ -304,14 +304,26 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         action must completeAs(Nil)
       }
 
-      "report errors raised during unsafeRunAndForget" in {
+      "report errors raised during unsafeRunAndForget" in ticked { implicit ticker =>
         import cats.effect.unsafe.IORuntime
         import scala.concurrent.Promise
-        val errorReporter = Promise[Boolean]()
-        val customRuntime =
-          IORuntime.builder().setFailureReporter(_ => errorReporter.success(true)).build()
-        IO.raiseError(new RuntimeException).unsafeRunAndForget()(customRuntime)
-        errorReporter.future
+
+        def ec2(ec1: ExecutionContext, er: Promise[Boolean]) = new ExecutionContext {
+          def reportFailure(t: Throwable) = er.success(true)
+          def execute(r: Runnable) = ec1.execute(r)
+        }
+
+        val test = for {
+          ec <- IO.executionContext
+          errorReporter <- IO(Promise[Boolean]())
+          customRuntime = IORuntime
+            .builder()
+            .setCompute(ec2(ec, errorReporter), () => ())
+            .build()
+          _ = IO.raiseError(new RuntimeException).unsafeRunAndForget()(customRuntime)
+          reported <- IO.fromFuture(IO(errorReporter.future))
+        } yield reported
+        test must completeAs(true)
       }
     }
 
