@@ -60,7 +60,7 @@ abstract class Resource[F, A] {
 Our concat example then becomes:
 
 ```scala
-def file(name: String): Resource[IO, File] = Resource.make(openFile(name)))(file => close(file))
+def file(name: String): Resource[IO, File] = Resource.make(openFile(name))(file => close(file))
 
 val concat: IO[Unit] =
   (
