@@ -303,6 +303,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         action must completeAs(Nil)
       }
+
+      "report errors raised during unsafeRunAndForget" in {
+        import cats.effect.unsafe.IORuntime
+        import scala.concurrent.Promise
+        val errorReporter = Promise[Boolean]()
+        val customRuntime =
+          IORuntime.builder().setFailureReporter(_ => errorReporter.success(true)).build()
+        IO.raiseError(new RuntimeException).unsafeRunAndForget()(customRuntime)
+        errorReporter.future
+      }
     }
 
     "suspension of side effects" should {
@@ -1344,21 +1354,6 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
 
         test.flatMap(_ => IO(canceled)) must completeAs(true)
-      }
-
-      "report errors raised during unsafeRunAndForget" in ticked { implicit ticker =>
-        import cats.effect.unsafe.IORuntime
-        import scala.concurrent.Promise
-        val test = for {
-          errorHandler <- IO(Promise[Boolean]())
-          customRuntime = IORuntime
-            .builder()
-            .setFailureReporter(_ => errorHandler.success(true))
-            .build()
-          _ = IO.raiseError(new RuntimeException).unsafeRunAndForget()(customRuntime)
-          handled <- IO.fromFuture(IO(errorHandler.future))
-        } yield handled
-        test must completeAs(true)
       }
     }
 
