@@ -1346,7 +1346,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         test.flatMap(_ => IO(canceled)) must completeAs(true)
       }
 
-      "handle errors raised during unsafeRunAndForget" in ticked { implicit ticker =>
+      "report errors raised during unsafeRunAndForget" in ticked { implicit ticker =>
         import cats.effect.unsafe.IORuntime
         import scala.concurrent.Promise
         val test = for {
