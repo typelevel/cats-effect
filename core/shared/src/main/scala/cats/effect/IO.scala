@@ -871,7 +871,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         if (NonFatal(t) && runtime.config.reportUnhandledFiberErrors) {
           runtime.compute.reportFailure(t)
         } else {
-          // fatal failure
           t.printStackTrace()
         }
       },
