@@ -1345,6 +1345,21 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         test.flatMap(_ => IO(canceled)) must completeAs(true)
       }
+
+      "handle errors raised during unsafeRunAndForget" in ticked { implicit ticker =>
+        import cats.effect.unsafe.IORuntime
+        import scala.concurrent.Promise
+        val test = for {
+          errorHandler <- IO(Promise[Boolean]())
+          customRuntime = IORuntime
+            .builder()
+            .setFailureReporter(_ => errorHandler.success(true))
+            .build()
+          _ = IO.raiseError(new RuntimeException).unsafeRunAndForget()(customRuntime)
+          handled <- IO.fromFuture(IO(errorHandler.future))
+        } yield handled
+        test must completeAs(true)
+      }
     }
 
     "temporal" should {
