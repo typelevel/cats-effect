@@ -108,28 +108,33 @@ def update(input: Int): IO[Int] =
 If we want to concurrently update a variable using our `update` function it's not possible to do it directly with `Ref`, luckily `AtomicCell` has `evalUpdate`:
 
 ```scala mdoc:silent
+import cats.effect.std.AtomicCell
+
 class Server(atomicCell: AtomicCell[IO, Int]) {
   def update(input: Int): IO[Int] =
     IO(input + 1 )
 
-  def performUpdate(input: Int): IO[Int] = 
-    atomicCell.evalUpdate(i => update(i))
+  def performUpdate(): IO[Int] =
+    atomicCell.evalGetAndUpdate(i => update(i))
 }
 ```
 
 To better present real-life use-case scenario, let's imagine that we have a `Service` that performs some HTTP request to external service holding exchange rates over time:
 
 ```scala mdoc:silent
-case class Response(exchangeRate: Double)
+import cats.effect.std.Random
+
+case class ServiceResponse(exchangeRate: Double)
+
 trait Service {
-  def query(): IO[Response]
+  def query(): IO[ServiceResponse]
 }
 
 object StubService extends Service {
-  override def query(): IO[Response] = Random
+  override def query(): IO[ServiceResponse] = Random
     .scalaUtilRandom[IO]
     .flatMap(random => random.nextDouble)
-    .map(Response(_))
+    .map(ServiceResponse(_))
 }
 ```
 To simplify we model the `StubService` to just return some random `Double` values.
@@ -139,17 +144,20 @@ Now, say that we want to have a cache that holds the highest exchange rate that 
 ```scala mcdoc:silent
 class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
 
-  def queryCache(): IO[Response] = {
-    atomicCell evalModify { current => 
-      requestService.query().map { result => 
-        if (result.exchangeRate > current) 
-          (result.exchangeRate, result) 
-        else 
-          (current, result))
-    })
-  }
+  def queryCache(): IO[ServiceResponse] = {
+    atomicCell evalModify { current =>
+      requestService.query().map { result =>
+        if (result.exchangeRate > current)
+          (result.exchangeRate, result)
+        else
+          (current, result)
+      } map {
+        case (state, result) => ServiceResponse(result)
+      }
+    }
 
-  def getHistoryMax(): IO[Double] = atomicCell.get
+    def getHistoryMax(): IO[Double] = atomicCell.get
+  }
 }
 
 ```
