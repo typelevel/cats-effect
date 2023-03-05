@@ -101,31 +101,37 @@ object Hotswap {
    * Creates a new [[Hotswap]], which represents a [[cats.effect.kernel.Resource]] that can be
    * swapped during the lifetime of this [[Hotswap]].
    */
-  def create[F[_], R](implicit F: Concurrent[F]): Resource[F, Hotswap[F, R]] = {
-    sealed abstract class State
-    case object Cleared extends State
-    case class Acquired(r: R, fin: F[Unit]) extends State
-    case object Finalized extends State
+  def create[F[_], R](implicit F: Concurrent[F]): Resource[F, Hotswap[F, R]] =
+    Resource.eval(Semaphore[F](Long.MaxValue)).flatMap { semaphore =>
+      sealed abstract class State
+      case object Cleared extends State
+      case class Acquired(r: R, fin: F[Unit]) extends State
+      case object Finalized extends State
 
-    def initialize: F[Ref[F, State]] =
-      F.ref(Cleared)
+      def initialize: F[Ref[F, State]] =
+        F.ref(Cleared)
 
-    def finalize(state: Ref[F, State]): F[Unit] =
-      state.getAndSet(Finalized).flatMap {
-        case Acquired(_, finalizer) => finalizer
-        case Cleared => F.unit
-        case Finalized => raise("Hotswap already finalized")
-      }
+      def finalize(state: Ref[F, State]): F[Unit] =
+        state.getAndSet(Finalized).flatMap {
+          case Acquired(_, finalizer) => finalizer
+          case Cleared => F.unit
+          case Finalized => raise("Hotswap already finalized")
+        }
 
-    def raise(message: String): F[Unit] =
-      F.raiseError[Unit](new RuntimeException(message))
+      def raise(message: String): F[Unit] =
+        F.raiseError[Unit](new RuntimeException(message))
 
-    Resource.eval(Mutex[F]).flatMap { mutex =>
+      def shared: Resource[F, Unit] = semaphore.permit
+
+      def exclusive: Resource[F, Unit] =
+        Resource.makeFull[F, Unit](poll => poll(semaphore.acquireN(Long.MaxValue)))(_ =>
+          semaphore.releaseN(Long.MaxValue))
+
       Resource.make(initialize)(finalize).map { state =>
         new Hotswap[F, R] {
 
           override def swap(next: Resource[F, R]): F[R] =
-            mutex.lock.surround {
+            exclusive.surround {
               F.uncancelable { poll =>
                 poll(next.allocated).flatMap {
                   case (r, fin) =>
@@ -135,7 +141,7 @@ object Hotswap {
             }
 
           override def get: Resource[F, Option[R]] =
-            mutex.lock.evalMap { _ =>
+            shared.evalMap { _ =>
               state.get.map {
                 case Acquired(r, _) => Some(r)
                 case _ => None
@@ -143,7 +149,7 @@ object Hotswap {
             }
 
           override def clear: F[Unit] =
-            mutex.lock.surround(swapFinalizer(Cleared).uncancelable)
+            exclusive.surround(swapFinalizer(Cleared).uncancelable)
 
           private def swapFinalizer(next: State): F[Unit] =
             state.modify {
@@ -162,6 +168,5 @@ object Hotswap {
         }
       }
     }
-  }
 
 }
