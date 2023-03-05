@@ -93,6 +93,17 @@ class HotswapSpec extends BaseSpec { outer =>
 
       go must completeAs(())
     }
+
+    "resource can be accessed concurrently" in ticked { implicit ticker =>
+      val go = Hotswap.create[IO, Unit].use { hs =>
+        hs.swap(Resource.unit) *>
+          hs.get.useForever.background.surround {
+            IO.sleep(1.second) *> hs.get.use_
+          }
+      }
+
+      go must completeAs(())
+    }
   }
 
 }
