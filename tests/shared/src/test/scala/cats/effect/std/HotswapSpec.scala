@@ -20,6 +20,8 @@ package std
 
 import cats.effect.kernel.Ref
 
+import scala.concurrent.duration._
+
 class HotswapSpec extends BaseSpec { outer =>
 
   sequential
@@ -74,6 +76,22 @@ class HotswapSpec extends BaseSpec { outer =>
           res must beEqualTo(List("open a", "close a", "open b", "close b"))
         }
       }
+    }
+
+    "not release current resource while it is in use" in ticked { implicit ticker =>
+      val r = Resource.make(IO.ref(true))(_.set(false))
+      val go = Hotswap.create[IO, Ref[IO, Boolean]].use { hs =>
+        hs.swap(r) *> (IO.sleep(1.second) *> hs.clear).background.surround {
+          hs.get.use {
+            case Some(ref) =>
+              val notReleased = ref.get.flatMap(b => IO(b must beTrue))
+              notReleased *> IO.sleep(2.seconds) *> notReleased.void
+            case None => IO(false must beTrue).void
+          }
+        }
+      }
+
+      go must completeAs(())
     }
   }
 
