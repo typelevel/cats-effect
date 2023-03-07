@@ -93,7 +93,7 @@ The server returns to the client without waiting for the task to finish.
 
 ## Atomically update a Ref with result of an effect
 
-Cats effect provides [Ref](std/ref.md), that we can use to model mutable concurrent reference. 
+Cats Effect provides [Ref](std/ref.md), that we can use to model mutable concurrent reference. 
 However, if we want to update our ref using result of an effect `Ref` will usually not be enough and we need a more powerful construct to achieve that. 
 In cases like that we can use the [AtomicCell](std/atomic-cell.md) that can be viewed as a synchronized `Ref`.
 
@@ -103,7 +103,7 @@ Assume we have the following function:
 
 ```scala mdoc:silent
 def update(input: Int): IO[Int] =
-  IO(input + 1 )
+  IO(input + 1)
 ```
 If we want to concurrently update a variable using our `update` function it's not possible to do it directly with `Ref`, luckily `AtomicCell` has `evalUpdate`:
 
@@ -146,7 +146,7 @@ class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
 
   def queryCache(): IO[ServiceResponse] = {
     atomicCell evalModify { current =>
-      requestService.query().map { result =>
+      requestService.query() map { result =>
         if (result.exchangeRate > current)
           (result.exchangeRate, result)
         else
