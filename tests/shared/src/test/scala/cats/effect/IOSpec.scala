@@ -320,7 +320,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             .builder()
             .setCompute(ec2(ec, errorReporter), () => ())
             .build()
-          _ = IO.raiseError(new RuntimeException).unsafeRunAndForget()(customRuntime)
+          _ <- IO(IO.raiseError(new RuntimeException).unsafeRunAndForget()(customRuntime))
           reported <- IO.fromFuture(IO(errorReporter.future))
         } yield reported
         test must completeAs(true)

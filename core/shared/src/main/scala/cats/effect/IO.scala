@@ -868,11 +868,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     val _ = unsafeRunFiber(
       (),
       t => {
-        if (NonFatal(t) && runtime.config.reportUnhandledFiberErrors) {
-          runtime.compute.reportFailure(t)
-        } else {
-          t.printStackTrace()
-        }
+        if (NonFatal(t)) {
+          if (runtime.config.reportUnhandledFiberErrors)
+            runtime.compute.reportFailure(t)
+        } else { t.printStackTrace() }
       },
       _ => ())
     ()
