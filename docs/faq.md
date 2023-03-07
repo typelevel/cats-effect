@@ -63,9 +63,9 @@ val names = List("daniel", "chris", "joseph", "renee", "bethany", "grace")
 val program: IO[List[Unit]] = names.traverse(name => IO.println(s"Hi, $name!"))
 ```
 
-In the above example, `traverse` will iterate over every element of the `List`, running the function `String => IO[Unit]` which it was passed, assembling the results into a resulting `List` wrapped in a single outer `IO`.
+In the above example, `traverse` will iterate over every element of the `List`, running the function `String => IO[Unit]` which it was passed, assembling the results into a resulting `List` wrapped in a single outer `IO`, preserving the order of the original input list.
 
-> You *must* have `import cats.syntax.all_` (or `import cats.syntax.traverse._`) in scope, otherwise this will not work! `traverse` is a method that is implicitly enriched onto collections like `List`, `Vector`, and such, meaning that it must be brought into scope using an import (unfortunately!).
+> You *must* have `import cats.syntax.all._` (or `import cats.syntax.traverse._`) in scope, otherwise this will not work! `traverse` is a method that is implicitly enriched onto collections like `List`, `Vector`, and such, meaning that it must be brought into scope using an import (unfortunately!).
 
 Of course, in the above example, we don't really care about the results, since our `IO` is constantly producing `Unit`. This pattern is so common that we have a special combinator for it: `traverse_`.
 
@@ -83,7 +83,7 @@ This type of pattern generalizes extremely well, both to actions which *do* retu
 
 ```scala
 import cats.effect._
-import cats.syntax.all_
+import cats.syntax.all._
 
 import org.http4s.ember.client.EmberClientBuilder
 
@@ -108,6 +108,8 @@ val program: IO[Unit] = EmberClientBuilder.default[IO].build use { client =>
 ```
 
 The above `program` creates a new HTTP client (with associated connection pooling and other production configurations), then *in parallel* iterates over the list of names, constructs a search URL for each name, runs an HTTP `GET` on that URL, "parses" the contents using a naive regular expression extracting the count of persons who have that given name, and produces the results of the whole process as a `List[(String, Int)]`. Then, given this list of `counts`, we *sequentially* iterate over the results and print out each tuple. Finally, we fully clean up the client resources (e.g. closing the connection pool). If any of the HTTP `GET`s produces an error, all resources will be closed and the remaining connections will be safely terminated.
+
+Note that, as with `traverse` itself, `parTraverse` preserves the order of the input list even though it evaluates the individual `IO`s in parallel.
 
 In general, any time you have a problem where you have a collection, `Struct[A]` and an *effectful* function `A => IO[B]` and your goal is to get an `IO[Struct[B]]`, the answer is going to be `traverse`. This works for almost any definition of `Struct` that you can think of! For example, you can do this for `Option[A]` as well. You can even enable this functionality for custom structures by defining an instance of the [`Traverse` typeclass](https://typelevel.org/cats/typeclasses/traverse.html) for your custom datatype (hint: most classes or algebras which have a shape like `Struct[A]` where they *contain a value of type `A`* can easily implement `Traverse`).
 
