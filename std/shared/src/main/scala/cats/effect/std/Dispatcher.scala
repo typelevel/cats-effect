@@ -312,7 +312,7 @@ object Dispatcher {
 
           val action = fe
             .flatMap(e => F.delay(promise.success(e)))
-            .onError { case t => F.delay(promise.failure(t)) }
+            .handleErrorWith(t => F.delay(promise.failure(t)))
             .void
 
           val cancelState = new AtomicReference[CancelState](CancelInit)
