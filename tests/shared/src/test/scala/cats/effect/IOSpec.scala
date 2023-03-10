@@ -1092,11 +1092,13 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       }
 
       "cancelable should not leak" in ticked { implicit ticker =>
-        val test = IO.deferred[Unit] flatMap { latch =>
-          latch.get.uncancelable.cancelable(latch.complete(()).void)
-        }
+        IO.deferred[Unit].flatMap { gate =>
+          val test = IO.deferred[Unit] flatMap { latch =>
+            (gate.complete(()) *> latch.get).uncancelable.cancelable(latch.complete(()).void)
+          }
 
-        test.start.flatMap(f => f.cancel *> f.join).flatMap(_.embedError) must completeAs(())
+          test.start.flatMap(f => gate.get *> f.cancel *> f.join).flatMap(_.embedError)
+        } must completeAs(())
       }
 
       "only unmask within current fiber" in ticked { implicit ticker =>
