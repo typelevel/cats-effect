@@ -1835,6 +1835,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def sleep(time: FiniteDuration): IO[Unit] =
       IO.sleep(time)
 
+    override def cancelable[A](ioa: IO[A], fin: IO[Unit]): IO[A] =
+      IO.Cancelable(ioa, fin)
+
     def canceled: IO[Unit] =
       IO.canceled
 
@@ -2082,6 +2085,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object IOTrace extends IO[Trace] {
     def tag = 23
+  }
+
+  private[effect] final case class Cancelable[+A](ioa: IO[A], cancel: IO[Unit]) extends IO[A] {
+    def tag = 24
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations

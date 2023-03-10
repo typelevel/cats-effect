@@ -32,6 +32,7 @@ private object IOFiberConstants {
   final val UncancelableK = 7
   final val UnmaskK = 8
   final val AttemptK = 9
+  final val CancelableK = 10
 
   // resume ids
   final val ExecR = 0

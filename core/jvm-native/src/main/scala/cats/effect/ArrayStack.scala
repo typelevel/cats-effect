@@ -46,6 +46,16 @@ private final class ArrayStack[A <: AnyRef](
 
   def peek(): A = buffer(index - 1).asInstanceOf[A]
 
+  def peekOrNull(): A = {
+    // local copies
+    val i = index - 1
+    val buffer = this.buffer
+    if (0 <= i && i < buffer.length)
+      buffer(i).asInstanceOf[A]
+    else
+      null.asInstanceOf[A]
+  }
+
   def isEmpty(): Boolean = index <= 0
 
   // to allow for external iteration

@@ -85,6 +85,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
+  private[this] val cancelers: ArrayStack[IO[Unit]] = ArrayStack()
   private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: AnyRef = startIO
@@ -134,6 +135,11 @@ private final class IOFiber[A](
   private[this] var _cancel: IO[Unit] = IO uncancelable { _ =>
     canceled = true
 
+    def externalCancel = {
+      val c = cancelers.peekOrNull()
+      if (c eq null) IO.unit else c
+    }
+
     // println(s"${name}: attempting cancelation")
 
     /* check to see if the target fiber is suspended */
@@ -144,7 +150,7 @@ private final class IOFiber[A](
         // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
         /* if we have async finalizers, runLoop may return early */
-        IO.async_[Unit] { fin =>
+        externalCancel *> IO.async_[Unit] { fin =>
           // println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
           val ec = currentCtx
           resumeTag = AsyncContinueCanceledWithFinalizerR
@@ -157,12 +163,12 @@ private final class IOFiber[A](
          * it was doing  and cancel itself
          */
         suspend() /* allow someone else to take the runloop */
-        join.void
+        externalCancel *> join.void
       }
     } else {
       // println(s"${name}: had to join")
       /* it's already being run somewhere; await the finalizers */
-      join.void
+      externalCancel *> join.void
     }
   }
 
@@ -992,6 +998,14 @@ private final class IOFiber[A](
 
         case 23 =>
           runLoop(succeeded(Trace(tracingEvents), 0), nextCancelation, nextAutoCede)
+
+        case 24 =>
+          val cur = cur0.asInstanceOf[Cancelable[Any]]
+
+          cancelers.push(EvalOn(cur.cancel, currentCtx))
+
+          conts = ByteStack.push(conts, CancelableK)
+          runLoop(cur.ioa, nextCancelation, nextAutoCede)
       }
     }
   }
@@ -1213,6 +1227,10 @@ private final class IOFiber[A](
 
       case 9 => // attemptK
         succeeded(Right(result), depth)
+
+      case 10 => // cancelableSuccessK
+        cancelers.pop()
+        succeeded(result, depth + 1)
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -1275,6 +1293,10 @@ private final class IOFiber[A](
         failed(error, depth + 1)
 
       case 9 => succeeded(Left(error), depth) // attemptK
+
+      case 10 => // CancelableFailureK
+        cancelers.pop()
+        failed(error, depth + 1)
     }
   }
 
