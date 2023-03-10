@@ -52,6 +52,11 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
   def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
 
   /**
+   * Submits an effect to be executed with fire-and-forget semantics.
+   */
+  def unsafeRunAndForget[A](fa: F[A]): Unit
+
+  /**
    * Submits an effect to be executed, returning a `Future` that holds the result of its
    * evaluation.
    */
@@ -64,14 +69,6 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
    */
   def unsafeRunCancelable[A](fa: F[A]): () => Future[Unit] =
     unsafeToFutureCancelable(fa)._2
-
-  /**
-   * Submits an effect to be executed with fire-and-forget semantics.
-   */
-  def unsafeRunAndForget[A](fa: F[A]): Unit = {
-    unsafeToFutureCancelable(fa)
-    ()
-  }
 
   // package-private because it's just an internal utility which supports specific implementations
   // anyone who needs this type of thing should use unsafeToFuture and then onComplete
@@ -307,6 +304,15 @@ object Dispatcher {
       }
     } yield {
       new Dispatcher[F] {
+        def unsafeRunAndForget[A](fa: F[A]): Unit = {
+          unsafeToFutureCancelable(fa)
+            ._1
+            .onComplete {
+              case Success(_) => ()
+              case Failure(t) => t.printStackTrace()
+            }(ec)
+        }
+
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
           val promise = Promise[E]()
 
