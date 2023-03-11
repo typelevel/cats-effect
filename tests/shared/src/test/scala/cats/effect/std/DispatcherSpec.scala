@@ -272,10 +272,11 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           .evalOn(customEc)
           .flatMap(runner =>
             Resource.eval(IO(runner.unsafeRunAndForget(IO.raiseError(new Exception("boom"))))))
-        reported <- Resource.eval(IO.fromFuture(IO(errorReporter.future)))
-      } yield reported
+      } yield errorReporter
 
-      test.use(t => IO(t mustEqual true))
+      test
+        .use(t => IO.fromFuture(IO(t.future)).timeout(1.second).handleError(_ => false))
+        .flatMap(t => IO(t mustEqual true))
     }
 
     "do not treat exception in unsafeRunToFuture as unhandled" in real {
@@ -293,10 +294,10 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           .evalOn(customEc)
           .flatMap(runner =>
             Resource.eval(IO(runner.unsafeToFuture(IO.raiseError(new Exception("boom"))))))
-        reported <- Resource.eval(IO.fromFuture(IO(errorReporter.future)))
-      } yield reported
+      } yield errorReporter
 
-      test.use(t => IO(t).mustFailWith[TimeoutException])
+      test.use(t =>
+        IO.fromFuture(IO(t.future)).timeout(1.second).mustFailWith[TimeoutException])
     }
 
     "respect self-cancelation" in real {
