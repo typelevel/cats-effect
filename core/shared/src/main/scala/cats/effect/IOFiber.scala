@@ -1060,6 +1060,7 @@ private final class IOFiber[A](
     conts = null
     objectState.invalidate()
     finalizers.invalidate()
+    cancelers.invalidate()
     currentCtx = null
 
     if (isStackTracing) {
@@ -1363,6 +1364,7 @@ private final class IOFiber[A](
 
       objectState.init(16)
       finalizers.init(16)
+      cancelers.init(1)
 
       val io = resumeIO.asInstanceOf[IO[Any]]
       resumeIO = null
