@@ -1084,11 +1084,13 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       }
 
       "support re-enablement via cancelable" in ticked { implicit ticker =>
-        val test = IO.deferred[Unit] flatMap { latch =>
-          latch.get.uncancelable.cancelable(latch.complete(()).void)
-        }
+        IO.deferred[Unit].flatMap { gate =>
+          val test = IO.deferred[Unit] flatMap { latch =>
+            (gate.complete(()) *> latch.get).uncancelable.cancelable(latch.complete(()).void)
+          }
 
-        test.start.flatMap(_.cancel) must completeAs(())
+          test.start.flatMap(gate.get *> _.cancel)
+        } must completeAs(())
       }
 
       "only unmask within current fiber" in ticked { implicit ticker =>
