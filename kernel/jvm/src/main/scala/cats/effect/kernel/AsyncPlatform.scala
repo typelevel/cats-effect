@@ -30,35 +30,25 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
    * @param fut
    *   The `java.util.concurrent.CompletableFuture` to suspend in `F[_]`
    */
-  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] = cont {
-    new Cont[F, A, A] {
-      def apply[G[_]](
-          implicit
-          G: MonadCancelThrow[G]): (Either[Throwable, A] => Unit, G[A], F ~> G) => G[A] = {
-        (resume, get, lift) =>
-          G.uncancelable { poll =>
-            G.flatMap(poll(lift(fut))) { cf =>
-              val go = delay {
-                cf.handle[Unit] {
-                  case (a, null) => resume(Right(a))
-                  case (_, t) =>
-                    resume(Left(t match {
-                      case e: CompletionException if e.getCause ne null => e.getCause
-                      case _ => t
-                    }))
-                }
-              }
-
-              val await = G.onCancel(
-                poll(get),
-                // if cannot cancel, fallback to get
-                G.ifM(lift(delay(cf.cancel(false))))(G.unit, G.void(get))
-              )
-
-              G.productR(lift(go))(await)
-            }
+  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] = uncancelable { _ =>
+    flatMap(fut) { cf =>
+      cancelable(
+        async_[A] { cb =>
+          cf.handle[Unit] {
+            case (a, null) => cb(Right(a))
+            case (_, t) =>
+              cb(Left(t match {
+                case e: CompletionException if e.getCause ne null => e.getCause
+                case _ => t
+              }))
           }
-      }
+          ()
+        },
+        delay {
+          cf.cancel(false)
+          ()
+        }
+      )
     }
   }
 
