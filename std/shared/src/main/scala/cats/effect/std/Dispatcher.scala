@@ -309,6 +309,13 @@ object Dispatcher {
       }
     } yield {
       new Dispatcher[F] {
+        override def unsafeRunAndForget[A](fa: F[A]): Unit = {
+          unsafeRunAsync(fa) {
+            case Left(t) => ec.reportFailure(t)
+            case Right(_) => ()
+          }
+        }
+
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
           val promise = Promise[E]()
 
