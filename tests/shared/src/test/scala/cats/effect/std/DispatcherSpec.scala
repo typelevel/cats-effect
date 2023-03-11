@@ -275,7 +275,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       } yield errorReporter
 
       test
-        .use(t => IO.fromFuture(IO(t.future)).timeout(1.second).handleError(_ => false))
+        .use(t => IO.fromFuture(IO(t.future)).timeoutTo(1.second, IO.pure(false)))
         .flatMap(t => IO(t mustEqual true))
     }
 
