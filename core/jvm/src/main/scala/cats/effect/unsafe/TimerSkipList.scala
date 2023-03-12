@@ -29,5 +29,6 @@ private final class TimerSkipList() {
 
   final def pollFirstIfTriggered(now: Long): Right[Nothing, Unit] => Unit = ???
 
-  final def peekFirstDelay(now: Long): Long = ???
+  /** `Long.MinValue` means the list is empty */
+  final def peekFirstTriggerTime(): Long = ???
 }
