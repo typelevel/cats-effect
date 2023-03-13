@@ -18,9 +18,9 @@ package cats.effect.unsafe
 
 import scala.annotation.tailrec
 
-import java.util.concurrent.atomic.{AtomicReference, AtomicLong}
 import java.lang.Long.{MAX_VALUE, MIN_VALUE => MARKER}
 import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 /**
  * Concurrent skip list holding timer callbacks and their associated trigger times. The 3 main
@@ -576,7 +576,7 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
       while (inner) {
         val n = b.getNext()
         if (n eq null) {
-          return false // scalafix:ok
+          return false
         } else if (n.isMarker) {
           inner = false
           b = findPredecessor(triggerTime, seqNo)
@@ -590,13 +590,13 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
             if (c > 0) {
               b = n
             } else if (c < 0) {
-              return false // scalafix:ok
+              return false
             } else if (n.casCb(ncb, null)) {
               // successfully logically deleted
               unlinkNode(b, n)
               findPredecessor(triggerTime, seqNo) // cleanup
               tryReduceLevel()
-              return true // scalafix:ok
+              return true
             }
           }
         }
@@ -718,7 +718,7 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
               q = r
             } else if (c == 0) {
               // stale
-              return false // scalafix:ok
+              return false
             }
           } else {
             c = -1
@@ -730,11 +730,11 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
               skips -= 1
               q = d
             } else if ((d ne null) && !retrying && !addIndices(d, 0, x.down)) {
-              return false // scalafix:ok
+              return false
             } else {
               x.setRight(r)
               if (q.casRight(r, x)) {
-                return true // scalafix:ok
+                return true
               } else {
                 retrying = true // re-find splice point
               }
@@ -767,7 +767,7 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
           q = d
         } else {
           // can't go down, we're done:
-          return q.node // scalafix:ok
+          return q.node
         }
       }
 
