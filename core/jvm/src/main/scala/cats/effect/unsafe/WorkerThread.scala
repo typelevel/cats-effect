@@ -380,7 +380,6 @@ private final class WorkerThread(
                   if (parked.getAndSet(false)) {
                     pool.doneSleeping()
                   }
-
                   true
                 } else {
                   // awakened spuriously, re-check next sleeper
@@ -392,7 +391,11 @@ private final class WorkerThread(
               }
             }
           } else {
-            true // a timer already expired
+            // a timer already expired
+            if (parked.getAndSet(false)) {
+              pool.doneSleeping()
+            }
+            true
           }
         }
       }
