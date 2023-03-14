@@ -141,7 +141,7 @@ To simplify we model the `StubService` to just return some random `Double` value
 
 Now, say that we want to have a cache that holds the highest exchange rate that is ever returned by our service, we can have the proxy implementation based on `AtomicCell` like below:
 
-```scala mcdoc:silent
+```scala mdoc:silent
 class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
 
   def queryCache(): IO[ServiceResponse] = {
