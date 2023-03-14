@@ -31,6 +31,8 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.{CancellationException, ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
 
+import java.util.concurrent.ThreadLocalRandom
+
 import Prop.forAll
 
 class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
@@ -1613,6 +1615,31 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         var affected = false
         (IO.sleep(10.seconds) >> IO { affected = true }) must completeAs(())
         affected must beTrue
+      }
+
+      "random racing sleeps" in real {
+        def randomSleep: IO[Unit] = IO.defer {
+          val n = ThreadLocalRandom.current().nextInt(2000000)
+          IO.sleep(n.micros) // less than 2 seconds
+        }
+
+        def raceAll(ios: List[IO[Unit]]): IO[Unit] = {
+          ios match {
+            case head :: tail => tail.foldLeft(head) { (x, y) => IO.race(x, y).void }
+            case Nil => IO.unit
+          }
+        }
+
+        // we race a lot of "sleeps", it must not hang
+        // (this includes inserting and cancelling
+        // a lot of callbacks into the skip list,
+        // thus hopefully stressing the data structure):
+        List
+          .fill(1000) {
+            raceAll(List.fill(1000) { randomSleep })
+          }
+          .parSequence_
+          .as(ok)
       }
 
       "timeout" should {
