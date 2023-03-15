@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.effect.metrics.CpuStarvationMetrics
-import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
@@ -39,7 +38,9 @@ private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
         metrics.recordClockDrift(delta - cpuStarvationCheckInterval) >>
           IO.realTime
             .flatMap(fd =>
-              (Console[IO].errorln(warning(fd)) *> metrics.incCpuStarvationCount)
+              (runtimeConfig
+                .cpuStarvationConsole
+                .errorln(warning(fd)) *> metrics.incCpuStarvationCount)
                 .whenA(delta >= threshold)) >> go(now)
       }
 
