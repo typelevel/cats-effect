@@ -22,8 +22,7 @@ import java.nio.charset.Charset
 
 /**
  * Effect type agnostic `Console` with common methods to write to and read from the standard
- * console. Due to issues around cancellation in `readLine`, suited only for extremely simple
- * console input and output in trivial applications.
+ * console. Suited only for extremely simple console input and output in trivial applications.
  *
  * @example
  *   {{{
