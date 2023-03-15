@@ -5,7 +5,7 @@ jvm_highcore_task:
     memory: 8G
   matrix:
     - script: sbt '++ 2.12' testsJVM/test
-    - script: sbt '++ 2.13' testsJVM/test
+    - script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
     - script: sbt '++ 3' testsJVM/test
 
 jvm_arm_highcore_task:
@@ -15,7 +15,7 @@ jvm_arm_highcore_task:
     memory: 8G
   matrix:
     - script: sbt '++ 2.12' testsJVM/test
-    - script: sbt '++ 2.13' testsJVM/test
+    - script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
     - script: sbt '++ 3' testsJVM/test
 
 native_arm_task:
