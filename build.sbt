@@ -331,6 +331,7 @@ val nativeProjects: Seq[ProjectReference] =
 val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
     benchmarks,
+    stressTests,
     example.jvm,
     graalVMExample,
     tests.jvm,
@@ -359,7 +360,8 @@ lazy val rootJVM = project
     std.jvm,
     example.jvm,
     graalVMExample,
-    benchmarks)
+    benchmarks,
+    stressTests)
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project.aggregate(jsProjects: _*).enablePlugins(NoPublishPlugin)
@@ -383,6 +385,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[Problem]("cats.effect.kernel.GenConcurrent#Memoize*")
     )
   )
+  .disablePlugins(JCStressPlugin)
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
@@ -418,6 +421,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.kernel.testkit.TestContext#Task.copy")
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid jar file and
@@ -433,6 +437,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test)
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * Concrete, production-grade implementations of the abstractions. Or, more simply-put: IO. Also
@@ -804,6 +809,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       } else Seq()
     }
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
@@ -819,6 +825,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.specs2" %%% "specs2-core" % Specs2Version % Test
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
@@ -930,6 +937,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom$")
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
@@ -967,5 +975,14 @@ lazy val benchmarks = project
       "-Dcats.effect.tracing.mode=none",
       "-Dcats.effect.tracing.exceptions.enhanced=false"))
   .enablePlugins(NoPublishPlugin, JmhPlugin)
+
+lazy val stressTests = project
+  .in(file("stress-tests"))
+  .dependsOn(core.jvm, std.jvm)
+  .settings(
+    name := "cats-effect-stress-tests",
+    Jcstress / version := "0.16",
+  )
+  .enablePlugins(NoPublishPlugin, JCStressPlugin)
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
