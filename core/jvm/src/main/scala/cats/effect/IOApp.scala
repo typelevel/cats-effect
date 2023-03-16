@@ -305,7 +305,7 @@ trait IOApp {
       .getOrElse(10.seconds)
 
   /**
-   * Defines what to do when [[CpuStarvationCheck]] is triggered. Defaults to log a warning to
+   * Defines what to do when CpuStarvationCheck is triggered. Defaults to log a warning to
    * System.err.
    */
   protected def onCpuStarvationWarn: CpuStarvationWarningMetrics => IO[Unit] =
