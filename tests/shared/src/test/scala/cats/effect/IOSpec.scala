@@ -1635,8 +1635,8 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         // a lot of callbacks into the skip list,
         // thus hopefully stressing the data structure):
         List
-          .fill(1000) {
-            raceAll(List.fill(1000) { randomSleep })
+          .fill(iterations) {
+            raceAll(List.fill(iterations) { randomSleep })
           }
           .parSequence_
           .as(ok)

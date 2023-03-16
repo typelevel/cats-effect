@@ -20,6 +20,9 @@ import org.specs2.ScalaCheck
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
+  def iterations: Int =
+    100
+
   def platformSpecs = "platform" should {
     "realTimeInstant should return an Instant constructed from realTime" in ticked {
       implicit ticker =>
