@@ -81,8 +81,7 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
       reportUnhandledFiberErrors,
       cpuStarvationCheckInterval,
       cpuStarvationCheckInitialDelay,
-      cpuStarvationCheckThreshold,
-      DefaultCpuConsole
+      cpuStarvationCheckThreshold
     )
   }
 }

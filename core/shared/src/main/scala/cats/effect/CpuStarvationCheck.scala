@@ -16,20 +16,22 @@
 
 package cats.effect
 
-import cats.effect.metrics.CpuStarvationMetrics
+import cats.effect.metrics.{CpuStarvationMetrics, CpuStarvationWarningMetrics}
+import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
+
 private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
 
-  def run(runtimeConfig: IORuntimeConfig, metrics: CpuStarvationMetrics): IO[Nothing] = {
+  def run(
+      runtimeConfig: IORuntimeConfig,
+      metrics: CpuStarvationMetrics,
+      onCpuStarvationWarn: CpuStarvationWarningMetrics => IO[Unit]): IO[Nothing] = {
     import runtimeConfig._
 
     val threshold = cpuStarvationCheckInterval * (1 + cpuStarvationCheckThreshold)
-
-    val warning: FiniteDuration => String =
-      mkWarning(cpuStarvationCheckInterval * cpuStarvationCheckThreshold)
 
     def go(initial: FiniteDuration): IO[Nothing] =
       IO.sleep(cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
@@ -38,14 +40,25 @@ private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
         metrics.recordClockDrift(delta - cpuStarvationCheckInterval) >>
           IO.realTime
             .flatMap(fd =>
-              (runtimeConfig
-                .cpuStarvationConsole
-                .errorln(warning(fd)) *> metrics.incCpuStarvationCount)
+              (onCpuStarvationWarn(
+                CpuStarvationWarningMetrics(
+                  fd,
+                  delta - cpuStarvationCheckInterval,
+                  cpuStarvationCheckThreshold,
+                  cpuStarvationCheckInterval)) *> metrics.incCpuStarvationCount)
                 .whenA(delta >= threshold)) >> go(now)
       }
 
     IO.monotonic.flatMap(go(_)).delayBy(cpuStarvationCheckInitialDelay)
   }
+
+  def logWarning(cpuStarvationWarningMetrics: CpuStarvationWarningMetrics): IO[Unit] =
+    Console
+      .make[IO]
+      .errorln(
+        mkWarning(
+          cpuStarvationWarningMetrics.starvationInterval * cpuStarvationWarningMetrics.starvationThreshold)(
+          cpuStarvationWarningMetrics.occurrenceTime))
 
   private[this] def mkWarning(threshold: Duration)(when: FiniteDuration) =
     s"""|${format(when)} [WARNING] Your app's responsiveness to a new asynchronous 

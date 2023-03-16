@@ -17,8 +17,6 @@
 package cats.effect
 package unsafe
 
-import cats.effect.std.Console
-
 import scala.concurrent.duration._
 
 final case class IORuntimeConfig private (
@@ -30,8 +28,7 @@ final case class IORuntimeConfig private (
     val reportUnhandledFiberErrors: Boolean,
     val cpuStarvationCheckInterval: FiniteDuration,
     val cpuStarvationCheckInitialDelay: Duration,
-    val cpuStarvationCheckThreshold: Double,
-    val cpuStarvationConsole: Console[IO]) {
+    val cpuStarvationCheckThreshold: Double) {
 
   private[unsafe] def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
     this(
@@ -43,8 +40,7 @@ final case class IORuntimeConfig private (
       IORuntimeConfig.DefaultReportUnhandledFiberErrors,
       IORuntimeConfig.DefaultCpuStarvationCheckInterval,
       IORuntimeConfig.DefaultCpuStarvationCheckInitialDelay,
-      IORuntimeConfig.DefaultCpuStarvationCheckThreshold,
-      IORuntimeConfig.DefaultCpuConsole
+      IORuntimeConfig.DefaultCpuStarvationCheckThreshold
     )
 
   def copy(
@@ -56,8 +52,7 @@ final case class IORuntimeConfig private (
       reportUnhandledFiberErrors: Boolean = this.reportUnhandledFiberErrors,
       cpuStarvationCheckInterval: FiniteDuration = this.cpuStarvationCheckInterval,
       cpuStarvationCheckInitialDelay: Duration = this.cpuStarvationCheckInitialDelay,
-      cpuStarvationCheckThreshold: Double = this.cpuStarvationCheckThreshold,
-      cpuStarvationConsole: Console[IO] = this.cpuStarvationConsole
+      cpuStarvationCheckThreshold: Double = this.cpuStarvationCheckThreshold
   ): IORuntimeConfig =
     new IORuntimeConfig(
       cancelationCheckThreshold,
@@ -68,8 +63,7 @@ final case class IORuntimeConfig private (
       reportUnhandledFiberErrors,
       cpuStarvationCheckInterval,
       cpuStarvationCheckInitialDelay,
-      cpuStarvationCheckThreshold,
-      cpuStarvationConsole
+      cpuStarvationCheckThreshold
     )
 
   private[unsafe] def copy(
@@ -87,8 +81,7 @@ final case class IORuntimeConfig private (
       IORuntimeConfig.DefaultReportUnhandledFiberErrors,
       IORuntimeConfig.DefaultCpuStarvationCheckInterval,
       IORuntimeConfig.DefaultCpuStarvationCheckInitialDelay,
-      IORuntimeConfig.DefaultCpuStarvationCheckThreshold,
-      IORuntimeConfig.DefaultCpuConsole
+      IORuntimeConfig.DefaultCpuStarvationCheckThreshold
     )
 
   // shims for binary compat
@@ -106,8 +99,7 @@ final case class IORuntimeConfig private (
       IORuntimeConfig.DefaultReportUnhandledFiberErrors,
       IORuntimeConfig.DefaultCpuStarvationCheckInterval,
       IORuntimeConfig.DefaultCpuStarvationCheckInitialDelay,
-      IORuntimeConfig.DefaultCpuStarvationCheckThreshold,
-      IORuntimeConfig.DefaultCpuConsole
+      IORuntimeConfig.DefaultCpuStarvationCheckThreshold
     )
 
   // shims for binary compat
@@ -126,8 +118,7 @@ final case class IORuntimeConfig private (
       IORuntimeConfig.DefaultReportUnhandledFiberErrors,
       IORuntimeConfig.DefaultCpuStarvationCheckInterval,
       IORuntimeConfig.DefaultCpuStarvationCheckInitialDelay,
-      IORuntimeConfig.DefaultCpuStarvationCheckThreshold,
-      IORuntimeConfig.DefaultCpuConsole
+      IORuntimeConfig.DefaultCpuStarvationCheckThreshold
     )
 
   private[unsafe] def copy(
@@ -144,8 +135,7 @@ final case class IORuntimeConfig private (
       reportUnhandledFiberErrors,
       cpuStarvationCheckInterval,
       cpuStarvationCheckInitialDelay,
-      cpuStarvationCheckThreshold,
-      cpuStarvationConsole
+      cpuStarvationCheckThreshold
     )
 
   private[unsafe] def copy(
@@ -160,8 +150,7 @@ final case class IORuntimeConfig private (
       reportUnhandledFiberErrors,
       cpuStarvationCheckInterval,
       cpuStarvationCheckInitialDelay,
-      cpuStarvationCheckThreshold,
-      cpuStarvationConsole
+      cpuStarvationCheckThreshold
     )
 
   private[effect] val traceBufferLogSize: Int =
@@ -178,7 +167,6 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
   private[unsafe] def DefaultCpuStarvationCheckInterval = 1.second
   private[unsafe] def DefaultCpuStarvationCheckInitialDelay = 10.seconds
   private[unsafe] def DefaultCpuStarvationCheckThreshold = 0.1d
-  private[unsafe] def DefaultCpuConsole = Console.make[IO]
 
   def apply(): IORuntimeConfig = Default
 
@@ -192,8 +180,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       DefaultReportUnhandledFiberErrors,
       DefaultCpuStarvationCheckInterval,
       DefaultCpuStarvationCheckInitialDelay,
-      DefaultCpuStarvationCheckThreshold,
-      DefaultCpuConsole
+      DefaultCpuStarvationCheckThreshold
     )
 
   def apply(
@@ -223,8 +210,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       DefaultReportUnhandledFiberErrors,
       DefaultCpuStarvationCheckInterval,
       DefaultCpuStarvationCheckInitialDelay,
-      DefaultCpuStarvationCheckThreshold,
-      IORuntimeConfig.DefaultCpuConsole
+      DefaultCpuStarvationCheckThreshold
     )
 
   def apply(
@@ -236,8 +222,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       reportUnhandledFiberErrors: Boolean,
       cpuStarvationCheckInterval: FiniteDuration,
       cpuStarvationCheckInitialDelay: FiniteDuration,
-      cpuStarvationCheckThreshold: Double,
-      cpuStarvationConsole: Console[IO]
+      cpuStarvationCheckThreshold: Double
   ): IORuntimeConfig = {
     if (autoYieldThreshold % cancelationCheckThreshold == 0)
       if (cpuStarvationCheckThreshold > 0)
@@ -250,8 +235,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
           reportUnhandledFiberErrors,
           cpuStarvationCheckInterval,
           cpuStarvationCheckInitialDelay,
-          cpuStarvationCheckThreshold,
-          cpuStarvationConsole
+          cpuStarvationCheckThreshold
         )
       else
         throw new AssertionError(
