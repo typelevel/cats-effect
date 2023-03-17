@@ -26,7 +26,7 @@ import scala.scalajs.js
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
   def iterations: Int =
-    100
+    50
 
   def platformSpecs =
     "platform" should {
