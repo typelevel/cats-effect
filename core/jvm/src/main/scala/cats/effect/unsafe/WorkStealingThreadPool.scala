@@ -77,6 +77,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
   private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
+  private[unsafe] val sleepers: Array[TimerSkipList] = new Array(threadCount)
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
 
@@ -91,9 +92,6 @@ private[effect] final class WorkStealingThreadPool(
 
   private[this] val externalQueue: ScalQueue[AnyRef] =
     new ScalQueue(threadCount << 2)
-
-  private[this] val sleepers: TimerSkipList =
-    new TimerSkipList
 
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
@@ -120,13 +118,22 @@ private[effect] final class WorkStealingThreadPool(
     while (i < threadCount) {
       val queue = new LocalQueue()
       localQueues(i) = queue
+      val sleepersList = new TimerSkipList()
+      sleepers(i) = sleepersList
       val parkedSignal = new AtomicBoolean(false)
       parkedSignals(i) = parkedSignal
       val index = i
       val fiberBag = new WeakBag[Runnable]()
       fiberBags(i) = fiberBag
       val thread =
-        new WorkerThread(index, queue, parkedSignal, externalQueue, fiberBag, sleepers, this)
+        new WorkerThread(
+          index,
+          queue,
+          parkedSignal,
+          externalQueue,
+          fiberBag,
+          sleepersList,
+          this)
       workerThreads(i) = thread
       i += 1
     }
@@ -201,6 +208,47 @@ private[effect] final class WorkStealingThreadPool(
       fiber
     } else {
       null
+    }
+  }
+
+  /**
+   * Tries to invoke the expired timers of some (possibly) other `WorkerThread`. After
+   * successfully stealing the timers of a thread, it returns (i.e., it doesn't try to steal
+   * from ALL threads).
+   *
+   * @param now
+   *   the current time as returned by `System.nanoTime`
+   * @param random
+   *   the `ThreadLocalRandom` of the current thread
+   */
+  private[unsafe] def stealTimers(now: Long, random: ThreadLocalRandom): Unit = {
+    val from = random.nextInt(threadCount)
+    var i = 0
+    while (i < threadCount) {
+      // Compute the index of the thread to steal from
+      // (note: it doesn't matter if we try to steal
+      // from ourselves).
+      val index = (from + i) % threadCount
+      val tsl = sleepers(index)
+      var invoked = false // whether we successfully invoked a timer
+      var cont = true
+      while (cont) {
+        val cb = tsl.pollFirstIfTriggered(now)
+        if (cb ne null) {
+          cb(RightUnit)
+          invoked = true
+        } else {
+          cont = false
+        }
+      }
+
+      if (invoked) {
+        // we did some work, don't
+        // check other threads
+        return
+      } else {
+        i += 1
+      }
     }
   }
 

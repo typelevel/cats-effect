@@ -53,7 +53,7 @@ private final class WorkerThread(
     private[this] val external: ScalQueue[AnyRef],
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
-    private[this] val sleepers: TimerSkipList,
+    private[this] var sleepers: TimerSkipList,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -410,6 +410,7 @@ private final class WorkerThread(
         // pool because they have already been transferred to another thread
         // which took the place of this one.
         queue = null
+        sleepers = null
         parked = null
         fiberBag = null
 
@@ -579,6 +580,8 @@ private final class WorkerThread(
           }
 
         case 2 =>
+          // First try to steal some expired timers:
+          pool.stealTimers(System.nanoTime(), rnd)
           // Try stealing fibers from other worker threads.
           val fiber = pool.stealFromOtherWorkerThread(index, rnd, self)
           if (fiber ne null) {
@@ -669,7 +672,7 @@ private final class WorkerThread(
           }
 
         case _ =>
-          // Call all expired timers:
+          // Call all of our expired timers:
           val now = System.nanoTime()
           var cont = true
           while (cont) {
@@ -813,6 +816,7 @@ private final class WorkerThread(
   private[this] def init(newIdx: Int): Unit = {
     _index = newIdx
     queue = pool.localQueues(newIdx)
+    sleepers = pool.sleepers(newIdx)
     parked = pool.parkedSignals(newIdx)
     fiberBag = pool.fiberBags(newIdx)
 
