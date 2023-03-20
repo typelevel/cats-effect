@@ -20,15 +20,16 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
- * Base class for `TimerSkipList#Node`, because we can't use
- * `AtomicReferenceFieldUpdater` from Scala.
+ * Base class for `TimerSkipList#Node`, because we can't use `AtomicReferenceFieldUpdater` from
+ * Scala.
  */
-abstract class TimerSkipListNodeBase<C, N extends TimerSkipListNodeBase<C, N>> extends AtomicReference<N> {
+abstract class TimerSkipListNodeBase<C, N extends TimerSkipListNodeBase<C, N>>
+    extends AtomicReference<N> {
 
   private volatile C callback;
 
   private static final AtomicReferenceFieldUpdater<TimerSkipListNodeBase, Object> CALLBACK =
-     AtomicReferenceFieldUpdater.newUpdater(TimerSkipListNodeBase.class, Object.class, "callback");
+      AtomicReferenceFieldUpdater.newUpdater(TimerSkipListNodeBase.class, Object.class, "callback");
 
   protected TimerSkipListNodeBase(C cb, N next) {
     super(next);
