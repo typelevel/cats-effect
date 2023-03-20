@@ -62,21 +62,13 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
    * We're also (ab)using the `Node` class as the "canceller" for an inserted timer callback
    * (see `run` method).
    */
-  private[unsafe] final class Node private (
+  private[unsafe] final class Node private[TimerSkipList] (
       val triggerTime: Long,
       val sequenceNum: Long,
-      cb: AtomicReference[Callback],
-      n: Node
-  ) extends AtomicReference[Node](n)
-      with Runnable { next =>
-
-    private[TimerSkipList] def this(
-        triggerTime: Long,
-        seqNo: Long,
-        cb: Callback,
-        next: Node) = {
-      this(triggerTime, seqNo, new AtomicReference(cb), next)
-    }
+      cb: Callback,
+      next: Node
+  ) extends TimerSkipListNodeBase[Callback, Node](cb, next)
+      with Runnable {
 
     /**
      * Cancels the timer
@@ -97,22 +89,6 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
 
     private[TimerSkipList] final def isDeleted(): Boolean = {
       getCb() eq null
-    }
-
-    private[TimerSkipList] final def getNext(): Node = {
-      next.get() // could be `getAcquire`
-    }
-
-    private[TimerSkipList] final def casNext(ov: Node, nv: Node): Boolean = {
-      next.compareAndSet(ov, nv)
-    }
-
-    private[unsafe] final def getCb(): Callback = {
-      cb.get() // could be `getAcquire`
-    }
-
-    private[TimerSkipList] final def casCb(ov: Callback, nv: Callback): Boolean = {
-      cb.compareAndSet(ov, nv)
     }
 
     final override def toString: String =
