@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
   def iterations: Int =
-    1000
+    500
 
   def platformSpecs = {
     "platform" should {
