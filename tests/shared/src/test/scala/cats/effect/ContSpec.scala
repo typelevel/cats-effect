@@ -124,13 +124,13 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
             cont {
               new Cont[IO, Unit, Unit] {
                 def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
+                  lift(IO(scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
                     get.onCancel {
                       lift(start.set(true)) >> get >> lift(end.set(true))
                     }
                 }
               }
-            }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
+            }.timeoutTo(1.second, ().pure[IO]) >> (start.get, end.get).tupled
         }
         .guarantee(IO(close()))
 
@@ -150,13 +150,13 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
             cont {
               new Cont[IO, Unit, Unit] {
                 def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
+                  lift(IO(scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
                     get.onCancel {
                       lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
                     }
                 }
               }
-            }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
+            }.timeoutTo(1.second, ().pure[IO]) >> (start.get, end.get).tupled
         }
         .guarantee(IO(close()))
 
