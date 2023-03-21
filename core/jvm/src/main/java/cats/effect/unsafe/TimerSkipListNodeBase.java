@@ -23,11 +23,13 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * Base class for `TimerSkipList#Node`, because we can't use `AtomicReferenceFieldUpdater` from
  * Scala.
  */
+@SuppressWarnings("serial") // do not serialize this!
 abstract class TimerSkipListNodeBase<C, N extends TimerSkipListNodeBase<C, N>>
     extends AtomicReference<N> {
 
   private volatile C callback;
 
+  @SuppressWarnings("rawtypes")
   private static final AtomicReferenceFieldUpdater<TimerSkipListNodeBase, Object> CALLBACK =
       AtomicReferenceFieldUpdater.newUpdater(TimerSkipListNodeBase.class, Object.class, "callback");
 
