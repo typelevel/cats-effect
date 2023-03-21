@@ -73,10 +73,9 @@ class SkipListTest3 {
     // first remove all the items before the racy ones:
     while ({
       val tt = m.peekFirstTriggerTime()
-      tt != (NOW + MAGIC)
-    }) {
       m.pollFirstIfTriggered(now = 2048L)
-    }
+      tt != (NOW + MAGIC) // there is an already existing callback with this triggerTime, we also remove that
+    }) {}
     // then look at the inserted item:
     val cb = m.pollFirstIfTriggered(now = 2048L)
     r.r3 = if (cb eq newCb) 1L else 0L

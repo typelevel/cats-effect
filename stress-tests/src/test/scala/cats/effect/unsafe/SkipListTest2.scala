@@ -76,10 +76,9 @@ class SkipListTest2 {
     // first remove all the items before the racy ones:
     while ({
       val tt = m.peekFirstTriggerTime()
-      tt != (NOW + MAGIC)
-    }) {
       m.pollFirstIfTriggered(now = 2048L)
-    }
+      tt != (NOW + MAGIC) // there is an already existing callback with this triggerTime, we also remove that
+    }) {}
     // then look at the 2 racy inserts:
     val first = m.pollFirstIfTriggered(now = 2048L)
     val second = m.pollFirstIfTriggered(now = 2048L)
