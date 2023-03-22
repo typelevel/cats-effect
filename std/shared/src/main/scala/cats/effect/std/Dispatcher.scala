@@ -247,12 +247,8 @@ object Dispatcher {
       supervisor <- Supervisor[F](await, Some((_: Outcome[F, Throwable, _]) => true))
 
       _ <- {
-        def dispatcher(
-            doneR: AtomicBoolean,
-            latch: AtomicReference[() => Unit],
-            state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
-
-          val step = for {
+        def step(state: Array[AtomicReference[List[Registration]]], await: F[Unit]): F[Unit] =
+          for {
             regs <- F delay {
               val buffer = mutable.ListBuffer.empty[Registration]
               var i = 0
@@ -269,12 +265,7 @@ object Dispatcher {
 
             _ <-
               if (regs.isEmpty) {
-                F.async_[Unit] { cb =>
-                  if (!latch.compareAndSet(Noop, () => cb(Completed))) {
-                    // state was changed between when we last set the latch and now; complete the callback immediately
-                    cb(Completed)
-                  }
-                }
+                await
               } else {
                 regs traverse_ {
                   case r @ Registration(action, prepareCancel) =>
@@ -287,10 +278,23 @@ object Dispatcher {
               }
           } yield ()
 
+        def dispatcher(
+            doneR: AtomicBoolean,
+            latch: AtomicReference[() => Unit],
+            state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
+
+          val await =
+            F.async_[Unit] { cb =>
+              if (!latch.compareAndSet(Noop, () => cb(Completed))) {
+                // state was changed between when we last set the latch and now; complete the callback immediately
+                cb(Completed)
+              }
+            }
+
           F.delay(latch.set(Noop)) *> // reset latch
             // if we're marked as done, yield immediately to give other fibers a chance to shut us down
             // we might loop on this a few times since we're marked as done before the supervisor is canceled
-            F.delay(doneR.get()).ifM(F.cede, step)
+            F.delay(doneR.get()).ifM(F.cede, step(state, await))
         }
 
         0.until(workers).toList traverse_ { n =>
@@ -300,7 +304,7 @@ object Dispatcher {
             val release = F.delay(latch.getAndSet(Open)())
             Resource.make(supervisor.supervise(worker)) { _ =>
               // published by release
-              F.delay(doneR.lazySet(true)) *> release
+              F.delay(doneR.lazySet(true)) *> step(states(n), F.unit) *> release
             }
           }
         }
