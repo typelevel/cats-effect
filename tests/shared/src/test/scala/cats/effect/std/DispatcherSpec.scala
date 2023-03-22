@@ -310,6 +310,15 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       }
     }
 
+    "issue #3506: await unsafeRunAndForget" in real {
+      for {
+        resultR <- IO.ref(false)
+        _ <- dispatcher.use { runner => IO(runner.unsafeRunAndForget(resultR.set(true))) }
+        result <- resultR.get
+        _ <- IO(result must beTrue)
+      } yield ok
+    }
+
     "cancel active fibers when an error is produced" in real {
       case object TestException extends RuntimeException
 
