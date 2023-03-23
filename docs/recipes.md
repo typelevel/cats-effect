@@ -144,7 +144,7 @@ Now, say that we want to have a cache that holds the highest exchange rate that 
 ```scala mdoc:silent
 class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
 
-  def queryCache(): IO[ServiceResponse] = {
+  def queryCache(): IO[ServiceResponse] = 
     atomicCell evalModify { current =>
       requestService.query() map { result =>
         if (result.exchangeRate > current)
@@ -155,10 +155,11 @@ class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
         case (state, result) => ServiceResponse(result)
       }
     }
+    
 
     def getHistoryMax(): IO[Double] = atomicCell.get
-  }
 }
+
 
 ```
 
