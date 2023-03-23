@@ -310,13 +310,13 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       }
     }
 
-    "issue #3506: await unsafeRunAndForget" in real {
-      for {
+    "issue #3506: await unsafeRunAndForget" in ticked { implicit ticker =>
+      val result = for {
         resultR <- IO.ref(false)
         _ <- dispatcher.use { runner => IO(runner.unsafeRunAndForget(resultR.set(true))) }
         result <- resultR.get
-        _ <- IO(result must beTrue)
-      } yield ok
+      } yield result
+      result must completeAs(true)
     }
 
     "cancel active fibers when an error is produced" in real {
