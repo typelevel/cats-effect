@@ -49,6 +49,28 @@ import java.util.concurrent.atomic.AtomicBoolean
 abstract class Mutex[F[_]] {
 
   /**
+   * Acquires the lock.
+   *
+   * @note
+   *   In general prefer to use [[lock]] which returns a `Resource` that ensures the lock is
+   *   properly released.
+   * @see
+   *   [[lock]] [[release]]
+   */
+  def acquire: F[Unit]
+
+  /**
+   * Releases the lock.
+   *
+   * @note
+   *   In general prefer to use [[lock]] which returns a `Resource` that ensures the lock is
+   *   properly released.
+   * @see
+   *   [[lock]] [[acquire]]
+   */
+  def release: F[Unit]
+
+  /**
    * Returns a [[cats.effect.kernel.Resource]] that acquires the lock, holds it for the lifetime
    * of the resource, then releases it.
    */
@@ -87,6 +109,12 @@ object Mutex {
     F.delay(new AsyncImpl[G])
 
   private final class ConcurrentImpl[F[_]](sem: Semaphore[F]) extends Mutex[F] {
+    override final val acquire: F[Unit] =
+      sem.acquire
+
+    override final val release: F[Unit] =
+      sem.release
+
     override final val lock: Resource[F, Unit] =
       sem.permit
 
@@ -101,8 +129,8 @@ object Mutex {
     private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Boolean] => Unit]
     private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
-    private[this] val acquire: F[Unit] = F
-      .asyncCheckAttempt[Boolean] { cb =>
+    override final val acquire: F[Unit] =
+      F.asyncCheckAttempt[Boolean] { cb =>
         F.delay {
           if (locked.compareAndSet(false, true)) { // acquired
             RightTrue
@@ -116,13 +144,12 @@ object Mutex {
             }
           }
         }
-      }
-      .flatMap { acquired =>
+      }.flatMap { acquired =>
         if (acquired) F.unit // home free
         else acquire // wokened, but need to acquire
       }
 
-    private[this] val _release: F[Unit] = F.delay {
+    override final val release: F[Unit] = F.delay {
       try { // look for a waiter
         var waiter = waiters.take()
         while (waiter eq null) waiter = waiters.take()
@@ -140,10 +167,8 @@ object Mutex {
       }
     }
 
-    private[this] val release: Unit => F[Unit] = _ => _release
-
     override final val lock: Resource[F, Unit] =
-      Resource.makeFull[F, Unit](poll => poll(acquire))(release)
+      Resource.makeFull[F, Unit](poll => poll(acquire))(_ => release)
 
     override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Mutex[G] =
       new Mutex.TransformedMutex(this, f)
@@ -159,6 +184,12 @@ object Mutex {
       f: F ~> G
   )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _])
       extends Mutex[G] {
+    override final val acquire: G[Unit] =
+      f(underlying.acquire)
+
+    override final val release: G[Unit] =
+      f(underlying.release)
+
     override final val lock: Resource[G, Unit] =
       underlying.lock.mapK(f)
 
