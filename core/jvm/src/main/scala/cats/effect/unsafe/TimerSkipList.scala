@@ -164,7 +164,7 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
     val triggerTime = computeTriggerTime(now = now, delay = delay)
     // Because our skip list can't handle multiple
     // values (callbacks) for the same key, the
-    // key is not only the `triggerTime`, but a
+    // key is not only the `triggerTime`, but
     // conceptually a `(triggerTime, seqNo)` tuple.
     // We generate unique (for this skip list)
     // sequence numbers with an atomic counter.
@@ -230,49 +230,6 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
         "TimerSkipList()"
       case _ =>
         "TimerSkipList(...)"
-    }
-  }
-
-  /**
-   * For testing
-   */
-  private[unsafe] final def printBaseNodesQuiescent(println: String => Unit): Unit = {
-    var n = baseHead()
-    while (n ne null) {
-      val cb = n.getCb() match {
-        case null => "null"
-        case cb => cb.##.toHexString
-      }
-      println(s"${n.triggerTime}, ${n.sequenceNum}, ${cb}")
-      n = n.getNext()
-    }
-  }
-
-  /**
-   * For testing
-   */
-  private[unsafe] final def printRepr(println: String => Unit): Unit = {
-    var n = baseHead()
-    while (n ne null) {
-      val cb = n.getCb()
-      if ((cb ne null) && !n.isMarker) {
-        println(s"[${n.triggerTime}, ${n.sequenceNum}, ${cb.toString}]")
-      }
-      n = n.getNext()
-    }
-  }
-
-  /**
-   * For testing
-   */
-  private[unsafe] final def foreachNode(go: Node => Unit): Unit = {
-    var n = baseHead()
-    while (n ne null) {
-      val cb = n.getCb()
-      if ((cb ne null) && !n.isMarker) {
-        go(n)
-      }
-      n = n.getNext()
     }
   }
 
@@ -354,13 +311,6 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
     } else {
       delay // empty
     }
-  }
-
-  /**
-   * For testing
-   */
-  private[unsafe] final def put(triggerTime: Long, seqNo: Long, cb: Callback): Runnable = {
-    doPut(triggerTime, seqNo, cb, ThreadLocalRandom.current())
   }
 
   /**
@@ -529,13 +479,6 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
       // can't go right any more:
       q
     }
-  }
-
-  /**
-   * For testing
-   */
-  private[unsafe] final def remove(triggerTime: Long, seqNo: Long): Boolean = {
-    doRemove(triggerTime, seqNo)
   }
 
   /**
