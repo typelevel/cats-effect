@@ -4,9 +4,12 @@ jvm_highcore_task:
     cpu: 4
     memory: 8G
   matrix:
-    - script: sbt '++ 2.12' testsJVM/test
-    - script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
-    - script: sbt '++ 3' testsJVM/test
+    - name: JVM high-core-count 2.12
+      script: sbt '++ 2.12' testsJVM/test
+    - name: JVM high-core-count 2.13
+      script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
+    - name: JVM high-core-count 3
+      script: sbt '++ 3' testsJVM/test
 
 jvm_arm_highcore_task:
   arm_container:
@@ -14,9 +17,12 @@ jvm_arm_highcore_task:
     cpu: 4
     memory: 8G
   matrix:
-    - script: sbt '++ 2.12' testsJVM/test
-    - script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
-    - script: sbt '++ 3' testsJVM/test
+    - name: JVM ARM high-core-count 2.12
+      script: sbt '++ 2.12' testsJVM/test
+    - name: JVM ARM high-core-count 2.13
+      script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
+    - name: JVM ARM high-core-count 3
+      script: sbt '++ 3' testsJVM/test
 
 native_arm_task:
   arm_container:
@@ -24,6 +30,9 @@ native_arm_task:
     cpu: 2
     memory: 8G
   matrix:
-    - script: sbt '++ 2.12' testsNative/test
-    - script: sbt '++ 2.13' testsNative/test
-    - script: sbt '++ 3' testsNative/test
+    - name: Native ARM 2.12
+      script: sbt '++ 2.12' testsNative/test
+    - name: Native ARM 2.13
+      script: sbt '++ 2.13' testsNative/test
+    - name: Native ARM 3
+      script: sbt '++ 3' testsNative/test
