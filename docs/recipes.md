@@ -151,10 +151,9 @@ class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
           (result.exchangeRate, result)
         else
           (current, result)
-      } map {
-        case (state, result) => ServiceResponse(result)
       }
     }
+  
     
 
     def getHistoryMax(): IO[Double] = atomicCell.get
