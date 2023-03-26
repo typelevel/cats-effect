@@ -154,9 +154,7 @@ class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
       }
     }
   
-    
-
-    def getHistoryMax(): IO[Double] = atomicCell.get
+  def getHistoryMax(): IO[Double] = atomicCell.get
 }
 
 
