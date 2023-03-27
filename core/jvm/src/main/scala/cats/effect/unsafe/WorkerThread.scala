@@ -318,7 +318,7 @@ private final class WorkerThread(
     // returns next state after parking
     def park(): Int = {
       val tt = sleepers.peekFirstTriggerTime()
-      if (tt == MIN_VALUE) { // no sleepers
+      val nextState = if (tt == MIN_VALUE) { // no sleepers
         parkLoop()
 
         // After the worker thread has been unparked, look for work in the
@@ -333,6 +333,21 @@ private final class WorkerThread(
           // we were interrupted, look for more work in the external queue
           3
         }
+      }
+
+      if (nextState != 4) {
+        // after being unparked, we re-check sleepers;
+        // if we find an already expired one, we go
+        // immediately to state 4 (local queue stuff):
+        val nextTrigger = sleepers.peekFirstTriggerTime()
+        if ((nextTrigger != MIN_VALUE) && (nextTrigger - System.nanoTime() <= 0L)) {
+          pool.transitionWorkerFromSearching(rnd)
+          4
+        } else {
+          nextState
+        }
+      } else {
+        nextState
       }
     }
 
