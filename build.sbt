@@ -620,7 +620,25 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ContStateResult"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.IOFiberConstants.ContStateResult")
+        "cats.effect.IOFiberConstants.ContStateResult"),
+      // introduced by #3317, internal API change
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvationMBean"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.JvmCpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.JvmCpuStarvationMetrics$"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.JvmCpuStarvationMetrics$NoOpCpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.JsCpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.JsCpuStarvationMetrics$"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.NativeCpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.NativeCpuStarvationMetrics$")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
