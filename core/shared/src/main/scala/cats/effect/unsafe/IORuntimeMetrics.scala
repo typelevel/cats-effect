@@ -37,13 +37,6 @@ object IORuntimeMetrics extends IORuntimeMetricsCompanionPlatform {
         def maxClockDriftMs(): Long = metrics.maxClockDriftMs()
         def currentClockDriftMs(): Long = metrics.currentClockDriftMs()
       }
-
-    def noop: CPUStarvationMetrics =
-      new CPUStarvationMetrics {
-        def starvationCount(): Long = -1
-        def maxClockDriftMs(): Long = -1
-        def currentClockDriftMs(): Long = -1
-      }
   }
 
 }
