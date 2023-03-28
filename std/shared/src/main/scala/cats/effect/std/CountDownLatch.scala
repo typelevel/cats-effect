@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,12 +69,10 @@ object CountDownLatch {
       extends CountDownLatch[F] {
 
     override def release: F[Unit] =
-      F.uncancelable { _ =>
-        state.modify {
-          case Awaiting(n, signal) =>
-            if (n > 1) (Awaiting(n - 1, signal), F.unit) else (Done(), signal.complete(()).void)
-          case d @ Done() => (d, F.unit)
-        }.flatten
+      state.flatModify {
+        case Awaiting(n, signal) =>
+          if (n > 1) (Awaiting(n - 1, signal), F.unit) else (Done(), signal.complete(()).void)
+        case d @ Done() => (d, F.unit)
       }
 
     override def await: F[Unit] =

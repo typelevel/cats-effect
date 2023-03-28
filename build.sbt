@@ -28,7 +28,7 @@ import sbtcrossproject.CrossProject
 import JSEnv._
 
 // sbt-git workarounds
-ThisBuild / useConsoleForROGit := !(ThisBuild / githubIsWorkflowBuild).value
+ThisBuild / useConsoleForROGit := !Option(System.getenv("CI")).contains("true")
 
 ThisBuild / git.gitUncommittedChanges := {
   if ((ThisBuild / githubIsWorkflowBuild).value) {
@@ -114,7 +114,7 @@ val MacOS = "macos-latest"
 
 val Scala212 = "2.12.17"
 val Scala213 = "2.13.10"
-val Scala3 = "3.2.1"
+val Scala3 = "3.2.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
@@ -292,7 +292,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.9.0"
-val Specs2Version = "4.19.0"
+val Specs2Version = "4.19.2"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
@@ -605,7 +605,22 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // internal API change
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.CallbackStack.clearCurrent"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
+      // #3393, ContState is a private class:
+      ProblemFilters.exclude[MissingTypesProblem]("cats.effect.ContState"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
+      // #3393, IOFiberConstants is a (package) private class/object:
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateInitial"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWaiting"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWinner"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateResult"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateResult")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -890,7 +905,17 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity")
+        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
+      // introduced by #3346
+      // private stuff
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Mutex$Impl"),
+      // introduced by #3347
+      // private stuff
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.AtomicCell$Impl"),
+      // introduced by #3409
+      // extracted UnsafeUnbounded private data structure
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded$Cell")
     )
   )
   .jsSettings(

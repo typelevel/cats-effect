@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ private[effect] final class WorkStealingThreadPool(
     private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
     private[unsafe] val blockerThreadPrefix: String, // prefix for the name of worker threads currently in a blocking region
     private[unsafe] val runtimeBlockingExpiration: Duration,
+    private[unsafe] val blockedThreadDetectionEnabled: Boolean,
     reportFailure0: Throwable => Unit
 ) extends ExecutionContextExecutor
     with Scheduler {
@@ -147,6 +148,8 @@ private[effect] final class WorkStealingThreadPool(
       i += 1
     }
   }
+
+  private[unsafe] def getWorkerThreads: Array[WorkerThread] = workerThreads
 
   /**
    * Tries to steal work from other worker threads. This method does a linear search of the

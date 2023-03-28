@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,12 @@ import org.specs2.specification.core.Fragments
 import scala.concurrent.duration._
 
 final class MutexSpec extends BaseSpec {
-  "Mutex" should {
-    tests(Mutex[IO])
+  "ConcurrentMutex" should {
+    tests(Mutex.concurrent[IO])
+  }
+
+  "AsyncMutex" should {
+    tests(Mutex.async[IO])
   }
 
   "Mutex with dual constructors" should {
@@ -105,6 +109,23 @@ final class MutexSpec extends BaseSpec {
       } yield v
 
       p must completeAs(true)
+    }
+
+    "gracefully handle canceled waiters" in ticked { implicit ticker =>
+      val p = mutex.flatMap { m =>
+        m.lock.surround {
+          for {
+            f <- m.lock.useForever.start
+            _ <- IO.sleep(1.second)
+            _ <- f.cancel
+          } yield ()
+        }
+      }
+      p must completeAs(())
+    }
+
+    "not deadlock when highly contended" in real {
+      mutex.flatMap(_.lock.use_.parReplicateA_(10)).replicateA_(10000).as(true)
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ package std
 import cats.syntax.all._
 
 class UnsafeUnboundedSpec extends BaseSpec {
-  import Queue.UnsafeUnbounded
 
   "unsafe unbounded queue" should {
     val length = 1000

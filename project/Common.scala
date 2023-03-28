@@ -32,7 +32,7 @@ object Common extends AutoPlugin {
   override def projectSettings =
     Seq(
       headerLicense := Some(
-        HeaderLicense.ALv2(s"${startYear.value.get}-2022", organizationName.value)
+        HeaderLicense.ALv2(s"${startYear.value.get}-2023", organizationName.value)
       ),
       ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0",
       ThisBuild / semanticdbEnabled := !tlIsScala3.value,

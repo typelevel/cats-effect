@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,50 +48,48 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
       // start running the effect, or subscribe if it already is
       def evalOrSubscribe: F[A] =
         deferred[Fiber[F, E, A]] flatMap { deferredFiber =>
-          uncancelable { poll =>
-            state.modify {
-              case Unevaluated() =>
-                // run the effect, and if this fiber is still relevant set its result
-                val go = {
-                  def tryComplete(result: Memoize[F, E, A]): F[Unit] = state.update {
-                    case Evaluating(fiber, _) if fiber eq deferredFiber =>
-                      // we are the blessed fiber of this memo
-                      result
-                    case other => // our outcome is no longer relevant
-                      other
+          state.flatModifyFull {
+            case (poll, Unevaluated()) =>
+              // run the effect, and if this fiber is still relevant set its result
+              val go = {
+                def tryComplete(result: Memoize[F, E, A]): F[Unit] = state.update {
+                  case Evaluating(fiber, _) if fiber eq deferredFiber =>
+                    // we are the blessed fiber of this memo
+                    result
+                  case other => // our outcome is no longer relevant
+                    other
+                }
+
+                fa
+                  // hack around functor law breakage
+                  .flatMap(F.pure(_))
+                  .handleErrorWith(F.raiseError(_))
+                  // end hack
+                  .guaranteeCase {
+                    case Outcome.Canceled() =>
+                      tryComplete(Finished(Right(productR(canceled)(never))))
+                    case Outcome.Errored(err) =>
+                      tryComplete(Finished(Left(err)))
+                    case Outcome.Succeeded(fa) =>
+                      tryComplete(Finished(Right(fa)))
                   }
+              }
 
-                  fa
-                    // hack around functor law breakage
-                    .flatMap(F.pure(_))
-                    .handleErrorWith(F.raiseError(_))
-                    // end hack
-                    .guaranteeCase {
-                      case Outcome.Canceled() =>
-                        tryComplete(Finished(Right(productR(canceled)(never))))
-                      case Outcome.Errored(err) =>
-                        tryComplete(Finished(Left(err)))
-                      case Outcome.Succeeded(fa) =>
-                        tryComplete(Finished(Right(fa)))
-                    }
-                }
+              val eval = go.start.flatMap { fiber =>
+                deferredFiber.complete(fiber) *>
+                  poll(fiber.join.flatMap(_.embed(productR(canceled)(never))))
+                    .onCancel(unsubscribe(deferredFiber))
+              }
 
-                val eval = go.start.flatMap { fiber =>
-                  deferredFiber.complete(fiber) *>
-                    poll(fiber.join.flatMap(_.embed(productR(canceled)(never))))
-                      .onCancel(unsubscribe(deferredFiber))
-                }
+              Evaluating(deferredFiber, 1) -> eval
 
-                Evaluating(deferredFiber, 1) -> eval
+            case (poll, Evaluating(fiber, subscribers)) =>
+              Evaluating(fiber, subscribers + 1) ->
+                poll(fiber.get.flatMap(_.join).flatMap(_.embed(productR(canceled)(never))))
+                  .onCancel(unsubscribe(fiber))
 
-              case Evaluating(fiber, subscribers) =>
-                Evaluating(fiber, subscribers + 1) ->
-                  poll(fiber.get.flatMap(_.join).flatMap(_.embed(productR(canceled)(never))))
-                    .onCancel(unsubscribe(fiber))
-
-              case finished @ Finished(result) =>
-                finished -> fromEither(result).flatten
-            }.flatten
+            case (_, finished @ Finished(result)) =>
+              finished -> fromEither(result).flatten
           }
         }
 

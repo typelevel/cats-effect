@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,6 +49,9 @@ final class GenSpawnOps[F[_], A, E] private[syntax] (private val wrapped: F[A]) 
 
   def background(implicit F: GenSpawn[F, E]): Resource[F, F[Outcome[F, E, A]]] =
     F.background(wrapped)
+
+  def cancelable(fin: F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
+    F.cancelable(wrapped, fin)
 
   def raceOutcome[B](another: F[B])(
       implicit F: GenSpawn[F, E]

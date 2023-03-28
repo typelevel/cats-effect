@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,10 +44,4 @@ private object IOFiberConstants {
   final val AutoCedeR = 7
   final val ExecuteRunnableR = 8
   final val DoneR = 9
-
-  // ContState tags
-  final val ContStateInitial = 0
-  final val ContStateWaiting = 1
-  final val ContStateWinner = 2
-  final val ContStateResult = 3
 }

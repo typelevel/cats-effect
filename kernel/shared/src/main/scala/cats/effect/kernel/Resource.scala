@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -346,7 +346,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
             case Outcome.Errored(ea) =>
               F.raiseError[(Either[A, B], ExitCase => F[Unit])](ea).guarantee(cancelLoser(f))
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fb) =>
                   fb.map { case (b, fin) => (Either.right[A, B](b), fin) }
                 case Outcome.Errored(eb) =>
@@ -369,7 +369,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
             case Outcome.Errored(eb) =>
               F.raiseError[(Either[A, B], ExitCase => F[Unit])](eb).guarantee(cancelLoser(f))
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fa) =>
                   fa.map { case (a, fin) => (Either.left[A, B](a), fin) }
                 case Outcome.Errored(ea) =>

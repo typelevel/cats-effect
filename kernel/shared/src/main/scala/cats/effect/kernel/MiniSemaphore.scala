@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -81,16 +81,13 @@ private[kernel] object MiniSemaphore {
           }
 
         def release: F[Unit] =
-          state
-            .modify {
-              case State(waiting, permits) =>
-                if (waiting.nonEmpty)
-                  State(waiting.tail, permits) -> waiting.head.complete(()).void
-                else
-                  State(waiting, permits + 1) -> ().pure[F]
-            }
-            .flatten
-            .uncancelable
+          state.flatModify {
+            case State(waiting, permits) =>
+              if (waiting.nonEmpty)
+                State(waiting.tail, permits) -> waiting.head.complete(()).void
+              else
+                State(waiting, permits + 1) -> ().pure[F]
+          }
 
         def withPermit[A](fa: F[A]): F[A] =
           F.uncancelable { poll => poll(acquire) >> poll(fa).guarantee(release) }

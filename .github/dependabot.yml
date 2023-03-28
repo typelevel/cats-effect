@@ -6,3 +6,7 @@ updates:
     interval: daily
   open-pull-requests-limit: 10
   target-branch: docs
+- package-ecosystem: docker
+  directory: "/.cirrus"
+  schedule:
+    interval: weekly

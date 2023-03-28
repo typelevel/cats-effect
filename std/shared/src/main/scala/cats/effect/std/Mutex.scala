@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ package std
 
 import cats.effect.kernel._
 import cats.syntax.all._
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A purely functional mutex.
@@ -63,23 +65,105 @@ object Mutex {
   /**
    * Creates a new `Mutex`.
    */
-  def apply[F[_]](implicit F: GenConcurrent[F, _]): F[Mutex[F]] =
-    Semaphore[F](n = 1).map(sem => new Impl(sem))
+  def apply[F[_]](implicit F: Concurrent[F]): F[Mutex[F]] =
+    F match {
+      case ff: Async[F] =>
+        async[F](ff)
+
+      case _ =>
+        concurrent[F](F)
+    }
+
+  private[effect] def async[F[_]](implicit F: Async[F]): F[Mutex[F]] =
+    in[F, F](F, F)
+
+  private[effect] def concurrent[F[_]](implicit F: Concurrent[F]): F[Mutex[F]] =
+    Semaphore[F](n = 1).map(sem => new ConcurrentImpl[F](sem))
 
   /**
    * Creates a new `Mutex`. Like `apply` but initializes state using another effect constructor.
    */
   def in[F[_], G[_]](implicit F: Sync[F], G: Async[G]): F[Mutex[G]] =
-    Semaphore.in[F, G](n = 1).map(sem => new Impl(sem))
+    F.delay(new AsyncImpl[G])
 
-  // TODO: In case in a future cats-effect provides a way to identify fibers,
-  // then this implementation can be made reentrant.
-  // Or, we may also provide an alternative implementation using LiftIO + IOLocal
-  private final class Impl[F[_]](sem: Semaphore[F]) extends Mutex[F] {
+  private final class ConcurrentImpl[F[_]](sem: Semaphore[F]) extends Mutex[F] {
     override final val lock: Resource[F, Unit] =
       sem.permit
 
     override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Mutex[G] =
-      new Impl(sem.mapK(f))
+      new ConcurrentImpl(sem.mapK(f))
   }
+
+  private final class AsyncImpl[F[_]](implicit F: Async[F]) extends Mutex[F] {
+    import AsyncImpl._
+
+    private[this] val locked = new AtomicBoolean(false)
+    private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Boolean] => Unit]
+    private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
+
+    private[this] val acquire: F[Unit] = F
+      .asyncCheckAttempt[Boolean] { cb =>
+        F.delay {
+          if (locked.compareAndSet(false, true)) { // acquired
+            RightTrue
+          } else {
+            val cancel = waiters.put(cb)
+            if (locked.compareAndSet(false, true)) { // try again
+              cancel()
+              RightTrue
+            } else {
+              Left(Some(F.delay(cancel())))
+            }
+          }
+        }
+      }
+      .flatMap { acquired =>
+        if (acquired) F.unit // home free
+        else acquire // wokened, but need to acquire
+      }
+
+    private[this] val _release: F[Unit] = F.delay {
+      try { // look for a waiter
+        var waiter = waiters.take()
+        while (waiter eq null) waiter = waiters.take()
+        waiter(RightTrue) // pass the buck
+      } catch { // no waiter found
+        case FailureSignal =>
+          locked.set(false) // release
+          try {
+            var waiter = waiters.take()
+            while (waiter eq null) waiter = waiters.take()
+            waiter(RightFalse) // waken any new waiters
+          } catch {
+            case FailureSignal => // do nothing
+          }
+      }
+    }
+
+    private[this] val release: Unit => F[Unit] = _ => _release
+
+    override final val lock: Resource[F, Unit] =
+      Resource.makeFull[F, Unit](poll => poll(acquire))(release)
+
+    override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Mutex[G] =
+      new Mutex.TransformedMutex(this, f)
+  }
+
+  private object AsyncImpl {
+    private val RightTrue = Right(true)
+    private val RightFalse = Right(false)
+  }
+
+  private final class TransformedMutex[F[_], G[_]](
+      underlying: Mutex[F],
+      f: F ~> G
+  )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _])
+      extends Mutex[G] {
+    override final val lock: Resource[G, Unit] =
+      underlying.lock.mapK(f)
+
+    override def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Mutex[H] =
+      new Mutex.TransformedMutex(this, f)
+  }
+
 }

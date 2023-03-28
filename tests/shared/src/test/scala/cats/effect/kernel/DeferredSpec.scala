@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package cats
 package effect
 package kernel
+
+import cats.syntax.all._
 
 import scala.concurrent.duration._
 
@@ -158,7 +160,7 @@ class DeferredSpec extends BaseSpec { outer =>
       import cats.syntax.all._
 
       for {
-        d <- Deferred[IO, Int]
+        d <- deferredI
         attemptCompletion = { (n: Int) => d.complete(n).void }
         res <- List(
           IO.race(attemptCompletion(1), attemptCompletion(2)).void,
@@ -168,5 +170,42 @@ class DeferredSpec extends BaseSpec { outer =>
       } yield r
     }
 
+    "handle lots of canceled gets in parallel" in real {
+      List(10, 100, 1000)
+        .traverse_ { n =>
+          deferredU
+            .flatMap { d =>
+              (d.get.background.surround(IO.cede).replicateA_(n) *> d
+                .complete(())).background.surround {
+                d.get.as(1).parReplicateA(n).map(_.sum must be_==(n))
+              }
+            }
+            .replicateA_(100)
+        }
+        .as(true)
+    }
+
+    "handle adversarial cancelations without loss of callbacks" in ticked { implicit ticker =>
+      val test = for {
+        d <- deferredU
+
+        range = 0.until(512)
+        fibers <- range.toVector.traverse(_ => d.get.start <* IO.sleep(1.millis))
+
+        // these are mostly randomly chosen
+        // the consecutive runs are significant, but only loosely so
+        // the point is to trigger packing but ensure it isn't always successful
+        toCancel = List(12, 23, 201, 405, 1, 7, 17, 27, 127, 203, 204, 207, 2, 3, 4, 5)
+        _ <- toCancel.traverse_(fibers(_).cancel)
+
+        _ <- d.complete(())
+        remaining = range.toSet -- toCancel
+
+        // this will deadlock if any callbacks are lost
+        _ <- remaining.toList.traverse_(fibers(_).join.void)
+      } yield ()
+
+      test must completeAs(())
+    }
   }
 }

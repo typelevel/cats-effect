@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package cats
 package effect
 
 import cats.effect.syntax.all._
-import cats.effect.unsafe.Scheduler
 import cats.syntax.all._
 
 import org.specs2.execute._
@@ -60,13 +59,12 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     execute(test, iterations)
   }
 
-  "callback resumes" in real {
-    val (scheduler, close) = Scheduler.createDefaultScheduler()
-
+  "callback resumes" in realWithRuntime { rt =>
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get.map(_.toString)
+          lift(IO(rt.scheduler.sleep(10.millis, () => resume(Right(42))))) >>
+            get.map(_.toString)
         }
 
       }
@@ -74,7 +72,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
 
     val test = io.flatMap(r => IO(r mustEqual "42"))
 
-    execute(test, 100).guarantee(IO(close()))
+    execute(test, 100)
   }
 
   "get can be canceled" in real {
@@ -111,70 +109,59 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     execute(io, iterations)
   }
 
-  "get within onCancel - 1" in real {
+  "get within onCancel - 1" in realWithRuntime { rt =>
     val flag = Ref[IO].of(false)
 
-    val (scheduler, close) = Scheduler.createDefaultScheduler()
-
     val io =
-      (flag, flag)
-        .tupled
-        .flatMap {
-          case (start, end) =>
-            cont {
-              new Cont[IO, Unit, Unit] {
-                def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
-                    get.onCancel {
-                      lift(start.set(true)) >> get >> lift(end.set(true))
-                    }
-                }
+      (flag, flag).tupled.flatMap {
+        case (start, end) =>
+          cont {
+            new Cont[IO, Unit, Unit] {
+              def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+                lift(IO(rt.scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
+                  get.onCancel {
+                    lift(start.set(true)) >> get >> lift(end.set(true))
+                  }
               }
-            }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
-        }
-        .guarantee(IO(close()))
+            }
+          }.timeoutTo(1.second, ().pure[IO]) >> (start.get, end.get).tupled
+      }
 
     io.flatMap { r => IO(r mustEqual true -> true) }
   }
 
-  "get within onCancel - 2" in real {
+  "get within onCancel - 2" in realWithRuntime { rt =>
     val flag = Ref[IO].of(false)
 
-    val (scheduler, close) = Scheduler.createDefaultScheduler()
-
     val io =
-      (flag, flag)
-        .tupled
-        .flatMap {
-          case (start, end) =>
-            cont {
-              new Cont[IO, Unit, Unit] {
-                def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
-                    get.onCancel {
-                      lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
-                    }
-                }
+      (flag, flag).tupled.flatMap {
+        case (start, end) =>
+          cont {
+            new Cont[IO, Unit, Unit] {
+              def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+                lift(IO(rt.scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
+                  get.onCancel {
+                    lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
+                  }
               }
-            }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
-        }
-        .guarantee(IO(close()))
+            }
+          }.timeoutTo(1.second, ().pure[IO]) >> (start.get, end.get).tupled
+      }
 
     io.flatMap { r => IO(r mustEqual true -> true) }
   }
 
-  "get exclusively within onCancel" in real {
-    val (scheduler, close) = Scheduler.createDefaultScheduler()
+  "get exclusively within onCancel" in realWithRuntime { rt =>
     val test = cont {
       new Cont[IO, Unit, Unit] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
+          lift(IO(rt.scheduler.sleep(1.second, () => resume(().asRight)))) >>
             lift(IO.never).onCancel(get)
         }
       }
     }
 
-    test.timeoutTo(500.millis, IO.unit).guarantee(IO(close())).as(ok)
+    test.timeoutTo(500.millis, IO.unit).as(ok)
   }
 
   "get is idempotent - 1" in real {
@@ -191,13 +178,11 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     execute(test, iterations)
   }
 
-  "get is idempotent - 2" in real {
-    val (scheduler, close) = Scheduler.createDefaultScheduler()
-
+  "get is idempotent - 2" in realWithRuntime { rt =>
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get >>
+          lift(IO(rt.scheduler.sleep(10.millis, () => resume(Right(42))))) >> get >>
             get.map(_.toString)
         }
 
@@ -206,6 +191,6 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
 
     val test = io.flatMap(r => IO(r mustEqual "42"))
 
-    execute(test, 100).guarantee(IO(close()))
+    execute(test, 100)
   }
 }

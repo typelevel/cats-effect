@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,13 @@
 package cats.effect.kernel
 
 import cats.effect.{BaseSpec, IO}
+import cats.effect.testkit.TestControl
+import cats.effect.unsafe.IORuntimeConfig
 
 import scala.concurrent.duration._
 
 import java.util.concurrent.{CancellationException, CompletableFuture}
+import java.util.concurrent.atomic.AtomicBoolean
 
 class AsyncPlatformSpec extends BaseSpec {
 
@@ -40,19 +43,30 @@ class AsyncPlatformSpec extends BaseSpec {
       } yield ok
     }
 
-    "backpressure on CompletableFuture cancelation" in ticked { implicit ticker =>
+    "backpressure on CompletableFuture cancelation" in real {
       // a non-cancelable, never-completing CompletableFuture
-      def cf = new CompletableFuture[Unit] {
+      def mkcf() = new CompletableFuture[Unit] {
         override def cancel(mayInterruptIfRunning: Boolean) = false
       }
 
-      val io = for {
-        fiber <- IO.fromCompletableFuture(IO(cf)).start
-        _ <- smallDelay // time for the callback to be set-up
+      def go = for {
+        started <- IO(new AtomicBoolean)
+        fiber <- IO.fromCompletableFuture {
+          IO {
+            started.set(true)
+            mkcf()
+          }
+        }.start
+        _ <- IO.cede.whileM_(IO(!started.get))
         _ <- fiber.cancel
       } yield ()
 
-      io must nonTerminate
+      TestControl
+        .executeEmbed(go, IORuntimeConfig(1, 2))
+        .as(false)
+        .recover { case _: TestControl.NonTerminationException => true }
+        .replicateA(1000)
+        .map(_.forall(identity(_)))
     }
   }
 }

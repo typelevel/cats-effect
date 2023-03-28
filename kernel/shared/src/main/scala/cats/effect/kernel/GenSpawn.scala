@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -217,6 +217,58 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     Resource.make(start(fa))(_.cancel)(this).map(_.join)
 
   /**
+   * Given an effect which might be [[uncancelable]] and a finalizer, produce an effect which
+   * can be canceled by running the finalizer. This combinator is useful for handling scenarios
+   * in which an effect is inherently uncancelable but may be canceled through setting some
+   * external state. A trivial example of this might be the following (assuming an [[Async]]
+   * instance):
+   *
+   * {{{
+   *   val flag = new AtomicBoolean(false)
+   *   val fa = F blocking {
+   *     while (!flag.get()) {
+   *       Thread.sleep(10)
+   *     }
+   *   }
+   *
+   *   F.cancelable(fa, F.delay(flag.set(true)))
+   * }}}
+   *
+   * Without `cancelable`, effects constructed by `blocking`, `delay`, and similar are
+   * inherently uncancelable. Simply adding an `onCancel` to such effects is insufficient to
+   * resolve this, despite the fact that under *some* circumstances (such as the above), it is
+   * possible to enrich an otherwise-uncancelable effect with early termination. `cancelable`
+   * addresses this use-case.
+   *
+   * Note that there is no free lunch here. If an effect truly cannot be prematurely terminated,
+   * `cancelable` will not allow for cancelation. As an example, if you attempt to cancel
+   * `uncancelable(_ => never)`, the cancelation will hang forever (in other words, it will be
+   * itself equivalent to `never`). Applying `cancelable` will not change this in any way. Thus,
+   * attempting to cancel `cancelable(uncancelable(_ => never), unit)` will ''also'' hang
+   * forever. As in all cases, cancelation will only return when all finalizers have run and the
+   * fiber has fully terminated.
+   *
+   * If `fa` self-cancels and the `cancelable` itself is uncancelable, the resulting fiber will
+   * be equal to `never` (similar to [[race]]). Under normal circumstances, if `fa`
+   * self-cancels, that cancelation will be propagated to the calling context.
+   *
+   * @param fa
+   *   the effect to be canceled
+   * @param fin
+   *   an effect which orchestrates some external state which terminates `fa`
+   * @see
+   *   [[uncancelable]]
+   * @see
+   *   [[onCancel]]
+   */
+  def cancelable[A](fa: F[A], fin: F[Unit]): F[A] =
+    uncancelable { poll =>
+      start(fa) flatMap { fiber =>
+        poll(fiber.join).onCancel(fin *> fiber.cancel).flatMap(_.embed(poll(canceled *> never)))
+      }
+    }
+
+  /**
    * A non-terminating effect that never completes, which causes a fiber to semantically block
    * indefinitely. This is the purely functional, asynchronous equivalent of an infinite while
    * loop in Java, but no native threads are blocked.
@@ -352,7 +404,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
             case Outcome.Succeeded(fa) => f.cancel *> fa.map(Left(_))
             case Outcome.Errored(ea) => f.cancel *> raiseError(ea)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fb) => fb.map(Right(_))
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => poll(canceled) *> never
@@ -363,7 +415,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
             case Outcome.Succeeded(fb) => f.cancel *> fb.map(Right(_))
             case Outcome.Errored(eb) => f.cancel *> raiseError(eb)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fa) => fa.map(Left(_))
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => poll(canceled) *> never
