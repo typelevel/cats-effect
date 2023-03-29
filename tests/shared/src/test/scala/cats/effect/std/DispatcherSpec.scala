@@ -21,6 +21,7 @@ import cats.effect.kernel.Deferred
 import cats.effect.testkit.TestControl
 import cats.syntax.all._
 
+import scala.concurrent.{ExecutionContext, Promise}
 import scala.concurrent.duration._
 
 class DispatcherSpec extends BaseSpec with DetectPlatform {
@@ -255,6 +256,48 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
         }
       }
+    }
+
+    "report exception if raised during unsafeRunAndForget" in real {
+      def ec2(ec1: ExecutionContext, er: Promise[Boolean]) = new ExecutionContext {
+        def reportFailure(t: Throwable) = er.success(true)
+        def execute(r: Runnable) = ec1.execute(r)
+      }
+
+      val test = for {
+        ec <- Resource.eval(IO.executionContext)
+        errorReporter <- Resource.eval(IO(Promise[Boolean]()))
+        customEc = ec2(ec, errorReporter)
+        _ <- dispatcher
+          .evalOn(customEc)
+          .flatMap(runner =>
+            Resource.eval(IO(runner.unsafeRunAndForget(IO.raiseError(new Exception("boom"))))))
+      } yield errorReporter
+
+      test
+        .use(t => IO.fromFuture(IO(t.future)).timeoutTo(1.second, IO.pure(false)))
+        .flatMap(t => IO(t mustEqual true))
+    }
+
+    "do not treat exception in unsafeRunToFuture as unhandled" in real {
+      import scala.concurrent.TimeoutException
+      def ec2(ec1: ExecutionContext, er: Promise[Boolean]) = new ExecutionContext {
+        def reportFailure(t: Throwable) = er.failure(t)
+        def execute(r: Runnable) = ec1.execute(r)
+      }
+
+      val test = for {
+        ec <- Resource.eval(IO.executionContext)
+        errorReporter <- Resource.eval(IO(Promise[Boolean]()))
+        customEc = ec2(ec, errorReporter)
+        _ <- dispatcher
+          .evalOn(customEc)
+          .flatMap(runner =>
+            Resource.eval(IO(runner.unsafeToFuture(IO.raiseError(new Exception("boom"))))))
+      } yield errorReporter
+
+      test.use(t =>
+        IO.fromFuture(IO(t.future)).timeout(1.second).mustFailWith[TimeoutException])
     }
 
     "respect self-cancelation" in real {

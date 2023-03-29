@@ -69,8 +69,10 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
    * Submits an effect to be executed with fire-and-forget semantics.
    */
   def unsafeRunAndForget[A](fa: F[A]): Unit = {
-    unsafeToFutureCancelable(fa)
-    ()
+    unsafeRunAsync(fa) {
+      case Left(t) => t.printStackTrace()
+      case Right(_) => ()
+    }
   }
 
   // package-private because it's just an internal utility which supports specific implementations
@@ -307,12 +309,19 @@ object Dispatcher {
       }
     } yield {
       new Dispatcher[F] {
+        override def unsafeRunAndForget[A](fa: F[A]): Unit = {
+          unsafeRunAsync(fa) {
+            case Left(t) => ec.reportFailure(t)
+            case Right(_) => ()
+          }
+        }
+
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
           val promise = Promise[E]()
 
           val action = fe
             .flatMap(e => F.delay(promise.success(e)))
-            .onError { case t => F.delay(promise.failure(t)) }
+            .handleErrorWith(t => F.delay(promise.failure(t)))
             .void
 
           val cancelState = new AtomicReference[CancelState](CancelInit)
