@@ -107,4 +107,59 @@ A: Interrupting cowMOO! who?
 </code></pre>
 <p>In this example, <code>longRunningTask</code> is started in the background.
 The server returns to the client without waiting for the task to finish.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/tutorial"><span class="arrow-prev">← </span><span>Tutorial</span></a><a class="docs-next button" href="/cats-effect/docs/next/faq"><span>FAQ</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#start-a-supervised-task-that-outlives-the-creating-scope">Start a supervised task that outlives the creating scope</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2022 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
+<h2><a class="anchor" aria-hidden="true" id="atomically-update-a-ref-with-result-of-an-effect"></a><a href="#atomically-update-a-ref-with-result-of-an-effect" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Atomically update a Ref with result of an effect</h2>
+<p>Cats Effect provides <a href="/cats-effect/docs/next/std/ref">Ref</a>, that we can use to model mutable concurrent reference.
+However, if we want to update our ref using result of an effect <code>Ref</code> will usually not be enough and we need a more powerful construct to achieve that.
+In cases like that we can use the <a href="/cats-effect/docs/next/std/atomic-cell">AtomicCell</a> that can be viewed as a synchronized <code>Ref</code>.</p>
+<p>The most typical example for <code>Ref</code> is the concurrent counter, but what if the update function for our counter would be effectful?</p>
+<p>Assume we have the following function:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">update</span></span>(input: <span class="hljs-type">Int</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Int</span>] =
+  <span class="hljs-type">IO</span>(input + <span class="hljs-number">1</span>)
+</code></pre>
+<p>If we want to concurrently update a variable using our <code>update</code> function it's not possible to do it directly with <code>Ref</code>, luckily <code>AtomicCell</code> has <code>evalUpdate</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">AtomicCell</span>
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Server</span>(<span class="hljs-params">atomicCell: <span class="hljs-type">AtomicCell</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">Int</span>]</span>) </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">update</span></span>(input: <span class="hljs-type">Int</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Int</span>] =
+    <span class="hljs-type">IO</span>(input + <span class="hljs-number">1</span>)
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">performUpdate</span></span>(): <span class="hljs-type">IO</span>[<span class="hljs-type">Int</span>] =
+    atomicCell.evalGetAndUpdate(i =&gt; update(i))
+}
+</code></pre>
+<p>To better present real-life use-case scenario, let's imagine that we have a <code>Service</code> that performs some HTTP request to external service holding exchange rates over time:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Random</span>
+
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ServiceResponse</span>(<span class="hljs-params">exchangeRate: <span class="hljs-type">Double</span></span>)</span>
+
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Service</span> </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">query</span></span>(): <span class="hljs-type">IO</span>[<span class="hljs-type">ServiceResponse</span>]
+}
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">StubService</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Service</span> </span>{
+  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">query</span></span>(): <span class="hljs-type">IO</span>[<span class="hljs-type">ServiceResponse</span>] = <span class="hljs-type">Random</span>
+    .scalaUtilRandom[<span class="hljs-type">IO</span>]
+    .flatMap(random =&gt; random.nextDouble)
+    .map(<span class="hljs-type">ServiceResponse</span>(_))
+}
+</code></pre>
+<p>To simplify we model the <code>StubService</code> to just return some random <code>Double</code> values.</p>
+<p>Now, say that we want to have a cache that holds the highest exchange rate that is ever returned by our service, we can have the proxy implementation based on <code>AtomicCell</code> like below:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MaxProxy</span>(<span class="hljs-params">atomicCell: <span class="hljs-type">AtomicCell</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">Double</span>], requestService: <span class="hljs-type">Service</span></span>) </span>{
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">queryCache</span></span>(): <span class="hljs-type">IO</span>[<span class="hljs-type">ServiceResponse</span>] = 
+    atomicCell evalModify { current =&gt;
+      requestService.query() map { result =&gt;
+        <span class="hljs-keyword">if</span> (result.exchangeRate &gt; current)
+          (result.exchangeRate, result)
+        <span class="hljs-keyword">else</span>
+          (current, result)
+      }
+    }
+  
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getHistoryMax</span></span>(): <span class="hljs-type">IO</span>[<span class="hljs-type">Double</span>] = atomicCell.get
+}
+
+
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/tutorial"><span class="arrow-prev">← </span><span>Tutorial</span></a><a class="docs-next button" href="/cats-effect/docs/next/faq"><span>FAQ</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#start-a-supervised-task-that-outlives-the-creating-scope">Start a supervised task that outlives the creating scope</a></li><li><a href="#atomically-update-a-ref-with-result-of-an-effect">Atomically update a Ref with result of an effect</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2022 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
