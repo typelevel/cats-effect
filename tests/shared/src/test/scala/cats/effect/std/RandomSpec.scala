@@ -17,8 +17,9 @@
 package cats.effect
 package std
 
-import org.specs2.specification.core.Fragments
 import cats.implicits._
+
+import org.specs2.specification.core.Fragments
 
 import scala.annotation.nowarn
 
@@ -31,7 +32,9 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randDoubles <- (1 to numIterations).toList.traverse(_ => random.betweenDouble(min, max))
+          randDoubles <- (1 to numIterations)
+            .toList
+            .traverse(_ => random.betweenDouble(min, max))
         } yield randDoubles.forall(randDouble => randDouble >= min && randDouble <= max)
       }
     }
@@ -57,7 +60,7 @@ class RandomSpec extends BaseSpec {
           random <- Random.scalaUtilRandom[IO]
           randInts <- (1 to numIterations).toList.traverse(_ => random.betweenInt(min, max))
         } yield randInts.forall(randInt => randInt >= min && randInt <= max)
-      }     
+      }
     }
 
     "betweenLong" >> {
@@ -67,7 +70,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randLongs <-(1 to numIterations).toList.traverse(_ => random.betweenLong(min, max))
+          randLongs <- (1 to numIterations).toList.traverse(_ => random.betweenLong(min, max))
         } yield randLongs.forall(randLong => randLong >= min && randLong <= max)
       }
     }
@@ -195,7 +198,9 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randomLongs <- (1 to numIterations).toList.traverse(_ => random.nextLongBounded(bound))
+          randomLongs <- (1 to numIterations)
+            .toList
+            .traverse(_ => random.nextLongBounded(bound))
         } yield randomLongs.forall(long => long >= 0L && long < bound)
       }
     }
@@ -206,7 +211,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randomChars <- (1 to numIterations).toList.traverse(_ => random.nextPrintableChar) 
+          randomChars <- (1 to numIterations).toList.traverse(_ => random.nextPrintableChar)
         } yield randomChars.forall(char => printableChars.contains(char))
       }
     }
@@ -270,13 +275,15 @@ class RandomSpec extends BaseSpec {
       }
 
       "not select any value outside the provided list" in real {
-          val list: List[Int] = List(1, 2, 3, 4, 5)
-          val numIterations: Int = 1000
-          for {
-            random <- Random.scalaUtilRandom[IO]
-            chosenValues <- (1 to numIterations).toList.traverse(_ => random.oneOf(list.head, list.tail: _*))
-          } yield chosenValues.forall(list.contains)
-        }
+        val list: List[Int] = List(1, 2, 3, 4, 5)
+        val numIterations: Int = 1000
+        for {
+          random <- Random.scalaUtilRandom[IO]
+          chosenValues <- (1 to numIterations)
+            .toList
+            .traverse(_ => random.oneOf(list.head, list.tail: _*))
+        } yield chosenValues.forall(list.contains)
+      }
     }
 
     elementOfTests[Int, List[Int]](
@@ -338,11 +345,13 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          chosenValues <- (1 to numIterations).toList.traverse(_ => random.elementOf(nonEmptyCollection))
+          chosenValues <- (1 to numIterations)
+            .toList
+            .traverse(_ => random.elementOf(nonEmptyCollection))
         } yield {
           val collectionVector: Vector[A] = nonEmptyCollection.toVector
           chosenValues.forall(collectionVector.contains(_))
-        } 
+        }
       }
 
     }
