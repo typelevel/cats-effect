@@ -166,8 +166,7 @@ object AtomicCell {
   )(
       implicit F: Concurrent[F]
   ) extends AtomicCell[F, A] {
-    override def get: F[A] =
-      mutex.lock.surround(ref.get)
+    override def get: F[A] = ref.get
 
     override def set(a: A): F[Unit] =
       mutex.lock.surround(ref.set(a))
@@ -199,13 +198,11 @@ object AtomicCell {
   )(
       implicit F: Async[F]
   ) extends AtomicCell[F, A] {
-    private var cell: A = init
+    @volatile private var cell: A = init
 
     override def get: F[A] =
-      mutex.lock.surround {
-        F.delay {
-          cell
-        }
+      F.delay {
+        cell
       }
 
     override def set(a: A): F[Unit] =

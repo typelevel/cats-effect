@@ -6,7 +6,7 @@ title: Atomic Cell
 A synchronized, concurrent, mutable reference.
 
 Provides safe concurrent access and modification of its contents, by ensuring only one fiber
-can operate on them at the time. Thus, **all** operations may semantically block the
+can operate on them at the time. Thus, all operations except `get` may semantically block the
 calling fiber.
 
 ```scala mdoc:silent
