@@ -111,7 +111,7 @@ final class AtomicCellSpec extends BaseSpec {
         val op = for {
           cell <- factory(0)
           gate <- IO.deferred[Unit]
-          _ <- (gate.complete(()) *> cell.evalModify(_ => IO.never)).start
+          _ <- cell.evalModify(_ => gate.complete(()) *> IO.never).start
           _ <- gate.get
           r <- cell.get
         } yield r == 0
