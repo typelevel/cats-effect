@@ -32,9 +32,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randDoubles <- (1 to numIterations)
-            .toList
-            .traverse(_ => random.betweenDouble(min, max))
+          randDoubles <- random.betweenDouble(min, max).replicateA(numIterations)
         } yield randDoubles.forall(randDouble => randDouble >= min && randDouble <= max)
       }
     }
@@ -46,7 +44,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randFloats <- (1 to numIterations).toList.traverse(_ => random.betweenFloat(min, max))
+          randFloats <- random.betweenFloat(min, max).replicateA(numIterations)
         } yield randFloats.forall(randFloat => randFloat >= min && randFloat <= max)
       }
     }
@@ -58,7 +56,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randInts <- (1 to numIterations).toList.traverse(_ => random.betweenInt(min, max))
+          randInts <- random.betweenInt(min, max).replicateA(numIterations)
         } yield randInts.forall(randInt => randInt >= min && randInt <= max)
       }
     }
@@ -70,7 +68,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randLongs <- (1 to numIterations).toList.traverse(_ => random.betweenLong(min, max))
+          randLongs <- random.betweenLong(min, max).replicateA(numIterations)
         } yield randLongs.forall(randLong => randLong >= min && randLong <= max)
       }
     }
@@ -81,7 +79,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randomChars <- (1 to numIterations).toList.traverse(_ => random.nextAlphaNumeric)
+          randomChars <- random.nextAlphaNumeric.replicateA(numIterations)
         } yield randomChars.forall(randomChar => alphaNumeric.contains(randomChar))
       }
     }
@@ -91,7 +89,7 @@ class RandomSpec extends BaseSpec {
         for {
           random <- Random.scalaUtilRandom[IO]
           randomBoolean <- random.nextBoolean
-        } yield randomBoolean == true || randomBoolean == false
+        } yield ok
       }
     }
 
@@ -129,7 +127,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randomDoubles <- (1 to numIterations).toList.traverse(_ => random.nextDouble)
+          randomDoubles <- random.nextDouble.replicateA(numIterations)
         } yield randomDoubles.forall(double => double >= 0.0 && double < 1.0)
       }
     }
@@ -139,7 +137,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randomFloats <- (1 to numIterations).toList.traverse(_ => random.nextFloat)
+          randomFloats <- random.nextFloat.replicateA(numIterations)
         } yield randomFloats.forall(float => float >= 0.0f && float < 1.0f)
       }
     }
@@ -149,7 +147,7 @@ class RandomSpec extends BaseSpec {
         val sampleSize = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          gaussians <- (1 to sampleSize).toList.traverse(_ => random.nextGaussian)
+          gaussians <- random.nextGaussian.replicateA(sampleSize)
           mean = gaussians.sum / sampleSize
           variance = gaussians.map(x => math.pow(x - mean, 2)).sum / sampleSize
           stddev = math.sqrt(variance)
@@ -162,10 +160,7 @@ class RandomSpec extends BaseSpec {
         for {
           random <- Random.scalaUtilRandom[IO]
           int <- random.nextInt
-        } yield int match {
-          case _: Int => true
-          case _ => false
-        }
+        } yield ok
       }
     }
 
@@ -175,7 +170,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randomInts <- (1 to numIterations).toList.traverse(_ => random.nextIntBounded(bound))
+          randomInts <- random.nextIntBounded(bound).replicateA(numIterations)
         } yield randomInts.forall(int => int >= 0 && int < bound)
       }
     }
@@ -185,10 +180,7 @@ class RandomSpec extends BaseSpec {
         for {
           random <- Random.scalaUtilRandom[IO]
           long <- random.nextLong
-        } yield long match {
-          case _: Long => true
-          case _ => false
-        }
+        } yield ok
       }
     }
 
@@ -198,9 +190,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randomLongs <- (1 to numIterations)
-            .toList
-            .traverse(_ => random.nextLongBounded(bound))
+          randomLongs <- random.nextLongBounded(bound).replicateA(numIterations)
         } yield randomLongs.forall(long => long >= 0L && long < bound)
       }
     }
@@ -211,7 +201,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randomChars <- (1 to numIterations).toList.traverse(_ => random.nextPrintableChar)
+          randomChars <- random.nextPrintableChar.replicateA(numIterations)
         } yield randomChars.forall(char => printableChars.contains(char))
       }
     }
@@ -222,7 +212,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          randomStrings <- (1 to numIterations).toList.traverse(_ => random.nextString(length))
+          randomStrings <- random.nextString(length).replicateA(numIterations)
         } yield {
           randomStrings.forall(_.length == length)
         }
@@ -279,9 +269,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          chosenValues <- (1 to numIterations)
-            .toList
-            .traverse(_ => random.oneOf(list.head, list.tail: _*))
+          chosenValues <- random.oneOf(list.head, list.tail: _*).replicateA(numIterations)
         } yield chosenValues.forall(list.contains)
       }
     }
@@ -345,9 +333,7 @@ class RandomSpec extends BaseSpec {
         val numIterations: Int = 1000
         for {
           random <- Random.scalaUtilRandom[IO]
-          chosenValues <- (1 to numIterations)
-            .toList
-            .traverse(_ => random.elementOf(nonEmptyCollection))
+          chosenValues <- random.elementOf(nonEmptyCollection).replicateA(numIterations)
         } yield {
           val collectionVector: Vector[A] = nonEmptyCollection.toVector
           chosenValues.forall(collectionVector.contains(_))
