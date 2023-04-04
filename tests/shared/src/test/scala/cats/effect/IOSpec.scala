@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
+import cats.effect.std.CountDownLatch
 import cats.effect.testkit.{TestContext, TestControl}
 import cats.kernel.laws.SerializableLaws.serializable
 import cats.kernel.laws.discipline.MonoidTests
@@ -828,15 +829,15 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "racePair" should {
         "not leak" in ticked { implicit ticker =>
-          IO.deferred[Unit].flatMap { gate =>
+          CountDownLatch[IO](2).flatMap { latch =>
             val test = IO.racePair(
-              (gate.complete(()) *> IO.sleep(1.second)).uncancelable,
-              IO.sleep(2.seconds).uncancelable
+              (latch.release *> IO.sleep(1.second)).uncancelable,
+              (latch.release *> IO.sleep(2.seconds)).uncancelable
             )
 
             test
               .start
-              .flatMap(f => gate.get *> f.cancel *> f.join)
+              .flatMap(f => latch.await *> f.cancel *> f.join)
               .flatMap(_.embedError)
               .map(_.isLeft)
           } must completeAs(true)
