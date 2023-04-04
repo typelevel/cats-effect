@@ -868,46 +868,42 @@ private final class IOFiber[A](
         case 18 =>
           val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
+          val ec = currentCtx
+          val rt = runtime
+
+          val fiberA = new IOFiber[Any](
+            localState,
+            null,
+            cur.ioa,
+            ec,
+            rt
+          )
+
+          val fiberB = new IOFiber[Any](
+            localState,
+            null,
+            cur.iob,
+            ec,
+            rt
+          )
+
+          val cancel =
+            for {
+              cancelA <- fiberA.cancel.start
+              cancelB <- fiberB.cancel.start
+              _ <- cancelA.join
+              _ <- cancelB.join
+            } yield ()
+
           val next =
-            IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
+            IO.async_[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
               cb =>
-                IO {
-                  val ec = currentCtx
-                  val rt = runtime
+                fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
+                fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
 
-                  val fiberA = new IOFiber[Any](
-                    localState,
-                    null,
-                    cur.ioa,
-                    ec,
-                    rt
-                  )
-
-                  val fiberB = new IOFiber[Any](
-                    localState,
-                    null,
-                    cur.iob,
-                    ec,
-                    rt
-                  )
-
-                  fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
-                  fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
-
-                  scheduleFiber(ec, fiberA)
-                  scheduleFiber(ec, fiberB)
-
-                  val cancel =
-                    for {
-                      cancelA <- fiberA.cancel.start
-                      cancelB <- fiberB.cancel.start
-                      _ <- cancelA.join
-                      _ <- cancelB.join
-                    } yield ()
-
-                  Some(cancel)
-                }
-            }
+                scheduleFiber(ec, fiberA)
+                scheduleFiber(ec, fiberB)
+            }.cancelable(cancel)
 
           runLoop(next, nextCancelation, nextAutoCede)
 
