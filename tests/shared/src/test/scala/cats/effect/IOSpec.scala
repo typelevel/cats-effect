@@ -826,6 +826,23 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
       }
 
+      "racePair" should {
+        "not leak" in ticked { implicit ticker =>
+          IO.deferred[Unit].flatMap { gate =>
+            val test = IO.racePair(
+              (gate.complete(()) *> IO.sleep(1.second)).uncancelable,
+              IO.sleep(2.seconds).uncancelable
+            )
+
+            test
+              .start
+              .flatMap(f => gate.get *> f.cancel *> f.join)
+              .flatMap(_.embedError)
+              .map(_.isLeft)
+          } must completeAs(true)
+        }
+      }
+
       "race" should {
         "succeed with faster side" in ticked { implicit ticker =>
           IO.race(IO.sleep(10.minutes) >> IO.pure(1), IO.pure(2)) must completeAs(Right(2))
