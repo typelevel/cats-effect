@@ -289,7 +289,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
                 IO.sleep(1.second).uncancelable.guarantee(resultR.set(true)))) *>
                 IO.sleep(100.millis) *>
                 release.both(
-                  IO.sleep(100.millis) *>
+                  IO.sleep(500.nanos) *>
                     IO(runner.unsafeRunAndForget(rogueResultR.set(true))).attempt
                 )
           }
