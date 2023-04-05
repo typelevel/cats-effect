@@ -240,7 +240,6 @@ object Dispatcher {
         states
       })
       ec <- Resource.eval(F.executionContext)
-      alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
 
       // supervisor for the main loop, which needs to always restart unless the Supervisor itself is canceled
       // critically, inner actions can be canceled without impacting the loop itself
@@ -303,13 +302,15 @@ object Dispatcher {
             val worker = dispatcher(doneR, latch, states(n))
             val release = F.delay(latch.getAndSet(Open)())
             Resource.make(supervisor.supervise(worker)) { _ =>
-              F.delay(doneR.set(true)) *> F.delay(alive.set(false)) *> step(
-                states(n),
-                F.unit) *> release
+              F.delay(doneR.set(true)) *> step(states(n), F.unit) *> release
             }
           }
         }
       }
+
+      // Alive is the innermost resource so that when releasing
+      // the very first thing we do is set dispatcher to un-alive
+      alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
     } yield {
       new Dispatcher[F] {
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
