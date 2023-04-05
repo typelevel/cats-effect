@@ -303,7 +303,9 @@ object Dispatcher {
             val worker = dispatcher(doneR, latch, states(n))
             val release = F.delay(latch.getAndSet(Open)())
             Resource.make(supervisor.supervise(worker)) { _ =>
-              F.delay(doneR.set(true)) *> step(states(n), F.unit) *> release
+              F.delay(doneR.set(true)) *> F.delay(alive.set(false)) *> step(
+                states(n),
+                F.unit) *> release
             }
           }
         }
