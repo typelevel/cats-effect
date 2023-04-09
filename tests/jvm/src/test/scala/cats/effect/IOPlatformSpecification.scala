@@ -32,7 +32,7 @@ import java.util.concurrent.{
   CountDownLatch,
   Executors
 }
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
@@ -372,6 +372,25 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         } finally {
           runtime.shutdown()
         }
+      }
+
+      "steal timers" in realWithRuntime { rt =>
+        IO.both(
+          IO.sleep(1100.millis).parReplicateA_(16), // just to keep some workers awake
+          IO {
+            // The `WorkerThread` which executes this IO
+            // will never exit the `while` loop, unless
+            // the timer is triggered, so it will never
+            // be able to trigger the timer itself. The
+            // only way this works is if some other worker
+            // steals the the timer.
+            val flag = new AtomicBoolean(false)
+            val _ = rt.scheduler.sleep(1000.millis, () => { flag.set(true) })
+            while (!flag.get()) {
+              ;
+            }
+          }
+        ).as(ok)
       }
 
       "not lose cedeing threads from the bypass when blocker transitioning" in {
