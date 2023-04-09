@@ -898,7 +898,9 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity")
+        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
+      // #3524, private class
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.std.MapRef#ConcurrentHashMapImpl.keys"),
     )
   )
   .jsSettings(
