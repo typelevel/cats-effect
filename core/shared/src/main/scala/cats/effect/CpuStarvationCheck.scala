@@ -22,6 +22,7 @@ import cats.effect.unsafe.metrics.CpuStarvationSampler
 import cats.syntax.all._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
+
 private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
 
   def run(runtimeConfig: IORuntimeConfig, metrics: CpuStarvationSampler): IO[Nothing] = {
