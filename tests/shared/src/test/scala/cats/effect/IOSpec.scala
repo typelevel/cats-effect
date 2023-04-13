@@ -676,7 +676,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             l <- Ref.of[IO, Boolean](false)
             r <- Ref.of[IO, Boolean](false)
             fiber <-
-              IO.never[Int].onCancel(l.set(true)).raceOutcome(IO.never[Int].onCancel(r.set(true))).start
+              IO.never[Int]
+                .onCancel(l.set(true))
+                .raceOutcome(IO.never[Int].onCancel(r.set(true)))
+                .start
             _ <- IO(ticker.ctx.tick())
             _ <- fiber.cancel
             _ <- IO(ticker.ctx.tick())
