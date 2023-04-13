@@ -670,6 +670,25 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
       }
 
+      "raceOutcome" should {
+        "cancel both fibers" in ticked { implicit ticker =>
+          (for {
+            l <- Ref.of[IO, Boolean](false)
+            r <- Ref.of[IO, Boolean](false)
+            fiber <-
+              IO.never[Int]
+                .onCancel(l.set(true))
+                .raceOutcome(IO.never[Int].onCancel(r.set(true)))
+                .start
+            _ <- IO(ticker.ctx.tick())
+            _ <- fiber.cancel
+            _ <- IO(ticker.ctx.tick())
+            l2 <- l.get
+            r2 <- r.get
+          } yield l2 -> r2) must completeAs(true -> true)
+        }
+      }
+
       "race" should {
         "succeed with faster side" in ticked { implicit ticker =>
           IO.race(IO.sleep(10.minutes) >> IO.pure(1), IO.pure(2)) must completeAs(Right(2))

@@ -618,7 +618,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ContStateWinner"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateResult"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiberConstants.ExecuteRunnableR"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ExecuteRunnableR")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -900,7 +901,8 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
       // #3524, private class
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.std.MapRef#ConcurrentHashMapImpl.keys"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.std.MapRef#ConcurrentHashMapImpl.keys")
     )
   )
   .jsSettings(
