@@ -115,6 +115,26 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         (IO.pure(42) orElse IO.raiseError[Int](TestException)) must completeAs(42)
       }
 
+      "adaptError is a no-op for a successful effect" in ticked { implicit ticker =>
+        IO(42).adaptError { case x => x } must completeAs(42)
+      }
+
+      "adaptError is a no-op for a non-matching error" in ticked { implicit ticker =>
+        case object TestException1 extends RuntimeException
+        case object TestException2 extends RuntimeException
+        IO.raiseError[Unit](TestException1).adaptError {
+          case TestException2 => TestException2
+        } must failAs(TestException1)
+      }
+
+      "adaptError transforms the error in a failed effect" in ticked { implicit ticker =>
+        case object TestException1 extends RuntimeException
+        case object TestException2 extends RuntimeException
+        IO.raiseError[Unit](TestException1).adaptError {
+          case TestException1 => TestException2
+        } must failAs(TestException2)
+      }
+
       "attempt is redeem with Left(_) for recover and Right(_) for map" in ticked {
         implicit ticker =>
           forAll { (io: IO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
@@ -123,6 +143,12 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "attempt is flattened redeemWith" in ticked { implicit ticker =>
         forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
           io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
+        }
+      }
+
+      "attemptTap(f) is an alias for attempt.flatTap(f).rethrow" in ticked { implicit ticker =>
+        forAll { (io: IO[Int], f: Either[Throwable, Int] => IO[Int]) =>
+          io.attemptTap(f) eqv io.attempt.flatTap(f).rethrow
         }
       }
 

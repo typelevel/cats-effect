@@ -27,6 +27,7 @@ import cats.{
   Id,
   Monad,
   Monoid,
+  NonEmptyParallel,
   Now,
   Parallel,
   Semigroup,
@@ -42,16 +43,11 @@ import cats.effect.kernel.GenTemporal.handleDuration
 import cats.effect.std.{Backpressure, Console, Env, Supervisor, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.effect.unsafe.IORuntime
+import cats.syntax._
 import cats.syntax.all._
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{
-  CancellationException,
-  ExecutionContext,
-  Future,
-  Promise,
-  TimeoutException
-}
+import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
@@ -163,6 +159,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     both(that).map { case (a, _) => a }
 
   /**
+   * Transform certain errors using `pf` and rethrow them. Non matching errors and successful
+   * values are not affected by this function.
+   *
+   * Implements `ApplicativeError.adaptError`.
+   */
+  def adaptError[E](pf: PartialFunction[Throwable, Throwable]): IO[A] =
+    recoverWith(pf.andThen(IO.raiseError[A] _))
+
+  /**
    * Replaces the result of this IO with the given value.
    */
   def as[B](b: B): IO[B] =
@@ -185,6 +190,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    */
   def attempt: IO[Either[Throwable, A]] =
     IO.Attempt(this)
+
+  /**
+   * Reifies the value or error of the source and performs an effect on the result, then
+   * recovers the original value or error back into `IO`.
+   *
+   * Implements `MonadError.attemptTap`.
+   */
+  def attemptTap[B](f: Either[Throwable, A] => IO[B]): IO[A] =
+    attempt.flatTap(f).rethrow
 
   /**
    * Replaces failures in this IO with an empty Option.
@@ -574,6 +588,36 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def onError(f: Throwable => IO[Unit]): IO[A] =
     handleErrorWith(t => f(t).voidError *> IO.raiseError(t))
+
+  /**
+   * Like `Parallel.parProductL`
+   */
+  def parProductL[B](iob: IO[B])(implicit P: NonEmptyParallel[IO]): IO[A] =
+    P.parProductL[A, B](this)(iob)
+
+  /**
+   * Like `Parallel.parProductR`
+   */
+  def parProductR[B](iob: IO[B])(implicit P: NonEmptyParallel[IO]): IO[B] =
+    P.parProductR[A, B](this)(iob)
+
+  /**
+   * Like `Parallel.parProduct`
+   */
+  def parProduct[B](iob: IO[B])(implicit P: NonEmptyParallel[IO]): IO[(A, B)] =
+    Parallel.parProduct(this, iob)(P)
+
+  /**
+   * Like `Parallel.parReplicateA`
+   */
+  def parReplicateA(n: Int): IO[List[A]] =
+    List.fill(n)(this).parSequence
+
+  /**
+   * Like `Parallel.parReplicateA_`
+   */
+  def parReplicateA_(n: Int): IO[Unit] =
+    List.fill(n)(this).parSequence_
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
     IO.race(this, that)
@@ -1107,7 +1151,45 @@ private[effect] trait IOLowPriorityImplicits {
   }
 }
 
-object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
+object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TupleParallelSyntax {
+
+  implicit final def catsSyntaxParallelSequence1[T[_], A](
+      toia: T[IO[A]]): ParallelSequenceOps1[T, IO, A] = new ParallelSequenceOps1(toia)
+
+  implicit final def catsSyntaxParallelSequence_[T[_], A](
+      tioa: T[IO[A]]): ParallelSequence_Ops[T, IO, A] =
+    new ParallelSequence_Ops(tioa)
+
+  implicit final def catsSyntaxParallelUnorderedSequence[T[_], A](
+      tioa: T[IO[A]]): ParallelUnorderedSequenceOps[T, IO, A] =
+    new ParallelUnorderedSequenceOps(tioa)
+
+  implicit final def catsSyntaxParallelFlatSequence1[T[_], A](
+      tioa: T[IO[T[A]]]): ParallelFlatSequenceOps1[T, IO, A] =
+    new ParallelFlatSequenceOps1(tioa)
+
+  implicit final def catsSyntaxParallelUnorderedFlatSequence[T[_], A](
+      tiota: T[IO[T[A]]]): ParallelUnorderedFlatSequenceOps[T, IO, A] =
+    new ParallelUnorderedFlatSequenceOps(tiota)
+
+  implicit final def catsSyntaxParallelSequenceFilter[T[_], A](
+      x: T[IO[Option[A]]]): ParallelSequenceFilterOps[T, IO, A] =
+    new ParallelSequenceFilterOps(x)
+
+  implicit class IOFlatSequenceOps[T[_], A](tiota: T[IO[T[A]]]) {
+    def flatSequence(
+        implicit T: Traverse[T],
+        G: Applicative[IO],
+        F: cats.FlatMap[T]): IO[T[A]] = {
+      tiota.sequence(T, G).map(F.flatten)
+    }
+  }
+
+  implicit class IOSequenceOps[T[_], A](tioa: T[IO[A]]) {
+    def sequence(implicit T: Traverse[T], G: Applicative[IO]): IO[T[A]] = T.sequence(tioa)(G)
+
+    def sequence_(implicit F: Foldable[T], G: Applicative[IO]): IO[Unit] = F.sequence_(tioa)(G)
+  }
 
   /**
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing
@@ -1416,6 +1498,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def some[A](a: A): IO[Option[A]] = pure(Some(a))
 
   /**
+   * Like `Parallel.parTraverse`
+   */
+  def parTraverse[T[_]: Traverse, A, B](ta: T[A])(f: A => IO[B]): IO[T[B]] =
+    ta.parTraverse(f)
+
+  /**
+   * Like `Parallel.parTraverse_`
+   */
+  def parTraverse_[T[_]: Foldable, A, B](ta: T[A])(f: A => IO[B]): IO[Unit] =
+    ta.parTraverse_(f)
+
+  /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
    */
   def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => IO[B]): IO[T[B]] =
@@ -1428,22 +1522,34 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     _asyncForIO.parTraverseN_(n)(ta)(f)
 
   /**
+   * Like `Parallel.parSequence`
+   */
+  def parSequence[T[_]: Traverse, A](tioa: T[IO[A]]): IO[T[A]] =
+    tioa.parSequence
+
+  /**
+   * Like `Parallel.parSequence_`
+   */
+  def parSequence_[T[_]: Foldable, A](tioa: T[IO[A]]): IO[Unit] =
+    tioa.parSequence_
+
+  /**
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
+  def parSequenceN[T[_]: Traverse, A](n: Int)(tioa: T[IO[A]]): IO[T[A]] =
+    _asyncForIO.parSequenceN(n)(tioa)
+
+  /**
    * Like `Parallel.parSequence_`, but limits the degree of parallelism.
    */
   def parSequenceN_[T[_]: Foldable, A](n: Int)(tma: T[IO[A]]): IO[Unit] =
     _asyncForIO.parSequenceN_(n)(tma)
 
   /**
-   * Like `Parallel.parSequence`, but limits the degree of parallelism.
-   */
-  def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[IO[A]]): IO[T[A]] =
-    _asyncForIO.parSequenceN(n)(tma)
-
-  /**
    * Like `Parallel.parReplicateA`, but limits the degree of parallelism.
    */
-  def parReplicateAN[A](n: Int)(replicas: Int, ma: IO[A]): IO[List[A]] =
-    _asyncForIO.parReplicateAN(n)(replicas, ma)
+  def parReplicateAN[A](n: Int)(replicas: Int, ioa: IO[A]): IO[List[A]] =
+    _asyncForIO.parReplicateAN(n)(replicas, ioa)
 
   /**
    * Lifts a pure value into `IO`.
@@ -1513,6 +1619,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def trace: IO[Trace] =
     IOTrace
+
+  def traverse[T[_]: Traverse, A, B](ta: T[A])(f: A => IO[B]): IO[T[B]] =
+    ta.traverse(f)(_asyncForIO)
+
+  def traverse_[T[_]: Foldable, A, B](ta: T[A])(f: A => IO[B]): IO[Unit] =
+    ta.traverse_(f)(_asyncForIO)
 
   private[effect] def runtime: IO[IORuntime] = ReadRT
 
