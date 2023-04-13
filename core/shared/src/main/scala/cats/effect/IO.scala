@@ -507,12 +507,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.race(this, that)
 
   def raceOutcome[B](that: IO[B]): IO[Either[OutcomeIO[A @uncheckedVariance], OutcomeIO[B]]] =
-    IO.uncancelable { _ =>
-      racePair(that).flatMap {
-        case Left((oc, f)) => f.cancel.as(Left(oc))
-        case Right((f, oc)) => f.cancel.as(Right(oc))
-      }
-    }
+    IO.asyncForIO.raceOutcome(this, that)
 
   def racePair[B](that: IO[B]): IO[Either[
     (OutcomeIO[A @uncheckedVariance], FiberIO[B]),
