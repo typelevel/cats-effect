@@ -89,7 +89,7 @@ class RandomSpec extends BaseSpec {
         for {
           random <- Random.scalaUtilRandom[IO]
           randomBoolean <- random.nextBoolean
-        } yield ok
+        } yield randomBoolean must beOneOf(true, false)
       }
     }
 
@@ -160,7 +160,7 @@ class RandomSpec extends BaseSpec {
         for {
           random <- Random.scalaUtilRandom[IO]
           int <- random.nextInt
-        } yield ok
+        } yield int must beBetween(Int.MinValue, Int.MaxValue)
       }
     }
 
@@ -180,7 +180,7 @@ class RandomSpec extends BaseSpec {
         for {
           random <- Random.scalaUtilRandom[IO]
           long <- random.nextLong
-        } yield ok
+        } yield long must beBetween(Long.MinValue, Long.MaxValue)
       }
     }
 
