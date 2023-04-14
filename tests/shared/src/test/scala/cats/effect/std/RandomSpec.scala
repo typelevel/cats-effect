@@ -17,46 +17,56 @@
 package cats.effect
 package std
 
-import cats.kernel.Order
-import cats.implicits._
-
 import org.specs2.specification.core.Fragments
 
 import scala.annotation.nowarn
 
 class RandomSpec extends BaseSpec {
+  "Random" should {
+    val R = Random.scalaUtilRandom[IO]
 
-  def isInRange[A: Order](value: A, min: A, max: A): Boolean = value >= min && value <= max
+    testRandom(R)
 
-  def withRandom[A](f: Random[IO] => IO[A]): IO[A] = Random.scalaUtilRandom[IO].flatMap(f)
+    elementOfTests[Int, List[Int]](
+      "List",
+      List.empty[Int],
+      List(1, 2, 3, 4, 5),
+      R
+    )
 
-  def checkRandomInRange[A: Order](
-      min: A,
-      max: A,
-      randomFunc: Random[IO] => IO[A],
-      numIterations: Int = 1000): IO[Boolean] = {
-    withRandom { random =>
-      randomFunc(random).replicateA(numIterations).map { randomValues =>
-        randomValues.forall(value => isInRange(value, min, max))
-      }
-    }
+    elementOfTests[Int, Set[Int]](
+      "Set",
+      Set.empty[Int],
+      Set(1, 2, 3, 4, 5),
+      R
+    )
+
+    elementOfTests[Int, Vector[Int]](
+      "Vector",
+      Vector.empty[Int],
+      Vector(1, 2, 3, 4, 5),
+      R
+    )
+
+    elementOfTests[(String, Int), Map[String, Int]](
+      "Map",
+      Map.empty[String, Int],
+      Map("a" -> 1, "b" -> 2, "c" -> 3, "d" -> 4, "e" -> 5),
+      R
+    )
+
   }
 
-  def checkShuffle[A: Ordering](randomFunc: (Random[IO], Seq[A]) => IO[Seq[A]], sampleSize: Int = 10000): IO[Boolean] = {
-    val collection: IndexedSeq[A] = (1 to sampleSize).map(_.asInstanceOf[A])
-    withRandom { random =>
-      randomFunc(random, collection).map { shuffled =>
-        shuffled != collection && shuffled.sorted == collection.sorted
-      }
-    }
-}
-
-  "Random" should {
+  private def testRandom(randomGen: IO[Random[IO]]): Fragments = {
     "betweenDouble" >> {
       "generate a random double within a range" in real {
         val min: Double = 0.0
         val max: Double = 1.0
-        checkRandomInRange(min, max, _.betweenDouble(min, max))
+        val numIterations: Int = 1000
+        for {
+          random <- randomGen
+          randDoubles <- random.betweenDouble(min, max).replicateA(numIterations)
+        } yield randDoubles.forall(randDouble => randDouble >= min && randDouble <= max)
       }
     }
 
@@ -64,15 +74,23 @@ class RandomSpec extends BaseSpec {
       "generate a random float within a range" in real {
         val min: Float = 0.0f
         val max: Float = 1.0f
-        checkRandomInRange(min, max, _.betweenFloat(min, max))
+        val numIterations: Int = 1000
+        for {
+          random <- randomGen
+          randFloats <- random.betweenFloat(min, max).replicateA(numIterations)
+        } yield randFloats.forall(randFloat => randFloat >= min && randFloat <= max)
       }
     }
 
     "betweenInt" >> {
       "generate a random integer within a range" in real {
-        val min: Int = 0
-        val max: Int = 10
-        checkRandomInRange(min, max, _.betweenInt(min, max))
+        val min: Integer = 0
+        val max: Integer = 10
+        val numIterations: Int = 1000
+        for {
+          random <- randomGen
+          randInts <- random.betweenInt(min, max).replicateA(numIterations)
+        } yield randInts.forall(randInt => randInt >= min && randInt <= max)
       }
     }
 
@@ -80,7 +98,11 @@ class RandomSpec extends BaseSpec {
       "generate a random long within a range" in real {
         val min: Long = 0L
         val max: Long = 100L
-        checkRandomInRange(min, max, _.betweenLong(min, max))
+        val numIterations: Int = 1000
+        for {
+          random <- randomGen
+          randLongs <- random.betweenLong(min, max).replicateA(numIterations)
+        } yield randLongs.forall(randLong => randLong >= min && randLong <= max)
       }
     }
 
@@ -88,19 +110,19 @@ class RandomSpec extends BaseSpec {
       "generate random alphanumeric characters" in real {
         val alphaNumeric: Set[Char] = (('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9')).toSet
         val numIterations: Int = 1000
-        withRandom { random =>
-            random.nextAlphaNumeric.replicateA(numIterations).map { randomChars =>
-            randomChars.forall(randomChar => alphaNumeric.contains(randomChar))
-          }
-        }
+        for {
+          random <- randomGen
+          randomChars <- random.nextAlphaNumeric.replicateA(numIterations)
+        } yield randomChars.forall(randomChar => alphaNumeric.contains(randomChar))
       }
     }
 
     "nextBoolean" >> {
       "generate random boolean values" in real {
-        withRandom { random =>
-        random.nextBoolean.map(randomBoolean => randomBoolean must beOneOf(true, false))
-        }
+        for {
+          random <- randomGen
+          randomBoolean <- random.nextBoolean
+        } yield randomBoolean must beOneOf(true, false)
       }
     }
 
@@ -125,7 +147,7 @@ class RandomSpec extends BaseSpec {
 
       "prevent array reference from leaking in ScalaRandom.nextBytes impl" in real {
         for {
-          random <- Random.scalaUtilRandom[IO]
+          random <- randomGen
           nextBytes = random.nextBytes(128)
           bytes1 <- nextBytes
           bytes2 <- nextBytes
@@ -135,13 +157,21 @@ class RandomSpec extends BaseSpec {
 
     "nextDouble" >> {
       "generate random double values between 0.0 and 1.0" in real {
-        checkRandomInRange(0.0, 1.0, _.nextDouble)
+        val numIterations: Int = 1000
+        for {
+          random <- randomGen
+          randomDoubles <- random.nextDouble.replicateA(numIterations)
+        } yield randomDoubles.forall(double => double >= 0.0 && double < 1.0)
       }
     }
 
     "nextFloat" >> {
       "generate random float values between 0.0 and 1.0" in real {
-        checkRandomInRange(0.0f, 1.0f, _.nextFloat)
+        val numIterations: Int = 1000
+        for {
+          random <- randomGen
+          randomFloats <- random.nextFloat.replicateA(numIterations)
+        } yield randomFloats.forall(float => float >= 0.0f && float < 1.0f)
       }
     }
 
@@ -149,7 +179,7 @@ class RandomSpec extends BaseSpec {
       "generate random Gaussian distributed double values with mean 0.0 and standard deviation 1.0" in real {
         val sampleSize = 1000
         for {
-          random <- Random.scalaUtilRandom[IO]
+          random <- randomGen
           gaussians <- random.nextGaussian.replicateA(sampleSize)
           mean = gaussians.sum / sampleSize
           variance = gaussians.map(x => math.pow(x - mean, 2)).sum / sampleSize
@@ -160,7 +190,10 @@ class RandomSpec extends BaseSpec {
 
     "nextInt" >> {
       "generate random int value" in real {
-        checkRandomInRange(Int.MinValue, Int.MaxValue, _.nextInt)
+        for {
+          random <- randomGen
+          int <- random.nextInt
+        } yield int must beBetween(Int.MinValue, Int.MaxValue)
       }
     }
 
@@ -168,20 +201,30 @@ class RandomSpec extends BaseSpec {
       "generate random int values within specified bounds" in real {
         val bound: Int = 100
         val numIterations: Int = 1000
-        checkRandomInRange(0, bound, _.nextIntBounded(bound), numIterations)
+        for {
+          random <- randomGen
+          randomInts <- random.nextIntBounded(bound).replicateA(numIterations)
+        } yield randomInts.forall(int => int >= 0 && int < bound)
       }
     }
 
     "nextLong" >> {
       "generate random long value" in real {
-        checkRandomInRange(Long.MinValue, Long.MaxValue, _.nextLong)
+        for {
+          random <- randomGen
+          long <- random.nextLong
+        } yield long must beBetween(Long.MinValue, Long.MaxValue)
       }
     }
 
     "nextLongBounded" >> {
       "generate random long values within specified bounds" in real {
         val bound: Long = 100L
-        checkRandomInRange(0L, bound, _.nextLongBounded(bound))
+        val numIterations: Int = 1000
+        for {
+          random <- randomGen
+          randomLongs <- random.nextLongBounded(bound).replicateA(numIterations)
+        } yield randomLongs.forall(long => long >= 0L && long < bound)
       }
     }
 
@@ -189,11 +232,10 @@ class RandomSpec extends BaseSpec {
       "generate random printable characters" in real {
         val printableChars: Set[Char] = ((' ' to '~') ++ ('\u00A0' to '\u00FF')).toSet
         val numIterations: Int = 1000
-        withRandom { random =>
-          random.nextPrintableChar.replicateA(numIterations).map { randomChars =>
-            randomChars.forall(randomChar => printableChars.contains(randomChar))
-          }
-        }
+        for {
+          random <- randomGen
+          randomChars <- random.nextPrintableChar.replicateA(numIterations)
+        } yield randomChars.forall(char => printableChars.contains(char))
       }
     }
 
@@ -201,31 +243,43 @@ class RandomSpec extends BaseSpec {
       "generate a random string with the specified length" in real {
         val length: Int = 100
         val numIterations: Int = 1000
-        withRandom { random =>
-          random.nextString(length).replicateA(numIterations).map { randomStrings =>
-            randomStrings.forall(randomString => randomString.length == length)
-          }
+        for {
+          random <- randomGen
+          randomStrings <- random.nextString(length).replicateA(numIterations)
+        } yield {
+          randomStrings.forall(_.length == length)
         }
       }
     }
 
     "shuffleList" >> {
       "shuffle a list" in real {
-        checkShuffle((random: Random[IO], col: Seq[Int]) => random.shuffleList(col.toList))
+        val sampleSize: Integer = 10000
+        val list: List[Int] = (1 to sampleSize).toList
+        for {
+          random <- randomGen
+          shuffled <- random.shuffleList(list)
+        } yield shuffled != list && shuffled.sorted == list.sorted
       }
     }
 
     "shuffleVector" >> {
       "shuffle a vector" in real {
-        checkShuffle((random: Random[IO], col: Seq[Int]) => random.shuffleVector(col.toVector))
+        val sampleSize: Integer = 10000
+        val vector: Vector[Int] = (1 to sampleSize).toVector
+        for {
+          random <- randomGen
+          shuffled <- random.shuffleVector(vector)
+        } yield shuffled != vector && shuffled.sorted == vector.sorted
       }
     }
 
     "oneOf" >> {
       "return the only value provided" in real {
-        withRandom { random =>
-          random.oneOf(42).map(_ must_=== 42)
-        }
+        for {
+          random <- randomGen
+          chosen <- random.oneOf(42)
+        } yield chosen == 42
       }
 
       "eventually choose all the given values at least once" in real {
@@ -236,7 +290,7 @@ class RandomSpec extends BaseSpec {
           ref.get.map(_ == values.toSet)
 
         for {
-          random <- Random.scalaUtilRandom[IO]
+          random <- randomGen
           ref <- Ref.of[IO, Set[Int]](Set.empty)
           _ <- chooseAndAccumulate(random, ref).untilM_(haveChosenAllValues(ref))
           success <- haveChosenAllValues(ref)
@@ -246,51 +300,28 @@ class RandomSpec extends BaseSpec {
       "not select any value outside the provided list" in real {
         val list: List[Int] = List(1, 2, 3, 4, 5)
         val numIterations: Int = 1000
-        withRandom { random =>
-          random.oneOf(list.head, list.tail: _*).replicateA(numIterations).map { chosenValues =>
-            chosenValues.forall(list.contains)
-          }
-        }
+        for {
+          random <- randomGen
+          chosenValues <- random.oneOf(list.head, list.tail: _*).replicateA(numIterations)
+        } yield chosenValues.forall(list.contains)
       }
     }
-
-    elementOfTests[Int, List[Int]](
-      "List",
-      List.empty[Int],
-      List(1, 2, 3, 4, 5)
-    )
-
-    elementOfTests[Int, Set[Int]](
-      "Set",
-      Set.empty[Int],
-      Set(1, 2, 3, 4, 5)
-    )
-
-    elementOfTests[Int, Vector[Int]](
-      "Vector",
-      Vector.empty[Int],
-      Vector(1, 2, 3, 4, 5)
-    )
-
-    elementOfTests[(String, Int), Map[String, Int]](
-      "Map",
-      Map.empty[String, Int],
-      Map("a" -> 1, "b" -> 2, "c" -> 3, "d" -> 4, "e" -> 5)
-    )
 
   }
 
   private def elementOfTests[A, C <: Iterable[A]](
       collectionType: String,
       emptyCollection: C,
-      nonEmptyCollection: C
+      nonEmptyCollection: C,
+      randomGen: IO[Random[IO]]
   ): Fragments = {
 
     s"elementOf ($collectionType)" >> {
       "reject an empty collection" in real {
-        withRandom { random =>
-          random.elementOf(emptyCollection).attempt.map(_.isLeft must_=== true)
-        }
+        for {
+          random <- randomGen
+          result <- random.elementOf(emptyCollection).attempt
+        } yield result.isLeft
       }
 
       "eventually choose all elements of the given collection at least once" in real {
@@ -301,7 +332,7 @@ class RandomSpec extends BaseSpec {
           ref.get.map(_ == xs.toSet)
 
         for {
-          random <- Random.scalaUtilRandom[IO]
+          random <- randomGen
           ref <- Ref.of[IO, Set[A]](Set.empty)
           _ <- chooseAndAccumulate(random, ref).untilM_(haveChosenAllElements(ref))
           success <- haveChosenAllElements(ref)
@@ -311,7 +342,7 @@ class RandomSpec extends BaseSpec {
       "not select any value outside the provided collection" in real {
         val numIterations: Int = 1000
         for {
-          random <- Random.scalaUtilRandom[IO]
+          random <- randomGen
           chosenValues <- random.elementOf(nonEmptyCollection).replicateA(numIterations)
         } yield {
           val collectionVector: Vector[A] = nonEmptyCollection.toVector
