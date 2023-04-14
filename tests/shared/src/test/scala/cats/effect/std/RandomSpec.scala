@@ -22,41 +22,29 @@ import org.specs2.specification.core.Fragments
 import scala.annotation.nowarn
 
 class RandomSpec extends BaseSpec {
-  "Random" should {
-    val R = Random.scalaUtilRandom[IO]
-
-    testRandom(R)
-
-    elementOfTests[Int, List[Int]](
-      "List",
-      List.empty[Int],
-      List(1, 2, 3, 4, 5),
-      R
-    )
-
-    elementOfTests[Int, Set[Int]](
-      "Set",
-      Set.empty[Int],
-      Set(1, 2, 3, 4, 5),
-      R
-    )
-
-    elementOfTests[Int, Vector[Int]](
-      "Vector",
-      Vector.empty[Int],
-      Vector(1, 2, 3, 4, 5),
-      R
-    )
-
-    elementOfTests[(String, Int), Map[String, Int]](
-      "Map",
-      Map.empty[String, Int],
-      Map("a" -> 1, "b" -> 2, "c" -> 3, "d" -> 4, "e" -> 5),
-      R
-    )
-
+  "scala.util.Random" should {
+    testRandom(Random.scalaUtilRandom[IO])
   }
 
+  "java.util.Random" should {
+    testRandom(Random.javaUtilRandom[IO](new java.util.Random(System.currentTimeMillis())))
+  }
+
+  "java.security.SecureRandom" should {
+    testRandom(Random.javaSecuritySecureRandom[IO]): @nowarn("cat=deprecation")
+  }
+
+  "javaUtilConcurrentThreadLocalRandom" should {
+    testRandom(IO.pure(Random.javaUtilConcurrentThreadLocalRandom[IO]))
+  }
+
+  /**
+   * It verifies the correctness of generating random numbers and other random elements within
+   * specified ranges and constraints.
+   *
+   * @param randomGen
+   *   An IO-wrapped Random[IO] instance used for running random number generation tests
+   */
   private def testRandom(randomGen: IO[Random[IO]]): Fragments = {
     "betweenDouble" >> {
       "generate a random double within a range" in real {
@@ -129,20 +117,21 @@ class RandomSpec extends BaseSpec {
     "nextBytes" >> {
       "securely generate random bytes" in real {
         for {
-          random1 <- Random.javaSecuritySecureRandom[IO]: @nowarn("cat=deprecation")
+          random1 <- randomGen
           bytes1 <- random1.nextBytes(128)
-          random2 <- Random.javaSecuritySecureRandom[IO](2): @nowarn("cat=deprecation")
+          random2 <- randomGen
           bytes2 <- random2.nextBytes(256)
         } yield bytes1.length == 128 && bytes2.length == 256
       }
 
       "prevent array reference from leaking in ThreadLocalRandom.nextBytes impl" in real {
-        val random = Random.javaUtilConcurrentThreadLocalRandom[IO]
-        val nextBytes = random.nextBytes(128)
-        for {
-          bytes1 <- nextBytes
-          bytes2 <- nextBytes
-        } yield bytes1 ne bytes2
+        randomGen.flatMap { random =>
+          val nextBytes = random.nextBytes(128)
+          for {
+            bytes1 <- nextBytes
+            bytes2 <- nextBytes
+          } yield bytes1 ne bytes2
+        }
       }
 
       "prevent array reference from leaking in ScalaRandom.nextBytes impl" in real {
@@ -307,8 +296,47 @@ class RandomSpec extends BaseSpec {
       }
     }
 
+    elementOfTests[Int, List[Int]](
+      "List",
+      List.empty[Int],
+      List(1, 2, 3, 4, 5),
+      randomGen
+    )
+
+    elementOfTests[Int, Set[Int]](
+      "Set",
+      Set.empty[Int],
+      Set(1, 2, 3, 4, 5),
+      randomGen
+    )
+
+    elementOfTests[Int, Vector[Int]](
+      "Vector",
+      Vector.empty[Int],
+      Vector(1, 2, 3, 4, 5),
+      randomGen
+    )
+
+    elementOfTests[(String, Int), Map[String, Int]](
+      "Map",
+      Map.empty[String, Int],
+      Map("a" -> 1, "b" -> 2, "c" -> 3, "d" -> 4, "e" -> 5),
+      randomGen
+    )
   }
 
+  /**
+   * It verifies the correct behavior of randomly selecting elements from the given collection.
+   *
+   * @param collectionType
+   *   A string describing the type of collection being tested (e.g., "List", "Set", "Vector")
+   * @param emptyCollection
+   *   An empty collection of the specified type to test empty collection handling
+   * @param nonEmptyCollection
+   *   A non-empty collection of the specified type containing elements to be tested
+   * @param randomGen
+   *   An IO-wrapped Random[IO] instance used for running the elementOf tests
+   */
   private def elementOfTests[A, C <: Iterable[A]](
       collectionType: String,
       emptyCollection: C,
