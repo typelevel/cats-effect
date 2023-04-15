@@ -19,8 +19,8 @@ package cats.effect
 import cats.effect.metrics.JsCpuStarvationMetrics
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
+import cats.syntax.all._
 
-import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 import scala.scalajs.{js, LinkingInfo}
 import scala.util.Try
@@ -235,6 +235,8 @@ trait IOApp {
     lazy val keepAlive: IO[Nothing] =
       IO.sleep(1.hour) >> keepAlive
 
+    val starvationCheck = CpuStarvationCheck.run(runtimeConfig, JsCpuStarvationMetrics())
+
     val argList = process.argv.getOrElse(args.toList)
 
     // Store the default process.exit function, if it exists
@@ -245,21 +247,8 @@ trait IOApp {
         .getOrElse((_: Int) => ())
 
     var cancelCode = 1 // So this can be updated by external cancellation
-    val fiber = Spawn[IO]
-      .raceOutcome[ExitCode, Nothing](
-        CpuStarvationCheck
-          .run(runtimeConfig, JsCpuStarvationMetrics())
-          .background
-          .surround(run(argList)),
-        keepAlive)
-      .flatMap {
-        case Left(Outcome.Canceled()) =>
-          IO.raiseError(new CancellationException("IOApp main fiber was canceled"))
-        case Left(Outcome.Errored(t)) => IO.raiseError(t)
-        case Left(Outcome.Succeeded(code)) => code
-        case Right(Outcome.Errored(t)) => IO.raiseError(t)
-        case Right(_) => sys.error("impossible")
-      }
+    val fiber = (keepAlive.background *> starvationCheck.background)
+      .surround(run(argList))
       .unsafeRunFiber(
         hardExit(cancelCode),
         t => {

@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
+import cats.effect.std.CountDownLatch
 import cats.effect.testkit.{TestContext, TestControl}
 import cats.kernel.laws.SerializableLaws.serializable
 import cats.kernel.laws.discipline.MonoidTests
@@ -826,6 +827,23 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
       }
 
+      "racePair" should {
+        "not leak" in ticked { implicit ticker =>
+          CountDownLatch[IO](2).flatMap { latch =>
+            val test = IO.racePair(
+              (latch.release *> IO.sleep(1.second)).uncancelable,
+              (latch.release *> IO.sleep(2.seconds)).uncancelable
+            )
+
+            test
+              .start
+              .flatMap(f => latch.await *> f.cancel *> f.join)
+              .flatMap(_.embedError)
+              .map(_.isLeft)
+          } must completeAs(true)
+        }
+      }
+
       "race" should {
         "succeed with faster side" in ticked { implicit ticker =>
           IO.race(IO.sleep(10.minutes) >> IO.pure(1), IO.pure(2)) must completeAs(Right(2))
@@ -1090,6 +1108,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           }
 
           test.start.flatMap(gate.get *> _.cancel)
+        } must completeAs(())
+      }
+
+      "cancelable should not leak" in ticked { implicit ticker =>
+        IO.deferred[Unit].flatMap { gate =>
+          val test = IO.deferred[Unit] flatMap { latch =>
+            (gate.complete(()) *> latch.get).uncancelable.cancelable(latch.complete(()).void)
+          }
+
+          test.start.flatMap(f => gate.get *> f.cancel *> f.join).flatMap(_.embedError)
         } must completeAs(())
       }
 

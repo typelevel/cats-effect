@@ -36,6 +36,14 @@ private final class ArrayStack[A <: AnyRef](val buffer: js.Array[A]) extends Any
 
   @inline def peek(): A = buffer(buffer.length - 1)
 
+  @inline def peekOrNull(): A = {
+    val i = buffer.length - 1
+    if (0 <= i && i < buffer.length)
+      buffer(i)
+    else
+      null.asInstanceOf[A]
+  }
+
   @inline def isEmpty(): Boolean = buffer.length == 0
 
   // to allow for external iteration

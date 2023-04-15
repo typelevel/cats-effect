@@ -68,5 +68,23 @@ class AsyncPlatformSpec extends BaseSpec {
         .replicateA(1000)
         .map(_.forall(identity(_)))
     }
+
+    "must not leak on cancelation" in real {
+      val go = IO.fromCompletableFuture {
+        IO {
+          CompletableFuture.supplyAsync { () =>
+            Thread.sleep(2000) // some computation
+          }
+        }
+      }
+
+      for {
+        fiber <- go.start
+        _ <- smallDelay
+        _ <- fiber.cancel
+        oc <- fiber.join
+      } yield oc.fold(false, _.isInstanceOf[CancellationException], _ => false)
+    }
+
   }
 }
