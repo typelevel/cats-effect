@@ -321,6 +321,33 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         } yield ok
       }
     }
+
+    "reject new tasks while shutting down" in real {
+      (IO.ref(false), IO.ref(false)).flatMapN { (resultR, rogueResultR) =>
+        dispatcher
+          .allocated
+          .flatMap {
+            case (runner, release) =>
+              IO(runner.unsafeRunAndForget(
+                IO.sleep(1.second).uncancelable.guarantee(resultR.set(true)))) *>
+                IO.sleep(100.millis) *>
+                release.both(
+                  IO.sleep(500.nanos) *>
+                    IO(runner.unsafeRunAndForget(rogueResultR.set(true))).attempt
+                )
+          }
+          .flatMap {
+            case (_, rogueSubmitResult) =>
+              for {
+                result <- resultR.get
+                rogueResult <- rogueResultR.get
+                _ <- IO(result must beTrue)
+                _ <- IO(rogueResult must beFalse)
+                _ <- IO(rogueSubmitResult must beLeft)
+              } yield ok
+          }
+      }
+    }
   }
 
   private def awaitTermination(dispatcher: Resource[IO, Dispatcher[IO]]) = {
@@ -351,6 +378,15 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         released1 must beFalse
         released2 must beTrue
       }
+    }
+
+    "issue #3506: await unsafeRunAndForget" in ticked { implicit ticker =>
+      val result = for {
+        resultR <- IO.ref(false)
+        _ <- dispatcher.use { runner => IO(runner.unsafeRunAndForget(resultR.set(true))) }
+        result <- resultR.get
+      } yield result
+      result must completeAs(true)
     }
 
     "cancel active fibers when an error is produced" in real {
