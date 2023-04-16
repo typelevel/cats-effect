@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.effect.std.Semaphore
-import cats.effect.unsafe.WorkStealingThreadPool
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, WorkStealingThreadPool}
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
@@ -32,7 +32,7 @@ import java.util.concurrent.{
   CountDownLatch,
   Executors
 }
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
@@ -320,6 +320,99 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
           case _ => IO.pure(skipped("test not running against WSTP"))
         }
+      }
+
+      "safely detect hard-blocked threads even while blockers are being created" in {
+        val (compute, shutdown) =
+          IORuntime.createWorkStealingComputeThreadPool(blockedThreadDetectionEnabled = true)
+
+        implicit val runtime: IORuntime =
+          IORuntime.builder().setCompute(compute, shutdown).build()
+
+        try {
+          val test = for {
+            _ <- IO.unit.foreverM.start.replicateA_(200)
+            _ <- 0.until(200).toList.parTraverse_(_ => IO.blocking(()))
+          } yield ok // we can't actually test this directly because the symptom is vaporizing a worker
+
+          test.unsafeRunSync()
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
+      // this test ensures that the parkUntilNextSleeper bit works
+      "run a timer when parking thread" in {
+        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+
+        implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+
+        try {
+          // longer sleep all-but guarantees this timer is fired *after* the worker is parked
+          val test = IO.sleep(500.millis) *> IO.pure(true)
+          test.unsafeRunTimed(5.seconds) must beSome(true)
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
+      // this test ensures that we always see the timer, even when it fires just as we're about to park
+      "run a timer when detecting just prior to park" in {
+        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+
+        implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+
+        try {
+          // shorter sleep makes it more likely this timer fires *before* the worker is parked
+          val test = IO.sleep(1.milli) *> IO.pure(true)
+          test.unsafeRunTimed(1.second) must beSome(true)
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
+      "not lose cedeing threads from the bypass when blocker transitioning" in {
+        // writing this test in terms of IO seems to not reproduce the issue
+        0.until(5) foreach { _ =>
+          val wstp = new WorkStealingThreadPool(
+            threadCount = 2,
+            threadPrefix = "testWorker",
+            blockerThreadPrefix = "testBlocker",
+            runtimeBlockingExpiration = 3.seconds,
+            reportFailure0 = _.printStackTrace(),
+            blockedThreadDetectionEnabled = false
+          )
+
+          val runtime = IORuntime
+            .builder()
+            .setCompute(wstp, () => wstp.shutdown())
+            .setConfig(IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2))
+            .build()
+
+          try {
+            val ctr = new AtomicLong
+
+            val tsk1 = IO { ctr.incrementAndGet() }.foreverM
+            val fib1 = tsk1.unsafeRunFiber((), _ => (), { (_: Any) => () })(runtime)
+            for (_ <- 1 to 10) {
+              val tsk2 = IO.blocking { Thread.sleep(5L) }
+              tsk2.unsafeRunFiber((), _ => (), _ => ())(runtime)
+            }
+            fib1.join.unsafeRunFiber((), _ => (), _ => ())(runtime)
+
+            Thread.sleep(1000L)
+            val results = 0.until(3).toList map { _ =>
+              Thread.sleep(100L)
+              ctr.get()
+            }
+
+            results must not[List[Long]](beEqualTo(List.fill(3)(results.head)))
+          } finally {
+            runtime.shutdown()
+          }
+        }
+
+        ok
       }
     }
   }

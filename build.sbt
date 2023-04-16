@@ -609,7 +609,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingTypesProblem]("cats.effect.ContState"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
-      // #3393, IOFiberConstants is a (package) private class/object:
+      // #3393 and #3464, IOFiberConstants is a (package) private class/object:
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateInitial"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
@@ -618,6 +618,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ContStateWinner"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateResult"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ExecuteRunnableR"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateResult")
@@ -906,6 +908,9 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
+      // #3524, private class
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.std.MapRef#ConcurrentHashMapImpl.keys"),
       // introduced by #3346
       // private stuff
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Mutex$Impl"),
@@ -915,7 +920,10 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // introduced by #3409
       // extracted UnsafeUnbounded private data structure
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded$Cell")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded$Cell"),
+      // introduced by #3480
+      // adds method to sealed Hotswap
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get")
     )
   )
   .jsSettings(

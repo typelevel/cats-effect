@@ -273,7 +273,7 @@ final class TestControl[A] private (
    * some interaction with an external asynchronous scheduler (such as another thread pool).
    */
   val isDeadlocked: IO[Boolean] =
-    IO(ctx.state.tasks.isEmpty)
+    IO(!_results.get().isDefined && ctx.state.tasks.isEmpty)
 
   /**
    * Returns the base64-encoded seed which governs the random task interleaving during each

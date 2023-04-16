@@ -22,18 +22,18 @@ For this reason, a `Ref` is always initialised to a value.
 The default implementation is nonblocking and lightweight, consisting
 essentially of a purely functional wrapper over an `AtomicReference`.
 Consequently it _must not_ be used to store mutable data as
-`AtomicReference#compareAndSet` and friends are not threadsafe and are dependent
+`AtomicReference#compareAndSet` and friends are dependent
 upon object reference equality.
 
 
 ### Concurrent Counter
 
-This is probably one of the most common uses of this concurrency primitive. 
+This is probably one of the most common uses of this concurrency primitive.
 
 In this example, the workers will concurrently run and update the value of the `Ref`.
 
 ```scala mdoc:reset:silent
-//> using lib "org.typelevel::cats-effect:3.4.7"
+//> using lib "org.typelevel::cats-effect:3.4.9"
 
 import cats.effect.{IO, IOApp, Sync}
 import cats.effect.kernel.Ref

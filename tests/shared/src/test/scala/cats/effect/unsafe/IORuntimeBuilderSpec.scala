@@ -15,17 +15,19 @@
  */
 
 package cats.effect
-package std
+package unsafe
 
-class ConsoleJSSpec extends BaseSpec {
+class IORuntimeBuilderSpec extends BaseSpec with DetectPlatform {
 
-  "Console" should {
-    "work in any JS environment" in real {
-      Console[IO].println("printing") *> Console[IO].errorln("erroring") *> IO(true)
-    }
-    "println should not hang for large strings" in real {
-      Console[IO].println("foo" * 10000).as(true)
-    }
+  "IORuntimeBuilder" should {
+    if (isNative) "configure the failure reporter" in pending
+    else
+      "configure the failure reporter" in {
+        var invoked = false
+        val rt = IORuntime.builder().setFailureReporter(_ => invoked = true).build()
+        rt.compute.reportFailure(new Exception)
+        invoked must beTrue
+      }
   }
 
 }

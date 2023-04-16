@@ -26,7 +26,7 @@ import scala.concurrent.{BlockContext, CanAwait}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
 
-import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
+import java.util.concurrent.{LinkedTransferQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
 
@@ -96,7 +96,7 @@ private final class WorkerThread(
    */
   private[this] var _active: Runnable = _
 
-  private val indexTransfer: ArrayBlockingQueue[Integer] = new ArrayBlockingQueue(1)
+  private val indexTransfer: LinkedTransferQueue[Integer] = new LinkedTransferQueue()
   private[this] val runtimeBlockingExpiration: Duration = pool.runtimeBlockingExpiration
 
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
@@ -327,21 +327,41 @@ private final class WorkerThread(
       }
     }
 
-    def parkUntilNextSleeper(): Unit = {
-      if (!isInterrupted()) {
+    // returns true if timed out, false if unparked
+    def parkUntilNextSleeper(): Boolean = {
+      while (!done.get()) {
         val now = System.nanoTime()
         val head = sleepersQueue.head()
         val nanos = head.triggerTime - now
+
+        // System.err.println(s"parking for $nanos nanos")
         LockSupport.parkNanos(pool, nanos)
 
-        if (parked.getAndSet(false)) {
-          pool.doneSleeping()
+        if (isInterrupted()) {
+          pool.shutdown()
+        } else {
+          if (parked.get()) {
+            // we were either awakened spuriously, or we timed out
+
+            if (head.triggerTime - System.nanoTime() <= 0) {
+              // we timed out
+              if (parked.getAndSet(false)) {
+                pool.doneSleeping()
+              }
+
+              return true
+            }
+          } else {
+            // we were awakened
+            return false
+          }
         }
       }
+
+      false
     }
 
     while (!done.get()) {
-
       if (blocking) {
         // The worker thread was blocked before. It is no longer part of the
         // core pool and needs to be cached.
@@ -394,25 +414,6 @@ private final class WorkerThread(
 
       val sleepers = sleepersQueue
 
-      if (sleepers.nonEmpty) {
-        val now = System.nanoTime()
-
-        var cont = true
-        while (cont) {
-          val head = sleepers.head()
-
-          if (head.triggerTime - now <= 0) {
-            if (head.get()) {
-              head.callback(RightUnit)
-            }
-            sleepers.popHead()
-            cont = sleepers.nonEmpty
-          } else {
-            cont = false
-          }
-        }
-      }
-
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
           if (pool.blockedThreadDetectionEnabled) {
@@ -427,8 +428,12 @@ private final class WorkerThread(
             }
             val thread = pool.getWorkerThreads(otherIdx)
             val state = thread.getState()
-            val parked = thread.parked.get()
-            if (!parked && (state == Thread.State.BLOCKED || state == Thread
+            val parked = thread.parked
+
+            // we have to check for null since there's a race here when threads convert to blockers
+            // by reading parked *after* reading state, we avoid misidentifying blockers as blocked
+            if (parked != null && !parked
+                .get() && (state == Thread.State.BLOCKED || state == Thread
                 .State
                 .WAITING || state == Thread.State.TIMED_WAITING)) {
               System.err.println(mkWarning(state, thread.getStackTrace()))
@@ -534,13 +539,20 @@ private final class WorkerThread(
               // Park the thread.
               if (sleepers.isEmpty) {
                 parkLoop()
-              } else {
-                parkUntilNextSleeper()
-              }
 
-              // After the worker thread has been unparked, look for work in the
-              // external queue.
-              state = 3
+                // After the worker thread has been unparked, look for work in the
+                // external queue.
+                state = 3
+              } else {
+                if (parkUntilNextSleeper()) {
+                  // we made it to the end of our sleeping, so go straight to local queue stuff
+                  pool.transitionWorkerFromSearching(rnd)
+                  state = 4
+                } else {
+                  // we were interrupted, look for more work in the external queue
+                  state = 3
+                }
+              }
             }
           }
 
@@ -580,13 +592,20 @@ private final class WorkerThread(
             // Park the thread.
             if (sleepers.isEmpty) {
               parkLoop()
-            } else {
-              parkUntilNextSleeper()
-            }
 
-            // After the worker thread has been unparked, look for work in the
-            // external queue.
-            state = 3
+              // After the worker thread has been unparked, look for work in the
+              // external queue.
+              state = 3
+            } else {
+              if (parkUntilNextSleeper()) {
+                // we made it to the end of our sleeping, so go straight to local queue stuff
+                pool.transitionWorkerFromSearching(rnd)
+                state = 4
+              } else {
+                // we were interrupted, look for more work in the external queue
+                state = 3
+              }
+            }
           }
 
         case 3 =>
@@ -643,6 +662,26 @@ private final class WorkerThread(
           }
 
         case _ =>
+          if (sleepers.nonEmpty) {
+            val now = System.nanoTime()
+
+            var cont = true
+            while (cont) {
+              val head = sleepers.head()
+
+              if (head.triggerTime - now <= 0) {
+                if (head.get()) {
+                  // System.err.println(s"dequeued with state = $state; sleepers = $sleepers")
+                  head.callback(RightUnit)
+                }
+                sleepers.popHead()
+                cont = sleepers.nonEmpty
+              } else {
+                cont = false
+              }
+            }
+          }
+
           // Check the queue bypass reference before dequeueing from the local
           // queue.
           val fiber = if (cedeBypass eq null) {
@@ -728,6 +767,14 @@ private final class WorkerThread(
       // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
 
+      // We'll transfer our local queue to the new/cached thread;
+      // don't forget to also transfer our cede bypass (if any):
+      val bypass = cedeBypass
+      if (bypass ne null) {
+        queue.enqueue(bypass, external, random)
+        cedeBypass = null
+      }
+
       // Logically enter the blocking region.
       blocking = true
 
@@ -741,7 +788,7 @@ private final class WorkerThread(
         val idx = index
         pool.replaceWorker(idx, cached)
         // Transfer the data structures to the cached thread and wake it up.
-        cached.indexTransfer.offer(idx)
+        cached.indexTransfer.transfer(idx)
       } else {
         // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
         // transfer ownership of the local queue and the parked signal to the new

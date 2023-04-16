@@ -18,20 +18,17 @@ package cats.effect.unsafe
 
 private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder =>
 
-  // TODO unify this with the defaults in IORuntime.global and IOApp
   protected def platformSpecificBuild: IORuntime = {
-    val (compute, computeShutdown) =
-      customCompute.getOrElse(
-        IORuntime.createWorkStealingComputeThreadPool(reportFailure = failureReporter))
-    val xformedCompute = computeTransform(compute)
-
-    val (scheduler, schedulerShutdown) = xformedCompute match {
-      case sched: Scheduler => customScheduler.getOrElse((sched, () => ()))
-      case _ => customScheduler.getOrElse(IORuntime.createDefaultScheduler())
-    }
-
-    val (blocking, blockingShutdown) =
-      customBlocking.getOrElse(IORuntime.createDefaultBlockingExecutionContext())
+    val defaultShutdown: () => Unit = () => ()
+    val (compute, computeShutdown) = customCompute.getOrElse(
+      (
+        IORuntime.createBatchingMacrotaskExecutor(reportFailure = failureReporter),
+        defaultShutdown
+      )
+    )
+    val (blocking, blockingShutdown) = customBlocking.getOrElse((compute, defaultShutdown))
+    val (scheduler, schedulerShutdown) =
+      customScheduler.getOrElse((IORuntime.defaultScheduler, defaultShutdown))
     val shutdown = () => {
       computeShutdown()
       blockingShutdown()
