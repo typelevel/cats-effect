@@ -9,7 +9,7 @@ title: FAQ
 
 ```scala-cli
 //> using scala "2.13.8"
-//> using lib "org.typelevel::cats-effect::3.4.8"
+//> using lib "org.typelevel::cats-effect::3.4.9"
 
 import cats.effect._
 
@@ -96,7 +96,7 @@ val names = List("daniel", "chris", "joseph", "renee", "bethany", "grace")
 val program: IO[Unit] = EmberClientBuilder.default[IO].build use { client =>
   def fetchUri(uri: String): IO[String] = client.expect[String](uri)
 
-  val counts: List[(String, Int)] = names parTraverse { name => 
+  val counts: List[(String, Int)] = names parTraverse { name =>
     fetchUri(Prefix + name) map { body =>
       val Extract(countStr) = body  // who needs html parsing?
       name -> countStr.toInt
@@ -138,9 +138,9 @@ Note that this is just a specific example to demonstrate why running an non-bloc
 Cats Effect 3.4.0 introduced a default-enabled *starvation checker*, which produces warnings like the following:
 
 ```
-2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous 
+2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous
 event (such as a new connection, an upstream response, or a timer) was in excess
-of 40 milliseconds. Your CPU is probably starving. Consider increasing the 
+of 40 milliseconds. Your CPU is probably starving. Consider increasing the
 granularity of your delays or adding more cedes. This may also be a sign that you
 are unintentionally running blocking I/O operations (such as File or InetAddress)
 without the blocking combinator.
