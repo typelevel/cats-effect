@@ -22,8 +22,6 @@ import cats.data._
 import cats.effect.kernel._
 import cats.syntax.all._
 
-import scala.collection.mutable
-
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -230,18 +228,6 @@ object MapRef extends MapRefCompanionPlatform {
         }
         loop
       }
-    }
-
-    val keys: F[List[K]] = delay {
-      val k = chm.keys()
-      val builder = new mutable.ListBuffer[K]
-      if (k != null) {
-        while (k.hasMoreElements()) {
-          val next = k.nextElement()
-          builder.+=(next)
-        }
-      }
-      builder.result()
     }
 
     def apply(k: K): Ref[F, Option[V]] = new HandleRef(k)
