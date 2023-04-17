@@ -49,7 +49,7 @@ private final class IODeferred[A] extends Deferred[IO, A] {
       if (back eq initial)
         await
       else
-        back.asInstanceOf[IO.Pure[A]]
+        back
     }
   }
 
