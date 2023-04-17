@@ -67,3 +67,5 @@ private final class IODeferred[A] extends Deferred[IO, A] {
       Some(back.asInstanceOf[IO.Pure[A]].value)
   }
 }
+
+private object IODeferred // bincompat shim
