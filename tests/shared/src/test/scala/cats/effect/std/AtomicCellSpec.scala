@@ -106,6 +106,18 @@ final class AtomicCellSpec extends BaseSpec {
 
         op must completeAs(true)
       }
+
+      "get should not block during concurrent modification" in ticked { implicit ticker =>
+        val op = for {
+          cell <- factory(0)
+          gate <- IO.deferred[Unit]
+          _ <- cell.evalModify(_ => gate.complete(()) *> IO.never).start
+          _ <- gate.get
+          r <- cell.get
+        } yield r == 0
+
+        op must completeAs(true)
+      }
     }
   }
 }
