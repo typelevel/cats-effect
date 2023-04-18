@@ -30,14 +30,12 @@ import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
   CountDownLatch,
-  Executors
+  Executors,
+  ThreadLocalRandom
 }
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
-
-  def iterations: Int =
-    500
 
   def platformSpecs = {
     "platform" should {
@@ -372,6 +370,31 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         } finally {
           runtime.shutdown()
         }
+      }
+
+      "random racing sleeps" in real {
+        def randomSleep: IO[Unit] = IO.defer {
+          val n = ThreadLocalRandom.current().nextInt(2000000)
+          IO.sleep(n.micros) // less than 2 seconds
+        }
+
+        def raceAll(ios: List[IO[Unit]]): IO[Unit] = {
+          ios match {
+            case head :: tail => tail.foldLeft(head) { (x, y) => IO.race(x, y).void }
+            case Nil => IO.unit
+          }
+        }
+
+        // we race a lot of "sleeps", it must not hang
+        // (this includes inserting and cancelling
+        // a lot of callbacks into the skip list,
+        // thus hopefully stressing the data structure):
+        List
+          .fill(500) {
+            raceAll(List.fill(500) { randomSleep })
+          }
+          .parSequence_
+          .as(ok)
       }
 
       "steal timers" in realWithRuntime { rt =>
