@@ -18,7 +18,7 @@ package cats.effect.kernel.instances
 
 import cats.{~>, Align, Applicative, CommutativeApplicative, Functor, Monad, Parallel}
 import cats.data.Ior
-import cats.effect.kernel.{GenSpawn, Outcome, ParallelF}
+import cats.effect.kernel.{GenSpawn, ParallelF}
 import cats.implicits._
 
 trait GenSpawnInstances {
@@ -52,41 +52,8 @@ trait GenSpawnInstances {
       final override def map2[A, B, Z](fa: ParallelF[F, A], fb: ParallelF[F, B])(
           f: (A, B) => Z): ParallelF[F, Z] = {
         ParallelF(
-          F.uncancelable { poll =>
-            F.start(ParallelF.value(fa)).flatMap { fia =>
-              F.start(F.guaranteeCase(ParallelF.value(fb)) {
-                case Outcome.Succeeded(_) => F.unit
-                case _ => fia.cancel
-              }).flatMap { fib =>
-                F.onCancel(poll(fia.join), bothUnit(fia.cancel, fib.cancel)).flatMap {
-                  case Outcome.Succeeded(fa) =>
-                    F.onCancel(poll(fib.join), fib.cancel).flatMap {
-                      case Outcome.Succeeded(fb) =>
-                        F.map2(fa, fb)(f)
-                      case Outcome.Errored(e) =>
-                        F.raiseError(e)
-                      case Outcome.Canceled() =>
-                        poll(F.canceled *> F.never)
-                    }
-                  case Outcome.Errored(e) =>
-                    fib.cancel *> F.raiseError(e)
-                  case Outcome.Canceled() =>
-                    fib.cancel *> poll(fib.join).flatMap {
-                      case Outcome.Errored(e) =>
-                        F.raiseError(e)
-                      case _ =>
-                        poll(F.canceled *> F.never)
-                    }
-                }
-              }
-            }
-          }
-        )
+          F.both(ParallelF.value(fa), ParallelF.value(fb)).map { case (a, b) => f(a, b) })
       }
-
-      // assumed to be uncancelable
-      private[this] final def bothUnit(a: F[Unit], b: F[Unit]): F[Unit] =
-        F.start(a).flatMap { fib => F.guarantee(b, fib.join.void) }
 
       final override def ap[A, B](ff: ParallelF[F, A => B])(
           fa: ParallelF[F, A]): ParallelF[F, B] =
