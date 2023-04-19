@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,10 +130,22 @@ object Console extends ConsoleCompanionCrossPlatform {
       }
 
     private def writeln(writable: js.Dynamic, s: String): F[Unit] =
-      F.delay(writable.cork()) *> // buffers until uncork
-        write(writable, s) *>
-        write(writable, "\n") *>
-        F.delay(writable.uncork()).void
+      F.async { cb =>
+        F.delay {
+          try {
+            writable.cork() // buffers until uncork
+            writable.write(s)
+            if (writable.write("\n").asInstanceOf[Boolean]) // no backpressure
+              cb(Right(()))
+            else // wait for drain event
+              writable.once("drain", () => cb(Right(())))
+          } finally {
+            writable.uncork()
+            ()
+          }
+          None
+        }
+      }
 
     def error[A](a: A)(implicit S: cats.Show[A]): F[Unit] = write(stderr, S.show(a))
 

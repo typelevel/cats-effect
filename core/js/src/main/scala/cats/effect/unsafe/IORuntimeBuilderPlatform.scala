@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,12 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
 
   protected def platformSpecificBuild: IORuntime = {
     val defaultShutdown: () => Unit = () => ()
-    val (compute, computeShutdown) =
-      customCompute.getOrElse((IORuntime.defaultComputeExecutionContext, defaultShutdown))
+    val (compute, computeShutdown) = customCompute.getOrElse(
+      (
+        IORuntime.createBatchingMacrotaskExecutor(reportFailure = failureReporter),
+        defaultShutdown
+      )
+    )
     val (blocking, blockingShutdown) = customBlocking.getOrElse((compute, defaultShutdown))
     val (scheduler, schedulerShutdown) =
       customScheduler.getOrElse((IORuntime.defaultScheduler, defaultShutdown))

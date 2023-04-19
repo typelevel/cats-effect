@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,14 +39,15 @@ class IOFiberSpec extends BaseSpec with DetectPlatform {
       }
 
       "toString a suspended fiber" in real {
-        def foreverNever = IO.async_[Unit](_ => ())
+        // separate method to have it in the trace:
+        def foreverNever =
+          IO.async[Unit](_ => IO.pure(Some(IO.unit)))
         val pattern =
-          raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ SUSPENDED(: async_? @ fiber.IOFiberSpec.foreverNever\$$[0-9]\(((.*IOFiberSpec.scala:[0-9]{2})|(Unknown Source))\))?"
+          raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ SUSPENDED(: async @ fiber.IOFiberSpec.foreverNever\$$[0-9]\(((.*IOFiberSpec.scala:[0-9]{2})|(Unknown Source))\))?"
         for {
           f <- foreverNever.start
-          _ <- IO.sleep(1.milli)
+          _ <- IO.sleep(100.milli)
           s <- IO(f.toString)
-          // _ <- IO.println(s)
           _ <- f.cancel
           _ <- IO(s must beMatching(pattern))
         } yield ok
@@ -57,15 +58,11 @@ class IOFiberSpec extends BaseSpec with DetectPlatform {
     }
 
     "toString a completed fiber" in real {
-      def done = IO.unit.start
       val pattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ COMPLETED"
       for {
-        f <- done.start
-        _ <- IO.sleep(1.milli)
-        s <- IO(f.toString)
-        // _ <- IO.println(s)
-        _ <- f.cancel
-        _ <- IO(s must beMatching(pattern))
+        f <- IO.unit.start
+        _ <- f.joinWithNever
+        _ <- IO(f.toString must beMatching(pattern))
       } yield ok
     }
   }

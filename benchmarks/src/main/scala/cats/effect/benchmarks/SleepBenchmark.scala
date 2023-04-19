@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,9 +70,38 @@ class SleepBenchmark {
       .unsafeRunSync()
   }
 
+  def sleepRaceBenchmark(implicit runtime: IORuntime): Int = {
+    def fiber(i: Int): IO[Int] = {
+      val sleepRace = IO.race(IO.sleep(1.nanosecond), IO.sleep(1000.nanoseconds))
+      sleepRace.flatMap { _ =>
+        IO(i).flatMap { j =>
+          sleepRace.flatMap { _ =>
+            if (j > 1000)
+              sleepRace.flatMap(_ => IO.pure(j))
+            else
+              sleepRace.flatMap(_ => fiber(j + 1))
+          }
+        }
+      }
+    }
+
+    List
+      .range(0, size)
+      .traverse(fiber(_).start)
+      .flatMap(_.traverse(_.joinWithNever))
+      .map(_.sum)
+      .unsafeRunSync()
+  }
+
   @Benchmark
   def sleep(): Int = {
     import cats.effect.unsafe.implicits.global
     sleepBenchmark
+  }
+
+  @Benchmark
+  def sleepRace(): Int = {
+    import cats.effect.unsafe.implicits.global
+    sleepRaceBenchmark
   }
 }

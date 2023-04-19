@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,15 +25,15 @@ import cats.syntax.all._
  * A synchronized, concurrent, mutable reference.
  *
  * Provides safe concurrent access and modification of its contents, by ensuring only one fiber
- * can operate on them at the time. Thus, '''all''' operations may semantically block the
+ * can operate on them at the time. Thus, all operations except `get` may semantically block the
  * calling fiber.
  *
  * {{{
- *   final class ParkingLot(data: AtomicCell[IO, ArraySeq[Boolean]], rnd: Random[IO]) {
+ *   final class ParkingLot(data: AtomicCell[IO, Vector[Boolean]], rnd: Random[IO]) {
  *     def getSpot: IO[Option[Int]] =
  *       data.evalModify { spots =>
  *         val availableSpots = spots.zipWithIndex.collect { case (true, idx) => idx }
- *         rnd.shuffleList(availableSpots).map { shuffled =>
+ *         rnd.shuffleVector(availableSpots).map { shuffled =>
  *           val acquired = shuffled.headOption
  *           val next = acquired.fold(spots)(a => spots.updated(a, false)) // mark the chosen spot as taken
  *           (next, shuffled.headOption)
@@ -125,35 +125,84 @@ object AtomicCell {
   def apply[F[_]]: ApplyPartiallyApplied[F] =
     new ApplyPartiallyApplied(dummy = true)
 
-  private[std] final class ApplyPartiallyApplied[F[_]](private val dummy: Boolean)
-      extends AnyVal {
+  final class ApplyPartiallyApplied[F[_]](private val dummy: Boolean) extends AnyVal {
 
     /**
      * Initializes the `AtomicCell` using the provided value.
      */
-    def of[A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
-      Mutex[F].map(mutex => new Impl(init, mutex))
+    def of[A](init: A)(implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
+      F match {
+        case f: Async[F] =>
+          AtomicCell.async(init)(f)
+        case _ =>
+          AtomicCell.concurrent(init)
+      }
+
+    @deprecated("Use the version that only requires Concurrent", since = "3.5.0")
+    private[std] def of[A](init: A, F: Async[F]): F[AtomicCell[F, A]] =
+      of(init)(F)
 
     /**
      * Initializes the `AtomicCell` using the default empty value of the provided type.
      */
-    def empty[A](implicit M: Monoid[A], F: Async[F]): F[AtomicCell[F, A]] =
-      of(init = M.empty)
+    def empty[A](implicit M: Monoid[A], F: Concurrent[F]): F[AtomicCell[F, A]] =
+      of(M.empty)
+
+    @deprecated("Use the version that only requires Concurrent", since = "3.5.0")
+    private[std] def empty[A](M: Monoid[A], F: Async[F]): F[AtomicCell[F, A]] =
+      of(M.empty)(F)
   }
 
-  private final class Impl[F[_], A](
+  private[effect] def async[F[_], A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
+    Mutex.async[F].map(mutex => new AsyncImpl(init, mutex))
+
+  private[effect] def concurrent[F[_], A](init: A)(
+      implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
+    (Ref.of[F, A](init), Mutex.concurrent[F]).mapN { (ref, m) => new ConcurrentImpl(ref, m) }
+
+  private final class ConcurrentImpl[F[_], A](
+      ref: Ref[F, A],
+      mutex: Mutex[F]
+  )(
+      implicit F: Concurrent[F]
+  ) extends AtomicCell[F, A] {
+    override def get: F[A] = ref.get
+
+    override def set(a: A): F[Unit] =
+      mutex.lock.surround(ref.set(a))
+
+    override def modify[B](f: A => (A, B)): F[B] =
+      evalModify(a => F.pure(f(a)))
+
+    override def evalModify[B](f: A => F[(A, B)]): F[B] =
+      mutex.lock.surround {
+        ref.get.flatMap(f).flatMap {
+          case (a, b) =>
+            ref.set(a).as(b)
+        }
+      }
+
+    override def evalUpdate(f: A => F[A]): F[Unit] =
+      evalModify(a => f(a).map(aa => (aa, ())))
+
+    override def evalGetAndUpdate(f: A => F[A]): F[A] =
+      evalModify(a => f(a).map(aa => (aa, a)))
+
+    override def evalUpdateAndGet(f: A => F[A]): F[A] =
+      evalModify(a => f(a).map(aa => (aa, aa)))
+  }
+
+  private final class AsyncImpl[F[_], A](
       init: A,
       mutex: Mutex[F]
   )(
       implicit F: Async[F]
   ) extends AtomicCell[F, A] {
-    private var cell: A = init
+    @volatile private var cell: A = init
 
     override def get: F[A] =
-      mutex.lock.surround {
-        F.delay {
-          cell
-        }
+      F.delay {
+        cell
       }
 
     override def set(a: A): F[Unit] =

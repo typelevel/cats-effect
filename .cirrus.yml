@@ -1,0 +1,38 @@
+jvm_highcore_task:
+  container:
+    image: sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2
+    cpu: 4
+    memory: 8G
+  matrix:
+    - name: JVM high-core-count 2.12
+      script: sbt '++ 2.12' testsJVM/test
+    - name: JVM high-core-count 2.13
+      script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
+    - name: JVM high-core-count 3
+      script: sbt '++ 3' testsJVM/test
+
+jvm_arm_highcore_task:
+  arm_container:
+    image: sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2
+    cpu: 4
+    memory: 8G
+  matrix:
+    - name: JVM ARM high-core-count 2.12
+      script: sbt '++ 2.12' testsJVM/test
+    - name: JVM ARM high-core-count 2.13
+      script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
+    - name: JVM ARM high-core-count 3
+      script: sbt '++ 3' testsJVM/test
+
+native_arm_task:
+  arm_container:
+    dockerfile: .cirrus/Dockerfile
+    cpu: 2
+    memory: 8G
+  matrix:
+    - name: Native ARM 2.12
+      script: sbt '++ 2.12' testsNative/test
+    - name: Native ARM 2.13
+      script: sbt '++ 2.13' testsNative/test
+    - name: Native ARM 3
+      script: sbt '++ 3' testsNative/test

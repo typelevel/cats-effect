@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,9 +48,17 @@ class DeferredBenchmark {
   var count: Int = _
 
   @Benchmark
-  def get(): Unit = {
+  def getBefore(): Unit = {
     IO.deferred[Unit]
       .flatMap(d => d.complete(()) *> d.get.replicateA_(count))
+      .replicateA_(1000)
+      .unsafeRunSync()
+  }
+
+  @Benchmark
+  def getAfter(): Unit = {
+    IO.deferred[Unit]
+      .flatMap(d => d.complete(()) >> d.get.replicateA_(count))
       .replicateA_(1000)
       .unsafeRunSync()
   }

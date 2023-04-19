@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,8 +47,13 @@ private[effect] sealed class FiberMonitor(
     private[this] val compute: WorkStealingThreadPool
 ) extends FiberMonitorShared {
 
-  private[this] final val Bags = FiberMonitor.Bags
-  private[this] final val BagReferences = FiberMonitor.BagReferences
+  private[this] final val BagReferences =
+    new ConcurrentLinkedQueue[WeakReference[WeakBag[Runnable]]]
+  private[this] final val Bags = ThreadLocal.withInitial { () =>
+    val bag = new WeakBag[Runnable]()
+    BagReferences.offer(new WeakReference(bag))
+    bag
+  }
 
   private[this] val justFibers: PartialFunction[(Runnable, Trace), (IOFiber[_], Trace)] = {
     case (fiber: IOFiber[_], trace) => fiber -> trace
@@ -214,16 +219,4 @@ private[effect] final class NoOpFiberMonitor extends FiberMonitor(null) {
   override def liveFiberSnapshot(print: String => Unit): Unit = {}
 }
 
-private[effect] object FiberMonitor extends FiberMonitorCompanionPlatform {
-
-  private[FiberMonitor] final val BagReferences
-      : ConcurrentLinkedQueue[WeakReference[WeakBag[Runnable]]] =
-    new ConcurrentLinkedQueue()
-
-  private[FiberMonitor] final val Bags: ThreadLocal[WeakBag[Runnable]] =
-    ThreadLocal.withInitial { () =>
-      val bag = new WeakBag[Runnable]()
-      BagReferences.offer(new WeakReference(bag))
-      bag
-    }
-}
+private[effect] object FiberMonitor extends FiberMonitorCompanionPlatform

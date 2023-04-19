@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -105,19 +105,16 @@ object PQueue {
       }
 
     def tryOffer(a: A): F[Boolean] =
-      ref
-        .modify {
-          case State(heap, size, takers, offerers) if takers.nonEmpty =>
-            val (taker, rest) = takers.dequeue
-            State(heap.insert(a), size + 1, rest, offerers) -> taker.complete(()).as(true)
+      ref.flatModify {
+        case State(heap, size, takers, offerers) if takers.nonEmpty =>
+          val (taker, rest) = takers.dequeue
+          State(heap.insert(a), size + 1, rest, offerers) -> taker.complete(()).as(true)
 
-          case State(heap, size, takers, offerers) if size < capacity =>
-            State(heap.insert(a), size + 1, takers, offerers) -> F.pure(true)
+        case State(heap, size, takers, offerers) if size < capacity =>
+          State(heap.insert(a), size + 1, takers, offerers) -> F.pure(true)
 
-          case s => s -> F.pure(false)
-        }
-        .flatten
-        .uncancelable
+        case s => s -> F.pure(false)
+      }
 
     val take: F[A] =
       F.uncancelable { poll =>
@@ -159,22 +156,19 @@ object PQueue {
       }
 
     val tryTake: F[Option[A]] =
-      ref
-        .modify {
-          case State(heap, size, takers, offerers) if heap.nonEmpty && offerers.isEmpty =>
-            val (rest, a) = heap.take
-            State(rest, size - 1, takers, offerers) -> F.pure(a.some)
+      ref.flatModify {
+        case State(heap, size, takers, offerers) if heap.nonEmpty && offerers.isEmpty =>
+          val (rest, a) = heap.take
+          State(rest, size - 1, takers, offerers) -> F.pure(a.some)
 
-          case State(heap, size, takers, offerers) if heap.nonEmpty =>
-            val (rest, a) = heap.take
-            val (release, tail) = offerers.dequeue
-            State(rest, size - 1, takers, tail) -> release.complete(()).as(a.some)
+        case State(heap, size, takers, offerers) if heap.nonEmpty =>
+          val (rest, a) = heap.take
+          val (release, tail) = offerers.dequeue
+          State(rest, size - 1, takers, tail) -> release.complete(()).as(a.some)
 
-          case s =>
-            s -> F.pure(none[A])
-        }
-        .flatten
-        .uncancelable
+        case s =>
+          s -> F.pure(none[A])
+      }
 
     def size: F[Int] =
       ref.get.map(_.size)

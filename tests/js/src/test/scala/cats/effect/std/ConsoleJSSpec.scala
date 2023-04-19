@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ class ConsoleJSSpec extends BaseSpec {
   "Console" should {
     "work in any JS environment" in real {
       Console[IO].println("printing") *> Console[IO].errorln("erroring") *> IO(true)
+    }
+    "println should not hang for large strings" in real {
+      Console[IO].println("foo" * 10000).as(true)
     }
   }
 

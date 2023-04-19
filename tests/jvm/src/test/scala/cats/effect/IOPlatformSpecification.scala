@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.effect.std.Semaphore
-import cats.effect.unsafe.WorkStealingThreadPool
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, SleepSystem, WorkStealingThreadPool}
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
@@ -30,9 +30,10 @@ import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
   CountDownLatch,
-  Executors
+  Executors,
+  ThreadLocalRandom
 }
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
@@ -320,6 +321,144 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
           case _ => IO.pure(skipped("test not running against WSTP"))
         }
+      }
+
+      "safely detect hard-blocked threads even while blockers are being created" in {
+        val (compute, shutdown) =
+          IORuntime.createWorkStealingComputeThreadPool(blockedThreadDetectionEnabled = true)
+
+        implicit val runtime: IORuntime =
+          IORuntime.builder().setCompute(compute, shutdown).build()
+
+        try {
+          val test = for {
+            _ <- IO.unit.foreverM.start.replicateA_(200)
+            _ <- 0.until(200).toList.parTraverse_(_ => IO.blocking(()))
+          } yield ok // we can't actually test this directly because the symptom is vaporizing a worker
+
+          test.unsafeRunSync()
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
+      // this test ensures that the parkUntilNextSleeper bit works
+      "run a timer when parking thread" in {
+        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+
+        implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+
+        try {
+          // longer sleep all-but guarantees this timer is fired *after* the worker is parked
+          val test = IO.sleep(500.millis) *> IO.pure(true)
+          test.unsafeRunTimed(5.seconds) must beSome(true)
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
+      // this test ensures that we always see the timer, even when it fires just as we're about to park
+      "run a timer when detecting just prior to park" in {
+        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+
+        implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+
+        try {
+          // shorter sleep makes it more likely this timer fires *before* the worker is parked
+          val test = IO.sleep(1.milli) *> IO.pure(true)
+          test.unsafeRunTimed(1.second) must beSome(true)
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
+      "random racing sleeps" in real {
+        def randomSleep: IO[Unit] = IO.defer {
+          val n = ThreadLocalRandom.current().nextInt(2000000)
+          IO.sleep(n.micros) // less than 2 seconds
+        }
+
+        def raceAll(ios: List[IO[Unit]]): IO[Unit] = {
+          ios match {
+            case head :: tail => tail.foldLeft(head) { (x, y) => IO.race(x, y).void }
+            case Nil => IO.unit
+          }
+        }
+
+        // we race a lot of "sleeps", it must not hang
+        // (this includes inserting and cancelling
+        // a lot of callbacks into the skip list,
+        // thus hopefully stressing the data structure):
+        List
+          .fill(500) {
+            raceAll(List.fill(500) { randomSleep })
+          }
+          .parSequence_
+          .as(ok)
+      }
+
+      "steal timers" in realWithRuntime { rt =>
+        IO.both(
+          IO.sleep(1100.millis).parReplicateA_(16), // just to keep some workers awake
+          IO {
+            // The `WorkerThread` which executes this IO
+            // will never exit the `while` loop, unless
+            // the timer is triggered, so it will never
+            // be able to trigger the timer itself. The
+            // only way this works is if some other worker
+            // steals the the timer.
+            val flag = new AtomicBoolean(false)
+            val _ = rt.scheduler.sleep(1000.millis, () => { flag.set(true) })
+            while (!flag.get()) {
+              ;
+            }
+          }
+        ).as(ok)
+      }
+
+      "not lose cedeing threads from the bypass when blocker transitioning" in {
+        // writing this test in terms of IO seems to not reproduce the issue
+        0.until(5) foreach { _ =>
+          val wstp = new WorkStealingThreadPool(
+            threadCount = 2,
+            threadPrefix = "testWorker",
+            blockerThreadPrefix = "testBlocker",
+            runtimeBlockingExpiration = 3.seconds,
+            reportFailure0 = _.printStackTrace(),
+            blockedThreadDetectionEnabled = false,
+            system = SleepSystem
+          )
+
+          val runtime = IORuntime
+            .builder()
+            .setCompute(wstp, () => wstp.shutdown())
+            .setConfig(IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2))
+            .build()
+
+          try {
+            val ctr = new AtomicLong
+
+            val tsk1 = IO { ctr.incrementAndGet() }.foreverM
+            val fib1 = tsk1.unsafeRunFiber((), _ => (), { (_: Any) => () })(runtime)
+            for (_ <- 1 to 10) {
+              val tsk2 = IO.blocking { Thread.sleep(5L) }
+              tsk2.unsafeRunFiber((), _ => (), _ => ())(runtime)
+            }
+            fib1.join.unsafeRunFiber((), _ => (), _ => ())(runtime)
+
+            Thread.sleep(1000L)
+            val results = 0.until(3).toList map { _ =>
+              Thread.sleep(100L)
+              ctr.get()
+            }
+
+            results must not[List[Long]](beEqualTo(List.fill(3)(results.head)))
+          } finally {
+            runtime.shutdown()
+          }
+        }
+
+        ok
       }
     }
   }

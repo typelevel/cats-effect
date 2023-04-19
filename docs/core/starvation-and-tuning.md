@@ -3,12 +3,14 @@ id: starvation-and-tuning
 title: Starvation and Tuning
 ---
 
-All Cats Effect applications constructed via `IOApp` have an automatic mechanism which periodically checks to see if the application runtime is starving for compute resources. If you ever see warnings which look like the following, they are the result of this mechanism automatically detecting that the responsiveness of your application runtime is below the configured threshold.
+All Cats Effect applications constructed via `IOApp` have an automatic mechanism which periodically checks to see if the application runtime is starving for compute resources. If you ever see warnings which look like the following, they are the result of this mechanism automatically detecting that the responsiveness of your application runtime is below the configured threshold. Note that the timestamp is the time when the starvation was detected, which is not precisely the time when starvation (or the task that is responsible) began.
 
 ```
-[WARNING] Your CPU is probably starving. Consider increasing the granularity
-of your delays or adding more cedes. This may also be a sign that you are
-unintentionally running blocking I/O operations (such as File or InetAddress)
+2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous 
+event (such as a new connection, an upstream response, or a timer) was in excess
+of 40 milliseconds. Your CPU is probably starving. Consider increasing the 
+granularity of your delays or adding more cedes. This may also be a sign that you
+are unintentionally running blocking I/O operations (such as File or InetAddress)
 without the blocking combinator.
 ```
 
@@ -49,20 +51,20 @@ Before diving into how we can correct issues with CPU starvation, it is worth un
 ```scala mdoc:silent
 import scala.concurrent.duration._
 
-val Threshold = 0.1d
+val starvationThreshold = 0.1.seconds
+val sleepInterval       = 1.second
 
 val tick: IO[Unit] =
   // grab a time offset from when we started
   IO.monotonic flatMap { start =>
     // sleep for some long interval, then measure when we woke up
-    // get the difference (this will always be a bit more than 1.second)
-    IO.sleep(1.second) *> IO.monotonic.map(_ - start) flatMap { delta =>
-      // the delta here is the amount of *lag* in the scheduler
-      // specifically, the time between requesting CPU access and actually getting it
-      IO.println("starvation detected").whenA(delta > 1.second * Threshold)
+    // get the difference (this will always be a bit more than the interval we slept for)
+    IO.sleep(sleepInterval) *> IO.monotonic.map(_ - start) flatMap { delta =>
+      // the delta here is the sum of the sleep interval and the amount of *lag* in the scheduler
+      // specifically, the lag is the time between requesting CPU access and actually getting it
+      IO.println("starvation detected").whenA(delta - sleepInterval > starvationThreshold)
     }
   }
-
 // add an initial delay
 // run the check infinitely, forked to a separate fiber
 val checker: IO[Unit] = (IO.sleep(1.second) *> tick.foreverM).start.void
@@ -84,7 +86,20 @@ This section contains a very much *not* comprehensive list of common root causes
 
 The easiest and most obvious source of CPU starvation is when blocking tasks are being run on the compute thread pool. One example of this can be seen above, but usually it's a lot less straightforwardly obvious than that one, and tracking down what is or is not blocking in third party libraries (particularly those written for Java) can be challenging. Once the offending code is found, it is relatively easy to swap an `IO(...)` for `IO.blocking(...)` or `IO.interruptible(...)`.
 
-When looking for unexpectedly blocking tasks, the easiest place to start is to simply take a bunch of thread dumps at random. <kbd>Ctrl</kbd>-<kbd>\\</kbd> (or `kill -3 <pid>`) will dump a full list of threads and their current stack traces to standard error. Do a few of these at random intervals and check all of the threads named `io-compute-`. If *any* of them are ever in the `BLOCKED` state, take a look at the stack trace: you have found a rogue blocking task. (note that the stack trace will not be enriched, so you don't get the benefits of fiber tracing in this context, but you should still be able to see the line number where you wrapped the blocking call in `IO`, and this is what needs to be adjusted)
+If your application is an `IOApp` then the easiest way to find these offending expressions is to enable thread blocking detection like this:
+
+```scala
+object Example extends IOApp.Simple {
+
+  override protected def blockedThreadDetectionEnabled = true
+
+  val run: IO[Unit] = ???
+}
+```
+
+This instructs the Cats Effect runtime threads to periodically sample the state of a randomly chosen sibling thread. If that thread is found to be in a blocked state then a stack trace will be printed to stderr, which should allow you to directly identify the code that should be wrapped in `IO.blocking` or `IO.interruptible`. Whilst not guaranteed to find problems, this random sampling should find recurrent causes of thread blocking with a high degree of probability. It is however relatively expensive so it is disabled by default and is probably not something that you want to run permanently in a production environment.
+
+If you are not using `IOApp` then the easiest place to start is to simply take a bunch of thread dumps at random. <kbd>Ctrl</kbd>-<kbd>\\</kbd> (or `kill -3 <pid>`) will dump a full list of threads and their current stack traces to standard error. Do a few of these at random intervals and check all of the threads named `io-compute-`. If *any* of them are ever in the `BLOCKED` state, take a look at the stack trace: you have found a rogue blocking task. (note that the stack trace will not be enriched, so you don't get the benefits of fiber tracing in this context, but you should still be able to see the line number where you wrapped the blocking call in `IO`, and this is what needs to be adjusted)
 
 Swapping in an `IO.blocking` is the easiest solution here and will generally resolve the issue. Though, you do still need to be careful, since too much `IO.blocking` can create thread allocation pressure, which may result in CPU starvation of a different variety (see below).
 
@@ -483,14 +498,14 @@ object MyMain extends IOApp {
 
 ### Increasing/Decreasing Sensitivity
 
-By default, the checker will warn whenever the compute latency exceeds 100 milliseconds. This is calculated based on the `cpuStarvationCheckInterval` (default: `1.second`) multiplied by the `cpuStarvationCheckThreshold` (default: `0.1d`). In general, it is recommended that if you want to increase or decrease the sensitivity of the checker, you should do so by adjusting the interval (meaning that a more sensitive check will run more frequently):
+By default, the checker will warn whenever the compute latency exceeds 100 milliseconds. This is calculated based on the `cpuStarvationCheckInterval` (default: `1.second`) multiplied by the `cpuStarvationCheckThreshold` (default: `0.1d`). In general, it is recommended that if you want to increase or decrease the sensitivity of the checker, you should do so by adjusting the interval. Decreasing the interval results in a more sensitive check running more frequently, while increasing the interval results in a less sensitive check running less frequently:
 
 ```scala mdoc:silent
 import scala.concurrent.duration._
 
 object MyOtherMain extends IOApp {
 
-  // adjust threshold to 50 milliseconds
+  // relax threshold to 500 milliseconds
   override def runtimeConfig = 
     super.runtimeConfig.copy(cpuStarvationCheckInterval = 5.seconds)
 

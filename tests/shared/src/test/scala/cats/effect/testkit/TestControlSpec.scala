@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,6 +110,22 @@ class TestControlSpec extends BaseSpec {
 
           r2 <- control.results
           _ <- IO(r2 must beNone)
+        } yield ok
+      }
+    }
+
+    "only detect a deadlock when results are unavailable" in real {
+      TestControl.execute(IO.unit) flatMap { control =>
+        for {
+          r1 <- control.results
+          _ <- IO(r1 must beNone)
+
+          _ <- control.tick
+          id <- control.isDeadlocked
+          _ <- IO(id must beFalse)
+
+          r2 <- control.results
+          _ <- IO(r2 must beSome)
         } yield ok
       }
     }

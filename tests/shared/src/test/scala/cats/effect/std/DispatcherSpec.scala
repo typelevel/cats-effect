@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import cats.effect.kernel.Deferred
 import cats.effect.testkit.TestControl
 import cats.syntax.all._
 
+import scala.concurrent.{ExecutionContext, Promise}
 import scala.concurrent.duration._
 
 class DispatcherSpec extends BaseSpec with DetectPlatform {
@@ -257,6 +258,48 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       }
     }
 
+    "report exception if raised during unsafeRunAndForget" in real {
+      def ec2(ec1: ExecutionContext, er: Promise[Boolean]) = new ExecutionContext {
+        def reportFailure(t: Throwable) = er.success(true)
+        def execute(r: Runnable) = ec1.execute(r)
+      }
+
+      val test = for {
+        ec <- Resource.eval(IO.executionContext)
+        errorReporter <- Resource.eval(IO(Promise[Boolean]()))
+        customEc = ec2(ec, errorReporter)
+        _ <- dispatcher
+          .evalOn(customEc)
+          .flatMap(runner =>
+            Resource.eval(IO(runner.unsafeRunAndForget(IO.raiseError(new Exception("boom"))))))
+      } yield errorReporter
+
+      test
+        .use(t => IO.fromFuture(IO(t.future)).timeoutTo(1.second, IO.pure(false)))
+        .flatMap(t => IO(t mustEqual true))
+    }
+
+    "do not treat exception in unsafeRunToFuture as unhandled" in real {
+      import scala.concurrent.TimeoutException
+      def ec2(ec1: ExecutionContext, er: Promise[Boolean]) = new ExecutionContext {
+        def reportFailure(t: Throwable) = er.failure(t)
+        def execute(r: Runnable) = ec1.execute(r)
+      }
+
+      val test = for {
+        ec <- Resource.eval(IO.executionContext)
+        errorReporter <- Resource.eval(IO(Promise[Boolean]()))
+        customEc = ec2(ec, errorReporter)
+        _ <- dispatcher
+          .evalOn(customEc)
+          .flatMap(runner =>
+            Resource.eval(IO(runner.unsafeToFuture(IO.raiseError(new Exception("boom"))))))
+      } yield errorReporter
+
+      test.use(t =>
+        IO.fromFuture(IO(t.future)).timeout(1.second).mustFailWith[TimeoutException])
+    }
+
     "respect self-cancelation" in real {
       dispatcher use { runner =>
         for {
@@ -276,6 +319,33 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           _ <- IO(runner.unsafeRunAndForget(secondLatch.complete(()).void))
           _ <- secondLatch.get // if the dispatcher itself is dead, this will hang
         } yield ok
+      }
+    }
+
+    "reject new tasks while shutting down" in real {
+      (IO.ref(false), IO.ref(false)).flatMapN { (resultR, rogueResultR) =>
+        dispatcher
+          .allocated
+          .flatMap {
+            case (runner, release) =>
+              IO(runner.unsafeRunAndForget(
+                IO.sleep(1.second).uncancelable.guarantee(resultR.set(true)))) *>
+                IO.sleep(100.millis) *>
+                release.both(
+                  IO.sleep(500.nanos) *>
+                    IO(runner.unsafeRunAndForget(rogueResultR.set(true))).attempt
+                )
+          }
+          .flatMap {
+            case (_, rogueSubmitResult) =>
+              for {
+                result <- resultR.get
+                rogueResult <- rogueResultR.get
+                _ <- IO(result must beTrue)
+                _ <- IO(rogueResult must beFalse)
+                _ <- IO(rogueSubmitResult must beLeft)
+              } yield ok
+          }
       }
     }
   }
@@ -308,6 +378,15 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         released1 must beFalse
         released2 must beTrue
       }
+    }
+
+    "issue #3506: await unsafeRunAndForget" in ticked { implicit ticker =>
+      val result = for {
+        resultR <- IO.ref(false)
+        _ <- dispatcher.use { runner => IO(runner.unsafeRunAndForget(resultR.set(true))) }
+        result <- resultR.get
+      } yield result
+      result must completeAs(true)
     }
 
     "cancel active fibers when an error is produced" in real {

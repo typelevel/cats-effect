@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,10 +33,10 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
             case Outcome.Succeeded(fa) => F.productR(f.cancel)(F.map(fa)(Left(_)))
             case Outcome.Errored(ea) => F.productR(f.cancel)(F.raiseError(ea))
             case Outcome.Canceled() =>
-              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+              F.flatMap(f.cancel *> f.join) {
                 case Outcome.Succeeded(fb) => F.map(fb)(Right(_))
                 case Outcome.Errored(eb) => F.raiseError(eb)
-                case Outcome.Canceled() => F.productR(F.canceled)(F.never)
+                case Outcome.Canceled() => F.productR(poll(F.canceled))(F.never)
               }
           }
         case Right((f, oc)) =>
@@ -44,10 +44,10 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
             case Outcome.Succeeded(fb) => F.productR(f.cancel)(F.map(fb)(Right(_)))
             case Outcome.Errored(eb) => F.productR(f.cancel)(F.raiseError(eb))
             case Outcome.Canceled() =>
-              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+              F.flatMap(f.cancel *> f.join) {
                 case Outcome.Succeeded(fa) => F.map(fa)(Left(_))
                 case Outcome.Errored(ea) => F.raiseError(ea)
-                case Outcome.Canceled() => F.productR(F.canceled)(F.never)
+                case Outcome.Canceled() => F.productR(poll(F.canceled))(F.never)
               }
           }
       }
@@ -64,10 +64,10 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
             case Outcome.Succeeded(fa) => F.productR(f.cancel)(F.map(fa)(Left(_)))
             case Outcome.Errored(ea) => F.productR(f.cancel)(F.raiseError(ea))
             case Outcome.Canceled() =>
-              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+              F.flatMap(f.cancel *> f.join) {
                 case Outcome.Succeeded(fb) => F.map(fb)(Right(_))
                 case Outcome.Errored(eb) => F.raiseError(eb)
-                case Outcome.Canceled() => F.productR(F.canceled)(F.never)
+                case Outcome.Canceled() => F.productR(poll(F.canceled))(F.never)
               }
           }
         case Right((f, oc)) =>
@@ -75,10 +75,10 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
             case Outcome.Succeeded(fb) => F.productR(f.cancel)(F.map(fb)(Right(_)))
             case Outcome.Errored(eb) => F.productR(f.cancel)(F.raiseError(eb))
             case Outcome.Canceled() =>
-              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+              F.flatMap(f.cancel *> f.join) {
                 case Outcome.Succeeded(fa) => F.map(fa)(Left(_))
                 case Outcome.Errored(ea) => F.raiseError(ea)
-                case Outcome.Canceled() => F.productR(F.canceled)(F.never)
+                case Outcome.Canceled() => F.productR(poll(F.canceled))(F.never)
               }
           }
       }
@@ -87,25 +87,23 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
     F.race(F.never[A], fb) <-> results
   }
 
+  @deprecated("law is no longer applicable (or correct)", "3.5.0")
   def raceCanceledIdentityLeft[A](fa: F[A]) =
     F.race(F.canceled, fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))) <-> fa.map(
       _.asRight[Unit])
 
+  @deprecated("law is no longer applicable (or correct)", "3.5.0")
   def raceCanceledIdentityRight[A](fa: F[A]) =
     F.race(fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_)), F.canceled) <-> fa.map(
       _.asLeft[Unit])
 
   def raceNeverNoncanceledIdentityLeft[A](fa: F[A]) =
-    F.race(F.never[Unit], fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))) <-> F
-      .onCancel(
-        fa.flatMap(r => F.pure(r.asRight[Unit])).handleErrorWith(F.raiseError(_)),
-        F.never)
+    F.race(F.never[Unit], fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))) <->
+      fa.flatMap(r => F.pure(r.asRight[Unit])).handleErrorWith(F.raiseError(_))
 
   def raceNeverNoncanceledIdentityRight[A](fa: F[A]) =
-    F.race(fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_)), F.never[Unit]) <-> F
-      .onCancel(
-        fa.flatMap(r => F.pure(r.asLeft[Unit])).handleErrorWith(F.raiseError(_)),
-        F.never)
+    F.race(fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_)), F.never[Unit]) <->
+      fa.flatMap(r => F.pure(r.asLeft[Unit])).handleErrorWith(F.raiseError(_))
 
   // I really like these laws, since they relate cede to timing, but they're definitely nondeterministic
   /*def raceLeftCedeYields[A](a: A) =

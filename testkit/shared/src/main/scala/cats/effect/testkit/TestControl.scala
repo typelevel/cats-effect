@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -273,7 +273,7 @@ final class TestControl[A] private (
    * some interaction with an external asynchronous scheduler (such as another thread pool).
    */
   val isDeadlocked: IO[Boolean] =
-    IO(ctx.state.tasks.isEmpty)
+    IO(!_results.get().isDefined && ctx.state.tasks.isEmpty)
 
   /**
    * Returns the base64-encoded seed which governs the random task interleaving during each

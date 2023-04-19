@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -113,6 +113,11 @@ package examples {
   // stub
   object MainThreadReportFailure extends IOApp {
     def run(args: List[String]): IO[ExitCode] = IO.never
+  }
+
+  // stub
+  object BlockedThreads extends IOApp.Simple {
+    val run = IO.never
   }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,12 +33,48 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
   private[this] final val DefaultBlockerPrefix = "io-compute-blocker"
 
+  @deprecated("Preserved for binary-compatibility", "3.5.0")
+  def createWorkStealingComputeThreadPool(
+      threads: Int,
+      threadPrefix: String,
+      blockerThreadPrefix: String,
+      runtimeBlockingExpiration: Duration,
+      reportFailure: Throwable => Unit
+  ): (WorkStealingThreadPool, () => Unit) = createWorkStealingComputeThreadPool(
+    threads,
+    threadPrefix,
+    blockerThreadPrefix,
+    runtimeBlockingExpiration,
+    reportFailure,
+    false
+  )
+
+  @deprecated("Preserved for binary-compatibility", "3.6.0")
+  def createWorkStealingComputeThreadPool(
+      threads: Int,
+      threadPrefix: String,
+      blockerThreadPrefix: String,
+      runtimeBlockingExpiration: Duration,
+      reportFailure: Throwable => Unit,
+      blockedThreadDetectionEnabled: Boolean
+  ): (WorkStealingThreadPool, () => Unit) = createWorkStealingComputeThreadPool(
+    threads,
+    threadPrefix,
+    blockerThreadPrefix,
+    runtimeBlockingExpiration,
+    reportFailure,
+    false,
+    SelectorSystem()
+  )
+
+  // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute",
       blockerThreadPrefix: String = DefaultBlockerPrefix,
       runtimeBlockingExpiration: Duration = 60.seconds,
       reportFailure: Throwable => Unit = _.printStackTrace(),
+      blockedThreadDetectionEnabled: Boolean = false,
       pollingSystem: PollingSystem = SelectorSystem()): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool(
@@ -46,6 +82,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         threadPrefix,
         blockerThreadPrefix,
         runtimeBlockingExpiration,
+        blockedThreadDetectionEnabled && (threads > 1),
         pollingSystem,
         reportFailure)
 
@@ -113,24 +150,6 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         threadPool.shutdown()
       })
   }
-
-  @deprecated(
-    message = "Use overload which accepts a `PollingSystem`",
-    since = "3.5.0"
-  )
-  def createWorkStealingComputeThreadPool(
-      threads: Int,
-      threadPrefix: String,
-      blockerThreadPrefix: String,
-      runtimeBlockingExpiration: Duration,
-      reportFailure: Throwable => Unit): (WorkStealingThreadPool, () => Unit) =
-    createWorkStealingComputeThreadPool(
-      threads,
-      threadPrefix,
-      blockerThreadPrefix,
-      runtimeBlockingExpiration,
-      reportFailure,
-      SelectorSystem())
 
   @deprecated(
     message = "Replaced by the simpler and safer `createWorkStealingComputePool`",

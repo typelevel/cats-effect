@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,10 +64,19 @@ sealed trait Hotswap[F[_], R] {
    * is not used thereafter. Failure to do so may result in an error on the _consumer_ side. In
    * any case, no resources will be leaked.
    *
+   * For safer access to the current resource see [[get]], which guarantees that it will not be
+   * released while it is being used.
+   *
    * If [[swap]] is called after the lifetime of the [[Hotswap]] is over, it will raise an
    * error, but will ensure that all resources are finalized before returning.
    */
   def swap(next: Resource[F, R]): F[R]
+
+  /**
+   * Gets the current resource, if it exists. The returned resource is guaranteed to be
+   * available for the duration of the returned resource.
+   */
+  def get: Resource[F, Option[R]]
 
   /**
    * Pops and runs the finalizer of the current resource, if it exists.
@@ -92,45 +101,72 @@ object Hotswap {
    * Creates a new [[Hotswap]], which represents a [[cats.effect.kernel.Resource]] that can be
    * swapped during the lifetime of this [[Hotswap]].
    */
-  def create[F[_], R](implicit F: Concurrent[F]): Resource[F, Hotswap[F, R]] = {
-    type State = Option[F[Unit]]
+  def create[F[_], R](implicit F: Concurrent[F]): Resource[F, Hotswap[F, R]] =
+    Resource.eval(Semaphore[F](Long.MaxValue)).flatMap { semaphore =>
+      sealed abstract class State
+      case object Cleared extends State
+      case class Acquired(r: R, fin: F[Unit]) extends State
+      case object Finalized extends State
 
-    def initialize: F[Ref[F, State]] =
-      F.ref(Some(F.pure(())))
+      def initialize: F[Ref[F, State]] =
+        F.ref(Cleared)
 
-    def finalize(state: Ref[F, State]): F[Unit] =
-      state.getAndSet(None).flatMap {
-        case Some(finalizer) => finalizer
-        case None => raise("Hotswap already finalized")
-      }
+      def finalize(state: Ref[F, State]): F[Unit] =
+        state.getAndSet(Finalized).flatMap {
+          case Acquired(_, finalizer) => finalizer
+          case Cleared => F.unit
+          case Finalized => raise("Hotswap already finalized")
+        }
 
-    def raise(message: String): F[Unit] =
-      F.raiseError[Unit](new RuntimeException(message))
+      def raise(message: String): F[Unit] =
+        F.raiseError[Unit](new RuntimeException(message))
 
-    Resource.make(initialize)(finalize).map { state =>
-      new Hotswap[F, R] {
+      def shared: Resource[F, Unit] = semaphore.permit
 
-        override def swap(next: Resource[F, R]): F[R] =
-          F.uncancelable { poll =>
-            poll(next.allocated).flatMap {
-              case (r, finalizer) =>
-                swapFinalizer(finalizer).as(r)
+      def exclusive: Resource[F, Unit] =
+        Resource.makeFull[F, Unit](poll => poll(semaphore.acquireN(Long.MaxValue)))(_ =>
+          semaphore.releaseN(Long.MaxValue))
+
+      Resource.make(initialize)(finalize).map { state =>
+        new Hotswap[F, R] {
+
+          override def swap(next: Resource[F, R]): F[R] =
+            exclusive.surround {
+              F.uncancelable { poll =>
+                poll(next.allocated).flatMap {
+                  case (r, fin) =>
+                    swapFinalizer(Acquired(r, fin)).as(r)
+                }
+              }
             }
-          }
 
-        override def clear: F[Unit] =
-          swapFinalizer(F.unit).uncancelable
+          override def get: Resource[F, Option[R]] =
+            shared.evalMap { _ =>
+              state.get.map {
+                case Acquired(r, _) => Some(r)
+                case _ => None
+              }
+            }
 
-        private def swapFinalizer(next: F[Unit]): F[Unit] =
-          state.modify {
-            case Some(previous) =>
-              Some(next) -> previous
-            case None =>
-              None -> (next *> raise("Cannot swap after finalization"))
-          }.flatten
+          override def clear: F[Unit] =
+            exclusive.surround(swapFinalizer(Cleared).uncancelable)
 
+          private def swapFinalizer(next: State): F[Unit] =
+            state.modify {
+              case Acquired(_, fin) =>
+                next -> fin
+              case Cleared =>
+                next -> F.unit
+              case Finalized =>
+                val fin = next match {
+                  case Acquired(_, fin) => fin
+                  case _ => F.unit
+                }
+                Finalized -> (fin *> raise("Cannot swap after finalization"))
+            }.flatten
+
+        }
       }
     }
-  }
 
 }

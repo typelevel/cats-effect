@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -184,20 +184,17 @@ object Dequeue {
       }
 
     private def _tryOffer(update: BankersQueue[A] => BankersQueue[A]) =
-      state
-        .modify {
-          case State(queue, size, takers, offerers) if takers.nonEmpty =>
-            val (taker, rest) = takers.dequeue
-            State(update(queue), size, rest, offerers) -> taker.complete(()).as(true)
+      state.flatModify {
+        case State(queue, size, takers, offerers) if takers.nonEmpty =>
+          val (taker, rest) = takers.dequeue
+          State(update(queue), size, rest, offerers) -> taker.complete(()).as(true)
 
-          case State(queue, size, takers, offerers) if size < capacity =>
-            State(update(queue), size + 1, takers, offerers) -> F.pure(true)
+        case State(queue, size, takers, offerers) if size < capacity =>
+          State(update(queue), size + 1, takers, offerers) -> F.pure(true)
 
-          case s =>
-            s -> F.pure(false)
-        }
-        .flatten
-        .uncancelable
+        case s =>
+          s -> F.pure(false)
+      }
 
     private def _take(dequeue: BankersQueue[A] => (BankersQueue[A], Option[A])): F[A] =
       F uncancelable { poll =>
@@ -254,22 +251,19 @@ object Dequeue {
 
     private def _tryTake(
         dequeue: BankersQueue[A] => (BankersQueue[A], Option[A])): F[Option[A]] =
-      state
-        .modify {
-          case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
-            val (rest, ma) = dequeue(queue)
-            State(rest, size - 1, takers, offerers) -> F.pure(ma)
+      state.flatModify {
+        case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
+          val (rest, ma) = dequeue(queue)
+          State(rest, size - 1, takers, offerers) -> F.pure(ma)
 
-          case State(queue, size, takers, offerers) if queue.nonEmpty =>
-            val (rest, ma) = dequeue(queue)
-            val (release, tail) = offerers.dequeue
-            State(rest, size - 1, takers, tail) -> release.complete(()).as(ma)
+        case State(queue, size, takers, offerers) if queue.nonEmpty =>
+          val (rest, ma) = dequeue(queue)
+          val (release, tail) = offerers.dequeue
+          State(rest, size - 1, takers, tail) -> release.complete(()).as(ma)
 
-          case s =>
-            s -> F.pure(none[A])
-        }
-        .flatten
-        .uncancelable
+        case s =>
+          s -> F.pure(none[A])
+      }
 
     override def size: F[Int] = state.get.map(_.size)
   }

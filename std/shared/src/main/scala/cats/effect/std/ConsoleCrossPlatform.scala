@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -173,78 +173,24 @@ private[std] abstract class ConsoleCompanionCrossPlatform {
   ]: Console[ReaderWriterStateT[F, E, L, S, *]] =
     Console[F].mapK(ReaderWriterStateT.liftK)
 
-  private[std] final class SyncConsole[F[_]](implicit F: Sync[F]) extends Console[F] {
+  private[std] class SyncConsole[F[_]](implicit F: Sync[F]) extends Console[F] {
     def readLineWithCharset(charset: Charset): F[String] =
-      F.interruptible {
-        val in = System.in
-        val decoder = charset
-          .newDecoder()
-          .onMalformedInput(CodingErrorAction.REPORT)
-          .onUnmappableCharacter(CodingErrorAction.REPLACE)
-        val bytes = ByteBuffer.allocate(64)
-        val builder = new JStringBuilder()
-
-        def decodeNext(): CharBuffer = {
-          bytes.clear()
-          decodeNextLoop()
-        }
-
-        @tailrec
-        def decodeNextLoop(): CharBuffer = {
-          val b = in.read()
-          if (b == -1) null
-          else {
-            bytes.put(b.toByte)
-            val limit = bytes.limit()
-            val position = bytes.position()
-            var result: CharBuffer = null
-            try {
-              bytes.flip()
-              result = decoder.decode(bytes)
-            } catch {
-              case _: MalformedInputException =>
-                bytes.limit(limit)
-                bytes.position(position)
-            }
-            if (result == null) decodeNextLoop() else result
-          }
-        }
-
-        @tailrec
-        def loop(): String = {
-          val buffer = decodeNext()
-          if (buffer == null) {
-            val result = builder.toString()
-            if (result.nonEmpty) result
-            else throw new EOFException()
-          } else {
-            val decoded = buffer.toString()
-            if (decoded == "\n") {
-              val len = builder.length()
-              if (len > 0) {
-                if (builder.charAt(len - 1) == '\r') {
-                  builder.deleteCharAt(len - 1)
-                }
-              }
-              builder.toString()
-            } else {
-              builder.append(decoded)
-              loop()
-            }
-          }
-        }
-
-        loop()
-      }
+      F.blocking(readLineWithCharsetImpl(charset))
 
     def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
       val text = a.show
-      F.blocking(System.out.print(text))
+      F.blocking {
+        System.out.print(text)
+        System.out.flush()
+      }
     }
 
     def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
       val text = a.show
-      F.blocking(System.out.println(text))
+      F.blocking {
+        System.out.println(text)
+        System.out.flush()
+      }
     }
 
     def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
@@ -259,6 +205,68 @@ private[std] abstract class ConsoleCompanionCrossPlatform {
 
     override def printStackTrace(t: Throwable): F[Unit] =
       F.blocking(t.printStackTrace())
+  }
+
+  private[std] def readLineWithCharsetImpl(charset: Charset): String = {
+    val in = System.in
+    val decoder = charset
+      .newDecoder()
+      .onMalformedInput(CodingErrorAction.REPORT)
+      .onUnmappableCharacter(CodingErrorAction.REPLACE)
+    val bytes = ByteBuffer.allocate(64)
+    val builder = new JStringBuilder()
+
+    def decodeNext(): CharBuffer = {
+      bytes.clear()
+      decodeNextLoop()
+    }
+
+    @tailrec
+    def decodeNextLoop(): CharBuffer = {
+      val b = in.read()
+      if (b == -1) null
+      else {
+        bytes.put(b.toByte)
+        val limit = bytes.limit()
+        val position = bytes.position()
+        var result: CharBuffer = null
+        try {
+          bytes.flip()
+          result = decoder.decode(bytes)
+        } catch {
+          case _: MalformedInputException =>
+            bytes.limit(limit)
+            bytes.position(position)
+        }
+        if (result == null) decodeNextLoop() else result
+      }
+    }
+
+    @tailrec
+    def loop(): String = {
+      val buffer = decodeNext()
+      if (buffer == null) {
+        val result = builder.toString()
+        if (result.nonEmpty) result
+        else throw new EOFException()
+      } else {
+        val decoded = buffer.toString()
+        if (decoded == "\n") {
+          val len = builder.length()
+          if (len > 0) {
+            if (builder.charAt(len - 1) == '\r') {
+              builder.deleteCharAt(len - 1)
+            }
+          }
+          builder.toString()
+        } else {
+          builder.append(decoded)
+          loop()
+        }
+      }
+    }
+
+    loop()
   }
 
   private[std] def printStackTrace[F[_]](c: Console[F])(t: Throwable): F[Unit] = {

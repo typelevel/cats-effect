@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,5 +88,15 @@ package examples {
       IO.raiseError(new Exception).startOn(MainThread) *>
         IO.sleep(1.second) *> IO(exitCode.get)
 
+  }
+
+  object BlockedThreads extends IOApp.Simple {
+
+    override protected def blockedThreadDetectionEnabled = true
+
+    // Loop prevents other worker threads from being parked and hence not
+    // performing the blocked check
+    val run =
+      IO.unit.foreverM.start >> IO(Thread.sleep(2.seconds.toMillis))
   }
 }

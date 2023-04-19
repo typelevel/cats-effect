@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package cats.effect
 package unsafe
 
 import scala.concurrent.duration._
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 class SchedulerSpec extends BaseSpec {
 
@@ -39,8 +41,19 @@ class SchedulerSpec extends BaseSpec {
     "correctly calculate real time" in real {
       IO.realTime.product(IO(System.currentTimeMillis())).map {
         case (realTime, currentTime) =>
-          (realTime.toMillis - currentTime) should be_<=(1L)
+          (realTime.toMillis - currentTime) should be_<=(10L)
       }
+    }
+    "cancel" in real {
+      val scheduler = IORuntime.global.scheduler
+      for {
+        ref <- IO(new AtomicBoolean(true))
+        cancel <- IO(scheduler.sleep(200.millis, () => ref.set(false)))
+        _ <- IO.sleep(100.millis)
+        _ <- IO(cancel.run())
+        _ <- IO.sleep(200.millis)
+        didItCancel <- IO(ref.get())
+      } yield didItCancel
     }
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,11 +31,10 @@ import cats.syntax.all._
  *
  * The default implementation is nonblocking and lightweight, consisting essentially of a purely
  * functional wrapper over an `AtomicReference`. Consequently it ''must not'' be used to store
- * mutable data as `AtomicReference#compareAndSet` and friends are not threadsafe and are
- * dependent upon object reference equality.
+ * mutable data as `AtomicReference#compareAndSet` and friends are dependent upon object
+ * reference equality.
  *
- * @see
- *   [[cats.effect.std.AtomicCell]]
+ * See also `cats.effect.std.AtomicCell` class from `cats-effect-std` for an alternative.
  */
 abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 
@@ -62,14 +61,14 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
     }
 
   /**
-   * Obtains a snapshot of the current value, and a setter for updating it. The setter may noop
-   * (in which case `false` is returned) if another concurrent call to `access` uses its setter
-   * first.
+   * Obtains a snapshot of the current value, and a setter for updating it.
    *
-   * Once it has noop'd a setter will never succeed.
+   * The setter attempts to modify the contents from the snapshot to the new value (and return
+   * `true`). If it cannot do this (because the contents changed since taking the snapshot), the
+   * setter is a noop and returns `false`.
    *
-   * Satisfies: `r.access.map(_._1) == r.get` `r.access.flatMap { case (v, setter) =>
-   * setter(f(v)) } == r.tryUpdate(f).map(_.isDefined)`
+   * Satisfies: `r.access.map(_._1) == r.get` and `r.access.flatMap { case (v, setter) =>
+   * setter(f(v)) } == r.tryUpdate(f).map(_.isDefined)`.
    */
   def access: F[(A, A => F[Boolean])]
 
@@ -96,16 +95,53 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
   def update(f: A => A): F[Unit]
 
   /**
-   * Like `tryModify` but does not complete until the update has been successfully made.
+   * Like `tryModify` but retries until the update has been successfully made.
    */
   def modify[B](f: A => (A, B)): F[B]
 
   /**
-   * Update the value of this ref with a state computation.
+   * Like [[modify]] but schedules resulting effect right after modification.
    *
-   * The current value of this ref is used as the initial state and the computed output state is
-   * stored in this ref after computation completes. If a concurrent modification occurs, `None`
-   * is returned.
+   * Useful for implementing effectful transition of a state machine, in which an effect is
+   * performed based on current state and the state must be updated to reflect that this effect
+   * will be performed.
+   *
+   * Both modification and finalizer are within a single uncancelable region, to prevent
+   * canceled finalizers from leaving the Ref's value permanently out of sync with effects
+   * actually performed. if you need cancellation mechanic in finalizer please see
+   * [[flatModifyFull]].
+   *
+   * @see
+   *   [[modify]]
+   * @see
+   *   [[flatModifyFull]]
+   */
+  def flatModify[B](f: A => (A, F[B]))(implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(_ => F.flatten(modify(f)))
+
+  /**
+   * Like [[modify]] but schedules resulting effect right after modification.
+   *
+   * Unlike [[flatModify]] finalizer cancellation could be unmasked via supplied `Poll`.
+   * Modification itself is still uncancelable.
+   *
+   * When used as part of a state machine, cancelable regions should usually have an `onCancel`
+   * finalizer to update the state to reflect that the effect will not be performed.
+   *
+   * @see
+   *   [[modify]]
+   * @see
+   *   [[flatModify]]
+   */
+  def flatModifyFull[B](f: (Poll[F], A) => (A, F[B]))(implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(poll => F.flatten(modify(f(poll, _))))
+
+  /**
+   * Update the value of this `Ref` with a state computation.
+   *
+   * The current value of this `Ref` is used as the initial state and the computed output state
+   * is stored in this `Ref` after computation completes. If a concurrent modification occurs,
+   * `None` is returned.
    */
   def tryModifyState[B](state: State[A, B]): F[Option[B]]
 
@@ -113,6 +149,35 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * Like [[tryModifyState]] but retries the modification until successful.
    */
   def modifyState[B](state: State[A, B]): F[B]
+
+  /**
+   * Like [[modifyState]] but schedules resulting effect right after state computation & update.
+   *
+   * Both modification and finalizer are uncancelable, if you need cancellation mechanic in
+   * finalizer please see [[flatModifyStateFull]].
+   *
+   * @see
+   *   [[modifyState]]
+   * @see
+   *   [[flatModifyStateFull]]
+   */
+  def flatModifyState[B](state: State[A, F[B]])(implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(_ => F.flatten(modifyState(state)))
+
+  /**
+   * Like [[modifyState]] but schedules resulting effect right after modification.
+   *
+   * Unlike [[flatModifyState]] finalizer cancellation could be masked via supplied `Poll[F]`.
+   * Modification itself is still uncancelable.
+   *
+   * @see
+   *   [[modifyState]]
+   * @see
+   *   [[flatModifyState]]
+   */
+  def flatModifyStateFull[B](state: Poll[F] => State[A, F[B]])(
+      implicit F: MonadCancel[F, _]): F[B] =
+    F.uncancelable(poll => F.flatten(modifyState(state(poll))))
 
   /**
    * Modify the context `F` using transformation `f`.
@@ -177,12 +242,12 @@ object Ref {
   def of[F[_], A](a: A)(implicit mk: Make[F]): F[Ref[F, A]] = mk.refOf(a)
 
   /**
-   * Creates a Ref with empty content
+   * Creates a `Ref` with empty content
    */
   def empty[F[_]: Make, A: Monoid]: F[Ref[F, A]] = of(Monoid[A].empty)
 
   /**
-   * Creates a Ref starting with the value of the one in `source`.
+   * Creates a `Ref` starting with the value of the one in `source`.
    *
    * Updates of either of the Refs will not have an effect on the other (assuming A is
    * immutable).
@@ -191,13 +256,13 @@ object Ref {
     ofEffect(source.get)
 
   /**
-   * Creates a Ref starting with the result of the effect `fa`.
+   * Creates a `Ref` starting with the result of the effect `fa`.
    */
   def ofEffect[F[_]: Make: FlatMap, A](fa: F[A]): F[Ref[F, A]] =
     FlatMap[F].flatMap(fa)(of(_))
 
   /**
-   * Like `apply` but returns the newly allocated ref directly instead of wrapping it in
+   * Like `apply` but returns the newly allocated `Ref` directly instead of wrapping it in
    * `F.delay`. This method is considered unsafe because it is not referentially transparent --
    * it allocates mutable state.
    *
@@ -224,7 +289,7 @@ object Ref {
    * }}}
    *
    * Such usage is safe, as long as the class constructor is not accessible and the public one
-   * suspends creation in IO
+   * suspends creation in IO.
    *
    * The recommended alternative is accepting a `Ref[F, A]` as a parameter:
    *
@@ -241,15 +306,15 @@ object Ref {
   def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef(a)
 
   /**
-   * Builds a `Ref` value for data types that are [[Sync]] Like [[of]] but initializes state
+   * Builds a `Ref` value for data types that are [[Sync]] like [[of]] but initializes state
    * using another effect constructor
    */
   def in[F[_], G[_], A](a: A)(implicit F: Sync[F], G: Sync[G]): F[Ref[G, A]] =
     F.delay(unsafe(a))
 
   /**
-   * Creates an instance focused on a component of another Ref's value. Delegates every get and
-   * modification to underlying Ref, so both instances are always in sync.
+   * Creates an instance focused on a component of another `Ref`'s value. Delegates every get
+   * and modification to underlying `Ref`, so both instances are always in sync.
    *
    * Example:
    *
@@ -419,8 +484,6 @@ trait RefSink[F[_], A] extends Serializable {
    * Sets the current value to `a`.
    *
    * The returned action completes after the reference has been successfully set.
-   *
-   * Satisfies: `r.set(fa) *> r.get == fa`
    */
   def set(a: A): F[Unit]
 }

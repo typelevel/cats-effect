@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -346,7 +346,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
             case Outcome.Errored(ea) =>
               F.raiseError[(Either[A, B], ExitCase => F[Unit])](ea).guarantee(cancelLoser(f))
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fb) =>
                   fb.map { case (b, fin) => (Either.right[A, B](b), fin) }
                 case Outcome.Errored(eb) =>
@@ -369,7 +369,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
             case Outcome.Errored(eb) =>
               F.raiseError[(Either[A, B], ExitCase => F[Unit])](eb).guarantee(cancelLoser(f))
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fa) =>
                   fa.map { case (a, fin) => (Either.left[A, B](a), fin) }
                 case Outcome.Errored(ea) =>
@@ -804,8 +804,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
    * Note that in this case the acquire action should know how to cleanup after itself in case
-   * it gets canceled, since Resource will only guarantee release when acquire succeeds and
-   * fails (and when the actions in `use` or `flatMap` fail, succeed, or get canceled)
+   * it gets canceled, since Resource will only guarantee release when acquire succeeds (and
+   * when the actions in `use` or `flatMap` fail, succeed, or get canceled)
    *
    * TODO make sure this api, which is more general than makeFull, doesn't allow for
    * interruptible releases
@@ -866,16 +866,15 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     applyCase[F, A](acquire.map(a => (a, e => release(a, e))))
 
   /**
-   * Creates a resource from an acquiring effect and a release function that can discriminate
-   * between different [[ExitCase exit cases]].
+   * Creates a resource from a possibly cancelable acquiring effect and a release function.
    *
-   * The acquiring effect takes a `Poll[F]` to allow for interruptible acquires, which is most
+   * The acquiring effect takes a `Poll[F]` to allow for cancelable acquires, which is most
    * often useful when acquiring lock-like structures: it should be possible to interrupt a
    * fiber waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
    * Note that in this case the acquire action should know how to cleanup after itself in case
-   * it gets canceled, since Resource will only guarantee release when acquire succeeds and
-   * fails (and when the actions in `use` or `flatMap` fail, succeed, or get canceled)
+   * it gets canceled, since Resource will only guarantee release when acquire succeeds (and
+   * when the actions in `use` or `flatMap` fail, succeed, or get canceled)
    *
    * @tparam F
    *   the effect type in which the resource is acquired and released
@@ -891,16 +890,16 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     applyFull[F, A](poll => acquire(poll).map(a => (a, _ => release(a))))
 
   /**
-   * Creates a resource from an acquiring effect and a release function that can discriminate
-   * between different [[ExitCase exit cases]].
+   * Creates a resource from a possibly cancelable acquiring effect and a release function that
+   * can discriminate between different [[ExitCase exit cases]].
    *
-   * The acquiring effect takes a `Poll[F]` to allow for interruptible acquires, which is most
+   * The acquiring effect takes a `Poll[F]` to allow for cancelable acquires, which is most
    * often useful when acquiring lock-like structures: it should be possible to interrupt a
    * fiber waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
    * Note that in this case the acquire action should know how to cleanup after itself in case
-   * it gets canceled, since Resource will only guarantee release when acquire succeeds and
-   * fails (and when the actions in `use` or `flatMap` fail, succeed, or get canceled)
+   * it gets canceled, since Resource will only guarantee release when acquire succeeds (and
+   * when the actions in `use` or `flatMap` fail, succeed, or get canceled)
    *
    * @tparam F
    *   the effect type in which the resource is acquired and released

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,17 @@ import cats.syntax.all._
 
 import org.specs2.matcher.MatchResult
 
+import scala.concurrent.duration._
 import scala.io.Source
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream, PrintStream}
+import java.io.{
+  ByteArrayInputStream,
+  ByteArrayOutputStream,
+  InputStream,
+  PipedInputStream,
+  PipedOutputStream,
+  PrintStream
+}
 import java.nio.charset.{Charset, StandardCharsets}
 
 class ConsoleJVMSpec extends BaseSpec {
@@ -67,6 +75,19 @@ class ConsoleJVMSpec extends BaseSpec {
   private def replaceStandardErr(ps: PrintStream): Resource[IO, Unit] =
     Resource.make(replace(ps, () => System.err, System.setErr))(restore(_, System.setErr)).void
 
+  private def replaceStandardIn(in: InputStream): Resource[IO, Unit] = {
+    def replace(in: InputStream): IO[InputStream] =
+      for {
+        std <- IO(System.in)
+        _ <- IO(System.setIn(in))
+      } yield std
+
+    def restore(in: InputStream): IO[Unit] =
+      IO(System.setIn(in))
+
+    Resource.make(replace(in))(restore).void
+  }
+
   private def standardErrTest(io: => IO[Unit]): IO[String] = {
     val test = for {
       out <- Resource.eval(IO(new ByteArrayOutputStream()))
@@ -103,19 +124,6 @@ class ConsoleJVMSpec extends BaseSpec {
         }
       val release = (in: InputStream) => IO(in.close())
       Resource.make(acquire)(release)
-    }
-
-    def replaceStandardIn(in: InputStream): Resource[IO, Unit] = {
-      def replace(in: InputStream): IO[InputStream] =
-        for {
-          std <- IO(System.in)
-          _ <- IO(System.setIn(in))
-        } yield std
-
-      def restore(in: InputStream): IO[Unit] =
-        IO(System.setIn(in))
-
-      Resource.make(replace(in))(restore).void
     }
 
     val test = for {
@@ -246,6 +254,24 @@ class ConsoleJVMSpec extends BaseSpec {
     "read all lines from a UTF-16LE encoded file" in real {
       val cs = StandardCharsets.UTF_16LE
       readLineTest(cs.name(), cs)
+    }
+
+    "readLine is cancelable and does not lose lines" in real {
+      IO(new PipedOutputStream).flatMap { out =>
+        IO(new PipedInputStream(out)).flatMap { in =>
+          replaceStandardIn(in).surround {
+            for {
+              read1 <- IO.readLine.timeout(100.millis).attempt
+              _ <- IO(read1 should beLeft)
+              _ <- IO(out.write("unblocked\n".getBytes()))
+              read2 <- Console[IO].readLineWithCharset(StandardCharsets.US_ASCII).attempt
+              _ <- IO(read2 should beLeft)
+              read3 <- IO.readLine
+              _ <- IO(read3 must beEqualTo("unblocked"))
+            } yield ok
+          }
+        }
+      }
     }
   }
 }

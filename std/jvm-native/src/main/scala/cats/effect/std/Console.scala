@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,12 @@
 package cats.effect.std
 
 import cats.{~>, Show}
-import cats.effect.kernel.Sync
 
 import java.nio.charset.Charset
 
 /**
  * Effect type agnostic `Console` with common methods to write to and read from the standard
- * console. Due to issues around cancellation in `readLine`, suited only for extremely simple
- * console input and output in trivial applications.
+ * console. Suited only for extremely simple console input and output in trivial applications.
  *
  * @example
  *   {{{
@@ -100,13 +98,7 @@ trait Console[F[_]] extends ConsoleCrossPlatform[F] {
 
 }
 
-object Console extends ConsoleCompanionCrossPlatform {
-
-  /**
-   * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Sync]].
-   */
-  def make[F[_]](implicit F: Sync[F]): Console[F] =
-    new SyncConsole[F]
+object Console extends ConsoleCompanionPlatform {
 
   private[std] abstract class MapKConsole[F[_], G[_]](self: Console[F], f: F ~> G)
       extends Console[G] {

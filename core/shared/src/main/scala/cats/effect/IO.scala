@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -363,6 +363,51 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def backgroundOn(ec: ExecutionContext): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
     Resource.make(startOn(ec))(_.cancel).map(_.join)
 
+  /**
+   * Given an effect which might be [[uncancelable]] and a finalizer, produce an effect which
+   * can be canceled by running the finalizer. This combinator is useful for handling scenarios
+   * in which an effect is inherently uncancelable but may be canceled through setting some
+   * external state. A trivial example of this might be the following:
+   *
+   * {{{
+   *   val flag = new AtomicBoolean(false)
+   *   val ioa = IO blocking {
+   *     while (!flag.get()) {
+   *       Thread.sleep(10)
+   *     }
+   *   }
+   *
+   *   ioa.cancelable(IO.delay(flag.set(true)))
+   * }}}
+   *
+   * Without `cancelable`, effects constructed by `blocking`, `delay`, and similar are
+   * inherently uncancelable. Simply adding an `onCancel` to such effects is insufficient to
+   * resolve this, despite the fact that under *some* circumstances (such as the above), it is
+   * possible to enrich an otherwise-uncancelable effect with early termination. `cancelable`
+   * addresses this use-case.
+   *
+   * Note that there is no free lunch here. If an effect truly cannot be prematurely terminated,
+   * `cancelable` will not allow for cancelation. As an example, if you attempt to cancel
+   * `uncancelable(_ => never)`, the cancelation will hang forever (in other words, it will be
+   * itself equivalent to `never`). Applying `cancelable` will not change this in any way. Thus,
+   * attempting to cancel `cancelable(uncancelable(_ => never), unit)` will ''also'' hang
+   * forever. As in all cases, cancelation will only return when all finalizers have run and the
+   * fiber has fully terminated.
+   *
+   * If the `IO` self-cancels and the `cancelable` itself is uncancelable, the resulting fiber
+   * will be equal to `never` (similar to [[race]]). Under normal circumstances, if `IO`
+   * self-cancels, that cancelation will be propagated to the calling context.
+   *
+   * @param fin
+   *   an effect which orchestrates some external state which terminates the `IO`
+   * @see
+   *   [[uncancelable]]
+   * @see
+   *   [[onCancel]]
+   */
+  def cancelable(fin: IO[Unit]): IO[A] =
+    Spawn[IO].cancelable(this, fin)
+
   def forceR[B](that: IO[B]): IO[B] =
     // cast is needed here to trick the compiler into avoiding the IO[Any]
     asInstanceOf[IO[Unit]].handleError(_ => ()).productR(that)
@@ -516,12 +561,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.race(this, that)
 
   def raceOutcome[B](that: IO[B]): IO[Either[OutcomeIO[A @uncheckedVariance], OutcomeIO[B]]] =
-    IO.uncancelable { _ =>
-      racePair(that).flatMap {
-        case Left((oc, f)) => f.cancel.as(Left(oc))
-        case Right((f, oc)) => f.cancel.as(Right(oc))
-      }
-    }
+    IO.asyncForIO.raceOutcome(this, that)
 
   def racePair[B](that: IO[B]): IO[Either[
     (OutcomeIO[A @uncheckedVariance], FiberIO[B]),
@@ -893,7 +933,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * should never be totally silent.
    */
   def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit = {
-    val _ = unsafeRunFiber((), _ => (), _ => ())
+    val _ = unsafeRunFiber(
+      (),
+      t => {
+        if (NonFatal(t)) {
+          if (runtime.config.reportUnhandledFiberErrors)
+            runtime.compute.reportFailure(t)
+        } else { t.printStackTrace() }
+      },
+      _ => ())
     ()
   }
 
@@ -1486,10 +1534,16 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * }}}
    *
    * @see
-   *   [[IO#unsafeToFuture]]
+   *   [[IO#unsafeToFuture]], [[fromFutureCancelable]]
    */
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
     asyncForIO.fromFuture(fut)
+
+  /**
+   * Like [[fromFuture]], but is cancelable via the provided finalizer.
+   */
+  def fromFutureCancelable[A](fut: IO[(Future[A], IO[Unit])]): IO[A] =
+    asyncForIO.fromFutureCancelable(fut)
 
   /**
    * Run two IO tasks concurrently, and return the first to finish, either in success or error.
@@ -1543,7 +1597,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
-  def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
+  def deferred[A]: IO[Deferred[IO, A]] = IO(new IODeferred[A])
 
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =

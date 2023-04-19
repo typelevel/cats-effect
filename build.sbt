@@ -28,7 +28,7 @@ import sbtcrossproject.CrossProject
 import JSEnv._
 
 // sbt-git workarounds
-ThisBuild / useConsoleForROGit := !(ThisBuild / githubIsWorkflowBuild).value
+ThisBuild / useConsoleForROGit := !Option(System.getenv("CI")).contains("true")
 
 ThisBuild / git.gitUncommittedChanges := {
   if ((ThisBuild / githubIsWorkflowBuild).value) {
@@ -41,7 +41,7 @@ ThisBuild / git.gitUncommittedChanges := {
   }
 }
 
-ThisBuild / tlBaseVersion := "3.5"
+ThisBuild / tlBaseVersion := "3.6"
 ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
@@ -114,7 +114,7 @@ val MacOS = "macos-latest"
 
 val Scala212 = "2.12.17"
 val Scala213 = "2.13.10"
-val Scala3 = "3.2.1"
+val Scala3 = "3.2.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
@@ -292,7 +292,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.9.0"
-val Specs2Version = "4.19.0"
+val Specs2Version = "4.19.2"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
@@ -331,6 +331,7 @@ val nativeProjects: Seq[ProjectReference] =
 val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
     benchmarks,
+    stressTests,
     example.jvm,
     graalVMExample,
     tests.jvm,
@@ -359,7 +360,8 @@ lazy val rootJVM = project
     std.jvm,
     example.jvm,
     graalVMExample,
-    benchmarks)
+    benchmarks,
+    stressTests)
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project.aggregate(jsProjects: _*).enablePlugins(NoPublishPlugin)
@@ -383,6 +385,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[Problem]("cats.effect.kernel.GenConcurrent#Memoize*")
     )
   )
+  .disablePlugins(JCStressPlugin)
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
@@ -418,6 +421,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.kernel.testkit.TestContext#Task.copy")
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid jar file and
@@ -433,6 +437,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test)
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * Concrete, production-grade implementations of the abstractions. Or, more simply-put: IO. Also
@@ -605,7 +610,24 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // internal API change
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.CallbackStack.clearCurrent"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
+      // #3393, ContState is a private class:
+      ProblemFilters.exclude[MissingTypesProblem]("cats.effect.ContState"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
+      // #3393 and #3464, IOFiberConstants is a (package) private class/object:
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateInitial"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWaiting"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWinner"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateResult"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ExecuteRunnableR"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateResult")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -797,6 +819,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler$")
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
@@ -812,6 +835,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.specs2" %%% "specs2-core" % Specs2Version % Test
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
@@ -898,7 +922,23 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity")
+        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
+      // #3524, private class
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.std.MapRef#ConcurrentHashMapImpl.keys"),
+      // introduced by #3346
+      // private stuff
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Mutex$Impl"),
+      // introduced by #3347
+      // private stuff
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.AtomicCell$Impl"),
+      // introduced by #3409
+      // extracted UnsafeUnbounded private data structure
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded$Cell"),
+      // introduced by #3480
+      // adds method to sealed Hotswap
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get")
     )
   )
   .jsSettings(
@@ -913,6 +953,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom$")
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
@@ -950,5 +991,14 @@ lazy val benchmarks = project
       "-Dcats.effect.tracing.mode=none",
       "-Dcats.effect.tracing.exceptions.enhanced=false"))
   .enablePlugins(NoPublishPlugin, JmhPlugin)
+
+lazy val stressTests = project
+  .in(file("stress-tests"))
+  .dependsOn(core.jvm, std.jvm)
+  .settings(
+    name := "cats-effect-stress-tests",
+    Jcstress / version := "0.16",
+  )
+  .enablePlugins(NoPublishPlugin, JCStressPlugin)
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)

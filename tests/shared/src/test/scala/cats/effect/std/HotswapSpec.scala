@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package effect
 package std
 
 import cats.effect.kernel.Ref
+
+import scala.concurrent.duration._
 
 class HotswapSpec extends BaseSpec { outer =>
 
@@ -74,6 +76,33 @@ class HotswapSpec extends BaseSpec { outer =>
           res must beEqualTo(List("open a", "close a", "open b", "close b"))
         }
       }
+    }
+
+    "not release current resource while it is in use" in ticked { implicit ticker =>
+      val r = Resource.make(IO.ref(true))(_.set(false))
+      val go = Hotswap.create[IO, Ref[IO, Boolean]].use { hs =>
+        hs.swap(r) *> (IO.sleep(1.second) *> hs.clear).background.surround {
+          hs.get.use {
+            case Some(ref) =>
+              val notReleased = ref.get.flatMap(b => IO(b must beTrue))
+              notReleased *> IO.sleep(2.seconds) *> notReleased.void
+            case None => IO(false must beTrue).void
+          }
+        }
+      }
+
+      go must completeAs(())
+    }
+
+    "resource can be accessed concurrently" in ticked { implicit ticker =>
+      val go = Hotswap.create[IO, Unit].use { hs =>
+        hs.swap(Resource.unit) *>
+          hs.get.useForever.background.surround {
+            IO.sleep(1.second) *> hs.get.use_
+          }
+      }
+
+      go must completeAs(())
     }
   }
 
