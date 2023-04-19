@@ -239,12 +239,18 @@ private[std] abstract class ConsoleCompanionCrossPlatform {
 
     def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
       val text = a.show
-      F.blocking(System.out.print(text))
+      F.blocking {
+        System.out.print(text)
+        System.out.flush()
+      }
     }
 
     def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
       val text = a.show
-      F.blocking(System.out.println(text))
+      F.blocking {
+        System.out.println(text)
+        System.out.flush()
+      }
     }
 
     def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {

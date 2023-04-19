@@ -609,7 +609,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingTypesProblem]("cats.effect.ContState"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
-      // #3393, IOFiberConstants is a (package) private class/object:
+      // #3393 and #3464, IOFiberConstants is a (package) private class/object:
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateInitial"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
@@ -617,7 +617,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateWinner"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.IOFiberConstants.ContStateResult")
+        "cats.effect.IOFiberConstants.ContStateResult"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ExecuteRunnableR")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -897,7 +899,10 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity")
+        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
+      // #3524, private class
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.std.MapRef#ConcurrentHashMapImpl.keys")
     )
   )
   .jsSettings(

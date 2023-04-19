@@ -303,6 +303,28 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         action must completeAs(Nil)
       }
+
+      "report errors raised during unsafeRunAndForget" in ticked { implicit ticker =>
+        import cats.effect.unsafe.IORuntime
+        import scala.concurrent.Promise
+
+        def ec2(ec1: ExecutionContext, er: Promise[Boolean]) = new ExecutionContext {
+          def reportFailure(t: Throwable) = er.success(true)
+          def execute(r: Runnable) = ec1.execute(r)
+        }
+
+        val test = for {
+          ec <- IO.executionContext
+          errorReporter <- IO(Promise[Boolean]())
+          customRuntime = IORuntime
+            .builder()
+            .setCompute(ec2(ec, errorReporter), () => ())
+            .build()
+          _ <- IO(IO.raiseError(new RuntimeException).unsafeRunAndForget()(customRuntime))
+          reported <- IO.fromFuture(IO(errorReporter.future))
+        } yield reported
+        test must completeAs(true)
+      }
     }
 
     "suspension of side effects" should {
@@ -645,6 +667,25 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             _ <- g2.get
             _ <- f.cancel
           } yield ()) must completeAs(())
+        }
+      }
+
+      "raceOutcome" should {
+        "cancel both fibers" in ticked { implicit ticker =>
+          (for {
+            l <- Ref.of[IO, Boolean](false)
+            r <- Ref.of[IO, Boolean](false)
+            fiber <-
+              IO.never[Int]
+                .onCancel(l.set(true))
+                .raceOutcome(IO.never[Int].onCancel(r.set(true)))
+                .start
+            _ <- IO(ticker.ctx.tick())
+            _ <- fiber.cancel
+            _ <- IO(ticker.ctx.tick())
+            l2 <- l.get
+            r2 <- r.get
+          } yield l2 -> r2) must completeAs(true -> true)
         }
       }
 
@@ -1706,7 +1747,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
     }
 
     "produce a specialized version of Deferred" in real {
-      IO.deferred[Unit].flatMap(d => IO((d must haveClass[IODeferred[_]]).pendingUntilFixed))
+      IO.deferred[Unit].flatMap(d => IO(d must haveClass[IODeferred[_]]))
     }
 
     platformSpecs

@@ -26,7 +26,7 @@ import scala.concurrent.{BlockContext, CanAwait}
 import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
 
-import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
+import java.util.concurrent.{LinkedTransferQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
 
@@ -95,7 +95,7 @@ private final class WorkerThread(
    */
   private[this] var _active: Runnable = _
 
-  private val indexTransfer: ArrayBlockingQueue[Integer] = new ArrayBlockingQueue(1)
+  private val indexTransfer: LinkedTransferQueue[Integer] = new LinkedTransferQueue()
   private[this] val runtimeBlockingExpiration: Duration = pool.runtimeBlockingExpiration
 
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
@@ -633,6 +633,14 @@ private final class WorkerThread(
       // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
 
+      // We'll transfer our local queue to the new/cached thread;
+      // don't forget to also transfer our cede bypass (if any):
+      val bypass = cedeBypass
+      if (bypass ne null) {
+        queue.enqueue(bypass, external, random)
+        cedeBypass = null
+      }
+
       // Logically enter the blocking region.
       blocking = true
 
@@ -646,7 +654,7 @@ private final class WorkerThread(
         val idx = index
         pool.replaceWorker(idx, cached)
         // Transfer the data structures to the cached thread and wake it up.
-        cached.indexTransfer.offer(idx)
+        cached.indexTransfer.transfer(idx)
       } else {
         // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
         // transfer ownership of the local queue and the parked signal to the new
