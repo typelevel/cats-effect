@@ -30,9 +30,10 @@ import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
   CountDownLatch,
-  Executors
+  Executors,
+  ThreadLocalRandom
 }
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
@@ -369,6 +370,50 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         } finally {
           runtime.shutdown()
         }
+      }
+
+      "random racing sleeps" in real {
+        def randomSleep: IO[Unit] = IO.defer {
+          val n = ThreadLocalRandom.current().nextInt(2000000)
+          IO.sleep(n.micros) // less than 2 seconds
+        }
+
+        def raceAll(ios: List[IO[Unit]]): IO[Unit] = {
+          ios match {
+            case head :: tail => tail.foldLeft(head) { (x, y) => IO.race(x, y).void }
+            case Nil => IO.unit
+          }
+        }
+
+        // we race a lot of "sleeps", it must not hang
+        // (this includes inserting and cancelling
+        // a lot of callbacks into the skip list,
+        // thus hopefully stressing the data structure):
+        List
+          .fill(500) {
+            raceAll(List.fill(500) { randomSleep })
+          }
+          .parSequence_
+          .as(ok)
+      }
+
+      "steal timers" in realWithRuntime { rt =>
+        IO.both(
+          IO.sleep(1100.millis).parReplicateA_(16), // just to keep some workers awake
+          IO {
+            // The `WorkerThread` which executes this IO
+            // will never exit the `while` loop, unless
+            // the timer is triggered, so it will never
+            // be able to trigger the timer itself. The
+            // only way this works is if some other worker
+            // steals the the timer.
+            val flag = new AtomicBoolean(false)
+            val _ = rt.scheduler.sleep(1000.millis, () => { flag.set(true) })
+            while (!flag.get()) {
+              ;
+            }
+          }
+        ).as(ok)
       }
 
       "not lose cedeing threads from the bypass when blocker transitioning" in {

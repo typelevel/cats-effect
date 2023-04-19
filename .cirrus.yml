@@ -7,7 +7,7 @@ jvm_highcore_task:
     - name: JVM high-core-count 2.12
       script: sbt '++ 2.12' testsJVM/test
     - name: JVM high-core-count 2.13
-      script: sbt '++ 2.13' testsJVM/test
+      script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
     - name: JVM high-core-count 3
       script: sbt '++ 3' testsJVM/test
 
@@ -20,7 +20,7 @@ jvm_arm_highcore_task:
     - name: JVM ARM high-core-count 2.12
       script: sbt '++ 2.12' testsJVM/test
     - name: JVM ARM high-core-count 2.13
-      script: sbt '++ 2.13' testsJVM/test
+      script: sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
     - name: JVM ARM high-core-count 3
       script: sbt '++ 3' testsJVM/test
 
