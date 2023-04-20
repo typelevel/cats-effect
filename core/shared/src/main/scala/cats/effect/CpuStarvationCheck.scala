@@ -47,11 +47,11 @@ private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
   }
 
   private[this] def mkWarning(threshold: Duration)(when: FiniteDuration) =
-    s"""|${format(when)} [WARNING] Your app's responsiveness to a new asynchronous 
-        |event (such as a new connection, an upstream response, or a timer) was in excess
-        |of $threshold. Your CPU is probably starving. Consider increasing the 
-        |granularity of your delays or adding more cedes. This may also be a sign that you
-        |are unintentionally running blocking I/O operations (such as File or InetAddress)
-        |without the blocking combinator.""".stripMargin
+    s"""|${format(when)} [WARNING] Your app's responsiveness to a new asynchronous
+        | event (such as a new connection, an upstream response, or a timer) was in excess
+        | of $threshold. Your CPU is probably starving. Consider increasing the
+        | granularity of your delays or adding more cedes. This may also be a sign that you
+        | are unintentionally running blocking I/O operations (such as File or InetAddress)
+        | without the blocking combinator.""".stripMargin.replaceAll(System.lineSeparator(), "")
 
 }
