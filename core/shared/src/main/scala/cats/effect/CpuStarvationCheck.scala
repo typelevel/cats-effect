@@ -52,6 +52,6 @@ private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
         | of $threshold. Your CPU is probably starving. Consider increasing the
         | granularity of your delays or adding more cedes. This may also be a sign that you
         | are unintentionally running blocking I/O operations (such as File or InetAddress)
-        | without the blocking combinator.""".stripMargin.replaceAll(System.lineSeparator(), "")
+        | without the blocking combinator.""".stripMargin.replaceAll("\n", "")
 
 }

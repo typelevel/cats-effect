@@ -43,7 +43,7 @@ private[effect] object JvmCpuStarvationMetrics {
     s"""[WARNING] Failed to register Cats Effect CPU starvation MBean, proceeding with
        | no-operation versions. You will not see MBean metrics for CPU starvation.
        | Exception follows: ${exceptionWriter.toString}
-       |""".stripMargin.replaceAll(System.lineSeparator(), "")
+       |""".stripMargin.replaceAll("\n", "")
   }
 
   private[this] class NoOpCpuStarvationMetrics extends CpuStarvationMetrics {
