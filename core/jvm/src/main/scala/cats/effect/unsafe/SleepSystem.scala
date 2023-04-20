@@ -41,6 +41,8 @@ object SleepSystem extends PollingSystem {
     false
   }
 
+  def needsPoll(poller: Poller): Boolean = false
+
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit =
     LockSupport.unpark(targetThread)
 

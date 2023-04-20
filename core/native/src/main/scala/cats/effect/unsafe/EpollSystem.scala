@@ -56,6 +56,8 @@ object EpollSystem extends PollingSystem {
   def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
     poller.poll(nanos)
 
+  def needsPoll(poller: Poller): Boolean = poller.needsPoll()
+
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
   final class GlobalPollingState private[EpollSystem] (register: (Poller => Unit) => Unit)
@@ -184,6 +186,7 @@ object EpollSystem extends PollingSystem {
         false // nothing to do here
       else {
         val events = stackalloc[epoll_event](MaxEvents.toLong)
+        var polled = false
 
         @tailrec
         def processEvents(timeout: Int): Unit = {
@@ -191,6 +194,8 @@ object EpollSystem extends PollingSystem {
           val triggeredEvents = epoll_wait(epfd, events, MaxEvents, timeout)
 
           if (triggeredEvents >= 0) {
+            polled = true
+
             var i = 0
             while (i < triggeredEvents) {
               val event = events + i.toLong
@@ -214,6 +219,8 @@ object EpollSystem extends PollingSystem {
         !handles.isEmpty()
       }
     }
+
+    private[EpollSystem] def needsPoll(): Boolean = !handles.isEmpty()
 
     private[EpollSystem] def register(
         fd: Int,

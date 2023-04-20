@@ -325,14 +325,17 @@ private final class WorkerThread(
     def park(): Int = {
       val tt = sleepers.peekFirstTriggerTime()
       val nextState = if (tt == MIN_VALUE) { // no sleepers
-        parkLoop()
-
-        // After the worker thread has been unparked, look for work in the
-        // external queue.
-        3
+        if (parkLoop()) {
+          // we polled something, so go straight to local queue stuff
+          pool.transitionWorkerFromSearching(rnd)
+          4
+        } else {
+          // we were interrupted, look for more work in the external queue
+          3
+        }
       } else {
         if (parkUntilNextSleeper()) {
-          // we made it to the end of our sleeping, so go straight to local queue stuff
+          // we made it to the end of our sleeping/polling, so go straight to local queue stuff
           pool.transitionWorkerFromSearching(rnd)
           4
         } else {
@@ -357,22 +360,24 @@ private final class WorkerThread(
       }
     }
 
-    def parkLoop(): Unit = {
-      var cont = true
-      while (cont && !done.get()) {
+    // returns true if polled event, false if unparked
+    def parkLoop(): Boolean = {
+      while (!done.get()) {
         // Park the thread until further notice.
-        system.poll(_poller, -1, reportFailure)
+        val polled = system.poll(_poller, -1, reportFailure)
 
         // the only way we can be interrupted here is if it happened *externally* (probably sbt)
         if (isInterrupted())
           pool.shutdown()
-        else
-          // Spurious wakeup check.
-          cont = parked.get()
+        else if (polled || !parked.get()) // Spurious wakeup check.
+          return polled
+        else // loop
+          ()
       }
+      false
     }
 
-    // returns true if timed out, false if unparked
+    // returns true if timed out or polled event, false if unparked
     @tailrec
     def parkUntilNextSleeper(): Boolean = {
       if (done.get()) {
@@ -382,22 +387,21 @@ private final class WorkerThread(
         if (triggerTime == MIN_VALUE) {
           // no sleeper (it was removed)
           parkLoop()
-          true
         } else {
           val now = System.nanoTime()
           val nanos = triggerTime - now
 
           if (nanos > 0L) {
-            system.poll(_poller, nanos, reportFailure)
+            val polled = system.poll(_poller, nanos, reportFailure)
 
             if (isInterrupted()) {
               pool.shutdown()
               false // we know `done` is `true`
             } else {
               if (parked.get()) {
-                // we were either awakened spuriously, or we timed out
-                if (triggerTime - System.nanoTime() <= 0) {
-                  // we timed out
+                // we were either awakened spuriously, or we timed out or polled an event
+                if (polled || (triggerTime - System.nanoTime() <= 0)) {
+                  // we timed out or polled an event
                   if (parked.getAndSet(false)) {
                     pool.doneSleeping()
                   }

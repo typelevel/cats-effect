@@ -41,6 +41,8 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
     else selector.select()
 
     if (selector.isOpen()) { // closing selector interrupts select
+      var polled = false
+
       val ready = selector.selectedKeys().iterator()
       while (ready.hasNext()) {
         val key = ready.next()
@@ -59,6 +61,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
             val cb = node.callback
             if (cb != null) cb(value)
             if (prev ne null) prev.next = next
+            polled = true
           } else { // keep this node
             prev = node
             if (head eq null)
@@ -76,6 +79,9 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
       !selector.keys().isEmpty()
     } else false
   }
+
+  def needsPoll(poller: Poller): Boolean =
+    !poller.selector.keys().isEmpty()
 
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit = {
     targetPoller.selector.wakeup()

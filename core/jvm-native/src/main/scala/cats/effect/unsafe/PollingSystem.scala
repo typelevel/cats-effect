@@ -44,9 +44,15 @@ abstract class PollingSystem {
    *   currently hard-coded into every test framework, including MUnit, specs2, and Weaver.
    *
    * @return
-   *   whether poll should be called again (i.e., there are more events to be polled)
+   *   whether any events were polled
    */
   def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean
+
+  /**
+   * @return
+   *   whether poll should be called again (i.e., there are more events to be polled)
+   */
+  def needsPoll(poller: Poller): Boolean
 
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit
 

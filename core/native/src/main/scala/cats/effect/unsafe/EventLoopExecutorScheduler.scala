@@ -119,9 +119,9 @@ private[effect] final class EventLoopExecutorScheduler(pollEvery: Int, system: P
         else
           -1
 
-      val needsPoll = system.poll(poller, timeout, reportFailure)
+      system.poll(poller, timeout, reportFailure)
 
-      continue = needsPoll || !executeQueue.isEmpty() || !sleepQueue.isEmpty()
+      continue = !executeQueue.isEmpty() || !sleepQueue.isEmpty() || system.needsPoll(poller)
     }
 
     needsReschedule = true

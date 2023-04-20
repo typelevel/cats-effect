@@ -56,6 +56,9 @@ object KqueueSystem extends PollingSystem {
   def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
     poller.poll(nanos)
 
+  def needsPoll(poller: Poller): Boolean =
+    poller.needsPoll()
+
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
   final class GlobalPollingState private[KqueueSystem] (
@@ -167,6 +170,7 @@ object KqueueSystem extends PollingSystem {
       else {
 
         val eventlist = stackalloc[kevent64_s](MaxEvents.toLong)
+        var polled = false
 
         @tailrec
         def processEvents(timeout: Ptr[timespec], changeCount: Int, flags: Int): Unit = {
@@ -183,6 +187,8 @@ object KqueueSystem extends PollingSystem {
             )
 
           if (triggeredEvents >= 0) {
+            polled = true
+
             var i = 0
             var event = eventlist
             while (i < triggeredEvents) {
@@ -226,6 +232,7 @@ object KqueueSystem extends PollingSystem {
       }
     }
 
+    def needsPoll(): Boolean = !callbacks.isEmpty()
   }
 
   @nowarn212

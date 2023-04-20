@@ -30,11 +30,19 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
     new PollingSystem {
       type GlobalPollingState = outer.type
       type Poller = outer.type
+      private[this] var needsPoll = true
       def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState = outer
       def makePoller(): Poller = outer
       def closePoller(poller: Poller): Unit = ()
-      def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
-        if (nanos == -1) poller.poll(Duration.Inf) else poller.poll(nanos.nanos)
+      def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+        needsPoll =
+          if (nanos == -1)
+            poller.poll(Duration.Inf)
+          else
+            poller.poll(nanos.nanos)
+        true
+      }
+      def needsPoll(poller: Poller) = needsPoll
       def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
     }
   )
