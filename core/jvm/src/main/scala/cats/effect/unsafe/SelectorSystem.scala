@@ -59,9 +59,11 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
 
           if ((node.interest & readyOps) != 0) { // execute callback and drop this node
             val cb = node.callback
-            if (cb != null) cb(value)
+            if (cb != null) {
+              cb(value)
+              polled = true
+            }
             if (prev ne null) prev.next = next
-            polled = true
           } else { // keep this node
             prev = node
             if (head eq null)
@@ -76,7 +78,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
         key.attach(head)
       }
 
-      !selector.keys().isEmpty()
+      polled
     } else false
   }
 
