@@ -438,6 +438,7 @@ private final class WorkerThread(
         sleepers = null
         parked = null
         fiberBag = null
+        _active = null
         _poller = null.asInstanceOf[system.Poller]
 
         // Add this thread to the cached threads data structure, to be picked up
