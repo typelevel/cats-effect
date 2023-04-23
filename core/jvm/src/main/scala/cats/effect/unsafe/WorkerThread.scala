@@ -369,9 +369,12 @@ private final class WorkerThread(
         // the only way we can be interrupted here is if it happened *externally* (probably sbt)
         if (isInterrupted())
           pool.shutdown()
-        else if (polled || !parked.get()) // Spurious wakeup check.
+        else if (polled || !parked.get()) { // Spurious wakeup check.
+          if (parked.getAndSet(false)) {
+            pool.doneSleeping()
+          }
           return polled
-        else // loop
+        } else // loop
           ()
       }
       false
