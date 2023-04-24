@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 
 final class MutexSpec extends BaseSpec {
 
-  final override def executionTimeout = 10.minutes
+  final override def executionTimeout = 1.minute
 
   "ConcurrentMutex" should {
     tests(Mutex.concurrent[IO])
