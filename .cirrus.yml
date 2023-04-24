@@ -24,6 +24,25 @@ jvm_arm_highcore_task:
     - name: JVM ARM high-core-count 3
       script: sbt '++ 3' testsJVM/test
 
+jvm_macos_highcore_task:
+  macos_instance:
+    image: ghcr.io/cirruslabs/macos-ventura-base:latest
+    cpu: 4
+    memory: 8G
+  matrix:
+    - name: JVM Apple Silicon high-core-count 2.12
+      script: 
+        - brew install sbt
+        - sbt '++ 2.12' testsJVM/test
+    - name: JVM Apple Silicon high-core-count 2.13
+      script:
+        - brew install sbt
+        - sbt '++ 2.13' testsJVM/test stressTests/Jcstress/run
+    - name: JVM Apple Silicon high-core-count 3
+      script:
+        - brew install sbt
+        - sbt '++ 3' testsJVM/test
+
 native_arm_task:
   arm_container:
     dockerfile: .cirrus/Dockerfile
