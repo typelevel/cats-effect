@@ -101,8 +101,8 @@ object Mutex {
     private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Boolean] => Unit]
     private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
-    private[this] val acquire: F[Unit] = F
-      .asyncCheckAttempt[Boolean] { cb =>
+    private[this] val acquire: F[Unit] = F.uncancelable { poll =>
+      poll(F.asyncCheckAttempt[Boolean] { cb =>
         F.delay {
           if (locked.compareAndSet(false, true)) { // acquired
             RightTrue
@@ -116,11 +116,12 @@ object Mutex {
             }
           }
         }
-      }
+      })
       .flatMap { acquired =>
         if (acquired) F.unit // home free
         else acquire // wokened, but need to acquire
       }
+    }
 
     private[this] val _release: F[Unit] = F.delay {
       try { // look for a waiter
