@@ -127,5 +127,22 @@ final class MutexSpec extends BaseSpec {
     "not deadlock when highly contended" in real {
       mutex.flatMap(_.lock.use_.parReplicateA_(10)).replicateA_(10000).as(true)
     }
+
+    "handle cancelled acquire" in real {
+      val t = mutex.flatMap { m =>
+        val short = m.lock.use { _ => IO.sleep(5.millis) }
+        val long = m.lock.use { _ => IO.sleep(50.millis) }
+        val tsk = IO.race(short, long).flatMap { _ =>
+          // this will hang if a cancelled
+          // acquire left the mutex in an
+          // invalid state:
+          m.lock.use_
+        }
+
+        tsk.replicateA_(1000)
+      }
+
+      t mustEqual (())
+    }
   }
 }
