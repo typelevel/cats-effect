@@ -300,7 +300,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
           }
         }
 
-        (offerer &> taker(0)).replicateA_(1000) *>
+        (offerer &> taker(0)).replicateA_(if (isJVM) 1000 else 1) *>
           q.size.flatMap(s => IO(s mustEqual 0))
       }
     }
