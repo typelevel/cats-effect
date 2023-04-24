@@ -48,6 +48,13 @@ class PureConcSpec extends Specification with Discipline with BaseSpec {
       pure.run((F.raiseError[Unit](42), F.never[Unit]).parTupled) mustEqual Outcome.Errored(42)
     }
 
+    "short-circuit on canceled" in {
+      pure.run((F.never[Unit], F.canceled).parTupled.start.flatMap(_.join)) mustEqual Outcome
+        .Succeeded(Some(Outcome.canceled[F, Nothing, Unit]))
+      pure.run((F.canceled, F.never[Unit]).parTupled.start.flatMap(_.join)) mustEqual Outcome
+        .Succeeded(Some(Outcome.canceled[F, Nothing, Unit]))
+    }
+
     "not run forever on chained product" in {
       import cats.effect.kernel.Par.ParallelF
 
