@@ -27,7 +27,7 @@ import org.specs2.matcher.Matcher
 import org.specs2.mutable.SpecificationLike
 import org.specs2.specification.core.Execution
 
-import scala.concurrent.{Future, Promise, TimeoutException}
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
@@ -105,7 +105,7 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
     val r = runtime()
     implicit val ec = r.compute
 
-    val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TimeoutException); () })
+    val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TestTimeoutException); () })
 
     f.onComplete { result =>
       p.tryComplete(result)
@@ -115,3 +115,5 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
     p.future
   }
 }
+
+class TestTimeoutException extends Exception
