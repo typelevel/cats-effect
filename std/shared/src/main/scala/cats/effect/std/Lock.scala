@@ -16,9 +16,24 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.Resource
+import cats.effect.kernel.{Concurrent, Poll, Resource}
+import cats.syntax.functor._
 
 abstract class Lock[F[_]] {
   def shared: Resource[F, Unit]
   def exclusive: Resource[F, Unit]
+}
+
+object Lock {
+  def apply[F[_]: Concurrent]: F[Lock[F]] = apply(Long.MaxValue)
+
+  def apply[F[_]: Concurrent](maxShared: Long): F[Lock[F]] =
+    Semaphore[F](maxShared).map { semaphore =>
+      new Lock[F] {
+        override def shared: Resource[F, Unit] = semaphore.permit
+        override def exclusive: Resource[F, Unit] =
+          Resource.makeFull((poll: Poll[F]) => poll(semaphore.acquireN(maxShared)))(_ =>
+            semaphore.releaseN(maxShared))
+      }
+    }
 }

@@ -51,7 +51,7 @@ import cats.syntax.all._
  *
  * Ported from https://github.com/typelevel/fs2.
  */
-sealed trait Hotswap[F[_], R] extends Lock[F] {
+sealed trait Hotswap[F[_], R] {
 
   /**
    * Allocates a new resource, closes the previous one if it exists, and returns the newly
@@ -121,6 +121,12 @@ object Hotswap {
       def raise(message: String): F[Unit] =
         F.raiseError[Unit](new RuntimeException(message))
 
+      def shared: Resource[F, Unit] = semaphore.permit
+
+      def exclusive: Resource[F, Unit] =
+        Resource.makeFull[F, Unit](poll => poll(semaphore.acquireN(Long.MaxValue)))(_ =>
+          semaphore.releaseN(Long.MaxValue))
+
       Resource.make(initialize)(finalize).map { state =>
         new Hotswap[F, R] {
 
@@ -144,12 +150,6 @@ object Hotswap {
 
           override def clear: F[Unit] =
             exclusive.surround(swapFinalizer(Cleared).uncancelable)
-
-          override def shared: Resource[F, Unit] = semaphore.permit
-
-          override def exclusive: Resource[F, Unit] =
-            Resource.makeFull[F, Unit](poll => poll(semaphore.acquireN(Long.MaxValue)))(_ =>
-              semaphore.releaseN(Long.MaxValue))
 
           private def swapFinalizer(next: State): F[Unit] =
             state.modify {
