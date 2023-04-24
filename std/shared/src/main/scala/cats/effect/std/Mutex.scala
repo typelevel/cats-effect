@@ -116,8 +116,7 @@ object Mutex {
             }
           }
         }
-      })
-      .flatMap { acquired =>
+      }).flatMap { acquired =>
         if (acquired) F.unit // home free
         else acquire // wokened, but need to acquire
       }
