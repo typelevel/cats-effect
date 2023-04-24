@@ -243,7 +243,8 @@ class RandomSpec extends BaseSpec {
 
     "shuffleList" >> {
       "shuffle a list" in real {
-        val sampleSize: Int = 10000 // In case of modification, consider the probability of error
+        val sampleSize: Int =
+          10000 // In case of modification, consider the probability of error
         val list: List[Int] = (1 to sampleSize).toList
         for {
           random <- randomGen
