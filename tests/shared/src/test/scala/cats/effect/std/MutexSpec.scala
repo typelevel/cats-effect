@@ -25,7 +25,7 @@ import org.specs2.specification.core.Fragments
 
 import scala.concurrent.duration._
 
-final class MutexSpec extends BaseSpec {
+final class MutexSpec extends BaseSpec with DetectPlatform {
 
   final override def executionTimeout = 1.minute
 
@@ -142,7 +142,7 @@ final class MutexSpec extends BaseSpec {
           m.lock.use_
         }
 
-        tsk.replicateA_(5000)
+        tsk.replicateA_(if (isJS || isNative) 5 else 5000)
       }
 
       t mustEqual (())
