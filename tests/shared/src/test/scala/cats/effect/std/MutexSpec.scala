@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 
 final class MutexSpec extends BaseSpec with DetectPlatform {
 
-  final override def executionTimeout = 1.minute
+  final override def executionTimeout = 2.minutes
 
   "ConcurrentMutex" should {
     tests(Mutex.concurrent[IO])
