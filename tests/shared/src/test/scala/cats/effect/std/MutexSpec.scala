@@ -145,7 +145,7 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
         tsk.replicateA_(if (isJS || isNative) 5 else 5000)
       }
 
-      t mustEqual (())
+      t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
     }
   }
 }
