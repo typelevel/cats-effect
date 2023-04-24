@@ -275,7 +275,8 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       } yield errorReporter
 
       test
-        .use(t => IO.fromFuture(IO(t.future)).timeoutTo(1.second, IO.pure(false)))
+        .use(t =>
+          IO.fromFutureCancelable(IO((t.future, IO.unit))).timeoutTo(1.second, IO.pure(false)))
         .flatMap(t => IO(t mustEqual true))
     }
 
@@ -297,7 +298,9 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       } yield errorReporter
 
       test.use(t =>
-        IO.fromFuture(IO(t.future)).timeout(1.second).mustFailWith[TimeoutException])
+        IO.fromFutureCancelable(IO((t.future, IO.unit)))
+          .timeout(1.second)
+          .mustFailWith[TimeoutException])
     }
 
     "respect self-cancelation" in real {
