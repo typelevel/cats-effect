@@ -105,7 +105,8 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
     val r = runtime()
     implicit val ec = r.compute
 
-    val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TestTimeoutException); () })
+    val cancel =
+      r.scheduler.sleep(duration, { () => p.tryFailure(new TestTimeoutException); () })
 
     f.onComplete { result =>
       p.tryComplete(result)
