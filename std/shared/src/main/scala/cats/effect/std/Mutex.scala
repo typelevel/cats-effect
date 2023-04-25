@@ -21,6 +21,8 @@ package std
 import cats.effect.kernel._
 import cats.syntax.all._
 
+import scala.annotation.tailrec
+
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -102,42 +104,38 @@ object Mutex {
     private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
     private[this] val acquire: F[Unit] = F.uncancelable { poll =>
-      poll(F.asyncCheckAttempt[Boolean] { cb =>
-        F.delay {
-          if (locked.compareAndSet(false, true)) { // acquired
-            RightTrue
-          } else {
-            val cancel = waiters.put(cb)
-            if (locked.compareAndSet(false, true)) { // try again
-              cancel()
+      F.onCancel(
+        poll(F.asyncCheckAttempt[Boolean] { cb =>
+          F.delay {
+            if (locked.compareAndSet(false, true)) { // acquired
               RightTrue
             } else {
-              Left(Some(F.delay(cancel())))
+              val cancel = waiters.put(cb)
+              if (locked.compareAndSet(false, true)) { // try again
+                cancel()
+                RightTrue
+              } else {
+                Left(Some(F.delay(cancel())))
+              }
             }
           }
-        }
-      }).flatMap { acquired =>
-        if (acquired) F.unit // home free
-        else acquire // wokened, but need to acquire
-      }
+        }).flatMap { acquired =>
+          if (acquired) F.unit // home free
+          else poll(acquire) // wokened, but need to acquire
+        },
+        // If we were cancelled, that could mean
+        // a lost wakeup from `release`, so we
+        // wake up someone else instead of us;
+        // the worst that could happen is an
+        // unnecessary wakeup, which causes a
+        // waiter to go to the end of the queue:
+        F.delay(notifyOne())
+      )
     }
 
     private[this] val _release: F[Unit] = F.delay {
-      try { // look for a waiter
-        var waiter = waiters.take()
-        while (waiter eq null) waiter = waiters.take()
-        waiter(RightTrue) // pass the buck
-      } catch { // no waiter found
-        case FailureSignal =>
-          locked.set(false) // release
-          try {
-            var waiter = waiters.take()
-            while (waiter eq null) waiter = waiters.take()
-            waiter(RightFalse) // waken any new waiters
-          } catch {
-            case FailureSignal => // do nothing
-          }
-      }
+      locked.set(false) // release
+      notifyOne() // try to wake someone
     }
 
     private[this] val release: Unit => F[Unit] = _ => _release
@@ -147,6 +145,32 @@ object Mutex {
 
     override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Mutex[G] =
       new Mutex.TransformedMutex(this, f)
+
+    @tailrec
+    private[this] final def notifyOne(): Unit = {
+      val retry =
+        try {
+          val waiter = waiters.take()
+          if (waiter ne null) {
+            // wake the waiter; we don't
+            // pass `true`, so it has to
+            // go through the normal acquire,
+            // so its cancellation is handled
+            // properly:
+            waiter(RightFalse)
+            false
+          } else {
+            true
+          }
+        } catch {
+          case FailureSignal =>
+            false
+        }
+
+      if (retry) {
+        notifyOne()
+      }
+    }
   }
 
   private object AsyncImpl {
