@@ -21,9 +21,7 @@ package std
 import cats.effect.kernel._
 import cats.syntax.all._
 
-import scala.annotation.tailrec
-
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A purely functional mutex.
@@ -86,7 +84,9 @@ object Mutex {
    * Creates a new `Mutex`. Like `apply` but initializes state using another effect constructor.
    */
   def in[F[_], G[_]](implicit F: Sync[F], G: Async[G]): F[Mutex[G]] =
-    F.delay(new AsyncImpl[G])
+    F.delay(
+      new AtomicReference[AsyncImpl.LockCell]()
+    ).map(state => new AsyncImpl[G](state)(G))
 
   private final class ConcurrentImpl[F[_]](sem: Semaphore[F]) extends Mutex[F] {
     override final val lock: Resource[F, Unit] =
@@ -96,86 +96,103 @@ object Mutex {
       new ConcurrentImpl(sem.mapK(f))
   }
 
-  private final class AsyncImpl[F[_]](implicit F: Async[F]) extends Mutex[F] {
-    import AsyncImpl._
+  private final class AsyncImpl[F[_]](
+      state: AtomicReference[AsyncImpl.LockCell]
+  )(
+      implicit F: Async[F]
+  ) extends Mutex[F] {
+    // Cancels a Fiber waiting for the Mutex.
+    private def cancel(
+        thisCB: AsyncImpl.CB,
+        thisCell: AsyncImpl.LockCell,
+        previousCell: AsyncImpl.LockCell
+    ): F[Unit] =
+      F.delay {
+        // If we are canceled.
+        // First, we check if the state still contains ourselves,
+        // if that is the case, we swap it with the previousCell.
+        // This ensures any consequent attempt to acquire the Mutex
+        // will register its callback on the appropriate cell.
+        // Additionally, that confirms there is no Fiber
+        // currently waiting for us.
+        if (!state.compareAndSet(thisCell, previousCell)) {
+          // Otherwise,
+          // it means we have a Fiber waiting for us.
+          // Thus, we need to tell the previous cell
+          // to awake that Fiber instead.
+          var nextCB = thisCell.get()
+          while (nextCB eq null) {
+            // There is a tiny fraction of time when
+            // the next cell has acquired ourselves,
+            // but hasn't registered itself yet.
+            // Thus, we spin loop until that happens
+            nextCB = thisCell.get()
+          }
+          if (!previousCell.compareAndSet(thisCB, nextCB)) {
+            // However, in case the previous cell had already completed,
+            // then the Mutex is free and we can awake our waiting fiber.
+            if (nextCB ne null) nextCB.apply(Either.unit)
+          }
+        }
+      }
 
-    private[this] val locked = new AtomicBoolean(false)
-    private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Boolean] => Unit]
-    private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
+    // Awaits until the Mutex is free.
+    private def await(thisCell: AsyncImpl.LockCell): F[Unit] =
+      F.asyncCheckAttempt[Unit] { thisCB =>
+        F.delay {
+          val previousCell = state.getAndSet(thisCell)
 
-    private[this] val acquire: F[Unit] = F.uncancelable { poll =>
-      F.onCancel(
-        poll(F.asyncCheckAttempt[Boolean] { cb =>
-          F.delay {
-            if (locked.compareAndSet(false, true)) { // acquired
-              RightTrue
+          if (previousCell eq null) {
+            // If the previous cell was null,
+            // then the Mutex is free.
+            Either.unit
+          } else {
+            // Otherwise,
+            // we check again that the previous cell haven't been completed yet,
+            // if not we tell the previous cell to awake us when they finish.
+            if (!previousCell.compareAndSet(null, thisCB)) {
+              // If it was already completed,
+              // then the Mutex is free.
+              Either.unit
             } else {
-              val cancel = waiters.put(cb)
-              if (locked.compareAndSet(false, true)) { // try again
-                cancel()
-                RightTrue
-              } else {
-                Left(Some(F.delay(cancel())))
-              }
+              Left(Some(cancel(thisCB, thisCell, previousCell)))
             }
           }
-        }).flatMap { acquired =>
-          if (acquired) F.unit // home free
-          else poll(acquire) // wokened, but need to acquire
-        },
-        // If we were cancelled, that could mean
-        // a lost wakeup from `release`, so we
-        // wake up someone else instead of us;
-        // the worst that could happen is an
-        // unnecessary wakeup, which causes a
-        // waiter to go to the end of the queue:
-        F.delay(notifyOne())
-      )
-    }
+        }
+      }
 
-    private[this] val _release: F[Unit] = F.delay {
-      locked.set(false) // release
-      notifyOne() // try to wake someone
-    }
+    // Acquires the Mutex.
+    private def acquire(poll: Poll[F]): F[AsyncImpl.LockCell] =
+      F.delay(new AtomicReference[AsyncImpl.CB]()).flatMap { thisCell =>
+        poll(await(thisCell).map(_ => thisCell))
+      }
 
-    private[this] val release: Unit => F[Unit] = _ => _release
+    // Releases the Mutex.
+    private def release(thisCell: AsyncImpl.LockCell): F[Unit] =
+      F.delay {
+        // If the state still contains our own cell,
+        // then it means nobody was waiting for the Mutex,
+        // and thus it can be put on a free state again.
+        if (!state.compareAndSet(thisCell, null)) {
+          // Otherwise,
+          // our cell is probably not empty,
+          // we must awake whatever Fiber is waiting for us.
+          val nextCB = thisCell.getAndSet(AsyncImpl.Sentinel)
+          if (nextCB ne null) nextCB.apply(Either.unit)
+        }
+      }
 
     override final val lock: Resource[F, Unit] =
-      Resource.makeFull[F, Unit](poll => poll(acquire))(release)
+      Resource.makeFull[F, AsyncImpl.LockCell](acquire)(release).void
 
     override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Mutex[G] =
       new Mutex.TransformedMutex(this, f)
-
-    @tailrec
-    private[this] final def notifyOne(): Unit = {
-      val retry =
-        try {
-          val waiter = waiters.take()
-          if (waiter ne null) {
-            // wake the waiter; we don't
-            // pass `true`, so it has to
-            // go through the normal acquire,
-            // so its cancellation is handled
-            // properly:
-            waiter(RightFalse)
-            false
-          } else {
-            true
-          }
-        } catch {
-          case FailureSignal =>
-            false
-        }
-
-      if (retry) {
-        notifyOne()
-      }
-    }
   }
 
-  private object AsyncImpl {
-    private val RightTrue = Right(true)
-    private val RightFalse = Right(false)
+  object AsyncImpl {
+    private[Mutex] type CB = Either[Throwable, Unit] => Unit
+    private[Mutex] final val Sentinel: CB = _ => ()
+    private[Mutex] type LockCell = AtomicReference[CB]
   }
 
   private final class TransformedMutex[F[_], G[_]](
