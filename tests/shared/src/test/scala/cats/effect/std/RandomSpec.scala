@@ -173,7 +173,7 @@ class RandomSpec extends BaseSpec {
           mean = gaussians.sum / sampleSize
           variance = gaussians.map(x => math.pow(x - mean, 2)).sum / sampleSize
           stddev = math.sqrt(variance)
-        } yield math.abs(mean).isFinite && math.abs(stddev - 1.0).isFinite
+        } yield java.lang.Double.isFinite(mean) && java.lang.Double.isFinite(stddev)
       }
     }
 
