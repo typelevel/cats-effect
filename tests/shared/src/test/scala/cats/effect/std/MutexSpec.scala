@@ -25,7 +25,10 @@ import org.specs2.specification.core.Fragments
 
 import scala.concurrent.duration._
 
-final class MutexSpec extends BaseSpec {
+final class MutexSpec extends BaseSpec with DetectPlatform {
+
+  final override def executionTimeout = 2.minutes
+
   "ConcurrentMutex" should {
     tests(Mutex.concurrent[IO])
   }
@@ -131,18 +134,18 @@ final class MutexSpec extends BaseSpec {
     "handle cancelled acquire" in real {
       val t = mutex.flatMap { m =>
         val short = m.lock.use { _ => IO.sleep(5.millis) }
-        val long = m.lock.use { _ => IO.sleep(50.millis) }
-        val tsk = IO.race(short, long).flatMap { _ =>
+        val long = m.lock.use { _ => IO.sleep(20.millis) }
+        val tsk = IO.race(IO.race(short, short), IO.race(long, long)).flatMap { _ =>
           // this will hang if a cancelled
           // acquire left the mutex in an
           // invalid state:
           m.lock.use_
         }
 
-        tsk.replicateA_(1000)
+        tsk.replicateA_(if (isJS || isNative) 5 else 3000)
       }
 
-      t mustEqual (())
+      t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
     }
   }
 }
