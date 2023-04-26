@@ -21,6 +21,8 @@ package std
 import cats.effect.kernel._
 import cats.syntax.all._
 
+import java.util.concurrent.atomic.AtomicReference
+
 /**
  * A purely functional mutex.
  *
@@ -82,7 +84,16 @@ object Mutex {
    * Creates a new `Mutex`. Like `apply` but initializes state using another effect constructor.
    */
   def in[F[_], G[_]](implicit F: Sync[F], G: Async[G]): F[Mutex[G]] =
-    Ref.in[F, G, AsyncImpl.LockChain](AsyncImpl.Empty).map(state => new AsyncImpl[G](state))
+    F.delay {
+      val initialCell =
+        AsyncImpl
+          .LockChainCell
+          .create[G](
+            new AtomicReference(
+              AsyncImpl.LockChainCell.Sentinel
+            ))
+      new AtomicReference(initialCell)
+    }.map { state => new AsyncImpl[G](state) }
 
   private final class ConcurrentImpl[F[_]](sem: Semaphore[F]) extends Mutex[F] {
     override final val lock: Resource[F, Unit] =
@@ -93,38 +104,80 @@ object Mutex {
   }
 
   private final class AsyncImpl[F[_]](
-      state: Ref[F, AsyncImpl.LockChain]
+      state: AtomicReference[AsyncImpl.LockChainCell[F]]
   )(
       implicit F: Async[F]
   ) extends Mutex[F] {
-    override final val lock: Resource[F, Unit] =
-      Resource
-        .makeFull[F, Deferred[F, AsyncImpl.LockChain]] { poll =>
-          Deferred[F, AsyncImpl.LockChain].flatMap { lock =>
-            def loop(chain: AsyncImpl.LockChain): F[Deferred[F, AsyncImpl.LockChain]] =
-              chain match {
-                case AsyncImpl.Cons(otherLock) =>
-                  otherLock.asInstanceOf[Deferred[F, AsyncImpl.LockChain]].get.flatMap(loop)
-
-                case AsyncImpl.Empty =>
-                  F.pure(lock)
-              }
-
-            state.getAndSet(AsyncImpl.Cons[F](lock)).flatMap { chain =>
-              F.onCancel(poll(loop(chain)), lock.complete(chain).void)
+    // Acquires the Mutex.
+    private def acquire(poll: Poll[F]): F[AsyncImpl.LockChainCell[F]] =
+      AsyncImpl.LockChainCell[F].flatMap { thisCell =>
+        F.delay(state.getAndSet(thisCell)).flatMap { previousCell =>
+          def loop(cell: AsyncImpl.LockChainCell[F]): F[Unit] =
+            F.onCancel(poll(cell.next), thisCell.resume(next = cell)).flatMap {
+              case None => F.unit
+              case Some(c) => loop(c)
             }
-          }
-        } { lock => lock.complete(AsyncImpl.Empty).void }
-        .void
+
+          loop(previousCell).as(thisCell)
+        }
+      }
+
+    // Releases the Mutex.
+    private def release(thisCell: AsyncImpl.LockChainCell[F]): F[Unit] =
+      thisCell.finish
+
+    override final val lock: Resource[F, Unit] =
+      Resource.makeFull[F, AsyncImpl.LockChainCell[F]](acquire)(release).void
 
     override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Mutex[G] =
       new Mutex.TransformedMutex(this, f)
   }
 
   object AsyncImpl {
-    private[Mutex] sealed abstract class LockChain
-    private[Mutex] final case class Cons[F[_]](df: Deferred[F, LockChain]) extends LockChain
-    private[Mutex] case object Empty extends LockChain
+    private[Mutex] sealed abstract class LockChainCell[F[_]] {
+      def next: F[Option[LockChainCell[F]]]
+      def resume(next: LockChainCell[F]): F[Unit]
+      def finish: F[Unit]
+    }
+
+    object LockChainCell {
+      private[Mutex] type CB[F[_]] = Either[Throwable, Option[LockChainCell[F]]] => Unit
+      private[Mutex] final val Sentinel = (_: Any) => ()
+      private[Mutex] final val RightNone = Right(None)
+
+      def apply[F[_]](implicit F: Async[F]): F[LockChainCell[F]] =
+        F.delay(new AtomicReference[CB[F]]()).map { ref => create(ref) }
+
+      def create[F[_]](
+          ref: AtomicReference[CB[F]]
+      )(
+          implicit F: Async[F]
+      ): LockChainCell[F] =
+        new LockChainCell[F] {
+          override final val next: F[Option[LockChainCell[F]]] =
+            F.asyncCheckAttempt[Option[LockChainCell[F]]] { thisCB =>
+              F.delay {
+                if (ref.compareAndSet(null, thisCB)) {
+                  Left(Some(F.delay(ref.compareAndSet(thisCB, null))))
+                } else {
+                  RightNone
+                }
+              }
+            }
+
+          override def resume(next: LockChainCell[F]): F[Unit] =
+            F.delay {
+              val cb = ref.getAndSet(Sentinel)
+              if (cb ne null) cb.apply(Right(Some(next)))
+            }
+
+          override def finish: F[Unit] =
+            F.delay {
+              val cb = ref.getAndSet(Sentinel)
+              if (cb ne null) cb.apply(RightNone)
+            }
+        }
+    }
   }
 
   private final class TransformedMutex[F[_], G[_]](
