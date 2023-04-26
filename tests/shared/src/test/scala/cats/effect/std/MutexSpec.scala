@@ -169,10 +169,10 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
       t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
     }
 
-    "preserve waiters order (fifo) on a non-race cancellation" in ticked { implicit ticker =>
+    "preserve waiters order (FIFO) on a non-race cancellation" in ticked { implicit ticker =>
       val numbers = List.range(1, 10)
-      val p = mutex.flatMap { m =>
-        IO.ref(List.empty[Int]).flatMap { ref =>
+      val p = (mutex, IO.ref(List.empty[Int])).flatMapN {
+        case (m, ref) =>
           for {
             f1 <- m.lock.allocated
             (_, f1Release) = f1
@@ -188,10 +188,30 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
             _ <- t.join
             r <- ref.get
           } yield r.reverse
-        }
       }
 
       p must completeAs(numbers)
+    }
+
+    "cancellation must not corrupt Mutex" in ticked { implicit ticker =>
+      val p = mutex.flatMap { m =>
+        for {
+          f1 <- m.lock.allocated
+          (_, f1Release) = f1
+          f2 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          f3 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          f4 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          _ <- f2.cancel
+          _ <- f3.cancel
+          _ <- f4.join
+          _ <- f1Release
+        } yield ()
+      }
+
+      p must nonTerminate
     }
   }
 }
