@@ -166,7 +166,7 @@ object Mutex {
               // In case they cancel their wait, we reset our sate to null.
               // Race condition with our own cancel or complete,
               // in that case they have priority.
-              Left(Some(F.delay(this.compareAndSet(cb, null))))
+              Left(Some(F.delay { this.compareAndSet(cb, null); () }))
             } else {
               // If we are not in null, then we can only be on completed.
               // Which means the mutex is free.
