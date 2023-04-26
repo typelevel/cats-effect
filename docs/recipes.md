@@ -187,7 +187,7 @@ def raceN[A](ios: List[IO[A]]): IO[Option[A]] =
 
     val fallbackResult = d.complete(None)
 
-    (runAll >> fallbackResult).background.surround(d.get)
+    runAll.guarantee(fallbackResult).background.surround(d.get)
   }
 ```
 
@@ -207,7 +207,7 @@ def raceN[A](ios: List[IO[A]]): IO[Either[Throwable, A]] =
     // You may use an especial custom exception, or combine the Either + Option.
     val fallbackResult = d.complete(new Exception("No IO completed"))
 
-    (runAll >> fallbackResult).background.surround(d.get)
+    runAll.guarantee(fallbackResult).background.surround(d.get)
   }
 ```
 
