@@ -86,13 +86,7 @@ object Mutex {
   def in[F[_], G[_]](implicit F: Sync[F], G: Async[G]): F[Mutex[G]] =
     F.delay {
       // Initialize the state with an already completed cell.
-      val initialCell =
-        AsyncImpl
-          .LockQueueCell
-          .create[G](
-            new AtomicReference(
-              AsyncImpl.LockQueueCell.completed
-            ))
+      val initialCell = new AsyncImpl.LockQueueCell[G](completed = true)
       new AtomicReference(initialCell)
     }.map { state => new AsyncImpl[G](state) }
 
@@ -111,7 +105,7 @@ object Mutex {
   ) extends Mutex[F] {
     // Acquires the Mutex.
     private def acquire(poll: Poll[F]): F[AsyncImpl.LockQueueCell[F]] =
-      AsyncImpl.LockQueueCell[F].flatMap { thisCell =>
+      F.delay(new AsyncImpl.LockQueueCell[F](completed = false)).flatMap { thisCell =>
         // Atomically get the last cell in the queue,
         // and put ourselves as the last one.
         F.delay(state.getAndSet(thisCell)).flatMap { previousCell =>
@@ -124,7 +118,7 @@ object Mutex {
           //
           // Only the waiting process is cancelable.
           def loop(cell: AsyncImpl.LockQueueCell[F]): F[Unit] =
-            F.onCancel(poll(cell.get), thisCell.cancel(next = cell)).flatMap {
+            F.onCancel(poll(cell.await), thisCell.cancel(next = cell)).flatMap {
               case None => F.unit
               case Some(next) => loop(cell = next)
             }
@@ -145,73 +139,60 @@ object Mutex {
   }
 
   object AsyncImpl {
+    private final val Sentinel = (_: Any) => ()
+    private final val RightNone = Right(None)
+
     // Represents a cell in the queue of waiters for the mutex lock.
-    private[Mutex] sealed abstract class LockQueueCell[F[_]] {
+    private[Mutex] final class LockQueueCell[F[_]](
+        completed: Boolean
+    )(
+        implicit F: Async[F]
+    ) extends AtomicReference[Either[Throwable, Option[LockQueueCell[F]]] => Unit](
+          if (completed) Sentinel else null
+        ) {
+      // A cell can be in three states.
+      // + null: Nobody is waiting on us.
+      // + cb: Someone is waiting for us.
+      // + sentinel: We are not longer part of the queue (complete / cancel).
+
       // Waits for this cell to complete or be canceled.
-      def get: F[Option[LockQueueCell[F]]]
+      val await: F[Option[LockQueueCell[F]]] =
+        F.asyncCheckAttempt[Option[LockQueueCell[F]]] { cb =>
+          F.delay {
+            // Someone is going to wait for us.
+            // First we check that we are still on the null state.
+            if (this.compareAndSet(null, cb)) {
+              // If so, we create the callback that will awake our waiter.
+              // In case they cancel their wait, we reset our sate to null.
+              // Race condition with our own cancel or complete,
+              // in that case they have priority.
+              Left(Some(F.delay(this.compareAndSet(cb, null))))
+            } else {
+              // If we are not in null, then we can only be on completed.
+              // Which means the mutex is free.
+              RightNone
+            }
+          }
+        }
 
       // Completes this cell; i.e. frees the mutex lock.
-      def complete: F[Unit]
+      def complete: F[Unit] =
+        F.delay {
+          // Put us on the completed state.
+          // And, if someone is waiting for us,
+          // we notify them that the mutex is free.
+          val cb = this.getAndSet(Sentinel)
+          if (cb ne null) cb.apply(RightNone)
+        }
 
       // Cancels this cell, removing it from the queue.
-      def cancel(next: LockQueueCell[F]): F[Unit]
-    }
-
-    object LockQueueCell {
-      private[Mutex] type CB[F[_]] = Either[Throwable, Option[LockQueueCell[F]]] => Unit
-      private[Mutex] final val completed = (_: Any) => ()
-      private[Mutex] final val RightNone = Right(None)
-
-      def apply[F[_]](implicit F: Async[F]): F[LockQueueCell[F]] =
-        F.delay(new AtomicReference[CB[F]]()).map { ref => create(ref) }
-
-      def create[F[_]](
-          ref: AtomicReference[CB[F]]
-      )(
-          implicit F: Async[F]
-      ): LockQueueCell[F] =
-        new LockQueueCell[F] {
-          // A cell can be in three states.
-          // + null: Nobody is waiting on us.
-          // + cb: Someone is waiting for us.
-          // + completed: We are not longer part of the queue (complete / cancel).
-
-          override final val get: F[Option[LockQueueCell[F]]] =
-            F.asyncCheckAttempt[Option[LockQueueCell[F]]] { cb =>
-              F.delay {
-                // Someone is going to wait for us.
-                // First we check that we are still on the null state.
-                if (ref.compareAndSet(null, cb)) {
-                  // If so, we create the callback that will awake our waiter.
-                  // In case they cancel their wait, we reset our sate to null.
-                  // Race condition with our own cancel or complete,
-                  // in that case they have priority.
-                  Left(Some(F.delay(ref.compareAndSet(cb, null))))
-                } else {
-                  // If we are not in null, then we can only be on completed.
-                  // Which means the mutex is free.
-                  RightNone
-                }
-              }
-            }
-
-          override def complete: F[Unit] =
-            F.delay {
-              // Put us on the completed state.
-              // And, if someone is waiting for us,
-              // we notify them that the mutex is free.
-              val cb = ref.getAndSet(completed)
-              if (cb ne null) cb.apply(RightNone)
-            }
-
-          override def cancel(next: LockQueueCell[F]): F[Unit] =
-            F.delay {
-              // Put us on the completed state.
-              // And, if someone is waiting for us,
-              // we notify them that the should wait for the next cell in the queue.
-              val cb = ref.getAndSet(completed)
-              if (cb ne null) cb.apply(Right(Some(next)))
-            }
+      def cancel(next: LockQueueCell[F]): F[Unit] =
+        F.delay {
+          // Put us on the completed state.
+          // And, if someone is waiting for us,
+          // we notify them that the should wait for the next cell in the queue.
+          val cb = this.getAndSet(Sentinel)
+          if (cb ne null) cb.apply(Right(Some(next)))
         }
     }
   }
@@ -227,5 +208,4 @@ object Mutex {
     override def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Mutex[H] =
       new Mutex.TransformedMutex(this, f)
   }
-
 }
