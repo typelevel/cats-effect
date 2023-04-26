@@ -292,6 +292,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.9.0"
+val CatsMtlVersion = "1.3.0"
 val Specs2Version = "4.19.2"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
@@ -450,6 +451,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-effect",
     libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-mtl" % CatsMtlVersion,
       "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime
     ),
     mimaBinaryIssueFilters ++= Seq(
@@ -842,7 +844,8 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
       "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test,
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
-      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
+      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test,
+      "org.typelevel" %% "cats-mtl-laws" % CatsMtlVersion % Test
     ),
     buildInfoPackage := "catseffect"
   )
