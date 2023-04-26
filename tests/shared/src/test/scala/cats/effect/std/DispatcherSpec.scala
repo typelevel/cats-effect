@@ -326,30 +326,35 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     }
 
     "reject new tasks while shutting down" in real {
-      (IO.ref(false), IO.ref(false)).flatMapN { (resultR, rogueResultR) =>
-        dispatcher
-          .allocated
-          .flatMap {
-            case (runner, release) =>
-              IO(runner.unsafeRunAndForget(
-                IO.sleep(1.second).uncancelable.guarantee(resultR.set(true)))) *>
-                IO.sleep(100.millis) *>
-                release.both(
-                  IO.sleep(500.nanos) *>
-                    IO(runner.unsafeRunAndForget(rogueResultR.set(true))).attempt
-                )
-          }
-          .flatMap {
-            case (_, rogueSubmitResult) =>
-              for {
-                result <- resultR.get
-                rogueResult <- rogueResultR.get
-                _ <- IO(result must beTrue)
-                _ <- IO(rogueResult must beFalse)
-                _ <- IO(rogueSubmitResult must beLeft)
-              } yield ok
-          }
-      }
+      (IO.ref(false), IO.ref(false))
+        .flatMapN { (resultR, rogueResultR) =>
+          dispatcher
+            .allocated
+            .flatMap {
+              case (runner, release) =>
+                IO(runner.unsafeRunAndForget(
+                  IO.sleep(1.second).uncancelable.guarantee(resultR.set(true)))) *>
+                  IO.sleep(100.millis) *>
+                  release.both(
+                    IO.sleep(500.nanos) *>
+                      IO(runner.unsafeRunAndForget(rogueResultR.set(true))).attempt
+                  )
+            }
+            .flatMap {
+              case (_, rogueSubmitResult) =>
+                for {
+                  result <- resultR.get
+                  rogueResult <- rogueResultR.get
+                  _ <- IO(result must beTrue)
+                  _ <- IO(rogueResult match {
+                    // if the rogue task is not completed then we _must_ have failed to submit it
+                    case false => rogueSubmitResult must beLeft
+                    case true => rogueSubmitResult must beRight
+                  })
+                } yield ok
+            }
+        }
+        .replicateA(5)
     }
   }
 
