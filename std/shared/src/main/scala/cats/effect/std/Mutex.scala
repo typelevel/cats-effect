@@ -120,17 +120,29 @@ object Mutex {
           // it means we have a Fiber waiting for us.
           // Thus, we need to tell the previous cell
           // to awake that Fiber instead.
+
+          // There is a tiny fraction of time when
+          // the next cell has acquired ourselves,
+          // but hasn't registered itself yet.
+          // Thus, we spin loop until that happens.
           var nextCB = thisCell.get()
           while (nextCB eq null) {
-            // There is a tiny fraction of time when
-            // the next cell has acquired ourselves,
-            // but hasn't registered itself yet.
-            // Thus, we spin loop until that happens
             nextCB = thisCell.get()
           }
+
+          // Before telling previous to awake the next Fiber,
+          // We will set our cell in the terminal state (Sentinel),
+          // to signal that we are already completed.
+          // However, before doing that, we need to ensure our next callback,
+          // has not been concurrently modified.
+          while (!thisCell.compareAndSet(nextCB, AsyncImpl.Sentinel)) {
+            nextCB = thisCell.get()
+          }
+
+          // We are ready to tell the previous cell to awake the next Fiber in the chain.
           if (!previousCell.compareAndSet(thisCB, nextCB)) {
-            // However, in case the previous cell had already completed,
-            // then the Mutex is free and we can awake our waiting fiber.
+            // But, in case the previous cell had already completed,
+            // then the Mutex is free and we can awake our waiting Fiber.
             if (nextCB ne null) nextCB.apply(Either.unit)
           }
         }
