@@ -250,8 +250,14 @@ trait IOApp {
    *
    * This may be of interest if you've been getting warnings about CPU starvation printed to
    * stderr. [[https://typelevel.org/cats-effect/docs/core/starvation-and-tuning]]
+   *
+   * Can also be configured by setting the `cats.effect.detectBlockedThreads` system property.
    */
-  protected def blockedThreadDetectionEnabled: Boolean = false
+  protected def blockedThreadDetectionEnabled: Boolean =
+    Option(System.getProperty("cats.effect.detectBlockedThreads")).map(_.toLowerCase()) match {
+      case Some(value) => value.equalsIgnoreCase("true")
+      case None => false // default to disabled
+    }
 
   /**
    * Controls whether non-daemon threads blocking application exit are logged to stderr when the

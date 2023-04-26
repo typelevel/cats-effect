@@ -989,7 +989,7 @@ lazy val stressTests = project
   .dependsOn(core.jvm, std.jvm)
   .settings(
     name := "cats-effect-stress-tests",
-    Jcstress / version := "0.16",
+    Jcstress / version := "0.16"
   )
   .enablePlugins(NoPublishPlugin, JCStressPlugin)
 

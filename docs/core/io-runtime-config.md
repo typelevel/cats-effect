@@ -25,6 +25,7 @@ This can be done for example with the [EnvironmentPlugin for Webpack](https://we
 
 | System Property (JVM) / ENV Variable (JS)                                                         | Value (default)    | Description                                                                                                                       |
 |---------------------------------------------------------------------------------------------------|--------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `cats.effect.detectBlockedThreads` <br/> N/A                                                      | `Boolean` (`false`) | Whether or not we should detect blocked threads. |
 | `cats.effect.logNonDaemonThreadsOnExit` <br/> N/A                                                 | `Boolean` (`true`) | Whether or not we should check for non-daemon threads on JVM exit.                                                                |
 | `cats.effect.logNonDaemonThreads.sleepIntervalMillis` <br/> N/A                                   | `Long` (`10000L`)  | Time to sleep between checking for presence of non-daemon threads.                                                                |
 | `cats.effect.cancelation.check.threshold ` <br/> `CATS_EFFECT_CANCELATION_CHECK_THRESHOLD`        | `Int` (`512`)      | Configure how often cancellation is checked. By default, every 512 iterations of the run loop.                                    |
