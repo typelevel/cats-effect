@@ -254,10 +254,7 @@ trait IOApp {
    * Can also be configured by setting the `cats.effect.detectBlockedThreads` system property.
    */
   protected def blockedThreadDetectionEnabled: Boolean =
-    Option(System.getProperty("cats.effect.detectBlockedThreads")).map(_.toLowerCase()) match {
-      case Some(value) => value.equalsIgnoreCase("true")
-      case None => false // default to disabled
-    }
+    java.lang.Boolean.getBoolean("cats.effect.detectBlockedThreads") // defaults to disabled
 
   /**
    * Controls whether non-daemon threads blocking application exit are logged to stderr when the
