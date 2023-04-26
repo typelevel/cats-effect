@@ -325,8 +325,8 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       }
     }
 
-    "reject new tasks while shutting down" in real {
-      (IO.ref(false), IO.ref(false)).flatMapN { (resultR, rogueResultR) =>
+    "reject new tasks while shutting down" in ticked { implicit ticker =>
+      val results = (IO.ref(false), IO.ref(false)).flatMapN { (resultR, rogueResultR) =>
         dispatcher
           .allocated
           .flatMap {
@@ -347,9 +347,10 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
                 _ <- IO(result must beTrue)
                 _ <- IO(rogueResult must beFalse)
                 _ <- IO(rogueSubmitResult must beLeft)
-              } yield ok
+              } yield ()
           }
       }
+      results must completeAs(())
     }
   }
 
