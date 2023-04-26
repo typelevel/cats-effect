@@ -147,5 +147,25 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
 
       t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
     }
+
+    "handle multiple concurrent cancels during release" in real {
+      val t = mutex.flatMap { m =>
+        val task = for {
+          (_, f1Release) <- m.lock.allocated
+          f2 <- m.lock.use_.start
+          _ <- IO.sleep(5.millis)
+          f3 <- m.lock.use_.start
+          _ <- IO.sleep(5.millis)
+          f4 <- m.lock.use_.start
+          _ <- IO.sleep(5.millis)
+          _ <- (f1Release, f2.cancel, f3.cancel).parTupled
+          _ <- f4.join
+        } yield ()
+
+        task.replicateA_(if (isJS || isNative) 5 else 3000)
+      }
+
+      t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
+    }
   }
 }
