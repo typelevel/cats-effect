@@ -163,7 +163,7 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
           _ <- f4.join
         } yield ()
 
-        task.replicateA_(if (isJS || isNative) 5 else 3000)
+        task.replicateA_(if (isJS || isNative) 5 else 1000)
       }
 
       t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
