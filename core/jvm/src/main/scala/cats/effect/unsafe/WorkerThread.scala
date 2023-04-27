@@ -367,13 +367,14 @@ private final class WorkerThread(
         val polled = system.poll(_poller, -1, reportFailure)
 
         // the only way we can be interrupted here is if it happened *externally* (probably sbt)
-        if (isInterrupted())
+        if (isInterrupted()) {
           pool.shutdown()
-        else if (polled || !parked.get()) { // Spurious wakeup check.
-          if (parked.getAndSet(false)) {
+        } else if (polled) {
+          if (parked.getAndSet(false))
             pool.doneSleeping()
-          }
-          return polled
+          return true
+        } else if (!parked.get()) { // Spurious wakeup check.
+          return false
         } else // loop
           ()
       }
