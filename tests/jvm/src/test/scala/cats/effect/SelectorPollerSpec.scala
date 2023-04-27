@@ -90,7 +90,7 @@ class SelectorPollerSpec extends BaseSpec {
     }
 
     "handles concurrent close" in {
-      val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 2)
+      val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
       implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
 
       try {
@@ -101,7 +101,7 @@ class SelectorPollerSpec extends BaseSpec {
             mkPipe.allocated.flatMap {
               case (pipe, close) =>
                 poller.select(pipe.source, OP_READ).background.surround {
-                  IO.sleep(1.millis) *> close
+                  IO.sleep(1.millis) *> close *> IO.sleep(1.millis)
                 }
             }
           }
