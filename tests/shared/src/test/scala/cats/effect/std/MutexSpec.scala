@@ -30,11 +30,7 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
   final override def executionTimeout = 2.minutes
 
   "ConcurrentMutex" should {
-    tests(Mutex.concurrent[IO])
-  }
-
-  "AsyncMutex" should {
-    tests(Mutex.async[IO])
+    tests(Mutex.apply[IO])
   }
 
   "Mutex with dual constructors" should {
