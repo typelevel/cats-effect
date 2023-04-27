@@ -106,8 +106,8 @@ object Mutex {
             if (currentCell eq ConcurrentImpl.Empty) F.pure(ourCell)
             else {
               F.onCancel(
-                poll(currentCell.asInstanceOf[ConcurrentImpl.Next[F]].cell.get),
-                ourCell.cell.complete(currentCell).void
+                poll(currentCell.asInstanceOf[ConcurrentImpl.Next[F]].get),
+                ourCell.complete(currentCell).void
               ).flatMap { nextCell => loop(currentCell = nextCell) }
             }
 
@@ -126,7 +126,7 @@ object Mutex {
           if (lastCell eq thisCell) setter(ConcurrentImpl.Empty)
           else F.pure(false)
       } flatMap {
-        case false => thisCell.cell.complete(ConcurrentImpl.Empty).void
+        case false => thisCell.complete(ConcurrentImpl.Empty).void
         case true => F.unit
       }
 
@@ -139,14 +139,15 @@ object Mutex {
 
   private object ConcurrentImpl {
     // Represents a queue of waiters for the mutex.
-    private[Mutex] sealed abstract class LockQueue
+    private[Mutex] final type LockQueue = AnyRef
     // Represents the first cell of the queue.
-    private[Mutex] object Empty extends LockQueue
+    private[Mutex] final type Empty = LockQueue
+    private[Mutex] final val Empty: Empty = null
     // Represents a cell in the queue of waiters.
-    private[Mutex] final class Next[F[_]](val cell: Deferred[F, LockQueue]) extends LockQueue
+    private[Mutex] final type Next[F[_]] = Deferred[F, LockQueue]
 
     private[Mutex] def LockQueueCell[F[_]](implicit F: Concurrent[F]): F[Next[F]] =
-      Deferred[F, LockQueue].map(df => new Next(cell = df))
+      Deferred[F, LockQueue]
   }
 
   private final class TransformedMutex[F[_], G[_]](
