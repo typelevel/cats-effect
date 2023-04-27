@@ -16,11 +16,13 @@
 
 package cats.effect
 
+import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import java.nio.ByteBuffer
 import java.nio.channels.Pipe
 import java.nio.channels.SelectionKey._
+import scala.concurrent.duration._
 
 class SelectorPollerSpec extends BaseSpec {
 
@@ -84,6 +86,30 @@ class SelectorPollerSpec extends BaseSpec {
             case _ => false
           }
         }
+      }
+    }
+
+    "handles concurrent close" in {
+      val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 2)
+      implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+
+      try {
+        val test = IO
+          .poller[SelectorPoller]
+          .map(_.get)
+          .flatMap { poller =>
+            mkPipe.allocated.flatMap {
+              case (pipe, close) =>
+                poller.select(pipe.source, OP_READ).background.surround {
+                  IO.sleep(1.millis) *> close
+                }
+            }
+          }
+          .replicateA_(1000)
+          .as(true)
+        test.unsafeRunSync() must beTrue
+      } finally {
+        runtime.shutdown()
       }
     }
   }
