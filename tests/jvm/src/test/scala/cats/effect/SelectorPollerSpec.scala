@@ -75,6 +75,17 @@ class SelectorPollerSpec extends BaseSpec {
         } yield ok
       }
     }
+
+    "gracefully handles illegal ops" in real {
+      mkPipe.use { pipe =>
+        IO.poller[SelectorPoller].map(_.get).flatMap { poller =>
+          poller.select(pipe.sink, OP_READ).attempt.map {
+            case Left(_: IllegalArgumentException) => true
+            case _ => false
+          }
+        }
+      }
+    }
   }
 
 }
