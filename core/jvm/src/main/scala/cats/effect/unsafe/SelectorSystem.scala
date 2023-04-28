@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import java.nio.channels.SelectableChannel
+import java.nio.channels.{CancelledKeyException, SelectableChannel}
 import java.nio.channels.spi.{AbstractSelector, SelectorProvider}
 
 import SelectorSystem._
@@ -48,8 +48,15 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
         val key = ready.next()
         ready.remove()
 
-        val readyOps = key.readyOps()
-        val value = Right(readyOps)
+        val value: Either[Throwable, Int] =
+          try {
+            val readyOps = key.readyOps()
+            // reset interest in triggered ops
+            key.interestOps(key.interestOps() & ~readyOps)
+            Right(readyOps)
+          } catch { case ex: CancelledKeyException => Left(ex) }
+
+        val readyOps = value.getOrElse(-1) // interest all waiters if ex
 
         var head: CallbackNode = null
         var prev: CallbackNode = null
@@ -73,9 +80,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
           node = next
         }
 
-        // reset interest in triggered ops
-        key.interestOps(key.interestOps() & ~readyOps)
-        key.attach(head)
+        key.attach(head) // if key was canceled this will null attachment
       }
 
       polled
