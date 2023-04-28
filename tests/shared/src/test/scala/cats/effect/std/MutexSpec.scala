@@ -30,11 +30,7 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
   final override def executionTimeout = 2.minutes
 
   "ConcurrentMutex" should {
-    tests(Mutex.concurrent[IO])
-  }
-
-  "AsyncMutex" should {
-    tests(Mutex.async[IO])
+    tests(Mutex.apply[IO])
   }
 
   "Mutex with dual constructors" should {
@@ -146,6 +142,72 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
       }
 
       t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
+    }
+
+    "handle multiple concurrent cancels during release" in real {
+      val t = mutex.flatMap { m =>
+        val task = for {
+          f1 <- m.lock.allocated
+          (_, f1Release) = f1
+          f2 <- m.lock.use_.start
+          _ <- IO.sleep(5.millis)
+          f3 <- m.lock.use_.start
+          _ <- IO.sleep(5.millis)
+          f4 <- m.lock.use_.start
+          _ <- IO.sleep(5.millis)
+          _ <- (f1Release, f2.cancel, f3.cancel).parTupled
+          _ <- f4.join
+        } yield ()
+
+        task.replicateA_(if (isJS || isNative) 5 else 1000)
+      }
+
+      t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
+    }
+
+    "preserve waiters order (FIFO) on a non-race cancellation" in ticked { implicit ticker =>
+      val numbers = List.range(1, 10)
+      val p = (mutex, IO.ref(List.empty[Int])).flatMapN {
+        case (m, ref) =>
+          for {
+            f1 <- m.lock.allocated
+            (_, f1Release) = f1
+            f2 <- m.lock.use_.start
+            _ <- IO.sleep(1.millis)
+            t <- numbers.parTraverse_ { i =>
+              IO.sleep(i.millis) >>
+                m.lock.surround(ref.update(acc => i :: acc))
+            }.start
+            _ <- IO.sleep(100.millis)
+            _ <- f2.cancel
+            _ <- f1Release
+            _ <- t.join
+            r <- ref.get
+          } yield r.reverse
+      }
+
+      p must completeAs(numbers)
+    }
+
+    "cancellation must not corrupt Mutex" in ticked { implicit ticker =>
+      val p = mutex.flatMap { m =>
+        for {
+          f1 <- m.lock.allocated
+          (_, f1Release) = f1
+          f2 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          f3 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          f4 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          _ <- f2.cancel
+          _ <- f3.cancel
+          _ <- f4.join
+          _ <- f1Release
+        } yield ()
+      }
+
+      p must nonTerminate
     }
   }
 }
