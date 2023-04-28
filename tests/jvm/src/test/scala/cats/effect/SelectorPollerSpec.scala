@@ -19,10 +19,11 @@ package cats.effect
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
+import scala.concurrent.duration._
+
 import java.nio.ByteBuffer
 import java.nio.channels.Pipe
 import java.nio.channels.SelectionKey._
-import scala.concurrent.duration._
 
 class SelectorPollerSpec extends BaseSpec {
 
