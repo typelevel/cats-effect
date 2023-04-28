@@ -1558,6 +1558,81 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         (IO.raiseError[Unit](TestException), IO.never[Unit]).parTupled.void must failAs(
           TestException)
       }
+
+      "short-circuit on canceled" in ticked { implicit ticker =>
+        (IO.never[Unit], IO.canceled)
+          .parTupled
+          .start
+          .flatMap(_.join.map(_.isCanceled)) must completeAs(true)
+        (IO.canceled, IO.never[Unit])
+          .parTupled
+          .start
+          .flatMap(_.join.map(_.isCanceled)) must completeAs(true)
+      }
+
+      "run finalizers when canceled" in ticked { implicit ticker =>
+        val tsk = IO.ref(0).flatMap { ref =>
+          val t = IO.never[Unit].onCancel(ref.update(_ + 1))
+          for {
+            fib <- (t, t).parTupled.start
+            _ <- IO { ticker.ctx.tickAll() }
+            _ <- fib.cancel
+            c <- ref.get
+          } yield c
+        }
+
+        tsk must completeAs(2)
+      }
+
+      "run right side finalizer when canceled (and left side already completed)" in ticked {
+        implicit ticker =>
+          val tsk = IO.ref(0).flatMap { ref =>
+            for {
+              fib <- (IO.unit, IO.never[Unit].onCancel(ref.update(_ + 1))).parTupled.start
+              _ <- IO { ticker.ctx.tickAll() }
+              _ <- fib.cancel
+              c <- ref.get
+            } yield c
+          }
+
+          tsk must completeAs(1)
+      }
+
+      "run left side finalizer when canceled (and right side already completed)" in ticked {
+        implicit ticker =>
+          val tsk = IO.ref(0).flatMap { ref =>
+            for {
+              fib <- (IO.never[Unit].onCancel(ref.update(_ + 1)), IO.unit).parTupled.start
+              _ <- IO { ticker.ctx.tickAll() }
+              _ <- fib.cancel
+              c <- ref.get
+            } yield c
+          }
+
+          tsk must completeAs(1)
+      }
+
+      "complete if both sides complete" in ticked { implicit ticker =>
+        val tsk = (
+          IO.sleep(2.seconds).as(20),
+          IO.sleep(3.seconds).as(22)
+        ).parTupled.map { case (l, r) => l + r }
+
+        tsk must completeAs(42)
+      }
+
+      "not run forever on chained product" in ticked { implicit ticker =>
+        import cats.effect.kernel.Par.ParallelF
+
+        case object TestException extends RuntimeException
+
+        val fa: IO[String] = IO.pure("a")
+        val fb: IO[String] = IO.pure("b")
+        val fc: IO[Unit] = IO.raiseError[Unit](TestException)
+        val tsk =
+          ParallelF.value(ParallelF(fa).product(ParallelF(fb)).product(ParallelF(fc))).void
+        tsk must failAs(TestException)
+      }
     }
 
     "miscellaneous" should {
