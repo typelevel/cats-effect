@@ -128,7 +128,7 @@ ThisBuild / tlCiReleaseBranches := Nil
 ThisBuild / githubWorkflowArtifactDownloadExtraKeys += "ci"
 ThisBuild / githubWorkflowPublishPreamble +=
   WorkflowStep.Use(
-    UseRef.Public("armanbilge", "await-cirrus", "main"),
+    UseRef.Public("typelevel", "await-cirrus", "main"),
     name = Some("Wait for Cirrus CI")
   )
 
