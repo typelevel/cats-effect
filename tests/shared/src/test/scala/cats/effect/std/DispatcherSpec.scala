@@ -356,6 +356,15 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         }
         .replicateA(5)
     }
+
+    "issue 3501: reject new tasks after release action is submitted as a task" in real {
+      dispatcher.allocated.flatMap {
+        case (runner, release) =>
+          IO(runner.unsafeRunAndForget(release)) *>
+            IO.sleep(100.millis) *>
+            IO(runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException])
+      }
+    }
   }
 
   private def awaitTermination(dispatcher: Resource[IO, Dispatcher[IO]]) = {
