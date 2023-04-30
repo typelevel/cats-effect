@@ -346,15 +346,23 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
                   result <- resultR.get
                   rogueResult <- rogueResultR.get
                   _ <- IO(result must beTrue)
-                  _ <- IO(rogueResult match {
-                    // if the rogue task is not completed then we _must_ have failed to submit it
-                    case false => rogueSubmitResult must beLeft
-                    case true => rogueSubmitResult must beRight
+                  _ <- IO(if (rogueResult == false) {
+                    // if the rogue task is not completed then we must have failed to submit it
+                    rogueSubmitResult must beLeft
                   })
                 } yield ok
             }
         }
         .replicateA(5)
+    }
+
+    "issue 3501: reject new tasks after release action is submitted as a task" in real {
+      dispatcher.allocated.flatMap {
+        case (runner, release) =>
+          IO(runner.unsafeRunAndForget(release)) *>
+            IO.sleep(100.millis) *>
+            IO(runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException])
+      }
     }
   }
 
