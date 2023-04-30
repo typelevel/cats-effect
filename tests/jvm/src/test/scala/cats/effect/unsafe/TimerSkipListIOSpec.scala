@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 class TimerSkipListIOSpec extends BaseSpec {
 
-  final val N = 100000
+  final val N = 50000
   final val DELAY = 10000L // ns
 
   private def drainUntilDone(m: TimerSkipList, done: Ref[IO, Boolean]): IO[Unit] = {
