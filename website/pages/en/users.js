@@ -31,6 +31,7 @@ const users = [
   ['Klarna', 'https://www.klarna.com'],
   ['Medidata', 'https://www.medidata.com/'],
   ['Moda Operandi', 'https://www.modaoperandi.com/'],
+  ['Nirovision', 'https://www.nirovision.com/'],
   ['Ocado Technology', 'https://ocadotechnology.com/'],
   ['On Air Entertainment', 'https://onairentertainment.com/'],
   ['oneFactor', 'https://onefactor.com'],
