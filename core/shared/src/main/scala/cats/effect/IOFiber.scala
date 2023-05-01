@@ -87,7 +87,7 @@ private final class IOFiber[A](
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
   private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
-  private[this] var resumeIO: AnyRef = startIO
+  private[this] var resumeIO: IO[Any] = startIO
   private[this] val runtime: IORuntime = rt
   private[this] val tracingEvents: RingBuffer =
     if (TracingConstants.isStackTracing) RingBuffer.empty(runtime.traceBufferLogSize) else null
