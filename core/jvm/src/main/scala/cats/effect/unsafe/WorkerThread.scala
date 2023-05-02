@@ -98,7 +98,7 @@ private final class WorkerThread(
   private val indexTransfer: LinkedTransferQueue[Integer] = new LinkedTransferQueue()
   private[this] val runtimeBlockingExpiration: Duration = pool.runtimeBlockingExpiration
 
-  val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
+  val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.getAndIncrement()
 
   // Constructor code.
   {
