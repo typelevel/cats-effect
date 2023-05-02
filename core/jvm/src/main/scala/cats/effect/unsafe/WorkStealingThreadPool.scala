@@ -220,8 +220,10 @@ private[effect] final class WorkStealingThreadPool(
    *   the current time as returned by `System.nanoTime`
    * @param random
    *   the `ThreadLocalRandom` of the current thread
+   * @return
+   *   whether stealing was successful
    */
-  private[unsafe] def stealTimers(now: Long, random: ThreadLocalRandom): Unit = {
+  private[unsafe] def stealTimers(now: Long, random: ThreadLocalRandom): Boolean = {
     val from = random.nextInt(threadCount)
     var i = 0
     while (i < threadCount) {
@@ -245,11 +247,13 @@ private[effect] final class WorkStealingThreadPool(
       if (invoked) {
         // we did some work, don't
         // check other threads
-        return
+        return true
       } else {
         i += 1
       }
     }
+
+    false
   }
 
   /**
