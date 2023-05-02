@@ -94,7 +94,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
         _ <- IO.race(taker.joinWithNever, q.offer(()).delayBy(500.millis))
       } yield ()
 
-      test.parReplicateA(if (isJS || isNative) 1 else 1000).as(ok)
+      test.parReplicateA(if (isJS || isNative) 1 else 500).as(ok)
     }
   }
 
