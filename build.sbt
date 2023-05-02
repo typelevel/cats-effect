@@ -122,8 +122,15 @@ ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
-ThisBuild / tlCiReleaseTags := false
+ThisBuild / tlCiReleaseTags := true
 ThisBuild / tlCiReleaseBranches := Nil
+
+ThisBuild / githubWorkflowArtifactDownloadExtraKeys += "ci"
+ThisBuild / githubWorkflowPublishPreamble +=
+  WorkflowStep.Use(
+    UseRef.Public("typelevel", "await-cirrus", "main"),
+    name = Some("Wait for Cirrus CI")
+  )
 
 val OldGuardJava = JavaSpec.temurin("8")
 val LTSJava = JavaSpec.temurin("11")
@@ -292,7 +299,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.9.0"
-val Specs2Version = "4.19.2"
+val Specs2Version = "4.20.0"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
@@ -852,7 +859,8 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
-    buildInfoPackage := "catseffect"
+    buildInfoPackage := "catseffect",
+    githubWorkflowArtifactUpload := false
   )
   .jsSettings(
     Compile / scalaJSUseMainModuleInitializer := true,
@@ -997,7 +1005,7 @@ lazy val stressTests = project
   .dependsOn(core.jvm, std.jvm)
   .settings(
     name := "cats-effect-stress-tests",
-    Jcstress / version := "0.16",
+    Jcstress / version := "0.16"
   )
   .enablePlugins(NoPublishPlugin, JCStressPlugin)
 

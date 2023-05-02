@@ -87,7 +87,7 @@ private final class IOFiber[A](
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
   private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
-  private[this] var resumeIO: AnyRef = startIO
+  private[this] var resumeIO: IO[Any] = startIO
   private[this] val runtime: IORuntime = rt
   private[this] val tracingEvents: RingBuffer =
     if (TracingConstants.isStackTracing) RingBuffer.empty(runtime.traceBufferLogSize) else null
@@ -1335,7 +1335,7 @@ private final class IOFiber[A](
       objectState.init(16)
       finalizers.init(16)
 
-      val io = resumeIO.asInstanceOf[IO[Any]]
+      val io = resumeIO
       resumeIO = null
       runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
     }
@@ -1396,7 +1396,7 @@ private final class IOFiber[A](
   }
 
   private[this] def autoCedeR(): Unit = {
-    val io = resumeIO.asInstanceOf[IO[Any]]
+    val io = resumeIO
     resumeIO = null
     runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }

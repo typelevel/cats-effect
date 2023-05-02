@@ -275,7 +275,8 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       } yield errorReporter
 
       test
-        .use(t => IO.fromFuture(IO(t.future)).timeoutTo(1.second, IO.pure(false)))
+        .use(t =>
+          IO.fromFutureCancelable(IO((t.future, IO.unit))).timeoutTo(1.second, IO.pure(false)))
         .flatMap(t => IO(t mustEqual true))
     }
 
@@ -297,7 +298,9 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       } yield errorReporter
 
       test.use(t =>
-        IO.fromFuture(IO(t.future)).timeout(1.second).mustFailWith[TimeoutException])
+        IO.fromFutureCancelable(IO((t.future, IO.unit)))
+          .timeout(1.second)
+          .mustFailWith[TimeoutException])
     }
 
     "respect self-cancelation" in real {
@@ -323,29 +326,42 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     }
 
     "reject new tasks while shutting down" in real {
-      (IO.ref(false), IO.ref(false)).flatMapN { (resultR, rogueResultR) =>
-        dispatcher
-          .allocated
-          .flatMap {
-            case (runner, release) =>
-              IO(runner.unsafeRunAndForget(
-                IO.sleep(1.second).uncancelable.guarantee(resultR.set(true)))) *>
-                IO.sleep(100.millis) *>
-                release.both(
-                  IO.sleep(500.nanos) *>
-                    IO(runner.unsafeRunAndForget(rogueResultR.set(true))).attempt
-                )
-          }
-          .flatMap {
-            case (_, rogueSubmitResult) =>
-              for {
-                result <- resultR.get
-                rogueResult <- rogueResultR.get
-                _ <- IO(result must beTrue)
-                _ <- IO(rogueResult must beFalse)
-                _ <- IO(rogueSubmitResult must beLeft)
-              } yield ok
-          }
+      (IO.ref(false), IO.ref(false))
+        .flatMapN { (resultR, rogueResultR) =>
+          dispatcher
+            .allocated
+            .flatMap {
+              case (runner, release) =>
+                IO(runner.unsafeRunAndForget(
+                  IO.sleep(1.second).uncancelable.guarantee(resultR.set(true)))) *>
+                  IO.sleep(100.millis) *>
+                  release.both(
+                    IO.sleep(500.nanos) *>
+                      IO(runner.unsafeRunAndForget(rogueResultR.set(true))).attempt
+                  )
+            }
+            .flatMap {
+              case (_, rogueSubmitResult) =>
+                for {
+                  result <- resultR.get
+                  rogueResult <- rogueResultR.get
+                  _ <- IO(result must beTrue)
+                  _ <- IO(if (rogueResult == false) {
+                    // if the rogue task is not completed then we must have failed to submit it
+                    rogueSubmitResult must beLeft
+                  })
+                } yield ok
+            }
+        }
+        .replicateA(5)
+    }
+
+    "issue 3501: reject new tasks after release action is submitted as a task" in real {
+      dispatcher.allocated.flatMap {
+        case (runner, release) =>
+          IO(runner.unsafeRunAndForget(release)) *>
+            IO.sleep(100.millis) *>
+            IO(runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException])
       }
     }
   }

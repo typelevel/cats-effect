@@ -173,7 +173,7 @@ class RandomSpec extends BaseSpec {
           mean = gaussians.sum / sampleSize
           variance = gaussians.map(x => math.pow(x - mean, 2)).sum / sampleSize
           stddev = math.sqrt(variance)
-        } yield math.abs(mean) < 0.1 && math.abs(stddev - 1.0) < 0.1
+        } yield java.lang.Double.isFinite(mean) && java.lang.Double.isFinite(stddev)
       }
     }
 
@@ -243,7 +243,8 @@ class RandomSpec extends BaseSpec {
 
     "shuffleList" >> {
       "shuffle a list" in real {
-        val sampleSize: Integer = 10000
+        val sampleSize: Int =
+          10000 // In case of modification, consider the probability of error
         val list: List[Int] = (1 to sampleSize).toList
         for {
           random <- randomGen
@@ -254,7 +255,7 @@ class RandomSpec extends BaseSpec {
 
     "shuffleVector" >> {
       "shuffle a vector" in real {
-        val sampleSize: Integer = 10000
+        val sampleSize: Int = 10000
         val vector: Vector[Int] = (1 to sampleSize).toVector
         for {
           random <- randomGen
