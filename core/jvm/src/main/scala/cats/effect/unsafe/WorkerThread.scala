@@ -596,8 +596,7 @@ private final class WorkerThread(
 
         case 2 =>
           // First try to steal some expired timers:
-          pool.stealTimers(System.nanoTime(), rnd)
-          if (queue.nonEmpty()) {
+          if (pool.stealTimers(System.nanoTime(), rnd)) {
             // some stolen timer created new work for us
             pool.transitionWorkerFromSearching(rnd)
             state = 4
