@@ -54,6 +54,7 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
   "WorkerThread" should {
     "rename itself when entering and exiting blocking region" in real {
       for {
+        _ <- IO.cede
         computeThread <- threadInfo
         (computeThreadName, _) = computeThread
         blockerThread <- IO.blocking(threadInfo).flatten
@@ -65,6 +66,8 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
       } yield {
         // Start with the regular prefix
         computeThreadName must startWith("io-compute")
+        // correct WSTP index (threadCount is 1, so the only possible index is 0)
+        computeThreadName must endWith("-0")
         // Check that entering a blocking region changes the name
         blockerThreadName must startWith("io-blocker")
         // Check that the same thread is renamed again when it is readded to the compute pool
@@ -75,6 +78,8 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
           "blocker thread not found after reset")
         resetBlockerThread must beSome((_: String).startsWith("io-compute"))
           .setMessage("blocker thread name was not reset")
+        resetBlockerThread must beSome((_: String).endsWith("-0"))
+          .setMessage("blocker thread index was not correct")
       }
     }
   }
