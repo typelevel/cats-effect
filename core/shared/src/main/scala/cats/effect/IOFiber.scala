@@ -77,7 +77,7 @@ private final class IOFiber[A](
   suspended: AtomicBoolean =>
 
   import IOFiber._
-  import IO._
+  import IO.{println => _, _}
   import IOFiberConstants._
   import TracingConstants._
 
@@ -87,7 +87,7 @@ private final class IOFiber[A](
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
   private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
-  private[this] var resumeIO: AnyRef = startIO
+  private[this] var resumeIO: IO[Any] = startIO
   private[this] val runtime: IORuntime = rt
   private[this] val tracingEvents: RingBuffer =
     if (TracingConstants.isStackTracing) RingBuffer.empty(runtime.traceBufferLogSize) else null
@@ -105,12 +105,6 @@ private final class IOFiber[A](
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
 
-  /* prefetch for Right(()) */
-  private[this] val RightUnit: Either[Throwable, Unit] = IOFiber.RightUnit
-
-  /* similar prefetch for EndFiber */
-  private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
-
   override def run(): Unit = {
     // insert a read barrier after every async boundary
     readBarrier()
@@ -123,8 +117,7 @@ private final class IOFiber[A](
       case 5 => blockingR()
       case 6 => cedeR()
       case 7 => autoCedeR()
-      case 8 => executeRunnableR()
-      case 9 => ()
+      case 8 => () // DoneR
     }
   }
 
@@ -203,7 +196,7 @@ private final class IOFiber[A](
      * either because the entire IO is done, or because this branch is done
      * and execution is continuing asynchronously in a different runloop invocation.
      */
-    if (_cur0 eq IOEndFiber) {
+    if (_cur0 eq IO.EndFiber) {
       return
     }
 
@@ -1087,7 +1080,7 @@ private final class IOFiber[A](
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
 
       // Exit from the run loop after this. The fiber is finished.
-      IOEndFiber
+      IO.EndFiber
     }
   }
 
@@ -1342,7 +1335,7 @@ private final class IOFiber[A](
       objectState.init(16)
       finalizers.init(16)
 
-      val io = resumeIO.asInstanceOf[IO[Any]]
+      val io = resumeIO
       resumeIO = null
       runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
     }
@@ -1403,26 +1396,9 @@ private final class IOFiber[A](
   }
 
   private[this] def autoCedeR(): Unit = {
-    val io = resumeIO.asInstanceOf[IO[Any]]
+    val io = resumeIO
     resumeIO = null
     runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
-  }
-
-  private[this] def executeRunnableR(): Unit = {
-    val runnable = resumeIO.asInstanceOf[Runnable]
-    resumeIO = null
-
-    try runnable.run()
-    catch {
-      case t if NonFatal(t) =>
-        currentCtx.reportFailure(t)
-      case t: Throwable =>
-        onFatalFailure(t)
-        ()
-    } finally {
-      resumeTag = DoneR
-      currentCtx = null
-    }
   }
 
   /* Implementations of continuations */
@@ -1445,7 +1421,7 @@ private final class IOFiber[A](
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
 
       // Exit from the run loop after this. The fiber is finished.
-      IOEndFiber
+      IO.EndFiber
     }
   }
 
@@ -1456,12 +1432,12 @@ private final class IOFiber[A](
 
   private[this] def runTerminusSuccessK(result: Any): IO[Any] = {
     done(Outcome.Succeeded(IO.pure(result.asInstanceOf[A])))
-    IOEndFiber
+    IO.EndFiber
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
     done(Outcome.Errored(t))
-    IOEndFiber
+    IO.EndFiber
   }
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
@@ -1476,7 +1452,7 @@ private final class IOFiber[A](
       resumeTag = AsyncContinueSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
       scheduleOnForeignEC(ec, this)
-      IOEndFiber
+      IO.EndFiber
     } else {
       prepareFiberForCancelation(null)
     }
@@ -1494,7 +1470,7 @@ private final class IOFiber[A](
       resumeTag = AsyncContinueFailedR
       objectState.push(t)
       scheduleOnForeignEC(ec, this)
-      IOEndFiber
+      IO.EndFiber
     } else {
       prepareFiberForCancelation(null)
     }
@@ -1521,7 +1497,7 @@ private final class IOFiber[A](
   }
 
   private[effect] def isDone: Boolean =
-    resumeTag == DoneR
+    outcome ne null
 
   private[effect] def captureTrace(): Trace =
     if (tracingEvents ne null) {

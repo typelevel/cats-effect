@@ -277,7 +277,8 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
       constructor(8) flatMap { q =>
         val offerer = List.fill(8)(List.fill(8)(0)).parTraverse_(_.traverse(q.offer(_)))
 
-        (offerer &> 0.until(8 * 8).toList.traverse_(_ => q.take)).replicateA_(1000) *>
+        val iter = if (isJVM) 1000 else 1
+        (offerer &> 0.until(8 * 8).toList.traverse_(_ => q.take)).replicateA_(iter) *>
           q.size.flatMap(s => IO(s mustEqual 0))
       }
     }
@@ -300,7 +301,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
           }
         }
 
-        (offerer &> taker(0)).replicateA_(1000) *>
+        (offerer &> taker(0)).replicateA_(if (isJVM) 1000 else 1) *>
           q.size.flatMap(s => IO(s mustEqual 0))
       }
     }

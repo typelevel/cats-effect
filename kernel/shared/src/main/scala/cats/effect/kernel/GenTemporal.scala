@@ -152,9 +152,9 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
     uncancelable { poll =>
       implicit val F: GenTemporal[F, E] = this
 
-      racePair(fa, sleep(duration)) flatMap {
+      poll(racePair(fa, sleep(duration))) flatMap {
         case Left((oc, f)) =>
-          poll(f.cancel *> oc.embedNever)
+          poll(f.cancel *> oc.embed(poll(F.canceled) *> F.never))
 
         case Right((f, _)) =>
           start(f.cancel) *> raiseError[A](ev(new TimeoutException(duration.toString)))

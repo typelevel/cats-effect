@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
-import cats.effect.testkit.TestContext
+import cats.effect.testkit.{TestContext, TestControl}
 import cats.kernel.laws.SerializableLaws.serializable
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
@@ -322,6 +322,28 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
 
         action must completeAs(Nil)
+      }
+
+      "report errors raised during unsafeRunAndForget" in ticked { implicit ticker =>
+        import cats.effect.unsafe.IORuntime
+        import scala.concurrent.Promise
+
+        def ec2(ec1: ExecutionContext, er: Promise[Boolean]) = new ExecutionContext {
+          def reportFailure(t: Throwable) = er.success(true)
+          def execute(r: Runnable) = ec1.execute(r)
+        }
+
+        val test = for {
+          ec <- IO.executionContext
+          errorReporter <- IO(Promise[Boolean]())
+          customRuntime = IORuntime
+            .builder()
+            .setCompute(ec2(ec, errorReporter), () => ())
+            .build()
+          _ <- IO(IO.raiseError(new RuntimeException).unsafeRunAndForget()(customRuntime))
+          reported <- IO.fromFuture(IO(errorReporter.future))
+        } yield reported
+        test must completeAs(true)
       }
     }
 
@@ -826,6 +848,25 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
       }
 
+      "raceOutcome" should {
+        "cancel both fibers" in ticked { implicit ticker =>
+          (for {
+            l <- Ref.of[IO, Boolean](false)
+            r <- Ref.of[IO, Boolean](false)
+            fiber <-
+              IO.never[Int]
+                .onCancel(l.set(true))
+                .raceOutcome(IO.never[Int].onCancel(r.set(true)))
+                .start
+            _ <- IO(ticker.ctx.tick())
+            _ <- fiber.cancel
+            _ <- IO(ticker.ctx.tick())
+            l2 <- l.get
+            r2 <- r.get
+          } yield l2 -> r2) must completeAs(true -> true)
+        }
+      }
+
       "race" should {
         "succeed with faster side" in ticked { implicit ticker =>
           IO.race(IO.sleep(10.minutes) >> IO.pure(1), IO.pure(2)) must completeAs(Right(2))
@@ -866,24 +907,24 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             Outcome.canceled[IO, Throwable, Unit])
         }
 
-        "succeed if lhs cancels" in ticked { implicit ticker =>
-          IO.race(IO.canceled, IO.pure(1)) must completeAs(Right(1))
+        "cancel if lhs cancels and rhs succeeds" in ticked { implicit ticker =>
+          IO.race(IO.canceled, IO.sleep(1.milli) *> IO.pure(1)).void must selfCancel
         }
 
-        "succeed if rhs cancels" in ticked { implicit ticker =>
-          IO.race(IO.pure(1), IO.canceled) must completeAs(Left(1))
+        "cancel if rhs cancels and lhs succeeds" in ticked { implicit ticker =>
+          IO.race(IO.sleep(1.milli) *> IO.pure(1), IO.canceled).void must selfCancel
         }
 
-        "fail if lhs cancels and rhs fails" in ticked { implicit ticker =>
+        "cancel if lhs cancels and rhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.canceled, IO.raiseError[Unit](TestException)).void must failAs(
-            TestException)
+          IO.race(IO.canceled, IO.sleep(1.milli) *> IO.raiseError[Unit](TestException))
+            .void must selfCancel
         }
 
-        "fail if rhs cancels and lhs fails" in ticked { implicit ticker =>
+        "cancel if rhs cancels and lhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.raiseError[Unit](TestException), IO.canceled).void must failAs(
-            TestException)
+          IO.race(IO.sleep(1.milli) *> IO.raiseError[Unit](TestException), IO.canceled)
+            .void must selfCancel
         }
 
         "cancel both fibers" in ticked { implicit ticker =>
@@ -910,6 +951,42 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               res must beRight(())
             }
           }
+        }
+
+        "immediately cancel when timing out canceled" in real {
+          val program = IO.canceled.timeout(2.seconds)
+
+          val test = TestControl.execute(program.start.flatMap(_.join)) flatMap { ctl =>
+            ctl.tickFor(1.second) *> ctl.results
+          }
+
+          test flatMap { results =>
+            IO {
+              results must beLike { case Some(Outcome.Succeeded(Outcome.Canceled())) => ok }
+            }
+          }
+        }
+
+        "immediately cancel when timing out and forgetting canceled" in real {
+          val program = IO.canceled.timeoutAndForget(2.seconds)
+          val test = TestControl.execute(program.start.flatMap(_.join)) flatMap { ctl =>
+            ctl.tickFor(1.second) *> ctl.results
+          }
+
+          test flatMap { results =>
+            IO {
+              results must beLike { case Some(Outcome.Succeeded(Outcome.Canceled())) => ok }
+            }
+          }
+        }
+
+        "timeout a suspended timeoutAndForget" in real {
+          val program = IO.never.timeoutAndForget(2.seconds).timeout(1.second)
+          val test = TestControl.execute(program.start.flatMap(_.join)) flatMap { ctl =>
+            ctl.tickFor(1.second) *> ctl.results
+          }
+
+          test.flatMap(results => IO(results must beSome))
         }
 
         "return the left when racing against never" in ticked { implicit ticker =>
@@ -1045,6 +1122,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           IO.uncancelable(_ =>
             IO.canceled >> IO.unit.onCancel(IO { failed = true })) must selfCancel
           failed must beFalse
+      }
+
+      "support re-enablement via cancelable" in ticked { implicit ticker =>
+        IO.deferred[Unit].flatMap { gate =>
+          val test = IO.deferred[Unit] flatMap { latch =>
+            (gate.complete(()) *> latch.get).uncancelable.cancelable(latch.complete(()).void)
+          }
+
+          test.start.flatMap(gate.get *> _.cancel)
+        } must completeAs(())
       }
 
       "only unmask within current fiber" in ticked { implicit ticker =>
@@ -1471,6 +1558,81 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         (IO.raiseError[Unit](TestException), IO.never[Unit]).parTupled.void must failAs(
           TestException)
       }
+
+      "short-circuit on canceled" in ticked { implicit ticker =>
+        (IO.never[Unit], IO.canceled)
+          .parTupled
+          .start
+          .flatMap(_.join.map(_.isCanceled)) must completeAs(true)
+        (IO.canceled, IO.never[Unit])
+          .parTupled
+          .start
+          .flatMap(_.join.map(_.isCanceled)) must completeAs(true)
+      }
+
+      "run finalizers when canceled" in ticked { implicit ticker =>
+        val tsk = IO.ref(0).flatMap { ref =>
+          val t = IO.never[Unit].onCancel(ref.update(_ + 1))
+          for {
+            fib <- (t, t).parTupled.start
+            _ <- IO { ticker.ctx.tickAll() }
+            _ <- fib.cancel
+            c <- ref.get
+          } yield c
+        }
+
+        tsk must completeAs(2)
+      }
+
+      "run right side finalizer when canceled (and left side already completed)" in ticked {
+        implicit ticker =>
+          val tsk = IO.ref(0).flatMap { ref =>
+            for {
+              fib <- (IO.unit, IO.never[Unit].onCancel(ref.update(_ + 1))).parTupled.start
+              _ <- IO { ticker.ctx.tickAll() }
+              _ <- fib.cancel
+              c <- ref.get
+            } yield c
+          }
+
+          tsk must completeAs(1)
+      }
+
+      "run left side finalizer when canceled (and right side already completed)" in ticked {
+        implicit ticker =>
+          val tsk = IO.ref(0).flatMap { ref =>
+            for {
+              fib <- (IO.never[Unit].onCancel(ref.update(_ + 1)), IO.unit).parTupled.start
+              _ <- IO { ticker.ctx.tickAll() }
+              _ <- fib.cancel
+              c <- ref.get
+            } yield c
+          }
+
+          tsk must completeAs(1)
+      }
+
+      "complete if both sides complete" in ticked { implicit ticker =>
+        val tsk = (
+          IO.sleep(2.seconds).as(20),
+          IO.sleep(3.seconds).as(22)
+        ).parTupled.map { case (l, r) => l + r }
+
+        tsk must completeAs(42)
+      }
+
+      "not run forever on chained product" in ticked { implicit ticker =>
+        import cats.effect.kernel.Par.ParallelF
+
+        case object TestException extends RuntimeException
+
+        val fa: IO[String] = IO.pure("a")
+        val fb: IO[String] = IO.pure("b")
+        val fc: IO[Unit] = IO.raiseError[Unit](TestException)
+        val tsk =
+          ParallelF.value(ParallelF(fa).product(ParallelF(fb)).product(ParallelF(fc))).void
+        tsk must failAs(TestException)
+      }
     }
 
     "miscellaneous" should {
@@ -1841,7 +2003,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
     }
 
     "produce a specialized version of Deferred" in real {
-      IO.deferred[Unit].flatMap(d => IO((d must haveClass[IODeferred[_]]).pendingUntilFixed))
+      IO.deferred[Unit].flatMap(d => IO(d must haveClass[IODeferred[_]]))
     }
 
     platformSpecs

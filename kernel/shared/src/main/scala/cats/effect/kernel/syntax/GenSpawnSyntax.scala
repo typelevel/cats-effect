@@ -50,6 +50,9 @@ final class GenSpawnOps[F[_], A, E] private[syntax] (private val wrapped: F[A]) 
   def background(implicit F: GenSpawn[F, E]): Resource[F, F[Outcome[F, E, A]]] =
     F.background(wrapped)
 
+  def cancelable(fin: F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
+    F.cancelable(wrapped, fin)
+
   def raceOutcome[B](another: F[B])(
       implicit F: GenSpawn[F, E]
   ): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =

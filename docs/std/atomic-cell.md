@@ -6,7 +6,7 @@ title: Atomic Cell
 A synchronized, concurrent, mutable reference.
 
 Provides safe concurrent access and modification of its contents, by ensuring only one fiber
-can operate on them at the time. Thus, **all** operations may semantically block the
+can operate on them at the time. Thus, all operations except `get` may semantically block the
 calling fiber.
 
 ```scala mdoc:silent
@@ -22,15 +22,15 @@ abstract class AtomicCell[F[_], A] {
 
 ## Using `AtomicCell`
 
-The `AtomicCell` can be treated as a combination of `Semaphore` and `Ref`:
+The `AtomicCell` can be treated as a combination of `Mutex` and `Ref`:
 ```scala mdoc:reset:silent
 import cats.effect.{IO, Ref}
-import cats.effect.std.Semaphore
+import cats.effect.std.Mutex
 
 trait State
-class Service(sem: Semaphore[IO], ref: Ref[IO, State]) {
+class Service(mtx: Mutex[IO], ref: Ref[IO, State]) {
   def modify(f: State => IO[State]): IO[Unit] = 
-    sem.permit.surround {
+    mtx.lock.surround {
       for {
         current <- ref.get
         next <- f(current)
