@@ -141,7 +141,7 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
         tsk.replicateA_(if (isJS || isNative) 5 else 3000)
       }
 
-      t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
+      t mustEqual (())
     }
 
     "handle multiple concurrent cancels during release" in real {
@@ -162,7 +162,7 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
         task.replicateA_(if (isJS || isNative) 5 else 1000)
       }
 
-      t.timeoutTo(executionTimeout - 1.second, IO(ko)) mustEqual (())
+      t mustEqual (())
     }
 
     "preserve waiters order (FIFO) on a non-race cancellation" in ticked { implicit ticker =>
