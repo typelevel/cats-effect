@@ -308,8 +308,8 @@ trait IOApp {
    * Defines what to do when CpuStarvationCheck is triggered. Defaults to log a warning to
    * System.err.
    */
-  protected def onCpuStarvationWarn: CpuStarvationWarningMetrics => IO[Unit] =
-    CpuStarvationCheck.logWarning
+  protected def onCpuStarvationWarn(metrics: CpuStarvationWarningMetrics): IO[Unit] =
+    CpuStarvationCheck.logWarning(metrics)
 
   /**
    * The entry point for your application. Will be called by the runtime when the process is
