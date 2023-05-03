@@ -60,16 +60,23 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
         blockerThread <- IO.blocking(threadInfo).flatten
         (blockerThreadName, blockerThreadId) = blockerThread
         _ <- IO.cede
+        // The new worker (which replaced the thread which became a blocker) should also have a correct name
+        newComputeThread <- threadInfo
+        (newComputeThreadName, _) = newComputeThread
         // Force the previously blocking thread to become a compute thread by converting
         // the pool of compute threads (size=1) to blocker threads
         resetComputeThreads <- List.fill(2)(threadInfo <* IO.blocking(())).parSequence
       } yield {
         // Start with the regular prefix
         computeThreadName must startWith("io-compute")
-        // correct WSTP index (threadCount is 1, so the only possible index is 0)
+        // Correct WSTP index (threadCount is 1, so the only possible index is 0)
         computeThreadName must endWith("-0")
         // Check that entering a blocking region changes the name
         blockerThreadName must startWith("io-blocker")
+        // Check that the replacement compute thread has correct name
+        newComputeThreadName must startWith("io-compute")
+        // And index
+        newComputeThreadName must endWith("-0")
         // Check that the same thread is renamed again when it is readded to the compute pool
         val resetBlockerThread = resetComputeThreads.collectFirst {
           case (name, `blockerThreadId`) => name
