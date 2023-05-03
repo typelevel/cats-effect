@@ -138,7 +138,7 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
           m.lock.use_
         }
 
-        tsk.replicateA_(if (isJS || isNative) 5 else 3000)
+        tsk.replicateA_(if (isJVM) 3000 else 5)
       }
 
       t mustEqual (())
@@ -159,7 +159,7 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
           _ <- f4.join
         } yield ()
 
-        task.replicateA_(if (isJS || isNative) 5 else 1000)
+        task.replicateA_(if (isJVM) 1000 else 5)
       }
 
       t mustEqual (())
