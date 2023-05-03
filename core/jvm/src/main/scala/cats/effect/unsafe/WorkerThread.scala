@@ -668,6 +668,9 @@ private final class WorkerThread(
         val idx = index
         val clone =
           new WorkerThread(idx, queue, parked, external, fiberBag, pool)
+        // Make sure the clone gets our old name:
+        val clonePrefix = pool.threadPrefix
+        clone.setName(s"$clonePrefix-$idx")
         pool.replaceWorker(idx, clone)
         pool.blockedWorkerThreadCounter.incrementAndGet()
         clone.start()
