@@ -54,19 +54,29 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
   "WorkerThread" should {
     "rename itself when entering and exiting blocking region" in real {
       for {
+        _ <- IO.cede
         computeThread <- threadInfo
         (computeThreadName, _) = computeThread
         blockerThread <- IO.blocking(threadInfo).flatten
         (blockerThreadName, blockerThreadId) = blockerThread
         _ <- IO.cede
+        // The new worker (which replaced the thread which became a blocker) should also have a correct name
+        newComputeThread <- threadInfo
+        (newComputeThreadName, _) = newComputeThread
         // Force the previously blocking thread to become a compute thread by converting
         // the pool of compute threads (size=1) to blocker threads
         resetComputeThreads <- List.fill(2)(threadInfo <* IO.blocking(())).parSequence
       } yield {
         // Start with the regular prefix
         computeThreadName must startWith("io-compute")
+        // Correct WSTP index (threadCount is 1, so the only possible index is 0)
+        computeThreadName must endWith("-0")
         // Check that entering a blocking region changes the name
         blockerThreadName must startWith("io-blocker")
+        // Check that the replacement compute thread has correct name
+        newComputeThreadName must startWith("io-compute")
+        // And index
+        newComputeThreadName must endWith("-0")
         // Check that the same thread is renamed again when it is readded to the compute pool
         val resetBlockerThread = resetComputeThreads.collectFirst {
           case (name, `blockerThreadId`) => name
@@ -75,6 +85,8 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
           "blocker thread not found after reset")
         resetBlockerThread must beSome((_: String).startsWith("io-compute"))
           .setMessage("blocker thread name was not reset")
+        resetBlockerThread must beSome((_: String).endsWith("-0"))
+          .setMessage("blocker thread index was not correct")
       }
     }
   }
