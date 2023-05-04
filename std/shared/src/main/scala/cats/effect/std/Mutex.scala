@@ -87,6 +87,31 @@ object Mutex {
   )(
       implicit F: Concurrent[F]
   ) extends Mutex[F] {
+    // Awakes whoever is waiting for us with the next cell in the queue.
+    private def awakeCell(
+        ourCell: ConcurrentImpl.Next[F],
+        nextCell: ConcurrentImpl.LockQueue
+    ): F[Unit] =
+      state.access.flatMap {
+        // If the current last cell in the queue is our cell,
+        // then that means nobody is waiting for us.
+        // Thus, we can just set the state to the next cell in the queue.
+        // Otherwise, we awake whoever is waiting for us.
+        case (lastCell, setter) =>
+          if (lastCell eq ourCell) setter(nextCell)
+          else F.pure(false)
+      } flatMap {
+        case false => ourCell.complete(nextCell).void
+        case true => F.unit
+      }
+
+    // Cancels a Fiber waiting for the Mutex.
+    private def cancel(
+        ourCell: ConcurrentImpl.Next[F],
+        currentCell: ConcurrentImpl.LockQueue
+    ): F[Unit] =
+      awakeCell(ourCell, nextCell = currentCell)
+
     // Acquires the Mutex.
     private def acquire(poll: Poll[F]): F[ConcurrentImpl.Next[F]] =
       ConcurrentImpl.LockQueueCell[F].flatMap { ourCell =>
@@ -107,7 +132,7 @@ object Mutex {
             else {
               F.onCancel(
                 poll(currentCell.asInstanceOf[ConcurrentImpl.Next[F]].get),
-                ourCell.complete(currentCell).void
+                cancel(ourCell, currentCell)
               ).flatMap { nextCell => loop(currentCell = nextCell) }
             }
 
@@ -116,19 +141,8 @@ object Mutex {
       }
 
     // Releases the Mutex.
-    private def release(thisCell: ConcurrentImpl.Next[F]): F[Unit] =
-      state.access.flatMap {
-        // If the current last cell in the queue is ours,
-        // then that means nobody is waiting for us.
-        // Thus, we can just reset the state to the Empty cell.
-        // Otherwise, we awake whoever is waiting for us.
-        case (lastCell, setter) =>
-          if (lastCell eq thisCell) setter(ConcurrentImpl.Empty)
-          else F.pure(false)
-      } flatMap {
-        case false => thisCell.complete(ConcurrentImpl.Empty).void
-        case true => F.unit
-      }
+    private def release(ourCell: ConcurrentImpl.Next[F]): F[Unit] =
+      awakeCell(ourCell, nextCell = ConcurrentImpl.Empty)
 
     override final val lock: Resource[F, Unit] =
       Resource.makeFull[F, ConcurrentImpl.Next[F]](acquire)(release).void
