@@ -359,7 +359,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     "issue 3501: reject new tasks after release action is submitted as a task" in real {
       dispatcher.allocated.flatMap {
         case (runner, release) =>
-          IO(runner.unsafeRunAndForget(release)) *>
+          IO(runner.unsafeRunAndForget(IO.sleep(50.millis) *> release)) *>
             IO.sleep(100.millis) *>
             IO(runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException])
       }
