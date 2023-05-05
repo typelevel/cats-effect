@@ -152,6 +152,13 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           _ <- gate2.acquireN(2)
         } yield ok
       }
+
+      "cancel inner awaits when canceled" in ticked { implicit ticker =>
+        val work = Dispatcher.parallel[IO](await = false).useForever
+        val test = work.background.use(_ => IO.sleep(100.millis))
+
+        test must completeAs(())
+      }
     }
   }
 
