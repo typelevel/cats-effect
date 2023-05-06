@@ -187,26 +187,21 @@ object Queue {
       extends Queue[F, A] {
 
     def offer(a: A): F[Unit] =
-      F.deferred[Deferred[F, A]] flatMap { latch =>
+      F.deferred[Unit] flatMap { latch =>
         F uncancelable { poll =>
-          val cleanupF = stateR modify {
-            case SyncState(offerers, takers) =>
-              val fallback = latch.tryGet flatMap {
-                case Some(offerer) => offerer.complete(a).void
-                case None => F.unit
-              }
-
-              SyncState(offerers.filter(_ ne latch), takers) -> fallback
-          }
-
           val modificationF = stateR modify {
             case SyncState(offerers, takers) if takers.nonEmpty =>
               val (taker, tail) = takers.dequeue
               SyncState(offerers, tail) -> taker.complete(a).void
 
             case SyncState(offerers, takers) =>
-              SyncState(offerers.enqueue(latch), takers) ->
-                poll(latch.get).onCancel(cleanupF.flatten).flatMap(_.complete(a).void)
+              val cleanupF = stateR update {
+                case SyncState(offerers, takers) =>
+                  SyncState(offerers.filter(_._2 ne latch), takers)
+              }
+
+              SyncState(offerers.enqueue((a, latch)), takers) ->
+                poll(latch.get).onCancel(cleanupF)
           }
 
           modificationF.flatten
@@ -225,30 +220,30 @@ object Queue {
 
     val take: F[A] =
       F.deferred[A] flatMap { latch =>
-        val modificationF = stateR modify {
-          case SyncState(offerers, takers) if offerers.nonEmpty =>
-            val (offerer, tail) = offerers.dequeue
-            SyncState(tail, takers) -> offerer.complete(latch).void
+        F uncancelable { poll =>
+          val modificationF = stateR modify {
+            case SyncState(offerers, takers) if offerers.nonEmpty =>
+              val ((value, offerer), tail) = offerers.dequeue
+              SyncState(tail, takers) -> offerer.complete(()).as(value)
 
-          case SyncState(offerers, takers) =>
-            SyncState(offerers, takers.enqueue(latch)) -> F.unit
+            case SyncState(offerers, takers) =>
+              val cleanupF = stateR update {
+                case SyncState(offerers, takers) =>
+                  SyncState(offerers, takers.filter(_ ne latch))
+              }
+
+              SyncState(offerers, takers.enqueue(latch)) -> poll(latch.get).onCancel(cleanupF)
+          }
+
+          modificationF.flatten
         }
-
-        val cleanupF = stateR update {
-          case SyncState(offerers, takers) =>
-            SyncState(offerers, takers.filter(_ ne latch))
-        }
-
-        F uncancelable { poll => modificationF.flatten *> poll(latch.get).onCancel(cleanupF) }
       }
 
     val tryTake: F[Option[A]] =
       stateR.flatModify {
         case SyncState(offerers, takers) if offerers.nonEmpty =>
-          val (offerer, tail) = offerers.dequeue
-          SyncState(tail, takers) -> F
-            .deferred[A]
-            .flatMap(d => offerer.complete(d) *> d.get.map(_.some))
+          val ((value, offerer), tail) = offerers.dequeue
+          SyncState(tail, takers) -> offerer.complete(()).as(value.some)
 
         case st =>
           st -> none[A].pure[F]
@@ -258,7 +253,7 @@ object Queue {
   }
 
   private final case class SyncState[F[_], A](
-      offerers: ScalaQueue[Deferred[F, Deferred[F, A]]],
+      offerers: ScalaQueue[(A, Deferred[F, Unit])],
       takers: ScalaQueue[Deferred[F, A]])
 
   private object SyncState {
