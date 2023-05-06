@@ -158,6 +158,12 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     List("gu install native-image"),
     name = Some("Install GraalVM Native Image"),
     cond = Some(s"matrix.java == '${GraalVM.render}'")
+  ),
+  WorkflowStep.Use(
+    UseRef.Public("al-cheb", "configure-pagefile-action", "v1.3"),
+    name = Some("Configure Windows Pagefile"),
+    params = Map("minimum-size" -> "2GB", "maximum-size" -> "8GB"),
+    cond = Some(s"matrix.os == '$Windows'")
   )
 )
 

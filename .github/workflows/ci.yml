@@ -223,6 +223,13 @@ jobs:
         shell: bash
         run: gu install native-image
 
+      - name: Configure Windows Pagefile
+        if: matrix.os == 'windows-latest'
+        uses: al-cheb/configure-pagefile-action@v1.3
+        with:
+          minimum-size: 2GB
+          maximum-size: 8GB
+
       - name: Check that workflows are up to date
         shell: bash
         run: sbt githubWorkflowCheck
