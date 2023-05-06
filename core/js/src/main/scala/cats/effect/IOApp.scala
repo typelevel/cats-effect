@@ -209,7 +209,12 @@ trait IOApp {
         val compute = IORuntime.createBatchingMacrotaskExecutor(reportFailure = t =>
           reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
 
-        IORuntime(compute, compute, IORuntime.defaultScheduler, () => (), runtimeConfig)
+        IORuntime(
+          compute,
+          compute,
+          IORuntime.defaultScheduler,
+          () => IORuntime.resetGlobal(),
+          runtimeConfig)
       }
 
       _runtime = IORuntime.global

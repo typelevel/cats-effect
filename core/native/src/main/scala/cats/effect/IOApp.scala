@@ -197,8 +197,9 @@ trait IOApp {
           IORuntime.defaultComputeExecutionContext,
           IORuntime.defaultComputeExecutionContext,
           IORuntime.defaultScheduler,
-          () => (),
-          runtimeConfig)
+          () => IORuntime.resetGlobal(),
+          runtimeConfig
+        )
       }
 
       _runtime = IORuntime.global

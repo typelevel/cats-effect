@@ -48,6 +48,7 @@ package examples {
     registerRaw(FatalErrorRaw)
     register(Canceled)
     registerLazy("catseffect.examples.GlobalRacingInit", GlobalRacingInit)
+    registerLazy("catseffect.examples.GlobalShutdown", GlobalShutdown)
     register(ShutdownHookImmediateTimeout)
     register(LiveFiberSnapshot)
     register(FatalErrorUnsafeRun)

@@ -355,6 +355,7 @@ trait IOApp {
           { () =>
             compDown()
             blockDown()
+            IORuntime.resetGlobal()
           },
           runtimeConfig)
       }
