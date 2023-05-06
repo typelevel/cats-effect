@@ -367,6 +367,13 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
         test.void must completeAs(())
     }
+
+    "cancel inner awaits when canceled" in ticked { implicit ticker =>
+      val work = dispatcher.useForever
+      val test = work.background.use(_ => IO.sleep(100.millis))
+
+      test must completeAs(())
+    }
   }
 
   private def awaitTermination(dispatcher: Resource[IO, Dispatcher[IO]]) = {
