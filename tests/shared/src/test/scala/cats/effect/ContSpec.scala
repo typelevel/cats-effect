@@ -130,7 +130,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
             complete.get).tupled
       }
 
-    io.flatMap { r => IO(r mustEqual (true, true, false)) }
+    io.flatMap { r => IO(r mustEqual ((true, true, false))) }
   }
 
   "get within onCancel - 2" in realWithRuntime { rt =>
@@ -154,7 +154,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
             complete.get).tupled
       }
 
-    io.flatMap { r => IO(r mustEqual (true, true, false)) }
+    io.flatMap { r => IO(r mustEqual ((true, true, false))) }
   }
 
   "get exclusively within onCancel" in realWithRuntime { rt =>
