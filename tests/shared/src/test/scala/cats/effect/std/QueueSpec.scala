@@ -72,6 +72,38 @@ final class QueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfor
       test must completeAs(0.until(5).toList)
     }
 
+    "not lose offer when taker is canceled during exchange" in real {
+      val test = for {
+        q <- Queue.synchronous[IO, Unit]
+        latch <- CountDownLatch[IO](2)
+        offererDone <- IO.ref(false)
+
+        _ <- (latch.release *> latch.await *> q.offer(()))
+          .guarantee(offererDone.set(true))
+          .start
+        taker <- (latch.release *> latch.await *> q.take).start
+
+        _ <- latch.await
+        _ <- taker.cancel
+
+        // we should either have received the value successfully, or we left the value in queue
+        // what we *don't* want is to remove the value and then lose it due to cancelation
+        oc <- taker.join
+
+        _ <-
+          if (oc.isCanceled) {
+            // we (maybe) hit the race condition
+            // if we lost the value, q.take will hang
+            offererDone.get.flatMap(b => IO(b must beFalse)) *> q.take
+          } else {
+            // we definitely didn't hit the race condition, because we got the value in taker
+            IO.unit
+          }
+      } yield ok
+
+      test.parReplicateA_(10000).as(ok)
+    }
+
     "not lose takers when offerer is canceled and there are no other takers" in real {
       val test = for {
         q <- Queue.synchronous[IO, Unit]
