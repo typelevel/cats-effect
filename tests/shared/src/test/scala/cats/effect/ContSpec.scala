@@ -113,8 +113,8 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val flag = Ref[IO].of(false)
 
     val io =
-      (flag, flag).tupled.flatMap {
-        case (start, end) =>
+      (flag, flag, flag).tupled.flatMap {
+        case (start, end, complete) =>
           cont {
             new Cont[IO, Unit, Unit] {
               def apply[F[_]: Cancelable] = { (resume, get, lift) =>
@@ -124,18 +124,21 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
                   }
               }
             }
-          }.timeoutTo(1.second, ().pure[IO]) >> (start.get, end.get).tupled
+          }.flatMap { _ => complete.set(true) }.timeoutTo(1.second, ().pure[IO]) >> (
+            start.get,
+            end.get,
+            complete.get).tupled
       }
 
-    io.flatMap { r => IO(r mustEqual true -> true) }
+    io.flatMap { r => IO(r mustEqual (true, true, false)) }
   }
 
   "get within onCancel - 2" in realWithRuntime { rt =>
     val flag = Ref[IO].of(false)
 
     val io =
-      (flag, flag).tupled.flatMap {
-        case (start, end) =>
+      (flag, flag, flag).tupled.flatMap {
+        case (start, end, complete) =>
           cont {
             new Cont[IO, Unit, Unit] {
               def apply[F[_]: Cancelable] = { (resume, get, lift) =>
@@ -145,10 +148,13 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
                   }
               }
             }
-          }.timeoutTo(1.second, ().pure[IO]) >> (start.get, end.get).tupled
+          }.flatMap { _ => complete.set(true) }.timeoutTo(1.second, ().pure[IO]) >> (
+            start.get,
+            end.get,
+            complete.get).tupled
       }
 
-    io.flatMap { r => IO(r mustEqual true -> true) }
+    io.flatMap { r => IO(r mustEqual (true, true, false)) }
   }
 
   "get exclusively within onCancel" in realWithRuntime { rt =>
