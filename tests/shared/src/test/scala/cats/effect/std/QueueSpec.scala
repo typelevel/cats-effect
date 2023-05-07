@@ -31,7 +31,7 @@ import org.specs2.specification.core.Fragments
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
 
-class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatform {
+final class QueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatform {
 
   "BoundedQueue (concurrent)" should {
     boundedQueueTests(i => if (i == 0) Queue.synchronous else Queue.boundedForConcurrent(i))
@@ -51,7 +51,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
     boundedQueueTests(Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
   }
 
-  "synchronous queue" should {
+  "SynchronousQueue" should {
     "respect fifo order" in ticked { implicit ticker =>
       val test = for {
         q <- Queue.synchronous[IO, Int]
