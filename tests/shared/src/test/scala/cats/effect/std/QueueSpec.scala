@@ -78,7 +78,9 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
         latch <- CountDownLatch[IO](2)
         offererDone <- IO.ref(false)
 
-        _ <- (latch.release *> latch.await *> q.offer(())).guarantee(offererDone.set(true)).start
+        _ <- (latch.release *> latch.await *> q.offer(()))
+          .guarantee(offererDone.set(true))
+          .start
         taker <- (latch.release *> latch.await *> q.take).start
 
         _ <- latch.await
@@ -88,14 +90,15 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
         // what we *don't* want is to remove the value and then lose it due to cancelation
         oc <- taker.join
 
-        _ <- if (oc.isCanceled) {
-          // we (maybe) hit the race condition
-          // if we lost the value, q.take will hang
-          offererDone.get.flatMap(b => IO(b must beFalse)) *> q.take
-        } else {
-          // we definitely didn't hit the race condition, because we got the value in taker
-          IO.unit
-        }
+        _ <-
+          if (oc.isCanceled) {
+            // we (maybe) hit the race condition
+            // if we lost the value, q.take will hang
+            offererDone.get.flatMap(b => IO(b must beFalse)) *> q.take
+          } else {
+            // we definitely didn't hit the race condition, because we got the value in taker
+            IO.unit
+          }
       } yield ok
 
       test.parReplicateA_(10000).as(ok)
