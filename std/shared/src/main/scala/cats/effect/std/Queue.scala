@@ -212,7 +212,16 @@ object Queue {
                   val newState: SyncState.TakerWaiting[F, A] = df
                   val program = F.onCancel(
                     poll(df.get),
-                    state.update(s => if (s eq newState) SyncState.Empty else s)
+                    state.modify { s =>
+                      if (s eq newState)
+                        SyncState.Empty -> F.unit
+                      else
+                        SyncState.Empty -> s
+                          .asInstanceOf[SyncState.OffererWaiting[F, A]]
+                          ._2
+                          .complete(false)
+                          .void
+                    }.flatten
                   )
 
                   newState -> program
@@ -225,22 +234,41 @@ object Queue {
               .flatten
               .flatMap {
                 case (a, offererSignal) =>
-                  state.set(SyncState.Empty) >> offererSignal.complete(()).as(a)
+                  state.set(SyncState.Empty) >> offererSignal.complete(true).as(a)
               }
           }
         }
       }
 
-    override def tryTake: F[Option[A]] = ???
+    override def tryTake: F[Option[A]] =
+      state.access.flatMap {
+        case (oldState, setter) =>
+          if ((oldState eq SyncState.Empty) ||
+            oldState.isInstanceOf[SyncState.TakerWaiting[F, A]])
+            F.pure(None)
+          else {
+            val (a, offererSignal) = oldState.asInstanceOf[SyncState.OffererWaiting[F, A]]
+            setter(SyncState.Empty).flatMap {
+              case true =>
+                offererSignal.complete(true).as(Some(a))
+
+              case false =>
+                F.pure(None)
+            }
+          }
+      }
 
     override def offer(a: A): F[Unit] =
       offeres.lock.surround {
-        Deferred[F, Unit].flatMap { df =>
+        def loop(): F[Unit] = Deferred[F, Boolean].flatMap { df =>
           F.uncancelable { poll =>
             val newState: SyncState.OffererWaiting[F, A] = (a, df)
 
             val consumed = F.onCancel(
-              poll(df.get),
+              poll(df.get).flatMap {
+                case true => F.unit
+                case false => loop()
+              },
               state.update(s => if (s eq newState) SyncState.Empty else s)
             )
 
@@ -254,9 +282,31 @@ object Queue {
             }
           }
         }
+
+        loop()
       }
 
-    override def tryOffer(a: A): F[Boolean] = ???
+    override def tryOffer(a: A): F[Boolean] =
+      state.access.flatMap {
+        case (oldState, setter) =>
+          if ((oldState eq SyncState.Empty) ||
+            oldState.isInstanceOf[SyncState.OffererWaiting[F, A]])
+            F.pure(false)
+          else {
+            setter(SyncState.Empty).flatMap {
+              case true =>
+                Deferred[F, Boolean].flatMap { df =>
+                  F.uncancelable { poll =>
+                    oldState.asInstanceOf[SyncState.TakerWaiting[F, A]].complete(a -> df) >>
+                      poll(df.get)
+                  }
+                }
+
+              case false =>
+                F.pure(false)
+            }
+          }
+      }
 
     override final val size: F[Int] = F.pure(0)
   }
@@ -266,7 +316,7 @@ object Queue {
     type Empty = SyncState
     final val Empty: Empty = null
 
-    type OffererWaiting[F[_], A] = (A, Deferred[F, Unit])
+    type OffererWaiting[F[_], A] = (A, Deferred[F, Boolean])
 
     type TakerWaiting[F[_], A] = Deferred[F, OffererWaiting[F, A]]
   }
