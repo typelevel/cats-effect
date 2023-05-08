@@ -128,7 +128,7 @@ object Queue {
     (
       Mutex[F],
       Mutex[F],
-      F.ref[SyncState[F, A]](SyncState.Empty[F]())
+      F.ref[SyncState](SyncState.Empty)
     ).mapN(new Synchronous(_, _, _))
 
   /**
@@ -198,34 +198,35 @@ object Queue {
   private final class Synchronous[F[_], A](
       offeres: Mutex[F],
       takers: Mutex[F],
-      state: Ref[F, SyncState[F, A]]
+      state: Ref[F, SyncState]
   )(
       implicit F: Concurrent[F]
   ) extends Queue[F, A] {
     override def take: F[A] =
       takers.lock.surround {
-        Deferred[F, (A, Deferred[F, Unit])].flatMap { df =>
+        Deferred[F, SyncState.OffererWaiting[F, A]].flatMap { df =>
           F.uncancelable { poll =>
-            state.modify {
-              case SyncState.Empty() =>
-                val newState = SyncState.TakerWaiting(complete = df)
-                val program = F.onCancel(
-                  poll(df.get),
-                  state.update(s => if (s eq newState) SyncState.Empty() else s)
-                )
-                newState -> program.flatMap {
-                  case (a, df) =>
-                    state.set(SyncState.Empty()) *>
-                      df.complete(()).as(a)
+            state
+              .modify { oldState =>
+                if (oldState eq SyncState.Empty) {
+                  val newState: SyncState.TakerWaiting[F, A] = df
+                  val program = F.onCancel(
+                    poll(df.get),
+                    state.update(s => if (s eq newState) SyncState.Empty else s)
+                  )
+
+                  newState -> program
+                } else {
+                  SyncState.Empty -> F.pure(
+                    oldState.asInstanceOf[SyncState.OffererWaiting[F, A]]
+                  )
                 }
-
-              case SyncState.OffererWaiting(a, complete) =>
-                SyncState.Empty[F]() -> complete.complete(()).as(a)
-
-              case _ =>
-                // Impossible
-                SyncState.Empty[F]() -> F.pure(null.asInstanceOf[A])
-            }.flatten
+              }
+              .flatten
+              .flatMap {
+                case (a, offererSignal) =>
+                  state.set(SyncState.Empty) >> offererSignal.complete(()).as(a)
+              }
           }
         }
       }
@@ -236,23 +237,21 @@ object Queue {
       offeres.lock.surround {
         Deferred[F, Unit].flatMap { df =>
           F.uncancelable { poll =>
-            state.modify {
-              case SyncState.Empty() =>
-                val newState = SyncState.OffererWaiting(a, complete = df)
-                val program = F.onCancel(
-                  poll(df.get),
-                  state.update(s => if (s eq newState) SyncState.Empty() else s)
-                )
-                newState -> program
+            val newState: SyncState.OffererWaiting[F, A] = (a, df)
 
-              case SyncState.TakerWaiting(complete) =>
-                SyncState.OffererWaiting(a, complete = df) -> complete.complete(
-                  a -> df) *> poll(df.get)
+            val consumed = F.onCancel(
+              poll(df.get),
+              state.update(s => if (s eq newState) SyncState.Empty else s)
+            )
 
-              case _ =>
-                // Impossible
-                SyncState.Empty() -> F.unit
-            }.flatten
+            state.getAndSet(newState).flatMap { oldState =>
+              if (oldState eq SyncState.Empty)
+                consumed
+              else
+                oldState
+                  .asInstanceOf[SyncState.TakerWaiting[F, A]]
+                  .complete(newState) >> consumed
+            }
           }
         }
       }
@@ -262,13 +261,14 @@ object Queue {
     override final val size: F[Int] = F.pure(0)
   }
 
-  private sealed trait SyncState[F[_], +A]
+  private type SyncState = AnyRef
   private object SyncState {
-    final case class Empty[F[_]]() extends SyncState[F, Nothing]
-    final case class OffererWaiting[F[_], A](a: A, complete: Deferred[F, Unit])
-        extends SyncState[F, A]
-    final case class TakerWaiting[F[_], A](complete: Deferred[F, (A, Deferred[F, Unit])])
-        extends SyncState[F, A]
+    type Empty = SyncState
+    final val Empty: Empty = null
+
+    type OffererWaiting[F[_], A] = (A, Deferred[F, Unit])
+
+    type TakerWaiting[F[_], A] = Deferred[F, OffererWaiting[F, A]]
   }
 
   private sealed abstract class AbstractQueue[F[_], A](
