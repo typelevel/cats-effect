@@ -196,7 +196,7 @@ object Queue {
     else ()
 
   private final class Synchronous[F[_], A](
-      offeres: Mutex[F],
+      offers: Mutex[F],
       takers: Mutex[F],
       state: Ref[F, SyncState]
   )(
@@ -212,16 +212,12 @@ object Queue {
                   val newState: SyncState.TakerWaiting[F, A] = df
                   val program = F.onCancel(
                     poll(df.get),
-                    state.modify { s =>
+                    state.getAndSet(SyncState.Empty).flatMap { s =>
                       if (s eq newState)
-                        SyncState.Empty -> F.unit
+                        F.unit
                       else
-                        SyncState.Empty -> s
-                          .asInstanceOf[SyncState.OffererWaiting[F, A]]
-                          ._2
-                          .complete(false)
-                          .void
-                    }.flatten
+                        s.asInstanceOf[SyncState.OffererWaiting[F, A]]._2.complete(false).void
+                    }
                   )
 
                   newState -> program
@@ -259,7 +255,7 @@ object Queue {
       }
 
     override def offer(a: A): F[Unit] =
-      offeres.lock.surround {
+      offers.lock.surround {
         def loop(): F[Unit] = Deferred[F, Boolean].flatMap { df =>
           F.uncancelable { poll =>
             val newState: SyncState.OffererWaiting[F, A] = (a, df)
@@ -296,6 +292,7 @@ object Queue {
             setter(SyncState.Empty).flatMap {
               case true =>
                 Deferred[F, Boolean].flatMap { df =>
+                  // This won't block for long since we complete quickly in this handoff.
                   F.uncancelable { poll =>
                     oldState.asInstanceOf[SyncState.TakerWaiting[F, A]].complete(a -> df) >>
                       poll(df.get)
