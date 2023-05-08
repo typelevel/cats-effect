@@ -242,18 +242,37 @@ object Queue {
 
             case SyncState(offerers, takers) =>
               val cleanupF = {
-                val removeListener = stateR update {
+                val removeListener = stateR modify {
                   case SyncState(offerers, takers) =>
-                    SyncState(offerers, takers.filter(_ ne latch))
+                    // like filter, but also returns a Boolean indicating whether it was found
+                    def filterFound[A <: AnyRef](
+                        in: ScalaQueue[A],
+                        out: ScalaQueue[A]): (Boolean, ScalaQueue[A]) = {
+
+                      if (in.isEmpty) {
+                        (false, out)
+                      } else {
+                        val (head, tail) = in.dequeue
+
+                        if (head eq latch)
+                          (true, out.enqueueAll(tail))
+                        else
+                          filterFound(tail, out.enqueue(head))
+                      }
+                    }
+
+                    val (found, takers2) = filterFound(takers, ScalaQueue())
+                    SyncState(offerers, takers2) -> found
                 }
 
-                val failCommit = latch.tryGet flatMap {
+                val failCommit = latch.get flatMap {
                   // this is where we *fail* the 2-phase commit up in offer
-                  case Some((_, commitLatch)) => commitLatch.complete(false).void
-                  case None => F.unit
+                  case (_, commitLatch) => commitLatch.complete(false).void
                 }
 
-                removeListener *> failCommit
+                // if we *don't* find our latch, it means an offerer has it
+                // we need to wait to handshake with them
+                removeListener.ifM(F.unit, failCommit)
               }
 
               val awaitF = poll(latch.get).onCancel(cleanupF) flatMap {
