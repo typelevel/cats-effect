@@ -245,6 +245,7 @@ object Queue {
                 val removeListener = stateR modify {
                   case SyncState(offerers, takers) =>
                     // like filter, but also returns a Boolean indicating whether it was found
+                    @tailrec
                     def filterFound[Z <: AnyRef](
                         in: ScalaQueue[Z],
                         out: ScalaQueue[Z]): (Boolean, ScalaQueue[Z]) = {
