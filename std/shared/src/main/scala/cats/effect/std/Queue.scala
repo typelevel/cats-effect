@@ -18,7 +18,16 @@ package cats
 package effect
 package std
 
-import cats.effect.kernel.{Async, Cont, Deferred, GenConcurrent, MonadCancelThrow, Poll, Ref}
+import cats.effect.kernel.{
+  Async,
+  Cont,
+  Concurrent,
+  Deferred,
+  GenConcurrent,
+  MonadCancelThrow,
+  Poll,
+  Ref
+}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
@@ -71,7 +80,7 @@ object Queue {
    * @return
    *   an empty, bounded queue
    */
-  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
+  def bounded[F[_], A](capacity: Int)(implicit F: Concurrent[F]): F[Queue[F, A]] = {
     assertNonNegative(capacity)
 
     // async queue can't handle capacity == 1 and allocates eagerly, so cap at 64k
@@ -115,8 +124,12 @@ object Queue {
    * @return
    *   a synchronous queue
    */
-  def synchronous[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
-    F.ref(SyncState.empty[F, A]).map(new Synchronous(_))
+  def synchronous[F[_], A](implicit F: Concurrent[F]): F[Queue[F, A]] =
+    (
+      Mutex[F],
+      Mutex[F],
+      F.ref[SyncState](SyncState.Empty)
+    ).mapN(new Synchronous(_, _, _))
 
   /**
    * Constructs an empty, unbounded queue for `F` data types that are
@@ -182,82 +195,127 @@ object Queue {
         s"$name queue capacity must be positive, was: $capacity")
     else ()
 
-  private final class Synchronous[F[_], A](stateR: Ref[F, SyncState[F, A]])(
-      implicit F: GenConcurrent[F, _])
-      extends Queue[F, A] {
+  private final class Synchronous[F[_], A](
+      offers: Mutex[F],
+      takers: Mutex[F],
+      state: Ref[F, SyncState]
+  )(
+      implicit F: Concurrent[F]
+  ) extends Queue[F, A] {
+    override def take: F[A] =
+      takers.lock.surround {
+        Deferred[F, SyncState.OffererWaiting[F, A]].flatMap { df =>
+          F.uncancelable { poll =>
+            state
+              .modify { oldState =>
+                if (oldState eq SyncState.Empty) {
+                  val newState: SyncState.TakerWaiting[F, A] = df
+                  val program = F.onCancel(
+                    poll(df.get),
+                    state.getAndSet(SyncState.Empty).flatMap { s =>
+                      if (s eq newState)
+                        F.unit
+                      else
+                        s.asInstanceOf[SyncState.OffererWaiting[F, A]]._2.complete(false).void
+                    }
+                  )
 
-    def offer(a: A): F[Unit] =
-      F.deferred[Unit] flatMap { latch =>
-        F uncancelable { poll =>
-          val modificationF = stateR modify {
-            case SyncState(offerers, takers) if takers.nonEmpty =>
-              val (taker, tail) = takers.dequeue
-              SyncState(offerers, tail) -> taker.complete(a).void
-
-            case SyncState(offerers, takers) =>
-              val cleanupF = stateR update {
-                case SyncState(offerers, takers) =>
-                  SyncState(offerers.filter(_._2 ne latch), takers)
+                  newState -> program
+                } else {
+                  SyncState.Empty -> F.pure(
+                    oldState.asInstanceOf[SyncState.OffererWaiting[F, A]]
+                  )
+                }
               }
-
-              SyncState(offerers.enqueue((a, latch)), takers) ->
-                poll(latch.get).onCancel(cleanupF)
+              .flatten
+              .flatMap {
+                case (a, offererSignal) =>
+                  state.set(SyncState.Empty) >> offererSignal.complete(true).as(a)
+              }
           }
-
-          modificationF.flatten
         }
       }
 
-    def tryOffer(a: A): F[Boolean] =
-      stateR.flatModify {
-        case SyncState(offerers, takers) if takers.nonEmpty =>
-          val (taker, tail) = takers.dequeue
-          SyncState(offerers, tail) -> taker.complete(a).as(true)
+    override def tryTake: F[Option[A]] =
+      state.access.flatMap {
+        case (oldState, setter) =>
+          if ((oldState eq SyncState.Empty) ||
+            oldState.isInstanceOf[SyncState.TakerWaiting[F, A]])
+            F.pure(None)
+          else {
+            val (a, offererSignal) = oldState.asInstanceOf[SyncState.OffererWaiting[F, A]]
+            setter(SyncState.Empty).flatMap {
+              case true =>
+                offererSignal.complete(true).as(Some(a))
 
-        case st =>
-          st -> F.pure(false)
-      }
-
-    val take: F[A] =
-      F.deferred[A] flatMap { latch =>
-        F uncancelable { poll =>
-          val modificationF = stateR modify {
-            case SyncState(offerers, takers) if offerers.nonEmpty =>
-              val ((value, offerer), tail) = offerers.dequeue
-              SyncState(tail, takers) -> offerer.complete(()).as(value)
-
-            case SyncState(offerers, takers) =>
-              val cleanupF = stateR update {
-                case SyncState(offerers, takers) =>
-                  SyncState(offerers, takers.filter(_ ne latch))
-              }
-
-              SyncState(offerers, takers.enqueue(latch)) -> poll(latch.get).onCancel(cleanupF)
+              case false =>
+                F.pure(None)
+            }
           }
+      }
 
-          modificationF.flatten
+    override def offer(a: A): F[Unit] =
+      offers.lock.surround {
+        def loop(): F[Unit] = Deferred[F, Boolean].flatMap { df =>
+          F.uncancelable { poll =>
+            val newState: SyncState.OffererWaiting[F, A] = (a, df)
+
+            val consumed = F.onCancel(
+              poll(df.get).flatMap {
+                case true => F.unit
+                case false => loop()
+              },
+              state.update(s => if (s eq newState) SyncState.Empty else s)
+            )
+
+            state.getAndSet(newState).flatMap { oldState =>
+              if (oldState eq SyncState.Empty)
+                consumed
+              else
+                oldState
+                  .asInstanceOf[SyncState.TakerWaiting[F, A]]
+                  .complete(newState) >> consumed
+            }
+          }
         }
+
+        loop()
       }
 
-    val tryTake: F[Option[A]] =
-      stateR.flatModify {
-        case SyncState(offerers, takers) if offerers.nonEmpty =>
-          val ((value, offerer), tail) = offerers.dequeue
-          SyncState(tail, takers) -> offerer.complete(()).as(value.some)
+    override def tryOffer(a: A): F[Boolean] =
+      state.access.flatMap {
+        case (oldState, setter) =>
+          if ((oldState eq SyncState.Empty) ||
+            oldState.isInstanceOf[SyncState.OffererWaiting[F, A]])
+            F.pure(false)
+          else {
+            setter(SyncState.Empty).flatMap {
+              case true =>
+                Deferred[F, Boolean].flatMap { df =>
+                  // This won't block for long since we complete quickly in this handoff.
+                  F.uncancelable { poll =>
+                    oldState.asInstanceOf[SyncState.TakerWaiting[F, A]].complete(a -> df) >>
+                      poll(df.get)
+                  }
+                }
 
-        case st =>
-          st -> none[A].pure[F]
+              case false =>
+                F.pure(false)
+            }
+          }
       }
 
-    val size: F[Int] = F.pure(0)
+    override final val size: F[Int] = F.pure(0)
   }
 
-  private final case class SyncState[F[_], A](
-      offerers: ScalaQueue[(A, Deferred[F, Unit])],
-      takers: ScalaQueue[Deferred[F, A]])
-
+  private type SyncState = AnyRef
   private object SyncState {
-    def empty[F[_], A]: SyncState[F, A] = SyncState(ScalaQueue(), ScalaQueue())
+    type Empty = SyncState
+    final val Empty: Empty = null
+
+    type OffererWaiting[F[_], A] = (A, Deferred[F, Boolean])
+
+    type TakerWaiting[F[_], A] = Deferred[F, OffererWaiting[F, A]]
   }
 
   private sealed abstract class AbstractQueue[F[_], A](

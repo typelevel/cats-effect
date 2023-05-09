@@ -63,7 +63,7 @@ object Mutex {
   /**
    * Creates a new `Mutex`.
    */
-  def apply[F[_]](implicit F: Concurrent[F]): F[Mutex[F]] =
+  def apply[F[_]](implicit F: GenConcurrent[F, _]): F[Mutex[F]] =
     Ref
       .of[F, ConcurrentImpl.LockQueueCell](
         // Initialize the state with an already completed cell.
@@ -85,7 +85,7 @@ object Mutex {
   private final class ConcurrentImpl[F[_]](
       state: Ref[F, ConcurrentImpl.LockQueueCell]
   )(
-      implicit F: Concurrent[F]
+      implicit F: GenConcurrent[F, _]
   ) extends Mutex[F] {
     // Awakes whoever is waiting for us with the next cell in the queue.
     private def awakeCell(
@@ -162,7 +162,7 @@ object Mutex {
     // Represents a waiting cell in the queue.
     private[Mutex] final type WaitingCell[F[_]] = Deferred[F, LockQueueCell]
 
-    private[Mutex] def LockQueueCell[F[_]](implicit F: Concurrent[F]): F[WaitingCell[F]] =
+    private[Mutex] def LockQueueCell[F[_]](implicit F: GenConcurrent[F, _]): F[WaitingCell[F]] =
       Deferred[F, LockQueueCell]
   }
 
