@@ -245,9 +245,9 @@ object Queue {
                 val removeListener = stateR modify {
                   case SyncState(offerers, takers) =>
                     // like filter, but also returns a Boolean indicating whether it was found
-                    def filterFound[A <: AnyRef](
-                        in: ScalaQueue[A],
-                        out: ScalaQueue[A]): (Boolean, ScalaQueue[A]) = {
+                    def filterFound[Z <: AnyRef](
+                        in: ScalaQueue[Z],
+                        out: ScalaQueue[Z]): (Boolean, ScalaQueue[Z]) = {
 
                       if (in.isEmpty) {
                         (false, out)
@@ -255,7 +255,7 @@ object Queue {
                         val (head, tail) = in.dequeue
 
                         if (head eq latch)
-                          (true, out.enqueueAll(tail))
+                          (true, out ++ tail)
                         else
                           filterFound(tail, out.enqueue(head))
                       }
