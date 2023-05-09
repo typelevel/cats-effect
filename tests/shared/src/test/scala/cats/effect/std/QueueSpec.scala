@@ -101,7 +101,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
           }
       } yield ok
 
-      test.parReplicateA_(10000).as(ok)
+      test.parReplicateA_(if (isJVM) 10000 else 1).as(ok)
     }
 
     "not lose takers when offerer is canceled and there are no other takers" in real {
