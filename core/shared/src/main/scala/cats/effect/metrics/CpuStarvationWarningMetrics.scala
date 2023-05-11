@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect.metrics
 
-object implicits {
-  implicit def global: IORuntime = IORuntime.global
-}
+import scala.concurrent.duration.FiniteDuration
+
+final case class CpuStarvationWarningMetrics(
+    occurrenceTime: FiniteDuration,
+    clockDrift: FiniteDuration,
+    starvationThreshold: Double,
+    starvationInterval: FiniteDuration)

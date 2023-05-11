@@ -356,13 +356,23 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         .replicateA(5)
     }
 
-    "issue 3501: reject new tasks after release action is submitted as a task" in real {
-      dispatcher.allocated.flatMap {
-        case (runner, release) =>
-          IO(runner.unsafeRunAndForget(release)) *>
-            IO.sleep(100.millis) *>
-            IO(runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException])
-      }
+    "issue 3501: reject new tasks after release action is submitted as a task" in ticked {
+      implicit ticker =>
+        val test = dispatcher.allocated.flatMap {
+          case (runner, release) =>
+            IO(runner.unsafeRunAndForget(IO.sleep(50.millis) *> release)) *>
+              IO.sleep(100.millis) *>
+              IO(runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException])
+        }
+
+        test.void must completeAs(())
+    }
+
+    "cancel inner awaits when canceled" in ticked { implicit ticker =>
+      val work = dispatcher.useForever
+      val test = work.background.use(_ => IO.sleep(100.millis))
+
+      test must completeAs(())
     }
   }
 

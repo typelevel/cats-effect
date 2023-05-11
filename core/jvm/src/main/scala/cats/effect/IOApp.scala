@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.metrics.JvmCpuStarvationMetrics
+import cats.effect.metrics.{CpuStarvationWarningMetrics, JvmCpuStarvationMetrics}
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
 import cats.syntax.all._
@@ -310,6 +310,13 @@ trait IOApp {
       .getOrElse(10.seconds)
 
   /**
+   * Defines what to do when CpuStarvationCheck is triggered. Defaults to log a warning to
+   * System.err.
+   */
+  protected def onCpuStarvationWarn(metrics: CpuStarvationWarningMetrics): IO[Unit] =
+    CpuStarvationCheck.logWarning(metrics)
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -351,6 +358,7 @@ trait IOApp {
           { () =>
             compDown()
             blockDown()
+            IORuntime.resetGlobal()
           },
           runtimeConfig)
       }
@@ -396,7 +404,9 @@ trait IOApp {
     val fiber =
       JvmCpuStarvationMetrics()
         .flatMap { cpuStarvationMetrics =>
-          CpuStarvationCheck.run(runtimeConfig, cpuStarvationMetrics).background
+          CpuStarvationCheck
+            .run(runtimeConfig, cpuStarvationMetrics, onCpuStarvationWarn)
+            .background
         }
         .surround(ioa)
         .unsafeRunFiber(

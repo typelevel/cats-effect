@@ -196,7 +196,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
   }
 
-  private[this] var _global: IORuntime = null
+  @volatile private[this] var _global: IORuntime = null
 
   // we don't need to synchronize this with IOApp, because we control the main thread
   // so instead we just yolo it since the lazy val already synchronizes its own initialization
@@ -212,13 +212,13 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   private[effect] def resetGlobal(): Unit =
     _global = null
 
-  lazy val global: IORuntime = {
+  def global: IORuntime = {
     if (_global == null) {
       installGlobal {
         val (compute, _) = createWorkStealingComputeThreadPool()
         val (blocking, _) = createDefaultBlockingExecutionContext()
 
-        IORuntime(compute, blocking, compute, () => (), IORuntimeConfig())
+        IORuntime(compute, blocking, compute, () => resetGlobal(), IORuntimeConfig())
       }
     }
 

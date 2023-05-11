@@ -195,6 +195,14 @@ class IOAppSpec extends Specification {
           h.stderr() must not(contain("boom"))
         }
 
+        "reset global runtime on shutdown" in {
+          val h = platform(GlobalShutdown, List.empty)
+          h.awaitStatus() mustEqual 0
+          h.stderr() must not contain
+            "Cats Effect global runtime already initialized; custom configurations will be ignored"
+          h.stderr() must not(contain("boom"))
+        }
+
         "warn on cpu starvation" in {
           val h = platform(CpuStarvation, List.empty)
           h.awaitStatus()
