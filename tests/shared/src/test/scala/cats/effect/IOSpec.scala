@@ -1731,6 +1731,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         affected must beTrue
       }
 
+      "round up negative sleeps" in real {
+        IO.sleep(-1.seconds).as(ok)
+      }
+
       "timeout" should {
         "succeed" in real {
           val op = IO.pure(true).timeout(100.millis)
