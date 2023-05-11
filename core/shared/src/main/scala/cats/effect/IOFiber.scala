@@ -909,21 +909,24 @@ private final class IOFiber[A](
 
         case 19 =>
           val cur = cur0.asInstanceOf[Sleep]
+          val delay = cur.delay
 
-          val next = IO.async[Unit] { cb =>
-            IO {
-              val scheduler = runtime.scheduler
-              val delay = cur.delay
+          val next =
+            if (delay.length > 0)
+              IO.async[Unit] { cb =>
+                IO {
+                  val scheduler = runtime.scheduler
 
-              val cancel =
-                if (scheduler.isInstanceOf[WorkStealingThreadPool])
-                  scheduler.asInstanceOf[WorkStealingThreadPool].sleepInternal(delay, cb)
-                else
-                  scheduler.sleep(delay, () => cb(RightUnit))
+                  val cancel =
+                    if (scheduler.isInstanceOf[WorkStealingThreadPool])
+                      scheduler.asInstanceOf[WorkStealingThreadPool].sleepInternal(delay, cb)
+                    else
+                      scheduler.sleep(delay, () => cb(RightUnit))
 
-              Some(IO(cancel.run()))
-            }
-          }
+                  Some(IO(cancel.run()))
+                }
+              }
+            else IO.cede
 
           runLoop(next, nextCancelation, nextAutoCede)
 
