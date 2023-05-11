@@ -530,12 +530,21 @@ private final class IOFiber[A](
             def apply[B](ioa: IO[B]) = IO.Uncancelable.UnmaskRunLoop(ioa, id, IOFiber.this)
           }
 
+          val next =
+            try cur.body(poll)
+            catch {
+              case t if NonFatal(t) =>
+                failed(t, 0)
+              case t: Throwable =>
+                onFatalFailure(t)
+            }
+
           /*
            * The uncancelableK marker is used by `succeeded` and `failed`
            * to unmask once body completes.
            */
           conts = ByteStack.push(conts, UncancelableK)
-          runLoop(cur.body(poll), nextCancelation, nextAutoCede)
+          runLoop(next, nextCancelation, nextAutoCede)
 
         case 13 =>
           val cur = cur0.asInstanceOf[Uncancelable.UnmaskRunLoop[Any]]
