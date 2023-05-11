@@ -555,7 +555,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.OnCancel(this, fin)
 
   def onError(f: Throwable => IO[Unit]): IO[A] =
-    handleErrorWith(t => f(t).attempt *> IO.raiseError(t))
+    handleErrorWith(t => f(t).voidError *> IO.raiseError(t))
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
     IO.race(this, that)

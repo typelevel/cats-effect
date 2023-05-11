@@ -1314,6 +1314,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         test must nonTerminate
       }
 
+      "catch stray exceptions in uncancelable" in ticked { implicit ticker =>
+        IO.uncancelable[Unit](_ => throw new RuntimeException).voidError must completeAs(())
+      }
     }
 
     "finalization" should {
