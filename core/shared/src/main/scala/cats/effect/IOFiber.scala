@@ -900,13 +900,13 @@ private final class IOFiber[A](
 
         case 19 =>
           val cur = cur0.asInstanceOf[Sleep]
+          val delay = cur.delay
 
           val next =
-            if (cur.delay.length > 0)
+            if (delay.length > 0)
               IO.async[Unit] { cb =>
                 IO {
                   val scheduler = runtime.scheduler
-                  val delay = cur.delay
 
                   val cancel =
                     if (scheduler.isInstanceOf[WorkStealingThreadPool])
