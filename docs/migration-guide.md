@@ -439,15 +439,13 @@ You can get an instance of it with `Dispatcher.parallel[F]` (or `sequential[F]`)
 
 ```scala
 object Dispatcher {
-  def parallel[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
-  def sequential[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def parallel[F[_]](await: Boolean = false)(implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def sequential[F[_]](await: Boolean = false)(implicit F: Async[F]): Resource[F, Dispatcher[F]]
 }
 ```
 
 > Note: keep in mind the shape of that method: the resource is related to the lifecycle of all tasks you run with a dispatcher.
-> When this resource is closed, **all its running tasks are canceled**.
->
-> This [might be configurable](https://github.com/typelevel/cats-effect/issues/1881) in a future release.
+> When this resource is closed, **all its running tasks are canceled or joined** (depending on the `await` parameter).
 
 Creating a `Dispatcher` is relatively lightweight, so you can create one even for each task you execute, but sometimes it's worth keeping a `Dispatcher` alive for longer.
 To find out more, see [its docs](./std/dispatcher.md).
