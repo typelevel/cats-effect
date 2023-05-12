@@ -217,7 +217,7 @@ Please refer to each library's appropriate documentation/changelog to see how to
 
 | Cats Effect 2.x                               | Cats Effect 3                               | Notes                                                                           |
 | --------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
-| `Blocker.apply`                               | -                                           | blocking pool is [provided by runtime](#where-does-the-blocking-pool-come-from) |
+| `Blocker.apply`                               | -                                           | blocking is [provided by runtime](#how-does-blocking-work) |
 | `Blocker#delay`                               | `Sync[F].blocking`, `Sync[F].interruptible`, `Sync[F].interruptibleMany` | `Blocker` was removed                                                           |
 | `Blocker(ec).blockOn(fa)`, `Blocker.blockOnK` | [see notes](#no-blockon)                    |                                                                                 |
 
@@ -242,7 +242,7 @@ It is now possible to make the blocking task interruptible using [`Sync`](./type
 
 ```scala mdoc
 val programInterruptible =
-  Sync[IO].interruptible(println("hello Sync blocking!"))
+  Sync[IO].interruptible(println("hello interruptible blocking!"))
 ```
 
 If we require our operation to be more sensitive to cancelation we can use `interruptibleMany`.
@@ -250,20 +250,19 @@ The difference between `interruptible` and `interruptibleMany` is that in case o
 `interruptibleMany` will repeatedly attempt to interrupt until the blocking operation completes or exits,
 on the other hand using `interruptible` the interrupt will be attempted only once.
 
-#### Where Does The Blocking Pool Come From?
+#### How Does Blocking Work?
 
-The blocking thread pool, similarly to the compute pool, is provided in `IORuntime` when you run your `IO`.
-For other effect systems it could be a `Runtime` or `Scheduler`, etc. You can learn more about CE3 [schedulers](./schedulers.md) and [the thread model in comparison to CE2's](./thread-model.md).
+Support for blocking actions is provided by `IORuntime`. The runtime provides the blocking threads as needed.
+(For other effect systems it could be a `Runtime` or `Scheduler`, etc.)
+You can learn more about CE3 [schedulers](./schedulers.md) and [the thread model in comparison to CE2's](./thread-model.md).
 
 ```scala mdoc
 val runtime = cats.effect.unsafe.IORuntime.global
 
 def showThread() = java.lang.Thread.currentThread().getName()
 
-IO.blocking(showThread())
-  .product(
-    IO(showThread())
-  )
+IO(showThread())
+  .product(IO.blocking(showThread()))
   .unsafeRunSync()(runtime)
 ```
 
