@@ -39,7 +39,7 @@ Blocking operations are, in practice, unavoidable. Some of this has to do with t
 
 The JVM uses just such a native library call *within the `URL#equals` comparison*, and that library call blocks until the DNS resolution has been completed, because the underlying DNS client within every major OS is *itself* blocking and uses blocking network I/O. So this means that every time you innocently call `==` on `URL`s (or if you're unlucky enough to use them as `Map` keys), you're blocking a thread for as long as it takes for your DNS server to respond with an answer (or non-answer).
 
-Another excellent example is file I/O (such as `FileInputStream`). Filesystems are also a good example of exceptionally old software designed for a previous age being brought into the modern world, and to that end, they are almost universally blocking. Windows local NTFS mounts are a notable exception to this paradigm, but all macOS filesystem operations are blocking at the OS level, as are (in practice) nearly all Linux filesystem operations (io_uring is changing this, but it's still exceptionally new and not yet universally available, seeing its first public release in May 2019). 
+Another excellent example is file I/O (such as `FileInputStream`). Filesystems are also a good example of exceptionally old software designed for a previous age being brought into the modern world, and to that end, they are almost universally blocking. Windows local NTFS mounts are a notable exception to this paradigm, but all macOS filesystem operations are blocking at the OS level, as are (in practice) nearly all Linux filesystem operations.
 
 File I/O is effectively unavoidable in any application, but it too means blocking a thread while the kernel fishes out the bytes your application has requested.
 
@@ -83,5 +83,5 @@ For the most part, you should never have to worry about any of this. Just unders
 ## Scala Native
 
 The [Scala Native](https://github.com/scala-native/scala-native) runtime is [single-threaded](https://scala-native.org/en/latest/user/lang.html#multithreading), similarly to ScalaJS. That's why the `IO#unsafeRunSync` is not available.
-Be careful with `IO.blocking(...)` as it blocks the thread since there is no dedicated blocking thread pool. 
-For more in-depth details, see the [article](https://typelevel.org/blog/2022/09/19/typelevel-native.html#how-does-it-work) with explanations of how the Native runtime works. 
+Be careful with `IO.blocking(...)` as it blocks the thread since there is no dedicated blocking thread pool.
+For more in-depth details, see the [article](https://typelevel.org/blog/2022/09/19/typelevel-native.html#how-does-it-work) with explanations of how the Native runtime works.
