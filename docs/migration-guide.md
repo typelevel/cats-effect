@@ -707,11 +707,6 @@ For `Clock`, see [the relevant part of the guide](#clock).
 
 Similarly to `Clock`, `Timer` has been replaced with a lawful type class, `Temporal`. Learn more in [its documentation](./typeclasses/temporal.md).
 
-### Tracing
-
-Currently, improved stack traces are not implemented.
-There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
-
 ## Test Your Application
 
 If you followed this guide, all your dependencies are using the 3.x releases of Cats Effect, your code compiles and your tests pass,
