@@ -534,7 +534,7 @@ private final class IOFiber[A](
             try cur.body(poll)
             catch {
               case t if NonFatal(t) =>
-                failed(t, 0)
+                IO.raiseError(t)
               case t: Throwable =>
                 onFatalFailure(t)
             }
