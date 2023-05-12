@@ -181,7 +181,7 @@ We can divide the parameter `k` into the following:
 
 - `Either[Throwable, A] => Unit` - the callback that will complete or fail this effect when called. This is identical as in CE2.
 - `=> F[...]` (outer effect) - the effect of registering the callback. This would be e.g. `delay { window.setTimeout(() => cb(...)) }`.
-- `Option[F[Unit]]` - an optional effect that will run if the action is canceled. Passing `None` here is equivalent to `Some(F.unit)`
+- `Option[F[Unit]]` - an optional effect that will run if the action is canceled. Passing `None` here makes the whole `async(...)` uncancelable.
 
 The most similar method to this in CE2 would be `Concurrent.cancelableF`:
 
