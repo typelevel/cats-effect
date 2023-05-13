@@ -16,12 +16,14 @@ new_version="$2"
 minor_base=series/$(echo $new_version | sed -E 's/([0-9]+).([0-9]+).[0-9]+/\1.\2.x/')
 branch="release/$new_version-minor"
 
-remote=$(git remote -v | grep 'typelevel/cats-effect' | cut -f1 | head -n1)
+cd "$(mktemp -d)"
+git clone git@github.com:typelevel/cats-effect.git
+cd 'cats-effect'
 
-git checkout -b $branch
+git checkout -b $branch origin/$minor_base
 scripts/update-versions.sh $old_version $new_version
 git commit -a -m "Update versions for $new_version"
-git push $remote $branch
+git push origin $branch
 
 gh pr create \
   --fill \
