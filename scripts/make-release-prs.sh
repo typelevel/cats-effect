@@ -23,7 +23,7 @@ git clone git@github.com:typelevel/cats-effect.git
 cd 'cats-effect'
 
 git checkout -b $branch origin/$minor_base
-"$primary_base/scripts/update-versions.sh" $old_version $new_version
+"$primary_base/scripts/update-versions.sh" --base . $old_version $new_version
 git commit -a -m "Update versions for $new_version"
 git push origin $branch
 

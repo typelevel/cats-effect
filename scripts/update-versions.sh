@@ -3,7 +3,13 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-cd "$(dirname $0)/.."
+if [[ "$1" == "--base" ]]; then
+  shift
+  cd "$1"
+  shift
+else
+  cd "$(dirname $0)/.."
+fi
 
 old_version="$1"
 new_version="$2"
