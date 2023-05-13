@@ -95,7 +95,7 @@ resources with <code>Resource#eval</code></p>
 }
 </code></pre>
 <p>Our concat example then becomes:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">file</span></span>(name: <span class="hljs-type">String</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">File</span>] = <span class="hljs-type">Resource</span>.make(openFile(name)))(file =&gt; close(file))
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">file</span></span>(name: <span class="hljs-type">String</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">File</span>] = <span class="hljs-type">Resource</span>.make(openFile(name))(file =&gt; close(file))
 
 <span class="hljs-keyword">val</span> concat: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] =
   (
