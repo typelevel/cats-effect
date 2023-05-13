@@ -5,6 +5,11 @@ IFS=$'\n\t'
 
 cd "$(dirname $0)/.."
 
+if [[ $# -ne 2 ]] || [[ "$1" == "--help" ]]; then
+  echo "usage: $0 old-version new-version"
+  exit 1
+fi
+
 old_version="$1"
 new_version="$2"
 
