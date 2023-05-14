@@ -3,11 +3,17 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-cd "$(dirname $0)/.."
-
-if [[ $# -ne 2 ]] || [[ "$1" == "--help" ]]; then
+if [[ $# -lt 2 ]] || [[ "$1" == "--help" ]]; then
   echo "usage: $0 old-version new-version"
   exit 1
+fi
+
+if [[ "$1" == "--base" ]]; then
+  shift
+  cd "$1"
+  shift
+else
+  cd "$(dirname $0)/.."
 fi
 
 old_version="$1"
