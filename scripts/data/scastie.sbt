@@ -4,5 +4,3 @@ scalacOptions ++= Seq(
   "-feature",
   "-unchecked"
 )
-
-turbo := false
