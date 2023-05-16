@@ -250,6 +250,12 @@ private final class IOFiber[A](
             pushTracingEvent(cur.event)
           }
 
+          var locals: IOLocals = null
+          if (dumpLocals) {
+            locals = new IOLocals(localState)
+            IOLocals.threadLocal.set(locals)
+          }
+
           var error: Throwable = null
           val r =
             try cur.thunk()
@@ -259,6 +265,11 @@ private final class IOFiber[A](
               case t: Throwable =>
                 onFatalFailure(t)
             }
+
+          if (dumpLocals) {
+            localState = locals.getState()
+            IOLocals.threadLocal.set(null)
+          }
 
           val next =
             if (error == null) succeeded(r, 0)

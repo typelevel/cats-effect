@@ -43,4 +43,6 @@ final class IOFiberConstants {
   static final byte CedeR = 6;
   static final byte AutoCedeR = 7;
   static final byte DoneR = 8;
+
+  static final boolean dumpLocals = Boolean.getBoolean("cats.effect.tracing.dumpLocals");
 }
