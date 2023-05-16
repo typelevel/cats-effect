@@ -2,20 +2,25 @@ package cats.effect
 package unsafe
 
 // TODO handle defaults and lenses. all do-able, just needs refactoring ...
-final class IOLocals private[effect] (private[this] var state: IOLocalState) {
+object IOLocals {
+  def get[A](iol: IOLocal[A]): A = threadLocal.get.apply(iol).asInstanceOf[A]
 
-  private[effect] def getState(): IOLocalState = state
+  def set[A](iol: IOLocal[A], value: A): Unit =
+    threadLocal.set(threadLocal.get() + (iol -> value))
 
-  def get[A](iol: IOLocal[A]): A = state(iol).asInstanceOf[A]
-
-  def set[A](iol: IOLocal[A], value: A): Unit = state += (iol -> value)
-
-  def reset[A](iol: IOLocal[A]): Unit = state -= iol
+  def reset[A](iol: IOLocal[A]): Unit = threadLocal.set(threadLocal.get() - iol)
 
   // TODO other ops from IOLocal
 
-}
+  private[this] val empty: IOLocalState = Map.empty
+  private[this] val threadLocal = new ThreadLocal[IOLocalState] {
+    override def initialValue() = empty
+  }
 
-object IOLocals {
-  val threadLocal = ThreadLocal.withInitial[IOLocals](() => null)
+  private[effect] def setState(state: IOLocalState) = threadLocal.set(state)
+  private[effect] def getAndClearState() = {
+    val state = threadLocal.get()
+    threadLocal.set(empty)
+    state
+  }
 }
