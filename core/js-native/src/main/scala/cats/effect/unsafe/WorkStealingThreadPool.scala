@@ -46,4 +46,5 @@ private[unsafe] sealed abstract class WorkerThread private () extends Thread {
   private[unsafe] def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean
   private[unsafe] def monitor(fiber: Runnable): WeakBag.Handle
   private[unsafe] def index: Int
+  private[unsafe] var ioLocalState: IOLocalState
 }
