@@ -1464,6 +1464,9 @@ abstract private[effect] class ResourceAsync[F[_]]
   def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] =
     fa.evalOn(ec)
 
+  def evalOn[A](fa: Resource[F, A], executor: Executor): Resource[F, A] =
+    fa.evalOn(executor)
+
   def executionContext: Resource[F, ExecutionContext] =
     Resource.executionContext
 }
