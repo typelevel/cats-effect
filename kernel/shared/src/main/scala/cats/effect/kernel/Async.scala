@@ -167,6 +167,12 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
 
   /**
+   * [[Async.evalOn]] with provided java.util.concurrent.Executor
+   */
+  def evalOn[A](fa: F[A], executor: Executor): F[A]
+
+
+  /**
    * [[Async.evalOn]] as a natural transformation.
    */
   def evalOnK(ec: ExecutionContext): F ~> F =

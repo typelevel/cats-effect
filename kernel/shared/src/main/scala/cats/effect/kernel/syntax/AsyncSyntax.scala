@@ -18,6 +18,7 @@ package cats.effect.kernel.syntax
 
 import cats.effect.kernel.{Async, Fiber, Outcome, Resource, Sync}
 
+import java.util.concurrent.Executor
 import scala.concurrent.ExecutionContext
 
 trait AsyncSyntax {
@@ -29,6 +30,9 @@ final class AsyncOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A]
     extends AnyVal {
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): F[A] =
     Async[F].evalOn(wrapped, ec)
+
+  def evalOn(executor: Executor)(implicit F: Async[F]): F[A] =
+    Async[F].evalOn(wrapped, executor)
 
   def startOn(ec: ExecutionContext)(implicit F: Async[F]): F[Fiber[F, Throwable, A]] =
     Async[F].startOn(wrapped, ec)

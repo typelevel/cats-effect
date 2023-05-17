@@ -23,6 +23,7 @@ import cats.effect.kernel.implicits._
 import cats.effect.kernel.instances.spawn
 import cats.syntax.all._
 
+import java.util.concurrent.Executor
 import scala.annotation.tailrec
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
@@ -697,6 +698,13 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
     Resource.applyFull { poll =>
       poll(this.allocatedCase).evalOn(ec).map {
         case (a, release) => (a, release.andThen(_.evalOn(ec)))
+      }
+    }
+
+  def evalOn(executor: Executor)(implicit F: Async[F]): Resource[F, A] =
+    Resource.applyFull { poll =>
+      poll(this.allocatedCase).evalOn(executor).map {
+        case (a, release) => (a, release.andThen(_.evalOn(executor)))
       }
     }
 
