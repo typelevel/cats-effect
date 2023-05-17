@@ -22,7 +22,7 @@ import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.implicits._
 
 import scala.annotation.{nowarn, tailrec}
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.{ExecutionContext, Future}
 
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicReference
