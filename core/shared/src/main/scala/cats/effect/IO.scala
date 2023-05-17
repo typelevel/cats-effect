@@ -1009,7 +1009,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
-      Map.empty,
+      if (IOFiberConstants.dumpLocals) unsafe.IOLocals.getState else Map.empty,
       oc =>
         oc.fold(
           {

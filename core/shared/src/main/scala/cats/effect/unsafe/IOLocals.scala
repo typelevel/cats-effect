@@ -36,6 +36,14 @@ object IOLocals {
     override def initialValue() = IOLocalState.empty
   }
 
+  private[effect] def getState = {
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread])
+      thread.asInstanceOf[WorkerThread].ioLocalState
+    else
+      threadLocal.get()
+  }
+
   private[effect] def setState(state: IOLocalState) = {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread])
