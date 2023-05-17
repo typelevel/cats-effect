@@ -1820,7 +1820,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def evalOn[A](fa: IO[A], ec: ExecutionContext): IO[A] =
       fa.evalOn(ec)
-    
+
     val executionContext: IO[ExecutionContext] =
       IO.executionContext
 

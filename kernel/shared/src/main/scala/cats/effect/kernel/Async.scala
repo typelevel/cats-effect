@@ -167,15 +167,16 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
 
   /**
-   * [[Async.evalOn]] with provided java.util.concurrent.Executor
+   * [[Async.evalOn]] with provided [[java.util.concurrent.Executor]]
    */
   def evalOn[A](fa: F[A], executor: Executor): F[A] =
     executor match {
-      case ec: ExecutionContextExecutor =>
-        evalOn[A](fa, ec: ExecutionContext)
+      case ec: ExecutionContext =>
+        evalOn[A](fa, ec)
       case executor =>
         flatMap(executionContext) { refEc =>
-          val newEc: ExecutionContext = ExecutionContext.fromExecutor(executor, refEc.reportFailure)
+          val newEc: ExecutionContext =
+            ExecutionContext.fromExecutor(executor, refEc.reportFailure)
           evalOn[A](fa, newEc)
         }
     }
@@ -624,6 +625,7 @@ object Async {
 
     def evalOn[A](fa: WriterT[F, L, A], ec: ExecutionContext): WriterT[F, L, A] =
       WriterT(F.evalOn(fa.run, ec))
+
     def executionContext: WriterT[F, L, ExecutionContext] = WriterT.liftF(F.executionContext)
 
     override def never[A]: WriterT[F, L, A] = WriterT.liftF(F.never)
