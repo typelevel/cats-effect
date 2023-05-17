@@ -172,7 +172,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   def evalOn[A](fa: F[A], executor: Executor): F[A] =
     executor match {
       case ec: ExecutionContext =>
-        evalOn[A](fa, ec)
+        evalOn[A](fa, ec: ExecutionContext)
       case executor =>
         flatMap(executionContext) { refEc =>
           val newEc: ExecutionContext =
