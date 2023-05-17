@@ -169,8 +169,16 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   /**
    * [[Async.evalOn]] with provided java.util.concurrent.Executor
    */
-  def evalOn[A](fa: F[A], executor: Executor): F[A]
-
+  def evalOn[A](fa: F[A], executor: Executor): F[A] =
+    executor match {
+      case ec: ExecutionContextExecutor =>
+        evalOn[A](fa, ec: ExecutionContext)
+      case executor =>
+        flatMap(executionContext) { refEc =>
+          val newEc: ExecutionContext = ExecutionContext.fromExecutor(executor, refEc.reportFailure)
+          evalOn[A](fa, newEc)
+        }
+    }
 
   /**
    * [[Async.evalOn]] as a natural transformation.
@@ -407,9 +415,6 @@ object Async {
     def evalOn[A](fa: OptionT[F, A], ec: ExecutionContext): OptionT[F, A] =
       OptionT(F.evalOn(fa.value, ec))
 
-    def evalOn[A](fa: OptionT[F, A], executor: Executor): OptionT[F, A] =
-      OptionT(F.evalOn(fa.value, executor))
-
     def executionContext: OptionT[F, ExecutionContext] = OptionT.liftF(F.executionContext)
 
     override def never[A]: OptionT[F, A] = OptionT.liftF(F.never)
@@ -480,9 +485,6 @@ object Async {
 
     def evalOn[A](fa: EitherT[F, E, A], ec: ExecutionContext): EitherT[F, E, A] =
       EitherT(F.evalOn(fa.value, ec))
-
-    def evalOn[A](fa: EitherT[F, E, A], executor: Executor): EitherT[F, E, A] =
-      EitherT(F.evalOn(fa.value, executor))
 
     def executionContext: EitherT[F, E, ExecutionContext] = EitherT.liftF(F.executionContext)
 
@@ -556,9 +558,6 @@ object Async {
     def evalOn[A](fa: IorT[F, L, A], ec: ExecutionContext): IorT[F, L, A] =
       IorT(F.evalOn(fa.value, ec))
 
-    def evalOn[A](fa: IorT[F, L, A], executor: Executor): IorT[F, L, A] =
-      IorT(F.evalOn(fa.value, executor))
-
     def executionContext: IorT[F, L, ExecutionContext] = IorT.liftF(F.executionContext)
 
     override def never[A]: IorT[F, L, A] = IorT.liftF(F.never)
@@ -625,9 +624,6 @@ object Async {
 
     def evalOn[A](fa: WriterT[F, L, A], ec: ExecutionContext): WriterT[F, L, A] =
       WriterT(F.evalOn(fa.run, ec))
-
-    def evalOn[A](fa: WriterT[F, L, A], executor: Executor): WriterT[F, L, A] =
-      WriterT(F.evalOn(fa.run, executor))
     def executionContext: WriterT[F, L, ExecutionContext] = WriterT.liftF(F.executionContext)
 
     override def never[A]: WriterT[F, L, A] = WriterT.liftF(F.never)
@@ -694,9 +690,6 @@ object Async {
 
     def evalOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext): Kleisli[F, R, A] =
       Kleisli(r => F.evalOn(fa.run(r), ec))
-
-    def evalOn[A](fa: Kleisli[F, R, A], executor: Executor): Kleisli[F, R, A] =
-      Kleisli(r => F.evalOn(fa.run(r), executor))
 
     def executionContext: Kleisli[F, R, ExecutionContext] = Kleisli.liftF(F.executionContext)
 

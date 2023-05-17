@@ -1820,12 +1820,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def evalOn[A](fa: IO[A], ec: ExecutionContext): IO[A] =
       fa.evalOn(ec)
-
-    def evalOn[A](fa: IO[A], executor: Executor): IO[A] =
-      IO.executionContext
-        .flatMap(ec => IO(ExecutionContext.fromExecutor(executor, ec.reportFailure)))
-        .flatMap(ec => fa.evalOn(ec))
-
+    
     val executionContext: IO[ExecutionContext] =
       IO.executionContext
 

@@ -26,7 +26,6 @@ import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import java.util.concurrent.Executor
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -63,11 +62,6 @@ class AsyncSpec extends BaseSpec with Discipline {
     def deferred[A]: AsyncIO[Deferred[AsyncIO, A]] = delay(Deferred.unsafe(this))
 
     def evalOn[A](fa: AsyncIO[A], ec: ExecutionContext): AsyncIO[A] = wrapIO(fa)(_.evalOn(ec))
-
-    def evalOn[A](fa: AsyncIO[A], executor: Executor): AsyncIO[A] = liftIO(
-      IO.executionContext
-        .flatMap(ec => IO(ExecutionContext.fromExecutor(executor, ec.reportFailure)))
-        .flatMap(ec => wrapIO(fa)(_.evalOn(ec)).io))
 
     def flatMap[A, B](fa: AsyncIO[A])(f: A => AsyncIO[B]): AsyncIO[B] =
       wrapIO(fa)(_.flatMap(f(_).io))

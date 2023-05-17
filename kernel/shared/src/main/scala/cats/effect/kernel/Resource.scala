@@ -23,7 +23,6 @@ import cats.effect.kernel.implicits._
 import cats.effect.kernel.instances.spawn
 import cats.syntax.all._
 
-import java.util.concurrent.Executor
 import scala.annotation.tailrec
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
@@ -1463,9 +1462,6 @@ abstract private[effect] class ResourceAsync[F[_]]
 
   def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] =
     fa.evalOn(ec)
-
-  def evalOn[A](fa: Resource[F, A], executor: Executor): Resource[F, A] =
-    fa.evalOn(executor)
 
   def executionContext: Resource[F, ExecutionContext] =
     Resource.executionContext
