@@ -332,6 +332,10 @@ private final class IOFiber[A](
                 pushTracingEvent(delay.event)
               }
 
+              if (dumpLocals) {
+                IOLocals.setState(localState)
+              }
+
               // this code is inlined in order to avoid two `try` blocks
               var error: Throwable = null
               val result =
@@ -342,6 +346,10 @@ private final class IOFiber[A](
                   case t: Throwable =>
                     onFatalFailure(t)
                 }
+
+              if (dumpLocals) {
+                localState = IOLocals.getAndClearState()
+              }
 
               val nextIO = if (error == null) succeeded(result, 0) else failed(error, 0)
               runLoop(nextIO, nextCancelation - 1, nextAutoCede)
@@ -399,6 +407,10 @@ private final class IOFiber[A](
                 pushTracingEvent(delay.event)
               }
 
+              if (dumpLocals) {
+                IOLocals.setState(localState)
+              }
+
               // this code is inlined in order to avoid two `try` blocks
               val result =
                 try f(delay.thunk())
@@ -408,6 +420,10 @@ private final class IOFiber[A](
                   case t: Throwable =>
                     onFatalFailure(t)
                 }
+
+              if (dumpLocals) {
+                localState = IOLocals.getAndClearState()
+              }
 
               runLoop(result, nextCancelation - 1, nextAutoCede)
 
@@ -454,6 +470,10 @@ private final class IOFiber[A](
                 pushTracingEvent(delay.event)
               }
 
+              if (dumpLocals) {
+                IOLocals.setState(localState)
+              }
+
               // this code is inlined in order to avoid two `try` blocks
               var error: Throwable = null
               val result =
@@ -467,6 +487,10 @@ private final class IOFiber[A](
                   case t: Throwable =>
                     onFatalFailure(t)
                 }
+
+              if (dumpLocals) {
+                localState = IOLocals.getAndClearState()
+              }
 
               val next =
                 if (error == null) succeeded(Right(result), 0) else succeeded(Left(error), 0)
@@ -973,6 +997,10 @@ private final class IOFiber[A](
             if (ec.isInstanceOf[WorkStealingThreadPool]) {
               val wstp = ec.asInstanceOf[WorkStealingThreadPool]
               if (wstp.canExecuteBlockingCode()) {
+                if (dumpLocals) {
+                  IOLocals.setState(localState)
+                }
+
                 var error: Throwable = null
                 val r =
                   try {
@@ -983,6 +1011,10 @@ private final class IOFiber[A](
                     case t: Throwable =>
                       onFatalFailure(t)
                   }
+
+                if (dumpLocals) {
+                  localState = IOLocals.getAndClearState()
+                }
 
                 val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
                 runLoop(next, nextCancelation, nextAutoCede)
@@ -1386,6 +1418,11 @@ private final class IOFiber[A](
     var error: Throwable = null
     val cur = resumeIO.asInstanceOf[Blocking[Any]]
     resumeIO = null
+
+    if (dumpLocals) {
+      IOLocals.setState(localState)
+    }
+
     val r =
       try cur.thunk()
       catch {
@@ -1394,6 +1431,10 @@ private final class IOFiber[A](
         case t: Throwable =>
           onFatalFailure(t)
       }
+
+    if (dumpLocals) {
+      localState = IOLocals.getAndClearState()
+    }
 
     if (isStackTracing) {
       // Remove the reference to the fiber monitor handle
