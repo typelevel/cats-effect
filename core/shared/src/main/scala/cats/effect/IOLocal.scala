@@ -147,25 +147,25 @@ sealed trait IOLocal[A] {
   /**
    * Returns the current value.
    */
-  def get: IO[A] =
+  final def get: IO[A] =
     IO.Local(state => (state, getOrDefault(state)))
 
   /**
    * Sets the current value to `value`.
    */
-  def set(value: A): IO[Unit] =
+  final def set(value: A): IO[Unit] =
     IO.Local(state => (set(state, value), ()))
 
   /**
    * Replaces the current value with the initial value.
    */
-  def reset: IO[Unit] =
+  final def reset: IO[Unit] =
     IO.Local(state => (reset(state), ()))
 
   /**
    * Modifies the current value using the given update function.
    */
-  def update(f: A => A): IO[Unit] =
+  final def update(f: A => A): IO[Unit] =
     IO.Local(state => (set(state, f(getOrDefault(state))), ()))
 
   /**
@@ -174,7 +174,7 @@ sealed trait IOLocal[A] {
    * @see
    *   [[update]]
    */
-  def modify[B](f: A => (A, B)): IO[B] =
+  final def modify[B](f: A => (A, B)): IO[B] =
     IO.Local { state =>
       val (a2, b) = f(getOrDefault(state))
       (set(state, a2), b)
@@ -190,7 +190,7 @@ sealed trait IOLocal[A] {
    * @see
    *   [[set]]
    */
-  def getAndSet(value: A): IO[A] =
+  final def getAndSet(value: A): IO[A] =
     IO.Local(state => (set(state, value), getOrDefault(state)))
 
   /**
@@ -203,7 +203,7 @@ sealed trait IOLocal[A] {
    * @see
    *   [[reset]]
    */
-  def getAndReset: IO[A] =
+  final def getAndReset: IO[A] =
     IO.Local(state => (reset(state), getOrDefault(state)))
 
   /**
