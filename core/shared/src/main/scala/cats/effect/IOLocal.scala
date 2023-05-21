@@ -138,11 +138,11 @@ import cats.data.AndThen
  */
 sealed trait IOLocal[A] {
 
-  protected def getOrDefault(state: IOLocalState): A
+  protected[effect] def getOrDefault(state: IOLocalState): A
 
-  protected def set(state: IOLocalState, a: A): IOLocalState
+  protected[effect] def set(state: IOLocalState, a: A): IOLocalState
 
-  protected def reset(state: IOLocalState): IOLocalState
+  protected[effect] def reset(state: IOLocalState): IOLocalState
 
   /**
    * Returns the current value.
@@ -259,12 +259,12 @@ object IOLocal {
 
   private final class IOLocalImpl[A](default: A) extends IOLocal[A] {
 
-    protected def getOrDefault(state: IOLocalState): A =
+    def getOrDefault(state: IOLocalState): A =
       state.getOrElse(this, default).asInstanceOf[A]
 
-    protected def set(state: IOLocalState, a: A): IOLocalState = state.updated(this, a)
+    def set(state: IOLocalState, a: A): IOLocalState = state.updated(this, a)
 
-    protected def reset(state: IOLocalState): IOLocalState = state - this
+    def reset(state: IOLocalState): IOLocalState = state - this
 
     def lens[B](get: A => B)(set: A => B => A): IOLocal[B] =
       new IOLocal.IOLocalLens(this, get, (ab: (A, B)) => set(ab._1)(ab._2))
@@ -276,13 +276,13 @@ object IOLocal {
       setter: ((S, A)) => S)
       extends IOLocal[A] {
 
-    protected def getOrDefault(state: IOLocalState): A =
+    def getOrDefault(state: IOLocalState): A =
       getter(underlying.getOrDefault(state))
 
-    protected def set(state: IOLocalState, a: A): IOLocalState =
+    def set(state: IOLocalState, a: A): IOLocalState =
       underlying.set(state, setter((underlying.getOrDefault(state), a)))
 
-    protected def reset(state: IOLocalState): IOLocalState = underlying.reset(state)
+    def reset(state: IOLocalState): IOLocalState = underlying.reset(state)
 
     def lens[B](get: A => B)(set: A => B => A): IOLocal[B] = {
       // We process already created lens separately so
