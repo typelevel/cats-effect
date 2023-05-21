@@ -136,27 +136,37 @@ import cats.data.AndThen
  * @tparam A
  *   the type of the local value
  */
-sealed trait IOLocal[A] { self =>
+sealed trait IOLocal[A] {
+
+  protected def getOrDefault(state: IOLocalState): A
+
+  protected def set(state: IOLocalState, a: A): IOLocalState
+
+  protected def reset(state: IOLocalState): IOLocalState
 
   /**
    * Returns the current value.
    */
-  def get: IO[A]
+  def get: IO[A] =
+    IO.Local(state => (state, getOrDefault(state)))
 
   /**
    * Sets the current value to `value`.
    */
-  def set(value: A): IO[Unit]
+  def set(value: A): IO[Unit] =
+    IO.Local(state => (set(state, value), ()))
 
   /**
    * Replaces the current value with the initial value.
    */
-  def reset: IO[Unit]
+  def reset: IO[Unit] =
+    IO.Local(state => (reset(state), ()))
 
   /**
    * Modifies the current value using the given update function.
    */
-  def update(f: A => A): IO[Unit]
+  def update(f: A => A): IO[Unit] =
+    IO.Local(state => (set(state, f(getOrDefault(state))), ()))
 
   /**
    * Like [[update]] but allows the update function to return an output value of type `B`.
@@ -164,7 +174,11 @@ sealed trait IOLocal[A] { self =>
    * @see
    *   [[update]]
    */
-  def modify[B](f: A => (A, B)): IO[B]
+  def modify[B](f: A => (A, B)): IO[B] =
+    IO.Local { state =>
+      val (a2, b) = f(getOrDefault(state))
+      (set(state, a2), b)
+    }
 
   /**
    * Replaces the current value with `value`, returning the previous value.
@@ -176,7 +190,8 @@ sealed trait IOLocal[A] { self =>
    * @see
    *   [[set]]
    */
-  def getAndSet(value: A): IO[A]
+  def getAndSet(value: A): IO[A] =
+    IO.Local(state => (set(state, value), getOrDefault(state)))
 
   /**
    * Replaces the current value with the initial value, returning the previous value.
@@ -188,7 +203,8 @@ sealed trait IOLocal[A] { self =>
    * @see
    *   [[reset]]
    */
-  def getAndReset: IO[A]
+  def getAndReset: IO[A] =
+    IO.Local(state => (reset(state), getOrDefault(state)))
 
   /**
    * Creates a lens to a value of some type `B` from current value and two functions: getter and
@@ -220,28 +236,7 @@ sealed trait IOLocal[A] { self =>
    *   } yield ()
    * }}}
    */
-  final def lens[B](get: A => B)(set: A => B => A): IOLocal[B] = {
-    import IOLocal.IOLocalLens
-
-    self match {
-      case lens: IOLocalLens[aa, A] =>
-        // We process already created lens separately so
-        // we wont pay additional `.get.flatMap` price for every call of
-        // `set`, `update` or `modify` of resulting lens.
-        // After all, our getters and setters are pure,
-        // so `AndThen` allows us to safely compose them and
-        // proxy calls to the 'original' `IOLocal` independent of
-        // current nesting level.
-
-        val getter = lens.getter.andThen(get)
-        val setter = lens.setter.compose((p: (aa, B)) => (p._1, set(lens.getter(p._1))(p._2)))
-        new IOLocalLens(lens.underlying, getter, setter)
-      case _ =>
-        val getter = AndThen(get)
-        val setter = AndThen((p: (A, B)) => set(p._1)(p._2))
-        new IOLocalLens(self, getter, setter)
-    }
-  }
+  def lens[B](get: A => B)(set: A => B => A): IOLocal[B]
 
 }
 
@@ -260,63 +255,49 @@ object IOLocal {
    */
   def apply[A](default: A): IO[IOLocal[A]] = IO(new IOLocalImpl(default))
 
-  private[IOLocal] final class IOLocalImpl[A](default: A) extends IOLocal[A] { self =>
-    private[this] def getOrDefault(state: IOLocalState): A =
-      state.getOrElse(self, default).asInstanceOf[A]
+  private[effect] abstract class AbstractIOLocal[A] extends IOLocal[A] {}
 
-    def get: IO[A] =
-      IO.Local(state => (state, getOrDefault(state)))
+  private final class IOLocalImpl[A](default: A) extends IOLocal[A] {
 
-    def set(value: A): IO[Unit] =
-      IO.Local(state => (state.updated(self, value), ()))
+    protected def getOrDefault(state: IOLocalState): A =
+      state.getOrElse(this, default).asInstanceOf[A]
 
-    def reset: IO[Unit] =
-      IO.Local(state => (state - self, ()))
+    protected def set(state: IOLocalState, a: A): IOLocalState = state.updated(this, a)
 
-    def update(f: A => A): IO[Unit] =
-      IO.Local(state => (state.updated(self, f(getOrDefault(state))), ()))
+    protected def reset(state: IOLocalState): IOLocalState = state - this
 
-    def modify[B](f: A => (A, B)): IO[B] =
-      IO.Local { state =>
-        val (a2, b) = f(getOrDefault(state))
-        (state.updated(self, a2), b)
-      }
-
-    def getAndSet(value: A): IO[A] =
-      IO.Local(state => (state.updated(self, value), getOrDefault(state)))
-
-    def getAndReset: IO[A] =
-      IO.Local(state => (state - self, getOrDefault(state)))
+    def lens[B](get: A => B)(set: A => B => A): IOLocal[B] =
+      new IOLocal.IOLocalLens(this, get, (ab: (A, B)) => set(ab._1)(ab._2))
   }
 
-  private[IOLocal] final class IOLocalLens[S, A](
-      val underlying: IOLocal[S],
-      val getter: AndThen[S, A],
-      val setter: AndThen[(S, A), S])
+  private final class IOLocalLens[S, A](
+      underlying: IOLocal[S],
+      getter: S => A,
+      setter: ((S, A)) => S)
       extends IOLocal[A] {
-    def get: IO[A] =
-      underlying.get.map(getter(_))
 
-    def set(value: A): IO[Unit] =
-      underlying.get.flatMap(s => underlying.set(setter(s -> value)))
+    protected def getOrDefault(state: IOLocalState): A =
+      getter(underlying.getOrDefault(state))
 
-    def reset: IO[Unit] =
-      underlying.reset
+    protected def set(state: IOLocalState, a: A): IOLocalState =
+      underlying.set(state, setter((underlying.getOrDefault(state), a)))
 
-    def update(f: A => A): IO[Unit] =
-      underlying.get.flatMap(s => underlying.set(setter(s -> f(getter(s)))))
+    protected def reset(state: IOLocalState): IOLocalState = underlying.reset(state)
 
-    def modify[B](f: A => (A, B)): IO[B] =
-      underlying.get.flatMap { s =>
-        val (a2, b) = f(getter(s))
-        underlying.set(setter(s -> a2)).as(b)
-      }
+    def lens[B](get: A => B)(set: A => B => A): IOLocal[B] = {
+      // We process already created lens separately so
+      // we wont pay additional `.get.flatMap` price for every call of
+      // `set`, `update` or `modify` of resulting lens.
+      // After all, our getters and setters are pure,
+      // so `AndThen` allows us to safely compose them and
+      // proxy calls to the 'original' `IOLocal` independent of
+      // current nesting level.
 
-    def getAndSet(value: A): IO[A] =
-      underlying.get.flatMap(s => underlying.set(setter(s -> value)).as(getter(s)))
-
-    def getAndReset: IO[A] =
-      underlying.get.flatMap(s => underlying.reset.as(getter(s)))
+      val getter = AndThen(this.getter).andThen(get)
+      val setter =
+        AndThen(this.setter).compose((sb: (S, B)) => (sb._1, set(this.getter(sb._1))(sb._2)))
+      new IOLocalLens(underlying, getter, setter)
+    }
   }
 
 }
