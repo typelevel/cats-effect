@@ -103,7 +103,7 @@ private final class WorkerThread(
   private val indexTransfer: LinkedTransferQueue[Integer] = new LinkedTransferQueue()
   private[this] val runtimeBlockingExpiration: Duration = pool.runtimeBlockingExpiration
 
-  val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
+  val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.getAndIncrement()
 
   // Constructor code.
   {
@@ -841,16 +841,20 @@ private final class WorkerThread(
         // therefore, another worker thread would not even see it as a candidate
         // for unparking.
         val idx = index
-        val clone = new WorkerThread(
-          idx,
-          queue,
-          parked,
-          external,
-          fiberBag,
-          sleepers,
-          system,
-          _poller,
-          pool)
+        val clone =
+          new WorkerThread(
+            idx,
+            queue,
+            parked,
+            external,
+            fiberBag,
+            sleepers,
+            system,
+            _poller,
+            pool)
+        // Make sure the clone gets our old name:
+        val clonePrefix = pool.threadPrefix
+        clone.setName(s"$clonePrefix-$idx")
         pool.replaceWorker(idx, clone)
         pool.blockedWorkerThreadCounter.incrementAndGet()
         clone.start()

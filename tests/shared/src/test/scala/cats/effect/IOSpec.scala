@@ -1314,6 +1314,14 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         test must nonTerminate
       }
 
+      "catch stray exceptions in uncancelable" in ticked { implicit ticker =>
+        IO.uncancelable[Unit](_ => throw new RuntimeException).voidError must completeAs(())
+      }
+
+      "unmask following stray exceptions in uncancelable" in ticked { implicit ticker =>
+        IO.uncancelable[Unit](_ => throw new RuntimeException)
+          .handleErrorWith(_ => IO.canceled *> IO.never) must selfCancel
+      }
     }
 
     "finalization" should {
@@ -1729,6 +1737,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         var affected = false
         (IO.sleep(10.seconds) >> IO { affected = true }) must completeAs(())
         affected must beTrue
+      }
+
+      "round up negative sleeps" in real {
+        IO.sleep(-1.seconds).as(ok)
       }
 
       "timeout" should {
