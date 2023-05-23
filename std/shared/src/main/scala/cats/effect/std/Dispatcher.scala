@@ -248,16 +248,24 @@ object Dispatcher {
       supervisor <- Supervisor[F](await, Some((_: Outcome[F, Throwable, _]) => true))
 
       _ <- {
-        def step(state: Array[AtomicReference[List[Registration]]], await: F[Unit]): F[Unit] =
+        def step(
+            state: Array[AtomicReference[List[Registration]]],
+            await: F[Unit],
+            doneR: AtomicBoolean): F[Unit] =
           for {
+            done <- F.delay(doneR.get())
             regs <- F delay {
               val buffer = mutable.ListBuffer.empty[Registration]
               var i = 0
               while (i < workers) {
                 val st = state(i)
-                if (st.get() ne Nil) {
-                  val list = st.getAndSet(Nil)
-                  buffer ++= list.reverse // FIFO order here is a form of fairness
+                if ((st.get() ne Nil) & (st.get() ne null)) {
+                  val list = if (done) st.getAndSet(null) else st.getAndSet(Nil)
+                  if (list ne null) {
+                    buffer ++= list.reverse // FIFO order here is a form of fairness
+                  } else {
+                    println("SRP :: st.getAndSet returned null") // TODO
+                  }
                 }
                 i += 1
               }
@@ -295,7 +303,7 @@ object Dispatcher {
           F.delay(latch.set(Noop)) *> // reset latch
             // if we're marked as done, yield immediately to give other fibers a chance to shut us down
             // we might loop on this a few times since we're marked as done before the supervisor is canceled
-            F.delay(doneR.get()).ifM(F.cede, step(state, await))
+            F.delay(doneR.get()).ifM(F.cede, step(state, await, doneR))
         }
 
         0.until(workers).toList traverse_ { n =>
@@ -304,7 +312,7 @@ object Dispatcher {
             val worker = dispatcher(doneR, latch, states(n))
             val release = F.delay(latch.getAndSet(Open)())
             Resource.make(supervisor.supervise(worker)) { _ =>
-              F.delay(doneR.set(true)) *> step(states(n), F.unit) *> release
+              F.delay(doneR.set(true)) *> step(states(n), F.unit, doneR) *> release
             }
           }
         }
@@ -362,9 +370,12 @@ object Dispatcher {
           @tailrec
           def enqueue(state: AtomicReference[List[Registration]], reg: Registration): Unit = {
             val curr = state.get()
-            val next = reg :: curr
-
-            if (!state.compareAndSet(curr, next)) enqueue(state, reg)
+            if (curr eq null) {
+              throw new IllegalStateException("dispatcher already shutdown")
+            } else {
+              val next = reg :: curr
+              if (!state.compareAndSet(curr, next)) enqueue(state, reg)
+            }
           }
 
           if (alive.get()) {
@@ -411,13 +422,13 @@ object Dispatcher {
             }
 
             // double-check after we already put things in the structure
-            if (alive.get()) {
-              (promise.future, cancel)
-            } else {
-              // we were shutdown *during* the enqueue
-              cancel()
-              throw new IllegalStateException("dispatcher already shutdown")
-            }
+            // if (alive.get()) {
+            (promise.future, cancel)
+            // } else {
+            //   // we were shutdown *during* the enqueue
+            //   cancel()
+            //   throw new IllegalStateException("dispatcher already shutdown")
+            // }
           } else {
             throw new IllegalStateException("dispatcher already shutdown")
           }
