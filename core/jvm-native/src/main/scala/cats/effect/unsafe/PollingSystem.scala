@@ -38,10 +38,7 @@ abstract class PollingSystem {
   /**
    * @param nanos
    *   the maximum duration for which to block, where `nanos == -1` indicates to block
-   *   indefinitely. ''However'', if `nanos == -1` and there are no remaining events to poll
-   *   for, this method should return `false` immediately. This is unfortunate but necessary so
-   *   that the `EventLoop` can yield to the Scala Native global `ExecutionContext` which is
-   *   currently hard-coded into every test framework, including MUnit, specs2, and Weaver.
+   *   indefinitely.
    *
    * @return
    *   whether any events were polled

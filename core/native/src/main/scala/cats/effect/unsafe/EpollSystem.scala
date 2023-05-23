@@ -180,44 +180,39 @@ object EpollSystem extends PollingSystem {
         throw new IOException(fromCString(strerror(errno)))
 
     private[EpollSystem] def poll(timeout: Long): Boolean = {
-      val noHandles = handles.isEmpty()
 
-      if (timeout <= 0 && noHandles)
-        false // nothing to do here
-      else {
-        val events = stackalloc[epoll_event](MaxEvents.toLong)
-        var polled = false
+      val events = stackalloc[epoll_event](MaxEvents.toLong)
+      var polled = false
 
-        @tailrec
-        def processEvents(timeout: Int): Unit = {
+      @tailrec
+      def processEvents(timeout: Int): Unit = {
 
-          val triggeredEvents = epoll_wait(epfd, events, MaxEvents, timeout)
+        val triggeredEvents = epoll_wait(epfd, events, MaxEvents, timeout)
 
-          if (triggeredEvents >= 0) {
-            polled = true
+        if (triggeredEvents >= 0) {
+          polled = true
 
-            var i = 0
-            while (i < triggeredEvents) {
-              val event = events + i.toLong
-              val handle = fromPtr(event.data)
-              handle.notify(event.events.toInt)
-              i += 1
-            }
-          } else {
-            throw new IOException(fromCString(strerror(errno)))
+          var i = 0
+          while (i < triggeredEvents) {
+            val event = events + i.toLong
+            val handle = fromPtr(event.data)
+            handle.notify(event.events.toInt)
+            i += 1
           }
-
-          if (triggeredEvents >= MaxEvents)
-            processEvents(0) // drain the ready list
-          else
-            ()
+        } else {
+          throw new IOException(fromCString(strerror(errno)))
         }
 
-        val timeoutMillis = if (timeout == -1) -1 else (timeout / 1000000).toInt
-        processEvents(timeoutMillis)
-
-        !handles.isEmpty()
+        if (triggeredEvents >= MaxEvents)
+          processEvents(0) // drain the ready list
+        else
+          ()
       }
+
+      val timeoutMillis = if (timeout == -1) -1 else (timeout / 1000000).toInt
+      processEvents(timeoutMillis)
+
+      polled
     }
 
     private[EpollSystem] def needsPoll(): Boolean = !handles.isEmpty()

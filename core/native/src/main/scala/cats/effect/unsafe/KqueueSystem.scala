@@ -163,76 +163,70 @@ object KqueueSystem extends PollingSystem {
         throw new IOException(fromCString(strerror(errno)))
 
     private[KqueueSystem] def poll(timeout: Long): Boolean = {
-      val noCallbacks = callbacks.isEmpty
 
-      if (timeout <= 0 && noCallbacks && changeCount == 0)
-        false // nothing to do here
-      else {
+      val eventlist = stackalloc[kevent64_s](MaxEvents.toLong)
+      var polled = false
 
-        val eventlist = stackalloc[kevent64_s](MaxEvents.toLong)
-        var polled = false
+      @tailrec
+      def processEvents(timeout: Ptr[timespec], changeCount: Int, flags: Int): Unit = {
 
-        @tailrec
-        def processEvents(timeout: Ptr[timespec], changeCount: Int, flags: Int): Unit = {
+        val triggeredEvents =
+          kevent64(
+            kqfd,
+            changelist,
+            changeCount,
+            eventlist,
+            MaxEvents,
+            flags.toUInt,
+            timeout
+          )
 
-          val triggeredEvents =
-            kevent64(
-              kqfd,
-              changelist,
-              changeCount,
-              eventlist,
-              MaxEvents,
-              flags.toUInt,
-              timeout
-            )
+        if (triggeredEvents >= 0) {
+          polled = true
 
-          if (triggeredEvents >= 0) {
-            polled = true
+          var i = 0
+          var event = eventlist
+          while (i < triggeredEvents) {
+            val cb = callbacks.remove(KEvent(event.ident.toLong, event.filter))
 
-            var i = 0
-            var event = eventlist
-            while (i < triggeredEvents) {
-              val cb = callbacks.remove(KEvent(event.ident.toLong, event.filter))
+            if (cb ne null)
+              cb(
+                if ((event.flags.toLong & EV_ERROR) != 0)
+                  Left(new IOException(fromCString(strerror(event.data.toInt))))
+                else Either.unit
+              )
 
-              if (cb ne null)
-                cb(
-                  if ((event.flags.toLong & EV_ERROR) != 0)
-                    Left(new IOException(fromCString(strerror(event.data.toInt))))
-                  else Either.unit
-                )
-
-              i += 1
-              event += 1
-            }
-          } else {
-            throw new IOException(fromCString(strerror(errno)))
+            i += 1
+            event += 1
           }
-
-          if (triggeredEvents >= MaxEvents)
-            processEvents(null, 0, KEVENT_FLAG_NONE) // drain the ready list
-          else
-            ()
+        } else {
+          throw new IOException(fromCString(strerror(errno)))
         }
 
-        val timeoutSpec =
-          if (timeout <= 0) null
-          else {
-            val ts = stackalloc[timespec]()
-            ts.tv_sec = timeout / 1000000000
-            ts.tv_nsec = timeout % 1000000000
-            ts
-          }
-
-        val flags = if (timeout == 0) KEVENT_FLAG_IMMEDIATE else KEVENT_FLAG_NONE
-
-        processEvents(timeoutSpec, changeCount, flags)
-        changeCount = 0
-
-        !callbacks.isEmpty()
+        if (triggeredEvents >= MaxEvents)
+          processEvents(null, 0, KEVENT_FLAG_NONE) // drain the ready list
+        else
+          ()
       }
+
+      val timeoutSpec =
+        if (timeout <= 0) null
+        else {
+          val ts = stackalloc[timespec]()
+          ts.tv_sec = timeout / 1000000000
+          ts.tv_nsec = timeout % 1000000000
+          ts
+        }
+
+      val flags = if (timeout == 0) KEVENT_FLAG_IMMEDIATE else KEVENT_FLAG_NONE
+
+      processEvents(timeoutSpec, changeCount, flags)
+      changeCount = 0
+
+      polled
     }
 
-    def needsPoll(): Boolean = !callbacks.isEmpty()
+    def needsPoll(): Boolean = changeCount > 0 || !callbacks.isEmpty()
   }
 
   @nowarn212

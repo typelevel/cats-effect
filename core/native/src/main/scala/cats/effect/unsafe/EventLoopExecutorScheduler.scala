@@ -119,7 +119,14 @@ private[effect] final class EventLoopExecutorScheduler(pollEvery: Int, system: P
         else
           -1
 
-      system.poll(poller, timeout, reportFailure)
+      /*
+       * if `timeout == -1` and there are no remaining events to poll for, we should break the
+       * loop immediately. This is unfortunate but necessary so that the event loop can yield to
+       * the Scala Native global `ExecutionContext` which is currently hard-coded into every
+       * test framework, including MUnit, specs2, and Weaver.
+       */
+      if (system.needsPoll(poller) || timeout != -1)
+        system.poll(poller, timeout, reportFailure)
 
       continue = !executeQueue.isEmpty() || !sleepQueue.isEmpty() || system.needsPoll(poller)
     }

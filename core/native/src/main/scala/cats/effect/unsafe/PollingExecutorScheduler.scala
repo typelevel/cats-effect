@@ -20,7 +20,7 @@ package unsafe
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
-@deprecated("Use default runtime with a custom PollingSystem", "3.5.0")
+@deprecated("Use default runtime with a custom PollingSystem", "3.6.0")
 abstract class PollingExecutorScheduler(pollEvery: Int)
     extends ExecutionContextExecutor
     with Scheduler { outer =>
