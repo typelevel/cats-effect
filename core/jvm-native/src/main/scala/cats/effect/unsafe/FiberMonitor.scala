@@ -123,7 +123,7 @@ private[effect] sealed class FiberMonitor(
                 val filteredOpt = opt.collect(justFibers)
                 val filteredSet = set.collect(justFibers)
                 (thread, (state, filteredOpt, filteredSet))
-            }
+            }.toMap
 
           (externalFibers, workersMapping, suspendedFibers)
         }
