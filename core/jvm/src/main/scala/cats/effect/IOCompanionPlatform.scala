@@ -147,7 +147,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
   def poller[Poller](implicit ct: ClassTag[Poller]): IO[Option[Poller]] =
     IO.executionContext.map {
-      case wstp: WorkStealingThreadPool
+      case wstp: WorkStealingThreadPool[_]
           if ct.runtimeClass.isInstance(wstp.globalPollingState) =>
         Some(wstp.globalPollingState.asInstanceOf[Poller])
       case _ => None

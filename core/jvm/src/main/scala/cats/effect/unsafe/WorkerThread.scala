@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * system when compared to a fixed size thread pool whose worker threads all draw tasks from a
  * single global work queue.
  */
-private final class WorkerThread(
+private final class WorkerThread[Poller](
     idx: Int,
     // Local queue instance with exclusive write access.
     private[this] var queue: LocalQueue,
@@ -53,10 +53,10 @@ private final class WorkerThread(
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
     private[this] var sleepers: TimerSkipList,
-    private[this] val system: PollingSystem,
-    __poller: AnyRef,
+    private[this] val system: PollingSystem.WithPoller[Poller],
+    private[this] var _poller: Poller,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
-    pool: WorkStealingThreadPool)
+    pool: WorkStealingThreadPool[Poller])
     extends Thread
     with BlockContext {
 
@@ -65,8 +65,6 @@ private final class WorkerThread(
 
   // Index assigned by the `WorkStealingThreadPool` for identification purposes.
   private[this] var _index: Int = idx
-
-  private[this] var _poller: system.Poller = __poller.asInstanceOf[system.Poller]
 
   /**
    * Uncontented source of randomness. By default, `java.util.Random` is thread safe, which is a
@@ -115,7 +113,7 @@ private final class WorkerThread(
     setName(s"$prefix-$nameIndex")
   }
 
-  private[unsafe] def poller(): Any = _poller
+  private[unsafe] def poller(): Poller = _poller
 
   /**
    * Schedules the fiber for execution at the back of the local queue and notifies the work
@@ -179,7 +177,7 @@ private final class WorkerThread(
    *   `true` if this worker thread is owned by the provided work stealing thread pool, `false`
    *   otherwise
    */
-  def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean =
+  def isOwnedBy(threadPool: WorkStealingThreadPool[_]): Boolean =
     (pool eq threadPool) && !blocking
 
   /**
@@ -194,7 +192,7 @@ private final class WorkerThread(
    *   `true` if this worker thread is owned by the provided work stealing thread pool, `false`
    *   otherwise
    */
-  def canExecuteBlockingCodeOn(threadPool: WorkStealingThreadPool): Boolean =
+  def canExecuteBlockingCodeOn(threadPool: WorkStealingThreadPool[Poller]): Boolean =
     pool eq threadPool
 
   /**

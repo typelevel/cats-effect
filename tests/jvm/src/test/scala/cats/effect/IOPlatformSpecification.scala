@@ -269,7 +269,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       "run a timer which crosses into a blocking region" in realWithRuntime { rt =>
         rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
+          case sched: WorkStealingThreadPool[_] =>
             // we structure this test by calling the runtime directly to avoid nondeterminism
             val delay = IO.async[Unit] { cb =>
               IO {
@@ -292,7 +292,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       "run timers exactly once when crossing into a blocking region" in realWithRuntime { rt =>
         rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
+          case sched: WorkStealingThreadPool[_] =>
             IO defer {
               val ai = new AtomicInteger(0)
 
@@ -310,7 +310,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       "run a timer registered on a blocker" in realWithRuntime { rt =>
         rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
+          case sched: WorkStealingThreadPool[_] =>
             // we structure this test by calling the runtime directly to avoid nondeterminism
             val delay = IO.async[Unit] { cb =>
               IO {

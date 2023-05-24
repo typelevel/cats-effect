@@ -54,3 +54,9 @@ abstract class PollingSystem {
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit
 
 }
+
+private object PollingSystem {
+  type WithPoller[Poller0] = PollingSystem {
+    type Poller = Poller0
+  }
+}
