@@ -315,10 +315,6 @@ object Dispatcher {
           }
         }
       }
-
-      // Alive is the innermost resource so that when releasing
-      // the very first thing we do is set dispatcher to un-alive
-      alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
     } yield {
       new Dispatcher[F] {
         override def unsafeRunAndForget[A](fa: F[A]): Unit = {
@@ -376,60 +372,49 @@ object Dispatcher {
             }
           }
 
-          if (alive.get()) {
-            val (state, lt) = if (workers > 1) {
-              val rand = ThreadLocalRandom.current()
-              val dispatcher = rand.nextInt(workers)
-              val inner = rand.nextInt(workers)
+          val (state, lt) = if (workers > 1) {
+            val rand = ThreadLocalRandom.current()
+            val dispatcher = rand.nextInt(workers)
+            val inner = rand.nextInt(workers)
 
-              (states(dispatcher)(inner), latches(dispatcher))
-            } else {
-              (states(0)(0), latches(0))
-            }
-
-            val reg = Registration(action, registerCancel _)
-            enqueue(state, reg)
-
-            if (lt.get() ne Open) {
-              val f = lt.getAndSet(Open)
-              f()
-            }
-
-            val cancel = { () =>
-              reg.lazySet(false)
-
-              @tailrec
-              def loop(): Future[Unit] = {
-                val state = cancelState.get()
-                state match {
-                  case CancelInit =>
-                    val promise = Promise[Unit]()
-                    if (!cancelState.compareAndSet(state, CanceledNoToken(promise))) {
-                      loop()
-                    } else {
-                      promise.future
-                    }
-                  case CanceledNoToken(promise) =>
-                    promise.future
-                  case CancelToken(cancelToken) =>
-                    cancelToken()
-                }
-              }
-
-              loop()
-            }
-
-            // double-check after we already put things in the structure
-            // if (alive.get()) {
-            (promise.future, cancel)
-            // } else {
-            //   // we were shutdown *during* the enqueue
-            //   cancel()
-            //   throw new IllegalStateException("dispatcher already shutdown")
-            // }
+            (states(dispatcher)(inner), latches(dispatcher))
           } else {
-            throw new IllegalStateException("dispatcher already shutdown")
+            (states(0)(0), latches(0))
           }
+
+          val reg = Registration(action, registerCancel _)
+          enqueue(state, reg)
+
+          if (lt.get() ne Open) {
+            val f = lt.getAndSet(Open)
+            f()
+          }
+
+          val cancel = { () =>
+            reg.lazySet(false)
+
+            @tailrec
+            def loop(): Future[Unit] = {
+              val state = cancelState.get()
+              state match {
+                case CancelInit =>
+                  val promise = Promise[Unit]()
+                  if (!cancelState.compareAndSet(state, CanceledNoToken(promise))) {
+                    loop()
+                  } else {
+                    promise.future
+                  }
+                case CanceledNoToken(promise) =>
+                  promise.future
+                case CancelToken(cancelToken) =>
+                  cancelToken()
+              }
+            }
+
+            loop()
+          }
+
+          (promise.future, cancel)
         }
       }
     }
