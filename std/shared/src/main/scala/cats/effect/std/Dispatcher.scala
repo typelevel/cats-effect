@@ -259,12 +259,10 @@ object Dispatcher {
               var i = 0
               while (i < workers) {
                 val st = state(i)
-                if ((st.get() ne Nil) & (st.get() ne null)) {
+                if (st.get() ne null) {
                   val list = if (done) st.getAndSet(null) else st.getAndSet(Nil)
-                  if (list ne null) {
+                  if ((list ne null) && (list ne Nil)) {
                     buffer ++= list.reverse // FIFO order here is a form of fairness
-                  } else {
-                    println("SRP :: st.getAndSet returned null") // TODO
                   }
                 }
                 i += 1
