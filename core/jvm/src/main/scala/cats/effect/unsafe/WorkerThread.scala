@@ -441,7 +441,7 @@ private final class WorkerThread[Poller](
         parked = null
         fiberBag = null
         _active = null
-        _poller = null.asInstanceOf[system.Poller]
+        _poller = null.asInstanceOf[Poller]
 
         // Add this thread to the cached threads data structure, to be picked up
         // by another thread in the future.
@@ -868,7 +868,7 @@ private final class WorkerThread[Poller](
     sleepers = pool.sleepers(newIdx)
     parked = pool.parkedSignals(newIdx)
     fiberBag = pool.fiberBags(newIdx)
-    _poller = pool.pollers(newIdx).asInstanceOf[system.Poller]
+    _poller = pool.pollers(newIdx)
 
     // Reset the name of the thread to the regular prefix.
     val prefix = pool.threadPrefix

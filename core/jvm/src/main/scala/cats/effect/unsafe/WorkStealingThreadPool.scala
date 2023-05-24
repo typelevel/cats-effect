@@ -319,7 +319,7 @@ private[effect] final class WorkStealingThreadPool[Poller](
         // impossible.
         workerThreadPublisher.get()
         val worker = workerThreads(index)
-        system.interrupt(worker, pollers(index).asInstanceOf[system.Poller])
+        system.interrupt(worker, pollers(index))
         return true
       }
 
@@ -343,7 +343,7 @@ private[effect] final class WorkStealingThreadPool[Poller](
       state.getAndAdd(DeltaSearching)
       workerThreadPublisher.get()
       val worker = workerThreads(index)
-      system.interrupt(worker, pollers(index).asInstanceOf[system.Poller])
+      system.interrupt(worker, pollers(index))
     } // else: was already unparked
   }
 
@@ -695,7 +695,7 @@ private[effect] final class WorkStealingThreadPool[Poller](
       var i = 0
       while (i < threadCount) {
         workerThreads(i).interrupt()
-        system.closePoller(pollers(i).asInstanceOf[system.Poller])
+        system.closePoller(pollers(i))
         i += 1
       }
 
