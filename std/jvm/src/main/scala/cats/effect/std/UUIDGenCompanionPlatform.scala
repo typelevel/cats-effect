@@ -17,12 +17,44 @@
 package cats.effect.std
 
 import cats.effect.kernel.Sync
+import cats.syntax.all._
 
 import java.util.UUID
 
 private[std] trait UUIDGenCompanionPlatform {
-  implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = new UUIDGen[F] {
-    override final val randomUUID: F[UUID] =
-      ev.blocking(UUID.randomUUID())
+  implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = {
+    new UUIDGen[F] {
+      override final val randomUUID: F[UUID] =
+        for {
+          jsr <- SecureRandom.javaSecuritySecureRandom[F]
+          nBytes <- jsr.nextBytes(16)
+          bArray <- Sync[F].delay(setUUIDVersion(nBytes))
+          uuid <- Sync[F].delay(UUIDBuilder(bArray))
+        } yield uuid
+
+      private def setUUIDVersion(randomBytes: Array[Byte]) = {
+        randomBytes(6) &= 0x0f /* clear version        */
+        randomBytes(6) |= 0x40 /* set to version 4     */
+        randomBytes(8) &= 0x3f /* clear variant        */
+        randomBytes(8) |= 0x80
+        randomBytes
+      }
+
+      private def UUIDBuilder(data: Array[Byte]) = {
+        var msb = 0
+        var lsb = 0
+        assert(data.length == 16, "data must be 16 bytes in length")
+        for (i <- 0 until 8) {
+          msb = (msb << 8) | (data(i) & 0xff)
+        }
+        for (i <- 8 until 16) {
+          lsb = (lsb << 8) | (data(i) & 0xff)
+        }
+        val mostSigBits = msb
+        val leastSigBits = lsb
+        new UUID(mostSigBits, leastSigBits)
+      }
+    }
   }
+
 }

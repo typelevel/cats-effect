@@ -184,8 +184,8 @@ object SecureRandom extends SecureRandomCompanionPlatform {
     // fall back to a pool of blocking instances
     def fallbackPool: F[SecureRandom[F]] =
       for {
-        processors <- Sync[F].delay(Runtime.getRuntime.availableProcessors())
-        sr <- javaSecuritySecureRandom(processors)
+        n <- Sync[F].delay(Runtime.getRuntime.availableProcessors())
+        sr <- javaSecuritySecureRandom(n)
       } yield sr
 
     javaMajorVersion.flatMap {
