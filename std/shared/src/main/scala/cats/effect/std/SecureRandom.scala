@@ -32,9 +32,9 @@ import cats.effect.kernel._
 import cats.effect.std.Random.{ScalaRandom, TranslatedRandom}
 import cats.syntax.all._
 
+import scala.util.{Random => SRandom, Try}
+
 import java.security.{SecureRandom => JavaSecureRandom}
-import scala.util.{Random => SRandom}
-import scala.util.Try
 
 /**
  * SecureRandom is the ability to get cryptographically strong random information. It is an

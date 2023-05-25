@@ -20,3 +20,5 @@ metals.sbt
 
 # npm
 node_modules/
+
+.direnv/

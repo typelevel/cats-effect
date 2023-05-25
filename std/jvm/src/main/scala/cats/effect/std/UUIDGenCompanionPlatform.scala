@@ -33,10 +33,10 @@ private[std] trait UUIDGenCompanionPlatform {
         } yield uuid
 
       private def setUUIDVersion(randomBytes: Array[Byte]) = {
-        randomBytes(6) &= 0x0f /* clear version        */
-        randomBytes(6) |= 0x40 /* set to version 4     */
-        randomBytes(8) &= 0x3f /* clear variant        */
-        randomBytes(8) |= 0x80
+        randomBytes(6) = (randomBytes(6) & 0x0f.toByte).toByte /* clear version */
+        randomBytes(6) = (randomBytes(6) | 0x40.toByte).toByte /* set to version 4 */
+        randomBytes(8) = (randomBytes(8) & 0x3f.toByte).toByte /* clear variant */
+        randomBytes(8) = (randomBytes(8) | 0x80.toByte).toByte
         randomBytes
       }
 
