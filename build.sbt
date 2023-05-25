@@ -794,7 +794,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.unsafe.ES2021FiberMonitor.this"),
         // introduced by #3324, which specialized CallbackStack for JS
         // internal API change
-        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack"),
+        // introduced by #3642, which optimized the BatchingMacrotaskExecutor
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$")
       )
     },
     mimaBinaryIssueFilters ++= {
