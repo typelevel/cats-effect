@@ -174,6 +174,7 @@ object SecureRandom extends SecureRandomCompanionPlatform {
 
     def fallback = Sync[F].delay(new JavaSecureRandom())
 
+    // Porting JavaSecureRandom.isThreadSafe
     def isThreadsafe(rnd: JavaSecureRandom) =
       rnd
         .getProvider
@@ -188,30 +189,32 @@ object SecureRandom extends SecureRandomCompanionPlatform {
         sr <- javaSecuritySecureRandom(n)
       } yield sr
 
-    javaMajorVersion.flatMap {
-      case Some(major) if major > 8 =>
-        happyRandom.redeemWith(
-          _ =>
-            fallback.flatMap {
-              case rnd if isThreadsafe(rnd) =>
-                // We avoided the mutex, but not the blocking.  Use a
-                // shared instance from the blocking pool.
-                javaUtilRandomBlocking(rnd)
-              case _ =>
-                // We can't prove the instance is threadsafe, so we need
-                // to pessimistically fall back to a pool.  This should
-                // be exceedingly uncommon.
-                fallbackPool
-            },
-          // We are thread safe and non-blocking.  This is the
-          // happy path, and happily, the common path.
-          rnd => javaUtilRandomNonBlocking(rnd)
-        )
+    javaMajorVersion
+      .flatMap {
+        case Some(major) if major > 8 =>
+          happyRandom.redeemWith(
+            _ =>
+              fallback.flatMap {
+                case rnd if isThreadsafe(rnd) =>
+                  // We avoided the mutex, but not the blocking.  Use a
+                  // shared instance from the blocking pool.
+                  javaUtilRandomBlocking(rnd)
+                case _ =>
+                  // We can't prove the instance is threadsafe, so we need
+                  // to pessimistically fall back to a pool.  This should
+                  // be exceedingly uncommon.
+                  fallbackPool
+              },
+            // We are thread safe and non-blocking.  This is the
+            // happy path, and happily, the common path.
+            rnd => javaUtilRandomNonBlocking(rnd)
+          )
 
-      case Some(_) | None =>
-        // We can't guarantee we're not stuck in a mutex.
-        fallbackPool
-    }
+        case Some(_) | None =>
+          // We can't guarantee we're not stuck in a mutex.
+          fallbackPool
+      }
+      .map(r => new ScalaRandom[F](Applicative[F].pure(r)) with SecureRandom[F] {})
   }
 
   private def javaMajorVersion[F[_]: Sync]: F[Option[Int]] =
