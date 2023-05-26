@@ -14,8 +14,107 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats
+package effect
+package std
+
+import cats._
+import cats.effect.kernel._
+import cats.effect.std.Random.ScalaRandom
+import cats.syntax.all._
+
+import scala.util.Try
 
 private[std] trait SecureRandomCompanionPlatform {
   private[std] type JavaSecureRandom = java.security.SecureRandom
+  private[std] def getInstance: JavaSecureRandom =
+    java.security.SecureRandom.getInstance("NativePRNGNonBlocking")
+
+  /**
+   * Create a non-blocking Random instance. This is more efficient than [[javaSecurityRandom]],
+   * but requires a more thoughtful instance of random
+   *
+   * @param random
+   *   a non-blocking instance of java.util.Random. It is the caller's responsibility to assure
+   *   that the instance is non-blocking. If the instance blocks during seeding, it is the
+   *   caller's responsibility to seed it.
+   */
+  private def javaUtilRandomNonBlocking[F[_]: Sync](
+      random: JavaSecureRandom): F[SecureRandom[F]] =
+    Sync[F]
+      .delay(random)
+      .map(r => new ScalaRandom[F](Applicative[F].pure(r)) with SecureRandom[F] {})
+
+  /**
+   * Creates a blocking Random instance. All calls to nextBytes are shifted to the blocking
+   * pool. This is safer, but less effecient, than [[javaUtilRandomNonBlocking]].
+   *
+   * @param random
+   *   a potentially blocking instance of java.util.Random
+   */
+  private def javaUtilRandomBlocking[F[_]: Sync](random: JavaSecureRandom): F[SecureRandom[F]] =
+    Sync[F]
+      .blocking(random)
+      .map(r => new ScalaRandom[F](Applicative[F].pure(r)) with SecureRandom[F] {})
+
+  /**
+   * Creates a SecureRandom instance. On most platforms, it will be non-blocking. If a
+   * non-blocking instance can't be guaranteed, falls back to a blocking implementation.
+   */
+  def nonBlockingJavaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] = {
+    // This is a known, non-blocking, threadsafe algorithm
+    def happyRandom = Sync[F].delay(getInstance)
+
+    def fallback = Sync[F].delay(new JavaSecureRandom())
+
+    // Porting JavaSecureRandom.isThreadSafe
+    def isThreadsafe(rnd: JavaSecureRandom) =
+      rnd
+        .getProvider
+        .getProperty("SecureRandom." + rnd.getAlgorithm + " ThreadSafe", "false")
+        .toBoolean
+
+    // If we can't sniff out a more optimal solution, we can always
+    // fall back to a pool of blocking instances
+    def fallbackPool: F[SecureRandom[F]] =
+      for {
+        n <- Sync[F].delay(Runtime.getRuntime.availableProcessors())
+        sr <- SecureRandom.javaSecuritySecureRandom(n)
+      } yield sr
+
+    javaMajorVersion.flatMap {
+      case Some(major) if major > 8 =>
+        happyRandom.redeemWith(
+          _ =>
+            fallback.flatMap {
+              case rnd if isThreadsafe(rnd) =>
+                // We avoided the mutex, but not the blocking.  Use a
+                // shared instance from the blocking pool.
+                javaUtilRandomBlocking(rnd)
+              case _ =>
+                // We can't prove the instance is threadsafe, so we need
+                // to pessimistically fall back to a pool.  This should
+                // be exceedingly uncommon.
+                fallbackPool
+            },
+          // We are thread safe and non-blocking.  This is the
+          // happy path, and happily, the common path.
+          rnd => javaUtilRandomNonBlocking(rnd)
+        )
+
+      case Some(_) | None =>
+        // We can't guarantee we're not stuck in a mutex.
+        fallbackPool
+    }
+  }
+
+  private def javaMajorVersion[F[_]: Sync]: F[Option[Int]] =
+    Sync[F].delay(sys.props.get("java.version")).map(_.flatMap(parseJavaMajorVersion))
+
+  private def parseJavaMajorVersion(javaVersion: String): Option[Int] =
+    if (javaVersion.startsWith("1."))
+      Try(javaVersion.split("\\.")(1).toInt).toOption
+    else
+      Try(javaVersion.split("\\.")(0).toInt).toOption
+
 }
