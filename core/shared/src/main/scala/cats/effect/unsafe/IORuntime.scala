@@ -94,6 +94,16 @@ object IORuntime extends IORuntimeCompanionPlatform {
       config: IORuntimeConfig): IORuntime =
     apply(compute, blocking, scheduler, Nil, shutdown, config)
 
+  @deprecated("Preserved for bincompat", "3.6.0")
+  private[unsafe] def apply(
+      compute: ExecutionContext,
+      blocking: ExecutionContext,
+      scheduler: Scheduler,
+      fiberMonitor: FiberMonitor,
+      shutdown: () => Unit,
+      config: IORuntimeConfig): IORuntime =
+    new IORuntime(compute, blocking, scheduler, Nil, fiberMonitor, shutdown, config)
+
   def builder(): IORuntimeBuilder =
     IORuntimeBuilder()
 
