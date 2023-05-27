@@ -20,7 +20,6 @@ import cats.effect.metrics.{CpuStarvationWarningMetrics, NativeCpuStarvationMetr
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
-import scala.scalanative.meta.LinktimeInfo
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -181,12 +180,7 @@ trait IOApp {
    * override this method.
    */
   protected def pollingSystem: unsafe.PollingSystem =
-    if (LinktimeInfo.isLinux)
-      unsafe.EpollSystem
-    else if (LinktimeInfo.isMac)
-      unsafe.KqueueSystem
-    else
-      unsafe.SleepSystem
+    unsafe.IORuntime.createDefaultPollingSystem()
 
   /**
    * The entry point for your application. Will be called by the runtime when the process is
@@ -209,8 +203,8 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
-        val loop = IORuntime.createEventLoop(pollingSystem)
-        IORuntime(loop, loop, loop, () => IORuntime.resetGlobal(), runtimeConfig)
+        val (loop, poller) = IORuntime.createEventLoop(pollingSystem)
+        IORuntime(loop, loop, loop, List(poller), () => IORuntime.resetGlobal(), runtimeConfig)
       }
 
       _runtime = IORuntime.global

@@ -165,7 +165,8 @@ trait IOApp {
    */
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
-  protected def pollingSystem: unsafe.PollingSystem = unsafe.SelectorSystem()
+  protected def pollingSystem: unsafe.PollingSystem =
+    unsafe.IORuntime.createDefaultPollingSystem()
 
   /**
    * Controls the number of worker threads which will be allocated to the compute pool in the
@@ -340,7 +341,7 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
-        val (compute, compDown) =
+        val (compute, poller, compDown) =
           IORuntime.createWorkStealingComputeThreadPool(
             threads = computeWorkerThreadCount,
             reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
@@ -355,6 +356,7 @@ trait IOApp {
           compute,
           blocking,
           compute,
+          List(poller),
           { () =>
             compDown()
             blockDown()

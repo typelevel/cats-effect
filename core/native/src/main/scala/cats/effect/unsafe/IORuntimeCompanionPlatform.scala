@@ -17,6 +17,7 @@
 package cats.effect.unsafe
 
 import scala.concurrent.ExecutionContext
+import scala.scalanative.meta.LinktimeInfo
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
@@ -24,8 +25,21 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
   def defaultScheduler: Scheduler = EventLoopExecutorScheduler.global
 
-  def createEventLoop(system: PollingSystem): ExecutionContext with Scheduler =
-    new EventLoopExecutorScheduler(64, system)
+  def createEventLoop(
+      system: PollingSystem
+  ): (ExecutionContext with Scheduler, system.GlobalPollingState) = {
+    val loop = new EventLoopExecutorScheduler[system.Poller](64, system)
+    val poller = loop.poller
+    (loop, system.makeGlobalPollingState(cb => cb(poller)))
+  }
+
+  def createDefaultPollingSystem(): PollingSystem =
+    if (LinktimeInfo.isLinux)
+      EpollSystem
+    else if (LinktimeInfo.isMac)
+      KqueueSystem
+    else
+      SleepSystem
 
   private[this] var _global: IORuntime = null
 
@@ -44,12 +58,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        IORuntime(
-          defaultComputeExecutionContext,
-          defaultComputeExecutionContext,
-          defaultScheduler,
-          () => resetGlobal(),
-          IORuntimeConfig())
+        val (loop, poller) = createEventLoop(createDefaultPollingSystem())
+        IORuntime(loop, loop, loop, List(poller), () => resetGlobal(), IORuntimeConfig())
       }
     }
 

@@ -83,9 +83,7 @@ private[effect] final class WorkStealingThreadPool[Poller](
   private[unsafe] val pollers: Array[Poller] =
     new Array[AnyRef](threadCount).asInstanceOf[Array[Poller]]
 
-  private[effect] val globalPollingState: Any = system.makeGlobalPollingState(register)
-
-  private[this] def register(cb: Poller => Unit): Unit = {
+  private[unsafe] def register(cb: Poller => Unit): Unit = {
 
     // figure out where we are
     val thread = Thread.currentThread()

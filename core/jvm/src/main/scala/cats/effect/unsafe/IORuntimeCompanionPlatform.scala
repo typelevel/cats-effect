@@ -57,16 +57,18 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       runtimeBlockingExpiration: Duration,
       reportFailure: Throwable => Unit,
       blockedThreadDetectionEnabled: Boolean
-  ): (WorkStealingThreadPool[_], () => Unit) = createWorkStealingComputeThreadPool(
-    threads,
-    threadPrefix,
-    blockerThreadPrefix,
-    runtimeBlockingExpiration,
-    reportFailure,
-    false,
-    SelectorSystem()
-  )
-
+  ): (WorkStealingThreadPool[_], () => Unit) = {
+    val (pool, _, shutdown) = createWorkStealingComputeThreadPool(
+      threads,
+      threadPrefix,
+      blockerThreadPrefix,
+      runtimeBlockingExpiration,
+      reportFailure,
+      false,
+      SleepSystem
+    )
+    (pool, shutdown)
+  }
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
@@ -76,7 +78,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       reportFailure: Throwable => Unit = _.printStackTrace(),
       blockedThreadDetectionEnabled: Boolean = false,
       pollingSystem: PollingSystem = SelectorSystem())
-      : (WorkStealingThreadPool[_], () => Unit) = {
+      : (WorkStealingThreadPool[_], pollingSystem.GlobalPollingState, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool[pollingSystem.Poller](
         threads,
@@ -146,6 +148,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
     (
       threadPool,
+      pollingSystem.makeGlobalPollingState(threadPool.register),
       { () =>
         unregisterMBeans()
         threadPool.shutdown()
@@ -162,7 +165,14 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       threadPrefix: String = "io-compute",
       blockerThreadPrefix: String = DefaultBlockerPrefix)
       : (WorkStealingThreadPool[_], () => Unit) =
-    createWorkStealingComputeThreadPool(threads, threadPrefix, blockerThreadPrefix)
+    createWorkStealingComputeThreadPool(
+      threads,
+      threadPrefix,
+      blockerThreadPrefix,
+      60.seconds,
+      _.printStackTrace(),
+      false
+    )
 
   @deprecated("bincompat shim for previous default method overload", "3.3.13")
   def createDefaultComputeThreadPool(
@@ -197,6 +207,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
   }
 
+  def createDefaultPollingSystem(): PollingSystem = SelectorSystem()
+
   @volatile private[this] var _global: IORuntime = null
 
   // we don't need to synchronize this with IOApp, because we control the main thread
@@ -216,10 +228,16 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (compute, _) = createWorkStealingComputeThreadPool()
+        val (compute, poller, _) = createWorkStealingComputeThreadPool()
         val (blocking, _) = createDefaultBlockingExecutionContext()
 
-        IORuntime(compute, blocking, compute, () => resetGlobal(), IORuntimeConfig())
+        IORuntime(
+          compute,
+          blocking,
+          compute,
+          List(poller),
+          () => resetGlobal(),
+          IORuntimeConfig())
       }
     }
 

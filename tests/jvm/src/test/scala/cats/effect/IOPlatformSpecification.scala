@@ -330,7 +330,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
       }
 
       "safely detect hard-blocked threads even while blockers are being created" in {
-        val (compute, shutdown) =
+        val (compute, _, shutdown) =
           IORuntime.createWorkStealingComputeThreadPool(blockedThreadDetectionEnabled = true)
 
         implicit val runtime: IORuntime =
@@ -350,7 +350,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       // this test ensures that the parkUntilNextSleeper bit works
       "run a timer when parking thread" in {
-        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+        val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
 
         implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
 
@@ -365,7 +365,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       // this test ensures that we always see the timer, even when it fires just as we're about to park
       "run a timer when detecting just prior to park" in {
-        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+        val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
 
         implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
 
@@ -510,7 +510,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
             }
         }
 
-        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(
+        val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(
           threads = 2,
           pollingSystem = DummySystem)
 
@@ -518,7 +518,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
         try {
           val test =
-            IO.poller[DummyPoller].map(_.get).flatMap { poller =>
+            IO.pollers.map(_.head.asInstanceOf[DummyPoller]).flatMap { poller =>
               val blockAndPoll = IO.blocking(Thread.sleep(10)) *> poller.poll
               blockAndPoll.replicateA(100).as(true)
             }

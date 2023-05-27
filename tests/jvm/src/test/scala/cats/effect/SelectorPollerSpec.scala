@@ -27,9 +27,12 @@ import java.nio.channels.SelectionKey._
 
 class SelectorPollerSpec extends BaseSpec {
 
+  def getSelector: IO[SelectorPoller] =
+    IO.pollers.map(_.collectFirst { case selector: SelectorPoller => selector }).map(_.get)
+
   def mkPipe: Resource[IO, Pipe] =
     Resource
-      .eval(IO.poller[SelectorPoller].map(_.get))
+      .eval(getSelector)
       .flatMap { poller =>
         Resource.make(IO(poller.provider.openPipe())) { pipe =>
           IO(pipe.sink().close()).guarantee(IO(pipe.source().close()))
@@ -47,7 +50,7 @@ class SelectorPollerSpec extends BaseSpec {
     "notify read-ready events" in real {
       mkPipe.use { pipe =>
         for {
-          poller <- IO.poller[SelectorPoller].map(_.get)
+          poller <- getSelector
           buf <- IO(ByteBuffer.allocate(4))
           _ <- IO(pipe.sink.write(ByteBuffer.wrap(Array(1, 2, 3)))).background.surround {
             poller.select(pipe.source, OP_READ) *> IO(pipe.source.read(buf))
@@ -62,7 +65,7 @@ class SelectorPollerSpec extends BaseSpec {
     "setup multiple callbacks" in real {
       mkPipe.use { pipe =>
         for {
-          poller <- IO.poller[SelectorPoller].map(_.get)
+          poller <- getSelector
           _ <- poller.select(pipe.source, OP_READ).parReplicateA_(10) <&
             IO(pipe.sink.write(ByteBuffer.wrap(Array(1, 2, 3))))
         } yield ok
@@ -72,7 +75,7 @@ class SelectorPollerSpec extends BaseSpec {
     "works after blocking" in real {
       mkPipe.use { pipe =>
         for {
-          poller <- IO.poller[SelectorPoller].map(_.get)
+          poller <- getSelector
           _ <- IO.blocking(())
           _ <- poller.select(pipe.sink, OP_WRITE)
         } yield ok
@@ -81,7 +84,7 @@ class SelectorPollerSpec extends BaseSpec {
 
     "gracefully handles illegal ops" in real {
       mkPipe.use { pipe =>
-        IO.poller[SelectorPoller].map(_.get).flatMap { poller =>
+        getSelector.flatMap { poller =>
           poller.select(pipe.sink, OP_READ).attempt.map {
             case Left(_: IllegalArgumentException) => true
             case _ => false
@@ -91,13 +94,12 @@ class SelectorPollerSpec extends BaseSpec {
     }
 
     "handles concurrent close" in {
-      val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
-      implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+      val (pool, poller, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+      implicit val runtime: IORuntime =
+        IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()
 
       try {
-        val test = IO
-          .poller[SelectorPoller]
-          .map(_.get)
+        val test = getSelector
           .flatMap { poller =>
             mkPipe.allocated.flatMap {
               case (pipe, close) =>

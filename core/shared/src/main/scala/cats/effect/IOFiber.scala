@@ -997,6 +997,10 @@ private final class IOFiber[A](
 
         case 23 =>
           runLoop(succeeded(Trace(tracingEvents), 0), nextCancelation, nextAutoCede)
+
+        /* ReadRT */
+        case 24 =>
+          runLoop(succeeded(runtime, 0), nextCancelation, nextAutoCede)
       }
     }
   }

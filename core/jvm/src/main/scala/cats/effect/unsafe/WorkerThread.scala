@@ -192,7 +192,7 @@ private final class WorkerThread[Poller](
    *   `true` if this worker thread is owned by the provided work stealing thread pool, `false`
    *   otherwise
    */
-  def canExecuteBlockingCodeOn(threadPool: WorkStealingThreadPool[Poller]): Boolean =
+  def canExecuteBlockingCodeOn(threadPool: WorkStealingThreadPool[_]): Boolean =
     pool eq threadPool
 
   /**
