@@ -510,11 +510,12 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
             }
         }
 
-        val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(
+        val (pool, poller, shutdown) = IORuntime.createWorkStealingComputeThreadPool(
           threads = 2,
           pollingSystem = DummySystem)
 
-        implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
+        implicit val runtime: IORuntime =
+          IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()
 
         try {
           val test =
