@@ -41,8 +41,10 @@ object KqueueSystem extends PollingSystem {
 
   private final val MaxEvents = 64
 
-  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState =
-    new GlobalPollingState(register)
+  type Api = FileDescriptorPoller
+
+  def makeApi(register: (Poller => Unit) => Unit): FileDescriptorPoller =
+    new FileDescriptorPollerImpl(register)
 
   def makePoller(): Poller = {
     val fd = kqueue()
@@ -61,7 +63,7 @@ object KqueueSystem extends PollingSystem {
 
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
-  final class GlobalPollingState private[KqueueSystem] (
+  private final class FileDescriptorPollerImpl private[KqueueSystem] (
       register: (Poller => Unit) => Unit
   ) extends FileDescriptorPoller {
     def registerFileDescriptor(

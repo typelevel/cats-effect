@@ -25,10 +25,10 @@ import java.nio.ByteBuffer
 import java.nio.channels.Pipe
 import java.nio.channels.SelectionKey._
 
-class SelectorPollerSpec extends BaseSpec {
+class SelectorSpec extends BaseSpec {
 
-  def getSelector: IO[SelectorPoller] =
-    IO.pollers.map(_.collectFirst { case selector: SelectorPoller => selector }).map(_.get)
+  def getSelector: IO[Selector] =
+    IO.pollers.map(_.collectFirst { case selector: Selector => selector }).map(_.get)
 
   def mkPipe: Resource[IO, Pipe] =
     Resource

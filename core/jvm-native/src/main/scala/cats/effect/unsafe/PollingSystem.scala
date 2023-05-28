@@ -22,14 +22,14 @@ abstract class PollingSystem {
   /**
    * The user-facing interface.
    */
-  type GlobalPollingState <: AnyRef
+  type Api <: AnyRef
 
   /**
    * The thread-local data structure used for polling.
    */
   type Poller <: AnyRef
 
-  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState
+  def makeApi(register: (Poller => Unit) => Unit): Api
 
   def makePoller(): Poller
 

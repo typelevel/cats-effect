@@ -19,7 +19,7 @@ package cats.effect
 import java.nio.channels.SelectableChannel
 import java.nio.channels.spi.SelectorProvider
 
-trait SelectorPoller {
+trait Selector {
 
   /**
    * The [[java.nio.channels.spi.SelectorProvider]] that should be used to create

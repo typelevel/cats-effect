@@ -19,11 +19,11 @@ package unsafe
 
 object SleepSystem extends PollingSystem {
 
-  final class GlobalPollingState private[SleepSystem] ()
+  final class Api private[SleepSystem] ()
   final class Poller private[SleepSystem] ()
 
-  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState =
-    new GlobalPollingState
+  def makeApi(register: (Poller => Unit) => Unit): Api =
+    new Api
 
   def makePoller(): Poller = new Poller
 

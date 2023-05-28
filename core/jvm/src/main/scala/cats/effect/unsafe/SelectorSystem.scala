@@ -24,8 +24,10 @@ import SelectorSystem._
 
 final class SelectorSystem private (provider: SelectorProvider) extends PollingSystem {
 
-  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState =
-    new GlobalPollingState(register, provider)
+  type Api = Selector
+
+  def makeApi(register: (Poller => Unit) => Unit): Selector =
+    new SelectorImpl(register, provider)
 
   def makePoller(): Poller = new Poller(provider.openSelector())
 
@@ -95,10 +97,10 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
     ()
   }
 
-  final class GlobalPollingState private[SelectorSystem] (
+  final class SelectorImpl private[SelectorSystem] (
       register: (Poller => Unit) => Unit,
       val provider: SelectorProvider
-  ) extends SelectorPoller {
+  ) extends Selector {
 
     def select(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { selectCb =>
       IO.async_[CallbackNode] { cb =>

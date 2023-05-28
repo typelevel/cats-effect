@@ -41,8 +41,10 @@ object EpollSystem extends PollingSystem {
 
   private[this] final val MaxEvents = 64
 
-  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState =
-    new GlobalPollingState(register)
+  type Api = FileDescriptorPoller
+
+  def makeApi(register: (Poller => Unit) => Unit): Api =
+    new FileDescriptorPollerImpl(register)
 
   def makePoller(): Poller = {
     val fd = epoll_create1(0)
@@ -60,7 +62,8 @@ object EpollSystem extends PollingSystem {
 
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
-  final class GlobalPollingState private[EpollSystem] (register: (Poller => Unit) => Unit)
+  private final class FileDescriptorPollerImpl private[EpollSystem] (
+      register: (Poller => Unit) => Unit)
       extends FileDescriptorPoller {
 
     def registerFileDescriptor(

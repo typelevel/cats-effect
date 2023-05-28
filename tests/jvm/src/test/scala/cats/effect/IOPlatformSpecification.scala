@@ -479,7 +479,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         }
 
         object DummySystem extends PollingSystem {
-          type GlobalPollingState = DummyPoller
+          type Api = DummyPoller
           type Poller = AtomicReference[List[Either[Throwable, Unit] => Unit]]
 
           def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Unit])
@@ -499,7 +499,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
             }
           }
 
-          def makeGlobalPollingState(register: (Poller => Unit) => Unit) =
+          def makeApi(register: (Poller => Unit) => Unit) =
             new DummyPoller {
               def poll = IO.async_[Unit] { cb =>
                 register { poller =>

@@ -28,10 +28,10 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
   private[this] val loop = new EventLoopExecutorScheduler(
     pollEvery,
     new PollingSystem {
-      type GlobalPollingState = outer.type
+      type Api = outer.type
       type Poller = outer.type
       private[this] var needsPoll = true
-      def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState = outer
+      def makeApi(register: (Poller => Unit) => Unit): Api = outer
       def makePoller(): Poller = outer
       def closePoller(poller: Poller): Unit = ()
       def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
