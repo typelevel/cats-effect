@@ -42,12 +42,16 @@ jobs:
             java: graalvm@11
           - os: windows-latest
             scala: 3.2.2
+            ci: ciJVM
           - os: macos-latest
             scala: 3.2.2
+            ci: ciJVM
           - os: windows-latest
             scala: 2.12.17
+            ci: ciJVM
           - os: macos-latest
             scala: 2.12.17
+            ci: ciJVM
           - ci: ciFirefox
             scala: 3.2.2
           - ci: ciChrome
