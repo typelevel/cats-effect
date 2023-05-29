@@ -32,6 +32,7 @@ import cats.effect.kernel._
 import cats.effect.std.Random.{ScalaRandom, TranslatedRandom}
 import cats.syntax.all._
 
+import scala.compat.Platform
 import scala.util.{Random => SRandom}
 
 /**
@@ -122,22 +123,4 @@ object SecureRandom extends SecureRandomCompanionPlatform {
       def selectRandom = incrGet.map(array(_))
       new ScalaRandom[F](selectRandom) with SecureRandom[F] {}
     }
-
-  /**
-   * On the JVM, delegates to [[java.security.SecureRandom]].
-   *
-   * In browsers, delegates to the
-   * [[https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API Web Crypto API]].
-   *
-   * In Node.js, delegates to the [[https://nodejs.org/api/crypto.html crypto module]].
-   *
-   * On Native, delegates to
-   * [[https://man7.org/linux/man-pages/man3/getentropy.3.html getentropy]] which is supported
-   * on Linux, macOS, and BSD. Unsupported platforms such as Windows will encounter link-time
-   * errors.
-   */
-  def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
-    Sync[F]
-      .delay(new JavaSecureRandom())
-      .map(r => new ScalaRandom[F](Applicative[F].pure(r)) with SecureRandom[F] {})
 }

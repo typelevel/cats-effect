@@ -16,13 +16,26 @@
 
 package cats.effect.std
 
+import cats.Functor
 import cats.effect.kernel.Sync
+import cats.syntax.all._
 
 import java.util.UUID
 
 private[std] trait UUIDGenCompanionPlatform extends UUIDGenCompanionPlatformLowPriority {
+  implicit def fromSecureRandom[F[_]: Functor: SecureRandom]: UUIDGen[F] = {
+    new UUIDGen[F] {
+      override final val randomUUID: F[UUID] =
+        SecureRandom[F].nextBytes(16).map(UnsafeUUIDBuilder.build)
+    }
+  }
+}
+
+private[std] trait UUIDGenCompanionPlatformLowPriority {
+
   implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = new UUIDGen[F] {
     override final val randomUUID: F[UUID] =
       ev.blocking(UUID.randomUUID())
   }
+
 }

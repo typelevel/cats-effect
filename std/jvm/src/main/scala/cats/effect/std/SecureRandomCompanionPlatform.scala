@@ -60,8 +60,20 @@ private[std] trait SecureRandomCompanionPlatform {
   /**
    * Creates a SecureRandom instance. On most platforms, it will be non-blocking. If a
    * non-blocking instance can't be guaranteed, falls back to a blocking implementation.
+   *
+   * On the JVM, delegates to [[java.security.SecureRandom]].
+   *
+   * In browsers, delegates to the
+   * [[https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API Web Crypto API]].
+   *
+   * In Node.js, delegates to the [[https://nodejs.org/api/crypto.html crypto module]].
+   *
+   * On Native, delegates to
+   * [[https://man7.org/linux/man-pages/man3/getentropy.3.html getentropy]] which is supported
+   * on Linux, macOS, and BSD. Unsupported platforms such as Windows will encounter link-time
+   * errors.
    */
-  def nonBlockingJavaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] = {
+  def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] = {
     // This is a known, non-blocking, threadsafe algorithm
     def happyRandom = Sync[F].delay(getInstance)
 
