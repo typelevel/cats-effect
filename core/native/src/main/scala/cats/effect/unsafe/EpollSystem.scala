@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import cats.effect.std.Semaphore
+import cats.effect.std.Mutex
 import cats.syntax.all._
 
 import org.typelevel.scalaccompat.annotation._
@@ -73,10 +73,10 @@ object EpollSystem extends PollingSystem {
     ): Resource[IO, FileDescriptorPollHandle] =
       Resource
         .make {
-          (Semaphore[IO](1), Semaphore[IO](1)).flatMapN { (readSemaphore, writeSemaphore) =>
+          (Mutex[IO], Mutex[IO]).flatMapN { (readMutex, writeMutex) =>
             IO.async_[(PollHandle, IO[Unit])] { cb =>
               register { data =>
-                val handle = new PollHandle(readSemaphore, writeSemaphore)
+                val handle = new PollHandle(readMutex, writeMutex)
                 val unregister = data.register(fd, reads, writes, handle)
                 cb(Right((handle, unregister)))
               }
@@ -88,8 +88,8 @@ object EpollSystem extends PollingSystem {
   }
 
   private final class PollHandle(
-      readSemaphore: Semaphore[IO],
-      writeSemaphore: Semaphore[IO]
+      readMutex: Mutex[IO],
+      writeMutex: Mutex[IO]
   ) extends FileDescriptorPollHandle {
 
     private[this] var readReadyCounter = 0
@@ -116,7 +116,7 @@ object EpollSystem extends PollingSystem {
     }
 
     def pollReadRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
-      readSemaphore.permit.surround {
+      readMutex.lock.surround {
         def go(a: A, before: Int): IO[B] =
           f(a).flatMap {
             case Left(a) =>
@@ -144,7 +144,7 @@ object EpollSystem extends PollingSystem {
       }
 
     def pollWriteRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
-      writeSemaphore.permit.surround {
+      writeMutex.lock.surround {
         def go(a: A, before: Int): IO[B] =
           f(a).flatMap {
             case Left(a) =>

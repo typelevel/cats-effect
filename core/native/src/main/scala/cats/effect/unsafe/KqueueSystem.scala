@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import cats.effect.std.Semaphore
+import cats.effect.std.Mutex
 import cats.syntax.all._
 
 import org.typelevel.scalaccompat.annotation._
@@ -72,7 +72,7 @@ object KqueueSystem extends PollingSystem {
         writes: Boolean
     ): Resource[IO, FileDescriptorPollHandle] =
       Resource.eval {
-        (Semaphore[IO](1), Semaphore[IO](1)).mapN {
+        (Mutex[IO], Mutex[IO]).mapN {
           new PollHandle(register, fd, _, _)
         }
       }
@@ -81,15 +81,15 @@ object KqueueSystem extends PollingSystem {
   private final class PollHandle(
       register: (Poller => Unit) => Unit,
       fd: Int,
-      readSemaphore: Semaphore[IO],
-      writeSemaphore: Semaphore[IO]
+      readMutex: Mutex[IO],
+      writeMutex: Mutex[IO]
   ) extends FileDescriptorPollHandle {
 
     private[this] val readEvent = KEvent(fd.toLong, EVFILT_READ)
     private[this] val writeEvent = KEvent(fd.toLong, EVFILT_WRITE)
 
     def pollReadRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
-      readSemaphore.permit.surround {
+      readMutex.lock.surround {
         a.tailRecM { a =>
           f(a).flatTap { r =>
             if (r.isRight)
@@ -109,7 +109,7 @@ object KqueueSystem extends PollingSystem {
       }
 
     def pollWriteRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
-      writeSemaphore.permit.surround {
+      writeMutex.lock.surround {
         a.tailRecM { a =>
           f(a).flatTap { r =>
             if (r.isRight)
