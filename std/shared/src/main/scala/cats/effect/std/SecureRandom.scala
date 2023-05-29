@@ -32,7 +32,6 @@ import cats.effect.kernel._
 import cats.effect.std.Random.{ScalaRandom, TranslatedRandom}
 import cats.syntax.all._
 
-import scala.compat.Platform
 import scala.util.{Random => SRandom}
 
 /**
