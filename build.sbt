@@ -254,9 +254,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
 
     javaFilters ++ Seq(
       MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212)),
-      // keep a native+2.13+macos job
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala3))
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212))
     )
   }
 
