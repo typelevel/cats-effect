@@ -169,7 +169,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   /**
    * [[Async.evalOn]] with provided [[java.util.concurrent.Executor]]
    */
-  def evalOn[A](fa: F[A], executor: Executor): F[A] =
+  def evalOnExecutor[A](fa: F[A], executor: Executor): F[A] = {
+    require(executor != null, "Cannot pass undefined Executor as an argument")
     executor match {
       case ec: ExecutionContext =>
         evalOn[A](fa, ec: ExecutionContext)
@@ -180,6 +181,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
           evalOn[A](fa, newEc)
         }
     }
+  }
 
   /**
    * [[Async.evalOn]] as a natural transformation.

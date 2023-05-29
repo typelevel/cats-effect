@@ -33,7 +33,7 @@ final class AsyncOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A]
     Async[F].evalOn(wrapped, ec)
 
   def evalOn(executor: Executor)(implicit F: Async[F]): F[A] =
-    Async[F].evalOn(wrapped, executor)
+    Async[F].evalOnExecutor(wrapped, executor)
 
   def startOn(ec: ExecutionContext)(implicit F: Async[F]): F[Fiber[F, Throwable, A]] =
     Async[F].startOn(wrapped, ec)
