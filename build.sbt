@@ -160,9 +160,12 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     cond = Some(s"matrix.java == '${GraalVM.render}'")
   ),
   WorkflowStep.Use(
-    UseRef.Public("al-cheb", "configure-pagefile-action", "v1.3"),
+    UseRef.Public(
+      "al-cheb",
+      "configure-pagefile-action",
+      "d298bdee6b133626425040e3788f1055a8b4cf7a"),
     name = Some("Configure Windows Pagefile"),
-    params = Map("minimum-size" -> "2GB", "maximum-size" -> "8GB"),
+    params = Map("minimum-size" -> "2GB", "maximum-size" -> "8GB", "timeout" -> "600"),
     cond = Some(s"matrix.os == '$Windows'")
   )
 )
