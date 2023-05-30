@@ -36,7 +36,7 @@ private[std] trait UUIDGenCompanionPlatform extends UUIDGenCompanionPlatformLowP
 
 private[std] trait UUIDGenCompanionPlatformLowPriority {
 
-  private implicit def secureRandom[F[_]](implicit ev: Sync[F]) =
+  private implicit def secureRandom[F[_]](implicit ev: Sync[F]): SecureRandom[F] =
     new ScalaRandom[F](Applicative[F].pure(new SecureRandom.JavaSecureRandom()))
       with SecureRandom[F] {}
 
