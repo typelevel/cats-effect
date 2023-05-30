@@ -122,4 +122,8 @@ object SecureRandom extends SecureRandomCompanionPlatform {
       def selectRandom = incrGet.map(array(_))
       new ScalaRandom[F](selectRandom) with SecureRandom[F] {}
     }
+
+  override def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
+    super.javaSecuritySecureRandom[F]
+
 }
