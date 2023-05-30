@@ -115,8 +115,8 @@ class FileDescriptorPollerSpec extends BaseSpec {
     }
 
     "handle lots of simultaneous events" in real {
-      mkPipe.replicateA(1000).use { pipes =>
-        CountDownLatch[IO](1000).flatMap { latch =>
+      def test(n: Int) = mkPipe.replicateA(n).use { pipes =>
+        CountDownLatch[IO](n).flatMap { latch =>
           pipes
             .traverse_ { pipe =>
               (pipe.read(new Array[Byte](1), 0, 1) *> latch.release).background
@@ -130,6 +130,10 @@ class FileDescriptorPollerSpec extends BaseSpec {
             }
         }
       }
+
+      // multiples of 64 to excercise ready queue draining logic
+      test(64) *> test(128) *>
+        test(1000) // a big, non-64-multiple
     }
 
     "hang if never ready" in real {

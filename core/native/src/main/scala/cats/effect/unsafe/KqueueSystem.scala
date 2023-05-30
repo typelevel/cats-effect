@@ -206,7 +206,7 @@ object KqueueSystem extends PollingSystem {
         }
 
         if (triggeredEvents >= MaxEvents)
-          processEvents(null, 0, KEVENT_FLAG_NONE) // drain the ready list
+          processEvents(null, 0, KEVENT_FLAG_IMMEDIATE) // drain the ready list
         else
           ()
       }
