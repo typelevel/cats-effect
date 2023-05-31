@@ -133,7 +133,8 @@ object KqueueSystem extends PollingSystem {
 
   final class Poller private[KqueueSystem] (kqfd: Int) {
 
-    private[this] val changelistArray = new Array[Byte](sizeof[kevent64_s].toInt * MaxEvents)
+    private[KqueueSystem] val changelistArray = // private[this] gets GCed in Scala 3. or something ...
+      new Array[Byte](sizeof[kevent64_s].toInt * MaxEvents)
     private[this] val changelist = changelistArray.at(0).asInstanceOf[Ptr[kevent64_s]]
     private[this] var changeCount = 0
 
