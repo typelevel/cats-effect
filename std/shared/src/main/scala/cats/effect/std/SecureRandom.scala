@@ -123,6 +123,19 @@ object SecureRandom extends SecureRandomCompanionPlatform {
       new ScalaRandom[F](selectRandom) with SecureRandom[F] {}
     }
 
+  /**
+   * On the JVM, delegates to [[java.security.SecureRandom]].
+   *
+   * In browsers, delegates to the
+   * [[https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API Web Crypto API]].
+   *
+   * In Node.js, delegates to the [[https://nodejs.org/api/crypto.html crypto module]].
+   *
+   * On Native, delegates to
+   * [[https://man7.org/linux/man-pages/man3/getentropy.3.html getentropy]] which is supported
+   * on Linux, macOS, and BSD. Unsupported platforms such as Windows will encounter link-time
+   * errors.
+   */
   override def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
     super.javaSecuritySecureRandom[F]
 
