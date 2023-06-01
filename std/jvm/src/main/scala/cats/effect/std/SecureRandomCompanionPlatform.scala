@@ -121,7 +121,9 @@ private[std] trait SecureRandomCompanionPlatform {
   }
 
   private def javaMajorVersion[F[_]: Sync]: F[Option[Int]] =
-    Sync[F].delay(sys.props.get("java.version")).map(_.flatMap(parseJavaMajorVersion))
+    Sync[F]
+      .delay(Option(System.getProperty("java.version")))
+      .map(_.flatMap(parseJavaMajorVersion))
 
   private def parseJavaMajorVersion(javaVersion: String): Option[Int] =
     if (javaVersion.startsWith("1."))
