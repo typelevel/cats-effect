@@ -46,9 +46,6 @@ private[std] trait SecureRandomCompanionPlatform {
       .map(r => new ScalaRandom[F](Applicative[F].pure(r)) with SecureRandom[F] {})
 
   /**
-   * Creates a blocking Random instance. All calls to nextBytes are shifted to the blocking
-   * pool. This is safer, but less effecient, than [[javaUtilRandomNonBlocking]].
-   *
    * @param random
    *   a potentially blocking instance of java.util.Random
    */

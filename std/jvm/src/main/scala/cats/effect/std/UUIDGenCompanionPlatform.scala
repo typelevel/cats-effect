@@ -24,6 +24,10 @@ private[std] trait UUIDGenCompanionPlatform extends UUIDGenCompanionPlatformLowP
 
 private[std] trait UUIDGenCompanionPlatformLowPriority {
 
+  @deprecated(
+    "Put an implicit `SecureRandom.javaSecuritySecureRandom` into scope to get a more efficient `UUIDGen`, or directly call `UUIDGen.fromSecureRandom`",
+    "3.6.0"
+  )
   implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = new UUIDGen[F] {
     override final val randomUUID: F[UUID] =
       ev.blocking(UUID.randomUUID())
