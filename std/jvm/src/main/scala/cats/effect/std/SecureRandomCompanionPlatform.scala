@@ -21,38 +21,18 @@ package std
 import cats._
 import cats.effect.kernel._
 import cats.effect.std.Random.ScalaRandom
-import cats.syntax.all._
 
-import scala.util.Try
+import scala.util.{Random => SRandom, Try}
+
+import java.util.concurrent.atomic.AtomicInteger
 
 private[std] trait SecureRandomCompanionPlatform {
   private[std] type JavaSecureRandom = java.security.SecureRandom
   private[std] def getInstance: JavaSecureRandom =
     java.security.SecureRandom.getInstance("NativePRNGNonBlocking")
 
-  /**
-   * Create a non-blocking Random instance. This is more efficient than [[javaSecurityRandom]],
-   * but requires a more thoughtful instance of random
-   *
-   * @param random
-   *   a non-blocking instance of java.util.Random. It is the caller's responsibility to assure
-   *   that the instance is non-blocking. If the instance blocks during seeding, it is the
-   *   caller's responsibility to seed it.
-   */
-  private def javaUtilRandomNonBlocking[F[_]: Sync](
-      random: JavaSecureRandom): F[SecureRandom[F]] =
-    Sync[F]
-      .delay(random)
-      .map(r => new ScalaRandom[F](Applicative[F].pure(r)) with SecureRandom[F] {})
-
-  /**
-   * @param random
-   *   a potentially blocking instance of java.util.Random
-   */
-  private def javaUtilRandomBlocking[F[_]: Sync](random: JavaSecureRandom): F[SecureRandom[F]] =
-    Sync[F]
-      .blocking(random)
-      .map(r => new ScalaRandom[F](Applicative[F].pure(r)) with SecureRandom[F] {})
+  private def javaUtilRandom[F[_]: Sync](random: JavaSecureRandom): SecureRandom[F] =
+    new ScalaRandom[F](Applicative[F].pure(random)) with SecureRandom[F] {}
 
   /**
    * Creates a SecureRandom instance. On most platforms, it will be non-blocking. If a
@@ -70,11 +50,14 @@ private[std] trait SecureRandomCompanionPlatform {
    * on Linux, macOS, and BSD. Unsupported platforms such as Windows will encounter link-time
    * errors.
    */
-  def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] = {
-    // This is a known, non-blocking, threadsafe algorithm
-    def happyRandom = Sync[F].delay(getInstance)
+  def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
+    Sync[F].delay(unsafeJavaSecuritySecureRandom)
 
-    def fallback = Sync[F].delay(new JavaSecureRandom())
+  private[effect] def unsafeJavaSecuritySecureRandom[F[_]: Sync]: SecureRandom[F] = {
+    // This is a known, non-blocking, threadsafe algorithm
+    def happyRandom = getInstance
+
+    def fallback = new JavaSecureRandom()
 
     // Porting JavaSecureRandom.isThreadSafe
     def isThreadsafe(rnd: JavaSecureRandom) =
@@ -85,31 +68,31 @@ private[std] trait SecureRandomCompanionPlatform {
 
     // If we can't sniff out a more optimal solution, we can always
     // fall back to a pool of blocking instances
-    def fallbackPool: F[SecureRandom[F]] =
-      for {
-        n <- Sync[F].delay(Runtime.getRuntime.availableProcessors())
-        sr <- SecureRandom.javaSecuritySecureRandom(n)
-      } yield sr
+    def fallbackPool: SecureRandom[F] = {
+      val processors = Runtime.getRuntime.availableProcessors()
+      pool(processors)
+    }
 
-    javaMajorVersion.flatMap {
+    javaMajorVersion match {
       case Some(major) if major > 8 =>
-        happyRandom.redeemWith(
-          _ =>
-            fallback.flatMap {
+        try {
+          // We are thread safe and non-blocking.  This is the
+          // happy path, and happily, the common path.
+          javaUtilRandom(happyRandom)
+        } catch {
+          case _: Throwable =>
+            fallback match {
               case rnd if isThreadsafe(rnd) =>
                 // We avoided the mutex, but not the blocking.  Use a
                 // shared instance from the blocking pool.
-                javaUtilRandomBlocking(rnd)
+                javaUtilRandom(rnd)
               case _ =>
                 // We can't prove the instance is threadsafe, so we need
                 // to pessimistically fall back to a pool.  This should
                 // be exceedingly uncommon.
                 fallbackPool
-            },
-          // We are thread safe and non-blocking.  This is the
-          // happy path, and happily, the common path.
-          rnd => javaUtilRandomNonBlocking(rnd)
-        )
+            }
+        }
 
       case Some(_) | None =>
         // We can't guarantee we're not stuck in a mutex.
@@ -117,10 +100,20 @@ private[std] trait SecureRandomCompanionPlatform {
     }
   }
 
-  private def javaMajorVersion[F[_]: Sync]: F[Option[Int]] =
-    Sync[F]
-      .delay(Option(System.getProperty("java.version")))
-      .map(_.flatMap(parseJavaMajorVersion))
+  private def pool[F[_]: Sync](n: Int): SecureRandom[F] = {
+    val index = new AtomicInteger(0)
+    val array = Array.fill(n)(new SRandom(new SecureRandom.JavaSecureRandom))
+
+    def selectRandom: F[SRandom] = Sync[F].delay {
+      val currentIndex = index.getAndUpdate(i => if (i < (n - 1)) i + 1 else 0)
+      array(currentIndex)
+    }
+
+    new ScalaRandom[F](selectRandom) with SecureRandom[F] {}
+  }
+
+  private def javaMajorVersion: Option[Int] =
+    Option(System.getProperty("java.version")).flatMap(parseJavaMajorVersion)
 
   private def parseJavaMajorVersion(javaVersion: String): Option[Int] =
     if (javaVersion.startsWith("1."))
