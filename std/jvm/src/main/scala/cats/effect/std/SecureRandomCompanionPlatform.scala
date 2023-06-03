@@ -21,6 +21,7 @@ package std
 import cats._
 import cats.effect.kernel._
 import cats.effect.std.Random.ScalaRandom
+import java.math.{BigInteger => JBigInteger}
 
 import scala.util.{Random => SRandom, Try}
 
@@ -33,6 +34,15 @@ private[std] trait SecureRandomCompanionPlatform {
 
   private def javaUtilRandom[F[_]: Sync](random: JavaSecureRandom): SecureRandom[F] =
     new ScalaRandom[F](Applicative[F].pure(random)) with SecureRandom[F] {}
+
+  /**
+   * Creates a blocking Random instance.
+   *
+   * @param random
+   *   a potentially blocking instance of java.util.Random
+   */
+  def javaUtilRandomBlocking[F[_]: Sync](random: JavaSecureRandom): SecureRandom[F] =
+    new ScalaRandom[F](Applicative[F].pure(random, Sync.Type.Blocking)) with SecureRandom[F] {}
 
   /**
    * Creates a SecureRandom instance. On most platforms, it will be non-blocking. If a
@@ -85,7 +95,7 @@ private[std] trait SecureRandomCompanionPlatform {
               case rnd if isThreadsafe(rnd) =>
                 // We avoided the mutex, but not the blocking.  Use a
                 // shared instance from the blocking pool.
-                javaUtilRandom(rnd)
+                javaUtilRandomBlocking(rnd)
               case _ =>
                 // We can't prove the instance is threadsafe, so we need
                 // to pessimistically fall back to a pool.  This should
