@@ -21,7 +21,6 @@ package std
 import cats._
 import cats.effect.kernel._
 import cats.effect.std.Random.ScalaRandom
-import java.math.{BigInteger => JBigInteger}
 
 import scala.util.{Random => SRandom, Try}
 
@@ -42,7 +41,7 @@ private[std] trait SecureRandomCompanionPlatform {
    *   a potentially blocking instance of java.util.Random
    */
   def javaUtilRandomBlocking[F[_]: Sync](random: JavaSecureRandom): SecureRandom[F] =
-    new ScalaRandom[F](Applicative[F].pure(random, Sync.Type.Blocking)) with SecureRandom[F] {}
+    new ScalaRandom[F](Applicative[F].pure(random), Sync.Type.Blocking) with SecureRandom[F] {}
 
   /**
    * Creates a SecureRandom instance. On most platforms, it will be non-blocking. If a
