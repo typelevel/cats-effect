@@ -434,10 +434,11 @@ object Random extends RandomCompanionPlatform {
 
   }
 
-  private[std] abstract class ScalaRandom[F[_]: Sync](
-      f: F[SRandom],
-      hint: Sync.Type = Sync.Type.Delay)
+  private[std] abstract class ScalaRandom[F[_]: Sync](f: F[SRandom], hint: Sync.Type)
       extends RandomCommon[F] {
+
+    def this(f: F[SRandom]) = this(f, Sync.Type.Delay)
+
     def nextBoolean: F[Boolean] =
       for {
         r <- f
