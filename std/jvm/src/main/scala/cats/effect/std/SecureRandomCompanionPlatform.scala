@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 private[std] trait SecureRandomCompanionPlatform {
   private[std] type JavaSecureRandom = java.security.SecureRandom
-  private[std] def getInstance: JavaSecureRandom =
+  private def getInstance: JavaSecureRandom =
     java.security.SecureRandom.getInstance("NativePRNGNonBlocking")
 
   private def javaUtilRandom[F[_]: Sync](random: JavaSecureRandom): SecureRandom[F] =
@@ -40,7 +40,7 @@ private[std] trait SecureRandomCompanionPlatform {
    * @param random
    *   a potentially blocking instance of java.util.Random
    */
-  def javaUtilRandomBlocking[F[_]: Sync](random: JavaSecureRandom): SecureRandom[F] =
+  private def javaUtilRandomBlocking[F[_]: Sync](random: JavaSecureRandom): SecureRandom[F] =
     new ScalaRandom[F](Applicative[F].pure(random), Sync.Type.Blocking) with SecureRandom[F] {}
 
   /**
@@ -60,9 +60,9 @@ private[std] trait SecureRandomCompanionPlatform {
    * errors.
    */
   def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
-    Sync[F].delay(unsafeJavaSecuritySecureRandom)
+    Sync[F].delay(unsafeJavaSecuritySecureRandom())
 
-  private[effect] def unsafeJavaSecuritySecureRandom[F[_]: Sync]: SecureRandom[F] = {
+  private[effect] def unsafeJavaSecuritySecureRandom[F[_]: Sync](): SecureRandom[F] = {
     // This is a known, non-blocking, threadsafe algorithm
     def happyRandom = getInstance
 

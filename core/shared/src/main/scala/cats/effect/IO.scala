@@ -1963,8 +1963,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   // later in the file
   private[this] val _never: IO[Nothing] = asyncForIO.never
 
-  implicit def secureRandom: SecureRandom[IO] =
-    SecureRandom.unsafeJavaSecuritySecureRandom[IO]
+  implicit lazy val secureRandom: SecureRandom[IO] =
+    SecureRandom.unsafeJavaSecuritySecureRandom[IO]()
 
   // implementations
 
