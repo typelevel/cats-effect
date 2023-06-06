@@ -25,6 +25,7 @@ import org.typelevel.scalaccompat.annotation._
 import scala.annotation.tailrec
 import scala.scalanative.annotation.alwaysinline
 import scala.scalanative.libc.errno._
+import scala.scalanative.meta.LinktimeInfo
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
 import scala.scalanative.runtime._
@@ -281,16 +282,34 @@ object EpollSystem extends PollingSystem {
       def events_=(events: CUnsignedInt): Unit =
         !epoll_event.asInstanceOf[Ptr[CUnsignedInt]] = events
 
-      def data: epoll_data_t =
-        !(epoll_event.asInstanceOf[Ptr[Byte]] + sizeof[CUnsignedInt])
-          .asInstanceOf[Ptr[epoll_data_t]]
-      def data_=(data: epoll_data_t): Unit =
-        !(epoll_event.asInstanceOf[Ptr[Byte]] + sizeof[CUnsignedInt])
+      def data: epoll_data_t = {
+        val offset =
+          if (LinktimeInfo.target.arch == "x86_64")
+            sizeof[CUnsignedInt]
+          else
+            sizeof[Ptr[Byte]]
+        !(epoll_event.asInstanceOf[Ptr[Byte]] + offset).asInstanceOf[Ptr[epoll_data_t]]
+      }
+
+      def data_=(data: epoll_data_t): Unit = {
+        val offset =
+          if (LinktimeInfo.target.arch == "x86_64")
+            sizeof[CUnsignedInt]
+          else
+            sizeof[Ptr[Byte]]
+        !(epoll_event.asInstanceOf[Ptr[Byte]] + offset)
           .asInstanceOf[Ptr[epoll_data_t]] = data
+      }
     }
 
     implicit val epoll_eventTag: Tag[epoll_event] =
-      Tag.materializeCArrayTag[Byte, Nat.Digit2[Nat._1, Nat._2]].asInstanceOf[Tag[epoll_event]]
-
+      if (LinktimeInfo.target.arch == "x86_64")
+        Tag
+          .materializeCArrayTag[Byte, Nat.Digit2[Nat._1, Nat._2]]
+          .asInstanceOf[Tag[epoll_event]]
+      else
+        Tag
+          .materializeCArrayTag[Byte, Nat.Digit2[Nat._1, Nat._6]]
+          .asInstanceOf[Tag[epoll_event]]
   }
 }
