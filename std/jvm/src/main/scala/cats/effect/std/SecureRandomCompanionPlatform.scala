@@ -22,9 +22,9 @@ import cats._
 import cats.effect.kernel._
 import cats.effect.std.Random.ScalaRandom
 
-import scala.util.{Random => SRandom, Try}
-
+import scala.util.{Try, Random => SRandom}
 import java.util.concurrent.atomic.AtomicInteger
+import scala.util.control.NonFatal
 
 private[std] trait SecureRandomCompanionPlatform {
   private[std] type JavaSecureRandom = java.security.SecureRandom
@@ -43,22 +43,6 @@ private[std] trait SecureRandomCompanionPlatform {
   private def javaUtilRandomBlocking[F[_]: Sync](random: JavaSecureRandom): SecureRandom[F] =
     new ScalaRandom[F](Applicative[F].pure(random), Sync.Type.Blocking) with SecureRandom[F] {}
 
-  /**
-   * Creates a SecureRandom instance. On most platforms, it will be non-blocking. If a
-   * non-blocking instance can't be guaranteed, falls back to a blocking implementation.
-   *
-   * On the JVM, delegates to [[java.security.SecureRandom]].
-   *
-   * In browsers, delegates to the
-   * [[https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API Web Crypto API]].
-   *
-   * In Node.js, delegates to the [[https://nodejs.org/api/crypto.html crypto module]].
-   *
-   * On Native, delegates to
-   * [[https://man7.org/linux/man-pages/man3/getentropy.3.html getentropy]] which is supported
-   * on Linux, macOS, and BSD. Unsupported platforms such as Windows will encounter link-time
-   * errors.
-   */
   def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
     Sync[F].delay(unsafeJavaSecuritySecureRandom())
 
@@ -89,7 +73,7 @@ private[std] trait SecureRandomCompanionPlatform {
           // happy path, and happily, the common path.
           javaUtilRandom(happyRandom)
         } catch {
-          case _: Throwable =>
+          case ex if NonFatal(ex) =>
             fallback match {
               case rnd if isThreadsafe(rnd) =>
                 // We avoided the mutex, but not the blocking.  Use a
