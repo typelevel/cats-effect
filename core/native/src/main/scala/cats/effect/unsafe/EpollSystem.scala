@@ -297,8 +297,7 @@ object EpollSystem extends PollingSystem {
             sizeof[CUnsignedInt]
           else
             sizeof[Ptr[Byte]]
-        !(epoll_event.asInstanceOf[Ptr[Byte]] + offset)
-          .asInstanceOf[Ptr[epoll_data_t]] = data
+        !(epoll_event.asInstanceOf[Ptr[Byte]] + offset).asInstanceOf[Ptr[epoll_data_t]] = data
       }
     }
 
