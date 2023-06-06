@@ -720,14 +720,15 @@ private final class IOFiber[A](
 
           val get: IO[Any] = IOCont.Get(state)
 
-          val next = try {
-            body[IO].apply(cb, get, FunctionK.id)
-          } catch {
-            case t if NonFatal(t) =>
-              IO.raiseError(t)
-            case t: Throwable =>
-              onFatalFailure(t)
-          }
+          val next =
+            try {
+              body[IO].apply(cb, get, FunctionK.id)
+            } catch {
+              case t if NonFatal(t) =>
+                IO.raiseError(t)
+              case t: Throwable =>
+                onFatalFailure(t)
+            }
 
           runLoop(next, nextCancelation, nextAutoCede)
 
