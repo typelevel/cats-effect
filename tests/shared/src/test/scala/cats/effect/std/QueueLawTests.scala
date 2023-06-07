@@ -6,6 +6,10 @@ import cats.laws.discipline.{FunctorTests, arbitrary}
 import cats.syntax.all._
 import org.scalacheck.{Arbitrary, Gen}
 import org.typelevel.discipline.specs2.mutable.Discipline
+import cats.effect.laws.SyncTests
+import cats.effect.syntax.all._
+import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.eq._
 
 class QueueLawTests extends BaseSpec with Discipline {
 
@@ -17,12 +21,14 @@ class QueueLawTests extends BaseSpec with Discipline {
       list <- q.tryTakeN(size.some)
     } yield list
 
-  implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[List[A]]] =
+  implicit def eqIOA[A: Eq](implicit runtime: unsafe.IORuntime): Eq[IO[List[A]]] =
     Eq.by(_.unsafeRunSync())
 
-  implicit def eqForQueue[A: Eq]: Eq[Queue[IO, A]] = Eq.by(q => toList(q))
+  implicit def eqForQueue[A: Eq](implicit runtime: unsafe.IORuntime): Eq[Queue[IO, A]] =
+    Eq.by(toList)
 
-  implicit def arbQueue[A: Arbitrary]: Arbitrary[Queue[IO, A]] = Arbitrary(genQueue)
+  implicit def arbQueue[A: Arbitrary](
+      implicit runtime: unsafe.IORuntime): Arbitrary[QueueSource[IO, A]] = Arbitrary(genQueue)
 
   def fromList[A: Arbitrary](as: List[A]): IO[Queue[IO, A]] = {
     for {
@@ -31,21 +37,20 @@ class QueueLawTests extends BaseSpec with Discipline {
     } yield queue
   }
 
-  def genQueue[A: Arbitrary]: Gen[Queue[IO, A]] = {
+  def genQueue[A: Arbitrary](implicit runtime: unsafe.IORuntime): Gen[Queue[IO, A]] =
     for {
-      list <- Arbitrary[List[A]].map(_.arbitrary)
-      queueGen = list.map(l => fromList(l).unsafeRunSync())
-    } yield queueGen
-  }
+      list <- Arbitrary.arbitrary[List[A]]
+      queue = fromList(list).unsafeRunSync()
+    } yield queue
 
-  // private def buildQueueGen[A: Arbitrary]: IO[Gen[Queue[IO, A]]] =
-  //   for {
-  //     bounded <- Queue.bounded[IO, A](Int.MaxValue)
-  //     unbounded <- Queue.unbounded[IO, A]
-  //     dropping <- Queue.dropping[IO, A](Int.MaxValue)
-  //     circular <- Queue.circularBuffer[IO, A](Int.MaxValue)
-  //     gen = Gen.oneOf(bounded, unbounded, dropping, circular)
-  //   } yield gen
-
-  checkAll("Tree.FunctorLaws", FunctorTests[Queue[IO, *]].functor[Int, Int, String])
+  checkAll("QueueFunctorLaws", FunctorTests[QueueSource[IO, *]].functor)
 }
+
+// private def buildQueueGen[A: Arbitrary]: IO[Gen[Queue[IO, A]]] =
+//   for {
+//     bounded <- Queue.bounded[IO, A](Int.MaxValue)
+//     unbounded <- Queue.unbounded[IO, A]
+//     dropping <- Queue.dropping[IO, A](Int.MaxValue)
+//     circular <- Queue.circularBuffer[IO, A](Int.MaxValue)
+//     gen = Gen.oneOf(bounded, unbounded, dropping, circular)
+//   } yield gen
