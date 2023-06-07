@@ -98,7 +98,7 @@ private[std] trait SecureRandomCompanionPlatform {
     val array = Array.fill(n)(new SRandom(new SecureRandom.JavaSecureRandom))
 
     def selectRandom: F[SRandom] = Sync[F].delay {
-      val currentIndex = index.getAndUpdate(i => if (i < (n - 1)) i + 1 else 0)
+      val currentIndex = index.getAndUpdate(i => (i + 1) % n)
       array(currentIndex)
     }
 
