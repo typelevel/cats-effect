@@ -22,9 +22,10 @@ import cats._
 import cats.effect.kernel._
 import cats.effect.std.Random.ScalaRandom
 
-import scala.util.{Try, Random => SRandom}
-import java.util.concurrent.atomic.AtomicInteger
+import scala.util.{Random => SRandom, Try}
 import scala.util.control.NonFatal
+
+import java.util.concurrent.atomic.AtomicInteger
 
 private[std] trait SecureRandomCompanionPlatform {
   private[std] type JavaSecureRandom = java.security.SecureRandom

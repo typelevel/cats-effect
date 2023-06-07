@@ -28,24 +28,18 @@
 
 package cats.effect.std
 
-import cats.Applicative
 import cats.effect.kernel.Sync
-import cats.effect.std.Random.ScalaRandom
 
 private[std] trait UUIDGenCompanionPlatform extends UUIDGenCompanionPlatformLowPriority
 
 private[std] trait UUIDGenCompanionPlatformLowPriority {
-
-  private[this] def secureRandom[F[_]](implicit ev: Sync[F]): SecureRandom[F] =
-    new ScalaRandom[F](Applicative[F].pure(new SecureRandom.JavaSecureRandom()))
-      with SecureRandom[F] {}
 
   @deprecated(
     "Put an implicit `SecureRandom.javaSecuritySecureRandom` into scope to get a more efficient `UUIDGen`, or directly call `UUIDGen.fromSecureRandom`",
     "3.6.0"
   )
   implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = {
-    UUIDGen.fromSecureRandom[F](ev, secureRandom[F])
+    UUIDGen.fromSecureRandom[F](ev, SecureRandom.unsafeJavaSecuritySecureRandom())
   }
 
 }
