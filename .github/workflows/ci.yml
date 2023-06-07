@@ -438,32 +438,32 @@ jobs:
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.12.17, ciJVM)
+      - name: Download target directories (2.12.18, ciJVM)
         uses: actions/download-artifact@v3
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.17-ciJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciJVM
 
-      - name: Inflate target directories (2.12.17, ciJVM)
+      - name: Inflate target directories (2.12.18, ciJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.12.17, ciNative)
+      - name: Download target directories (2.12.18, ciNative)
         uses: actions/download-artifact@v3
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.17-ciNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciNative
 
-      - name: Inflate target directories (2.12.17, ciNative)
+      - name: Inflate target directories (2.12.18, ciNative)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.12.17, ciJS)
+      - name: Download target directories (2.12.18, ciJS)
         uses: actions/download-artifact@v3
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.17-ciJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciJS
 
-      - name: Inflate target directories (2.12.17, ciJS)
+      - name: Inflate target directories (2.12.18, ciJS)
         run: |
           tar xf targets.tar
           rm targets.tar
