@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        scala: [3.3.0, 2.12.17, 2.13.11]
+        scala: [3.3.0, 2.12.17, 2.13.10]
         java: [temurin@8, temurin@11, temurin@17, graalvm@11]
         ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
@@ -252,7 +252,7 @@ jobs:
       - shell: bash
         run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.11' || matrix.scala == '3.3.0') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.10' || matrix.scala == '3.3.0') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' docs/mdoc
 
@@ -267,7 +267,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Test GraalVM Native Image
-        if: matrix.scala == '2.13.11' && matrix.java == 'graalvm@11' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.10' && matrix.java == 'graalvm@11' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
 
@@ -277,7 +277,7 @@ jobs:
         run: example/test-native.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.11' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.10' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix
@@ -307,7 +307,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [2.13.11]
+        scala: [2.13.10]
         java: [temurin@8]
     runs-on: ${{ matrix.os }}
     steps:
@@ -468,52 +468,52 @@ jobs:
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.11, ciJVM)
+      - name: Download target directories (2.13.10, ciJVM)
         uses: actions/download-artifact@v3
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.11-ciJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.10-ciJVM
 
-      - name: Inflate target directories (2.13.11, ciJVM)
+      - name: Inflate target directories (2.13.10, ciJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.11, ciNative)
+      - name: Download target directories (2.13.10, ciNative)
         uses: actions/download-artifact@v3
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.11-ciNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.10-ciNative
 
-      - name: Inflate target directories (2.13.11, ciNative)
+      - name: Inflate target directories (2.13.10, ciNative)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.11, ciJS)
+      - name: Download target directories (2.13.10, ciJS)
         uses: actions/download-artifact@v3
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.11-ciJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.10-ciJS
 
-      - name: Inflate target directories (2.13.11, ciJS)
+      - name: Inflate target directories (2.13.10, ciJS)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.11, ciFirefox)
+      - name: Download target directories (2.13.10, ciFirefox)
         uses: actions/download-artifact@v3
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.11-ciFirefox
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.10-ciFirefox
 
-      - name: Inflate target directories (2.13.11, ciFirefox)
+      - name: Inflate target directories (2.13.10, ciFirefox)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.11, ciChrome)
+      - name: Download target directories (2.13.10, ciChrome)
         uses: actions/download-artifact@v3
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.11-ciChrome
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.10-ciChrome
 
-      - name: Inflate target directories (2.13.11, ciChrome)
+      - name: Inflate target directories (2.13.10, ciChrome)
         run: |
           tar xf targets.tar
           rm targets.tar
@@ -551,7 +551,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [2.13.11]
+        scala: [2.13.10]
         java: [temurin@8]
     runs-on: ${{ matrix.os }}
     steps:
