@@ -38,7 +38,7 @@ private[effect] sealed abstract class WorkStealingThreadPool[P] private ()
   private[effect] def canExecuteBlockingCode(): Boolean
   private[unsafe] def liveTraces(): (
       Map[Runnable, Trace],
-      Map[WorkerThread[_], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
+      Map[WorkerThread[P], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
       Map[Runnable, Trace])
 }
 

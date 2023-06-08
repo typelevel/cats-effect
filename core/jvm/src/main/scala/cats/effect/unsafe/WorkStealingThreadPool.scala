@@ -544,7 +544,7 @@ private[effect] final class WorkStealingThreadPool[P](
    */
   private[unsafe] def liveTraces(): (
       Map[Runnable, Trace],
-      Map[WorkerThread[_], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
+      Map[WorkerThread[P], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
       Map[Runnable, Trace]) = {
     val externalFibers: Map[Runnable, Trace] = externalQueue
       .snapshot()
@@ -559,7 +559,7 @@ private[effect] final class WorkStealingThreadPool[P](
 
     val map = mutable
       .Map
-      .empty[WorkerThread[_], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])]
+      .empty[WorkerThread[P], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])]
     val suspended = mutable.Map.empty[Runnable, Trace]
 
     var i = 0
