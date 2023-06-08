@@ -23,7 +23,7 @@ import scala.concurrent.duration.FiniteDuration
 // Can you imagine a thread pool on JS? Have fun trying to extend or instantiate
 // this class. Unfortunately, due to the explicit branching, this type leaks
 // into the shared source code of IOFiber.scala.
-private[effect] sealed abstract class WorkStealingThreadPool[Poller] private ()
+private[effect] sealed abstract class WorkStealingThreadPool[P] private ()
     extends ExecutionContext {
   def execute(runnable: Runnable): Unit
   def reportFailure(cause: Throwable): Unit
@@ -42,7 +42,7 @@ private[effect] sealed abstract class WorkStealingThreadPool[Poller] private ()
       Map[Runnable, Trace])
 }
 
-private[unsafe] sealed abstract class WorkerThread[Poller] private () extends Thread {
+private[unsafe] sealed abstract class WorkerThread[P] private () extends Thread {
   private[unsafe] def isOwnedBy(threadPool: WorkStealingThreadPool[_]): Boolean
   private[unsafe] def monitor(fiber: Runnable): WeakBag.Handle
   private[unsafe] def index: Int

@@ -26,13 +26,13 @@ import scala.util.control.NonFatal
 
 import java.util.{ArrayDeque, PriorityQueue}
 
-private[effect] final class EventLoopExecutorScheduler[Poller](
+private[effect] final class EventLoopExecutorScheduler[P](
     pollEvery: Int,
-    system: PollingSystem.WithPoller[Poller])
+    system: PollingSystem.WithPoller[P])
     extends ExecutionContextExecutor
     with Scheduler {
 
-  private[unsafe] val poller: Poller = system.makePoller()
+  private[unsafe] val poller: P = system.makePoller()
 
   private[this] var needsReschedule: Boolean = true
 

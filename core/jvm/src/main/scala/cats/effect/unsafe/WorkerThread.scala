@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * system when compared to a fixed size thread pool whose worker threads all draw tasks from a
  * single global work queue.
  */
-private final class WorkerThread[Poller](
+private final class WorkerThread[P](
     idx: Int,
     // Local queue instance with exclusive write access.
     private[this] var queue: LocalQueue,
@@ -53,10 +53,10 @@ private final class WorkerThread[Poller](
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
     private[this] var sleepers: TimerSkipList,
-    private[this] val system: PollingSystem.WithPoller[Poller],
-    private[this] var _poller: Poller,
+    private[this] val system: PollingSystem.WithPoller[P],
+    private[this] var _poller: P,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
-    pool: WorkStealingThreadPool[Poller])
+    pool: WorkStealingThreadPool[P])
     extends Thread
     with BlockContext {
 
@@ -113,7 +113,7 @@ private final class WorkerThread[Poller](
     setName(s"$prefix-$nameIndex")
   }
 
-  private[unsafe] def poller(): Poller = _poller
+  private[unsafe] def poller(): P = _poller
 
   /**
    * Schedules the fiber for execution at the back of the local queue and notifies the work
@@ -441,7 +441,7 @@ private final class WorkerThread[Poller](
         parked = null
         fiberBag = null
         _active = null
-        _poller = null.asInstanceOf[Poller]
+        _poller = null.asInstanceOf[P]
 
         // Add this thread to the cached threads data structure, to be picked up
         // by another thread in the future.

@@ -56,7 +56,7 @@ abstract class PollingSystem {
 }
 
 private object PollingSystem {
-  type WithPoller[Poller0] = PollingSystem {
-    type Poller = Poller0
+  type WithPoller[P] = PollingSystem {
+    type Poller = P
   }
 }
