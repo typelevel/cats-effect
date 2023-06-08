@@ -67,7 +67,7 @@ class QueueLawsSpec extends BaseSpec with Discipline {
   }
 
   implicit def eqForQueueSink[A: Eq](implicit ticker: Ticker): Eq[QueueSink[IO, A]] =
-    Eq.by(toList)
+    Eq.by(toListSink)
 
   implicit def arbQueueSink[A: Arbitrary](
       implicit ticker: Ticker): Arbitrary[QueueSink[IO, A]] =
