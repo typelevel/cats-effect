@@ -47,6 +47,9 @@ private[std] trait SecureRandomCompanionPlatform {
   def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
     Sync[F].delay(unsafeJavaSecuritySecureRandom())
 
+  /**
+   * Ported from https://github.com/http4s/http4s/.
+   */
   private[effect] def unsafeJavaSecuritySecureRandom[F[_]: Sync](): SecureRandom[F] = {
     // This is a known, non-blocking, threadsafe algorithm
     def happyRandom = getInstance
