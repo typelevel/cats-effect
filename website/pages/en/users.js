@@ -9,7 +9,6 @@ const users = [
   ['Agoda', 'https://www.agoda.com/'],
   ['Azavea', 'https://www.azavea.com/'],
   ['Anduin Transactions', 'https://www.anduintransact.com/'],
-  ['Banno Group', 'https://banno.com'],
   ['BUX', 'https://getbux.com/'],
   ['Cleverbase', 'https://cleverbase.com/'],
   ['Comcast', 'https://comcast.com'],
