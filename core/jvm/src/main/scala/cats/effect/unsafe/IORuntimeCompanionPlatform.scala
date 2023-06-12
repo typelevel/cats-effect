@@ -228,15 +228,19 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (compute, poller, _) = createWorkStealingComputeThreadPool()
-        val (blocking, _) = createDefaultBlockingExecutionContext()
+        val (compute, poller, computeDown) = createWorkStealingComputeThreadPool()
+        val (blocking, blockingDown) = createDefaultBlockingExecutionContext()
 
         IORuntime(
           compute,
           blocking,
           compute,
           List(poller),
-          () => resetGlobal(),
+          () => {
+            computeDown()
+            blockingDown()
+            resetGlobal()
+          },
           IORuntimeConfig())
       }
     }
