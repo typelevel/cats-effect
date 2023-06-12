@@ -23,6 +23,7 @@ import cats.syntax.all._
 import org.typelevel.scalaccompat.annotation._
 
 import scala.annotation.tailrec
+import scala.collection.mutable.LongMap
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.time._
@@ -32,7 +33,6 @@ import scala.scalanative.unsafe._
 import scala.scalanative.unsigned._
 
 import java.io.IOException
-import java.util.HashMap
 
 object KqueueSystem extends PollingSystem {
 
@@ -80,15 +80,16 @@ object KqueueSystem extends PollingSystem {
       }
   }
 
+  // A kevent is identified by the (ident, filter) pair; there may only be one unique kevent per kqueue
+  @inline private def encodeKevent(ident: Int, filter: Short): Long =
+    (filter.toLong << 32) | ident.toLong
+
   private final class PollHandle(
       register: (Poller => Unit) => Unit,
       fd: Int,
       readMutex: Mutex[IO],
       writeMutex: Mutex[IO]
   ) extends FileDescriptorPollHandle {
-
-    private[this] val readEvent = KEvent(fd.toLong, EVFILT_READ)
-    private[this] val writeEvent = KEvent(fd.toLong, EVFILT_WRITE)
 
     def pollReadRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
       readMutex.lock.surround {
@@ -100,8 +101,8 @@ object KqueueSystem extends PollingSystem {
               IO.async[Unit] { kqcb =>
                 IO.async_[Option[IO[Unit]]] { cb =>
                   register { kqueue =>
-                    kqueue.evSet(readEvent, EV_ADD.toUShort, kqcb)
-                    cb(Right(Some(IO(kqueue.removeCallback(readEvent)))))
+                    kqueue.evSet(fd, EVFILT_READ, EV_ADD.toUShort, kqcb)
+                    cb(Right(Some(IO(kqueue.removeCallback(fd, EVFILT_READ)))))
                   }
                 }
 
@@ -120,8 +121,8 @@ object KqueueSystem extends PollingSystem {
               IO.async[Unit] { kqcb =>
                 IO.async_[Option[IO[Unit]]] { cb =>
                   register { kqueue =>
-                    kqueue.evSet(writeEvent, EV_ADD.toUShort, kqcb)
-                    cb(Right(Some(IO(kqueue.removeCallback(writeEvent)))))
+                    kqueue.evSet(fd, EVFILT_WRITE, EV_ADD.toUShort, kqcb)
+                    cb(Right(Some(IO(kqueue.removeCallback(fd, EVFILT_WRITE)))))
                   }
                 }
               }
@@ -131,34 +132,33 @@ object KqueueSystem extends PollingSystem {
 
   }
 
-  private final case class KEvent(ident: Long, filter: Short)
-
   final class Poller private[KqueueSystem] (kqfd: Int) {
 
     private[this] val changelistArray = new Array[Byte](sizeof[kevent64_s].toInt * MaxEvents)
     @inline private[this] def changelist = changelistArray.at(0).asInstanceOf[Ptr[kevent64_s]]
     private[this] var changeCount = 0
 
-    private[this] val callbacks = new HashMap[KEvent, Either[Throwable, Unit] => Unit]()
+    private[this] val callbacks = new LongMap[Either[Throwable, Unit] => Unit]()
 
     private[KqueueSystem] def evSet(
-        event: KEvent,
+        ident: Int,
+        filter: Short,
         flags: CUnsignedShort,
         cb: Either[Throwable, Unit] => Unit
     ): Unit = {
       val change = changelist + changeCount.toLong
 
-      change.ident = event.ident.toULong
-      change.filter = event.filter
+      change.ident = ident.toULong
+      change.filter = filter
       change.flags = (flags.toInt | EV_ONESHOT).toUShort
 
-      callbacks.put(event, cb)
+      callbacks.update(encodeKevent(ident, filter), cb)
 
       changeCount += 1
     }
 
-    private[KqueueSystem] def removeCallback(event: KEvent): Unit = {
-      callbacks.remove(event)
+    private[KqueueSystem] def removeCallback(ident: Int, filter: Short): Unit = {
+      callbacks.subtractOne(encodeKevent(ident, filter))
       ()
     }
 
@@ -191,7 +191,9 @@ object KqueueSystem extends PollingSystem {
           var i = 0
           var event = eventlist
           while (i < triggeredEvents) {
-            val cb = callbacks.remove(KEvent(event.ident.toLong, event.filter))
+            val kevent = encodeKevent(event.ident.toInt, event.filter)
+            val cb = callbacks.getOrNull(kevent)
+            callbacks.subtractOne(kevent)
 
             if (cb ne null)
               cb(
@@ -230,7 +232,7 @@ object KqueueSystem extends PollingSystem {
       polled
     }
 
-    def needsPoll(): Boolean = changeCount > 0 || !callbacks.isEmpty()
+    def needsPoll(): Boolean = changeCount > 0 || callbacks.nonEmpty
   }
 
   @nowarn212
