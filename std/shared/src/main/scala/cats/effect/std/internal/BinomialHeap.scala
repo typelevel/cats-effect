@@ -66,7 +66,7 @@ private[std] object BinomialHeap {
 
   def apply[A](trees: List[BinomialTree[A]])(implicit ord: Order[A]) =
     new BinomialHeap[A](trees) {
-      implicit val Ord = ord
+      implicit val Ord: Order[A] = ord
     }
 
   /**
