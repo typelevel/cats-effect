@@ -18,7 +18,8 @@ package cats.effect.std
 
 import org.typelevel.scalaccompat.annotation._
 
-import scala.scalanative.libc.errno
+import scala.scalanative.libc.errno._
+import scala.scalanative.libc.string._
 import scala.scalanative.unsafe._
 import scala.scalanative.unsigned._
 
@@ -34,7 +35,7 @@ private[std] trait SecureRandomCompanionPlatform {
       while (i < len) {
         val n = Math.min(256, len - i)
         if (sysrandom.getentropy(bytes.at(i), n.toULong) < 0)
-          throw new RuntimeException(s"getentropy: ${errno.errno}")
+          throw new RuntimeException(fromCString(strerror(errno)))
         i += n
       }
     }
