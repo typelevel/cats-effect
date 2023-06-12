@@ -21,15 +21,14 @@ import java.util.concurrent.locks.LockSupport
 
 object SleepSystem extends PollingSystem {
 
-  final class Api private[SleepSystem] ()
-  final class Poller private[SleepSystem] ()
+  type Api = AnyRef
+  type Poller = AnyRef
 
   def close(): Unit = ()
 
-  def makeApi(register: (Poller => Unit) => Unit): Api =
-    new Api
+  def makeApi(register: (Poller => Unit) => Unit): Api = this
 
-  def makePoller(): Poller = new Poller
+  def makePoller(): Poller = this
 
   def closePoller(Poller: Poller): Unit = ()
 
