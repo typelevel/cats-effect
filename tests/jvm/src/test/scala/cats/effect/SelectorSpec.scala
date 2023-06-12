@@ -45,18 +45,18 @@ class SelectorSpec extends BaseSpec {
         }
       }
 
-  "SelectorPoller" should {
+  "Selector" should {
 
     "notify read-ready events" in real {
       mkPipe.use { pipe =>
         for {
-          poller <- getSelector
+          selector <- getSelector
           buf <- IO(ByteBuffer.allocate(4))
           _ <- IO(pipe.sink.write(ByteBuffer.wrap(Array(1, 2, 3)))).background.surround {
-            poller.select(pipe.source, OP_READ) *> IO(pipe.source.read(buf))
+            selector.select(pipe.source, OP_READ) *> IO(pipe.source.read(buf))
           }
           _ <- IO(pipe.sink.write(ByteBuffer.wrap(Array(42)))).background.surround {
-            poller.select(pipe.source, OP_READ) *> IO(pipe.source.read(buf))
+            selector.select(pipe.source, OP_READ) *> IO(pipe.source.read(buf))
           }
         } yield buf.array().toList must be_==(List[Byte](1, 2, 3, 42))
       }
@@ -65,8 +65,8 @@ class SelectorSpec extends BaseSpec {
     "setup multiple callbacks" in real {
       mkPipe.use { pipe =>
         for {
-          poller <- getSelector
-          _ <- poller.select(pipe.source, OP_READ).parReplicateA_(10) <&
+          selector <- getSelector
+          _ <- selector.select(pipe.source, OP_READ).parReplicateA_(10) <&
             IO(pipe.sink.write(ByteBuffer.wrap(Array(1, 2, 3))))
         } yield ok
       }
@@ -75,17 +75,17 @@ class SelectorSpec extends BaseSpec {
     "works after blocking" in real {
       mkPipe.use { pipe =>
         for {
-          poller <- getSelector
+          selector <- getSelector
           _ <- IO.blocking(())
-          _ <- poller.select(pipe.sink, OP_WRITE)
+          _ <- selector.select(pipe.sink, OP_WRITE)
         } yield ok
       }
     }
 
     "gracefully handles illegal ops" in real {
       mkPipe.use { pipe =>
-        getSelector.flatMap { poller =>
-          poller.select(pipe.sink, OP_READ).attempt.map {
+        getSelector.flatMap { selector =>
+          selector.select(pipe.sink, OP_READ).attempt.map {
             case Left(_: IllegalArgumentException) => true
             case _ => false
           }
@@ -100,10 +100,10 @@ class SelectorSpec extends BaseSpec {
 
       try {
         val test = getSelector
-          .flatMap { poller =>
+          .flatMap { selector =>
             mkPipe.allocated.flatMap {
               case (pipe, close) =>
-                poller.select(pipe.source, OP_READ).background.surround {
+                selector.select(pipe.source, OP_READ).background.surround {
                   IO.sleep(1.millis) *> close *> IO.sleep(1.millis)
                 }
             }
