@@ -19,8 +19,11 @@ package unsafe
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
-import scala.scalanative.libc.errno
+import scala.scalanative.libc.errno._
+import scala.scalanative.libc.string._
 import scala.scalanative.meta.LinktimeInfo
+import scala.scalanative.posix.time._
+import scala.scalanative.posix.timeOps._
 import scala.scalanative.unsafe._
 import scala.util.control.NonFatal
 
@@ -69,11 +72,9 @@ private[effect] final class EventLoopExecutorScheduler[P](
 
   override def nowMicros(): Long =
     if (LinktimeInfo.isFreeBSD || LinktimeInfo.isLinux || LinktimeInfo.isMac) {
-      import scala.scalanative.posix.time._
-      import scala.scalanative.posix.timeOps._
       val ts = stackalloc[timespec]()
       if (clock_gettime(CLOCK_REALTIME, ts) != 0)
-        throw new RuntimeException(s"clock_gettime: ${errno.errno}")
+        throw new RuntimeException(fromCString(strerror(errno)))
       ts.tv_sec * 1000000 + ts.tv_nsec / 1000
     } else {
       super.nowMicros()
