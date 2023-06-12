@@ -324,22 +324,44 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
       }
 
       "safely detect hard-blocked threads even while blockers are being created" in {
-        val (compute, shutdown) =
-          IORuntime.createWorkStealingComputeThreadPool(blockedThreadDetectionEnabled = true)
+        0.until(10) foreach { _ =>
+          val prefix = "safe-detection-compute-worker"
+          val (compute, shutdown) =
+            IORuntime.createWorkStealingComputeThreadPool(
+              threadPrefix = prefix,
+              blockedThreadDetectionEnabled = true)
 
-        implicit val runtime: IORuntime =
-          IORuntime.builder().setCompute(compute, shutdown).build()
+          implicit val runtime: IORuntime =
+            IORuntime.builder().setCompute(compute, shutdown).build()
 
-        try {
-          val test = for {
-            _ <- IO.unit.foreverM.start.replicateA_(200)
-            _ <- 0.until(200).toList.parTraverse_(_ => IO.blocking(()))
-          } yield ok // we can't actually test this directly because the symptom is vaporizing a worker
+          try {
+            val before = {
+              val threads = new Array[Thread](Thread.activeCount())
+              Thread.enumerate(threads)
 
-          test.unsafeRunSync()
-        } finally {
-          runtime.shutdown()
+              threads.filter(_.getName().startsWith(prefix)).toList
+            }
+
+            val test = for {
+              _ <- IO.unit.foreverM.start.replicateA_(200)
+              _ <- 0.until(200).toList.parTraverse_(_ => IO.blocking(()))
+            } yield ()
+
+            test.unsafeRunSync()
+
+            /*
+             * There's a chance here that we lose a worker but we don't detect it. This can happen if
+             * a worker in `before` converts to a blocker, then is replaced by a new thread (which
+             * *isn't* in `before`), and then *that* thread is the one murdered by the NPE. The odds
+             * of this are much higher on machines with fewer physical threads.
+             */
+            before must contain((_: Thread).isAlive()).foreach
+          } finally {
+            runtime.shutdown()
+          }
         }
+
+        ok
       }
 
       // this test ensures that the parkUntilNextSleeper bit works
