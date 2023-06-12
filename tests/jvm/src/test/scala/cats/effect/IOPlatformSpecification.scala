@@ -430,7 +430,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
       "not lose cedeing threads from the bypass when blocker transitioning" in {
         // writing this test in terms of IO seems to not reproduce the issue
         0.until(5) foreach { _ =>
-          val wstp = new WorkStealingThreadPool(
+          val wstp = new WorkStealingThreadPool[AnyRef](
             threadCount = 2,
             threadPrefix = "testWorker",
             blockerThreadPrefix = "testBlocker",

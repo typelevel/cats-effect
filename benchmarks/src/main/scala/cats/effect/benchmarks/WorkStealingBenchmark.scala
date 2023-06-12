@@ -165,7 +165,7 @@ class WorkStealingBenchmark {
       (ExecutionContext.fromExecutor(executor), () => executor.shutdown())
     }
 
-    val compute = new WorkStealingThreadPool(
+    val compute = new WorkStealingThreadPool[AnyRef](
       256,
       "io-compute",
       "io-blocker",
