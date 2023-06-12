@@ -84,7 +84,8 @@ class SelectorSpec extends BaseSpec {
 
     "gracefully handles illegal ops" in real {
       mkPipe.use { pipe =>
-        getSelector.flatMap { selector =>
+        // get off the wstp to test async codepaths
+        IO.blocking(()) *> getSelector.flatMap { selector =>
           selector.select(pipe.sink, OP_READ).attempt.map {
             case Left(_: IllegalArgumentException) => true
             case _ => false

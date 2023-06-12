@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import scala.util.control.NonFatal
+
 import java.nio.channels.{CancelledKeyException, SelectableChannel}
 import java.nio.channels.spi.{AbstractSelector, SelectorProvider}
 
@@ -107,23 +109,25 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
     def select(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { selectCb =>
       IO.async_[CallbackNode] { cb =>
         register { data =>
-          val selector = data.selector
-          val key = ch.keyFor(selector)
+          try {
+            val selector = data.selector
+            val key = ch.keyFor(selector)
 
-          val node = if (key eq null) { // not yet registered on this selector
-            val node = new CallbackNode(ops, selectCb, null)
-            ch.register(selector, ops, node)
-            node
-          } else { // existing key
-            // mixin the new interest
-            key.interestOps(key.interestOps() | ops)
-            val node =
-              new CallbackNode(ops, selectCb, key.attachment().asInstanceOf[CallbackNode])
-            key.attach(node)
-            node
-          }
+            val node = if (key eq null) { // not yet registered on this selector
+              val node = new CallbackNode(ops, selectCb, null)
+              ch.register(selector, ops, node)
+              node
+            } else { // existing key
+              // mixin the new interest
+              key.interestOps(key.interestOps() | ops)
+              val node =
+                new CallbackNode(ops, selectCb, key.attachment().asInstanceOf[CallbackNode])
+              key.attach(node)
+              node
+            }
 
-          cb(Right(node))
+            cb(Right(node))
+          } catch { case ex if NonFatal(ex) => cb(Left(ex)) }
         }
       }.map { node =>
         Some {
