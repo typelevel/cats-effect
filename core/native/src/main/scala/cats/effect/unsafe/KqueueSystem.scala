@@ -158,7 +158,7 @@ object KqueueSystem extends PollingSystem {
     }
 
     private[KqueueSystem] def removeCallback(ident: Int, filter: Short): Unit = {
-      callbacks.subtractOne(encodeKevent(ident, filter))
+      callbacks -= encodeKevent(ident, filter)
       ()
     }
 
@@ -193,7 +193,7 @@ object KqueueSystem extends PollingSystem {
           while (i < triggeredEvents) {
             val kevent = encodeKevent(event.ident.toInt, event.filter)
             val cb = callbacks.getOrNull(kevent)
-            callbacks.subtractOne(kevent)
+            callbacks -= kevent
 
             if (cb ne null)
               cb(
