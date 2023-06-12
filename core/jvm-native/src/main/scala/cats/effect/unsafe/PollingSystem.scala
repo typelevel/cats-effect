@@ -29,6 +29,8 @@ abstract class PollingSystem {
    */
   type Poller <: AnyRef
 
+  def close(): Unit
+
   def makeApi(register: (Poller => Unit) => Unit): Api
 
   def makePoller(): Poller

@@ -22,6 +22,8 @@ object SleepSystem extends PollingSystem {
   final class Api private[SleepSystem] ()
   final class Poller private[SleepSystem] ()
 
+  def close(): Unit = ()
+
   def makeApi(register: (Poller => Unit) => Unit): Api =
     new Api
 

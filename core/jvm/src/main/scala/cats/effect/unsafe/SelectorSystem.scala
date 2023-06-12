@@ -26,6 +26,8 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
 
   type Api = Selector
 
+  def close(): Unit = ()
+
   def makeApi(register: (Poller => Unit) => Unit): Selector =
     new SelectorImpl(register, provider)
 

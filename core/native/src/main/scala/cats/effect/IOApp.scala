@@ -203,8 +203,17 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
-        val (loop, poller) = IORuntime.createEventLoop(pollingSystem)
-        IORuntime(loop, loop, loop, List(poller), () => IORuntime.resetGlobal(), runtimeConfig)
+        val (loop, poller, loopDown) = IORuntime.createEventLoop(pollingSystem)
+        IORuntime(
+          loop,
+          loop,
+          loop,
+          List(poller),
+          () => {
+            loopDown()
+            IORuntime.resetGlobal()
+          },
+          runtimeConfig)
       }
 
       _runtime = IORuntime.global

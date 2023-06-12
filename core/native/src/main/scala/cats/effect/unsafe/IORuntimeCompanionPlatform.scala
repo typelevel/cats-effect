@@ -27,10 +27,10 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
   def createEventLoop(
       system: PollingSystem
-  ): (ExecutionContext with Scheduler, system.Api) = {
+  ): (ExecutionContext with Scheduler, system.Api, () => Unit) = {
     val loop = new EventLoopExecutorScheduler[system.Poller](64, system)
     val poller = loop.poller
-    (loop, system.makeApi(cb => cb(poller)))
+    (loop, system.makeApi(cb => cb(poller)), () => loop.shutdown())
   }
 
   def createDefaultPollingSystem(): PollingSystem =
@@ -58,8 +58,17 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (loop, poller) = createEventLoop(createDefaultPollingSystem())
-        IORuntime(loop, loop, loop, List(poller), () => resetGlobal(), IORuntimeConfig())
+        val (loop, poller, loopDown) = createEventLoop(createDefaultPollingSystem())
+        IORuntime(
+          loop,
+          loop,
+          loop,
+          List(poller),
+          () => {
+            loopDown()
+            resetGlobal()
+          },
+          IORuntimeConfig())
       }
     }
 

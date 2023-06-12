@@ -43,6 +43,8 @@ object KqueueSystem extends PollingSystem {
 
   type Api = FileDescriptorPoller
 
+  def close(): Unit = ()
+
   def makeApi(register: (Poller => Unit) => Unit): FileDescriptorPoller =
     new FileDescriptorPollerImpl(register)
 

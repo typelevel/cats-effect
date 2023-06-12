@@ -33,7 +33,7 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
 
   protected def platformSpecificBuild: IORuntime = {
     val defaultShutdown: () => Unit = () => ()
-    lazy val (loop, poller) = IORuntime.createEventLoop(
+    lazy val (loop, poller, loopDown) = IORuntime.createEventLoop(
       customPollingSystem.getOrElse(IORuntime.createDefaultPollingSystem())
     )
     val (compute, pollers, computeShutdown) =
@@ -43,7 +43,7 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
           (
             loop,
             List(poller),
-            defaultShutdown
+            loopDown
           ))
     val (blocking, blockingShutdown) = customBlocking.getOrElse((compute, defaultShutdown))
     val (scheduler, schedulerShutdown) =

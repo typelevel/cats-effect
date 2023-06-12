@@ -697,6 +697,8 @@ private[effect] final class WorkStealingThreadPool[P](
         i += 1
       }
 
+      system.close()
+
       // Clear the interrupt flag.
       Thread.interrupted()
 

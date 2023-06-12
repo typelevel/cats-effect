@@ -482,6 +482,8 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
           type Api = DummyPoller
           type Poller = AtomicReference[List[Either[Throwable, Unit] => Unit]]
 
+          def close() = ()
+
           def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Unit])
           def needsPoll(poller: Poller) = poller.get.nonEmpty
           def closePoller(poller: Poller) = ()

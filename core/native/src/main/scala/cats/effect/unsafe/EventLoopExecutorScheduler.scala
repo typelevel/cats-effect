@@ -150,6 +150,8 @@ private[effect] final class EventLoopExecutorScheduler[P](
       java.lang.Long.compare(this.at, that.at)
   }
 
+  def shutdown(): Unit = system.close()
+
 }
 
 private object EventLoopExecutorScheduler {

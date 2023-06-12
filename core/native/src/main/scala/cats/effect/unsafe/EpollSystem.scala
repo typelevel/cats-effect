@@ -44,6 +44,8 @@ object EpollSystem extends PollingSystem {
 
   type Api = FileDescriptorPoller
 
+  def close(): Unit = ()
+
   def makeApi(register: (Poller => Unit) => Unit): Api =
     new FileDescriptorPollerImpl(register)
 

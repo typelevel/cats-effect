@@ -31,6 +31,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
       type Api = outer.type
       type Poller = outer.type
       private[this] var needsPoll = true
+      def close(): Unit = ()
       def makeApi(register: (Poller => Unit) => Unit): Api = outer
       def makePoller(): Poller = outer
       def closePoller(poller: Poller): Unit = ()
