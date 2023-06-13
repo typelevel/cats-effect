@@ -33,8 +33,8 @@ class SelectorSpec extends BaseSpec {
   def mkPipe: Resource[IO, Pipe] =
     Resource
       .eval(getSelector)
-      .flatMap { poller =>
-        Resource.make(IO(poller.provider.openPipe())) { pipe =>
+      .flatMap { selector =>
+        Resource.make(IO(selector.provider.openPipe())) { pipe =>
           IO(pipe.sink().close()).guarantee(IO(pipe.source().close()))
         }
       }
