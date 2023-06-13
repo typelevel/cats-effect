@@ -42,12 +42,16 @@ jobs:
             java: graalvm@11
           - os: windows-latest
             scala: 3.3.0
+            ci: ciJVM
           - os: macos-latest
             scala: 3.3.0
+            ci: ciJVM
           - os: windows-latest
             scala: 2.12.18
+            ci: ciJVM
           - os: macos-latest
             scala: 2.12.18
+            ci: ciJVM
           - ci: ciFirefox
             scala: 3.3.0
           - ci: ciChrome
@@ -97,9 +101,6 @@ jobs:
           - os: macos-latest
             ci: ciNative
             scala: 2.12.18
-          - os: macos-latest
-            ci: ciNative
-            scala: 3.3.0
           - os: windows-latest
             java: graalvm@11
     runs-on: ${{ matrix.os }}

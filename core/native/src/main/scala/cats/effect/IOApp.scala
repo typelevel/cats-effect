@@ -173,6 +173,16 @@ trait IOApp {
     CpuStarvationCheck.logWarning(metrics)
 
   /**
+   * The [[unsafe.PollingSystem]] used by the [[runtime]] which will evaluate the [[IO]]
+   * produced by `run`. It is very unlikely that users will need to override this method.
+   *
+   * [[unsafe.PollingSystem]] implementors may provide their own flavors of [[IOApp]] that
+   * override this method.
+   */
+  protected def pollingSystem: unsafe.PollingSystem =
+    unsafe.IORuntime.createDefaultPollingSystem()
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -193,13 +203,17 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
+        val (loop, poller, loopDown) = IORuntime.createEventLoop(pollingSystem)
         IORuntime(
-          IORuntime.defaultComputeExecutionContext,
-          IORuntime.defaultComputeExecutionContext,
-          IORuntime.defaultScheduler,
-          () => IORuntime.resetGlobal(),
-          runtimeConfig
-        )
+          loop,
+          loop,
+          loop,
+          List(poller),
+          () => {
+            loopDown()
+            IORuntime.resetGlobal()
+          },
+          runtimeConfig)
       }
 
       _runtime = IORuntime.global

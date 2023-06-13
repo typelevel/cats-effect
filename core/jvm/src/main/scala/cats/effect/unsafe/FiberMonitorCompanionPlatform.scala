@@ -22,8 +22,8 @@ import scala.concurrent.ExecutionContext
 
 private[unsafe] trait FiberMonitorCompanionPlatform {
   def apply(compute: ExecutionContext): FiberMonitor = {
-    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
+    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool[_]]) {
+      val wstp = compute.asInstanceOf[WorkStealingThreadPool[_]]
       new FiberMonitor(wstp)
     } else {
       new FiberMonitor(null)

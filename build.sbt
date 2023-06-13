@@ -41,7 +41,7 @@ ThisBuild / git.gitUncommittedChanges := {
   }
 }
 
-ThisBuild / tlBaseVersion := "3.5"
+ThisBuild / tlBaseVersion := "3.6"
 ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
@@ -224,8 +224,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val windowsAndMacScalaFilters =
     (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
       Seq(
-        MatrixExclude(Map("os" -> Windows, "scala" -> scala)),
-        MatrixExclude(Map("os" -> MacOS, "scala" -> scala)))
+        MatrixExclude(Map("os" -> Windows, "scala" -> scala, "ci" -> CI.JVM.command)),
+        MatrixExclude(Map("os" -> MacOS, "scala" -> scala, "ci" -> CI.JVM.command)))
     }
 
   val jsScalaFilters = for {
@@ -254,9 +254,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
 
     javaFilters ++ Seq(
       MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212)),
-      // keep a native+2.13+macos job
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala3))
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212))
     )
   }
 
@@ -640,7 +638,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ExecuteRunnableR"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.IOFiberConstants.ContStateResult")
+        "cats.effect.IOFiberConstants.ContStateResult"),
+      // introduced by #3332, polling system
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.IORuntimeBuilder.this")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -823,6 +824,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         )
       } else Seq()
     }
+  )
+  .nativeSettings(
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.unsafe.PollingExecutorScheduler$SleepTask"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler$")
+    )
   )
   .disablePlugins(JCStressPlugin)
 

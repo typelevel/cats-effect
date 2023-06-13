@@ -29,7 +29,7 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
           s"io-blocking-${getClass.getName}")
       val (scheduler, schedDown) =
         IORuntime.createDefaultScheduler(threadPrefix = s"io-scheduler-${getClass.getName}")
-      val (compute, compDown) =
+      val (compute, _, compDown) =
         IORuntime.createWorkStealingComputeThreadPool(
           threads = 1,
           threadPrefix = s"io-compute-${getClass.getName}",
