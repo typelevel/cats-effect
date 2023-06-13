@@ -52,15 +52,6 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
         now.getEpochSecond * 1000000 + now.getLong(ChronoField.MICRO_OF_SECOND)
       }
 
-      def monotonicNanos() = {
-        val back = System.nanoTime()
-
-        val thread = Thread.currentThread()
-        if (thread.isInstanceOf[WorkerThread]) {
-          thread.asInstanceOf[WorkerThread].now = back
-        }
-
-        back
-      }
+      def monotonicNanos() = System.nanoTime()
     }
 }
