@@ -19,7 +19,7 @@ package unsafe
 
 import scala.util.control.NonFatal
 
-import java.nio.channels.{CancelledKeyException, SelectableChannel}
+import java.nio.channels.SelectableChannel
 import java.nio.channels.spi.{AbstractSelector, SelectorProvider}
 
 import SelectorSystem._
@@ -54,15 +54,19 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
         val key = ready.next()
         ready.remove()
 
-        val value: Either[Throwable, Int] =
-          try {
-            val readyOps = key.readyOps()
-            // reset interest in triggered ops
-            key.interestOps(key.interestOps() & ~readyOps)
-            Right(readyOps)
-          } catch { case ex: CancelledKeyException => Left(ex) }
+        var readyOps = 0
+        var error: Throwable = null
+        try {
+          readyOps = key.readyOps()
+          // reset interest in triggered ops
+          key.interestOps(key.interestOps() & ~readyOps)
+        } catch {
+          case ex if NonFatal(ex) =>
+            error = ex
+            readyOps = -1 // interest all waiters
+        }
 
-        val readyOps = value.getOrElse(-1) // interest all waiters if ex
+        val value = if (error ne null) Left(error) else Right(readyOps)
 
         var head: CallbackNode = null
         var prev: CallbackNode = null
