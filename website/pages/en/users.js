@@ -59,7 +59,8 @@ const users = [
   ['vidIQ', 'https://vidiq.com/'],
   ['XITE', 'https://xite.com/'],
   ['Whisk', 'https://whisk.com'],
-  ['Zendesk', 'https://www.zendesk.com'],
+  ['Zalando', 'https://www.zalando.de'],
+  ['Zendesk', 'https://www.zendesk.com']
 ];
 
 function Users(props) {
