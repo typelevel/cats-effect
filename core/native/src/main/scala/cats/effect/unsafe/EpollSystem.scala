@@ -74,19 +74,16 @@ object EpollSystem extends PollingSystem {
         reads: Boolean,
         writes: Boolean
     ): Resource[IO, FileDescriptorPollHandle] =
-      Resource
-        .make {
-          (Mutex[IO], Mutex[IO]).flatMapN { (readMutex, writeMutex) =>
-            IO.async_[(PollHandle, IO[Unit])] { cb =>
-              register { data =>
-                val handle = new PollHandle(readMutex, writeMutex)
-                val unregister = data.register(fd, reads, writes, handle)
-                cb(Right((handle, unregister)))
-              }
+      Resource {
+        (Mutex[IO], Mutex[IO]).flatMapN { (readMutex, writeMutex) =>
+          IO.async_[(PollHandle, IO[Unit])] { cb =>
+            register { epoll =>
+              val handle = new PollHandle(readMutex, writeMutex)
+              epoll.register(fd, reads, writes, handle, cb)
             }
           }
-        }(_._2)
-        .map(_._1)
+        }
+      }
 
   }
 
@@ -227,22 +224,28 @@ object EpollSystem extends PollingSystem {
         fd: Int,
         reads: Boolean,
         writes: Boolean,
-        handle: PollHandle
-    ): IO[Unit] = {
+        handle: PollHandle,
+        cb: Either[Throwable, (PollHandle, IO[Unit])] => Unit
+    ): Unit = {
       val event = stackalloc[epoll_event]()
       event.events =
         (EPOLLET | (if (reads) EPOLLIN else 0) | (if (writes) EPOLLOUT else 0)).toUInt
       event.data = toPtr(handle)
 
-      if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, event) != 0)
-        throw new IOException(fromCString(strerror(errno)))
-      handles.add(handle)
+      val result =
+        if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, event) != 0)
+          Left(new IOException(fromCString(strerror(errno))))
+        else {
+          handles.add(handle)
+          val remove = IO {
+            handles.remove(handle)
+            if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, null) != 0)
+              throw new IOException(fromCString(strerror(errno)))
+          }
+          Right((handle, remove))
+        }
 
-      IO {
-        handles.remove(handle)
-        if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, null) != 0)
-          throw new IOException(fromCString(strerror(errno)))
-      }
+      cb(result)
     }
 
     @alwaysinline private[this] def toPtr(handle: PollHandle): Ptr[Byte] =
