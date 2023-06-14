@@ -341,12 +341,13 @@ private final class WorkerThread(
         }
       }
 
+      now = System.nanoTime()
+
       if (nextState != 4) {
         // after being unparked, we re-check sleepers;
         // if we find an already expired one, we go
         // immediately to state 4 (local queue stuff):
         val nextTrigger = sleepers.peekFirstTriggerTime()
-        now = System.nanoTime()
         if ((nextTrigger != MIN_VALUE) && (nextTrigger - now <= 0L)) {
           pool.transitionWorkerFromSearching(rnd)
           4
@@ -395,9 +396,11 @@ private final class WorkerThread(
               pool.shutdown()
               false // we know `done` is `true`
             } else {
+              // we already parked and time passed, so update time again
+              // it doesn't matter if we timed out or were awakened, the update is free-ish
+              now = System.nanoTime()
               if (parked.get()) {
                 // we were either awakened spuriously, or we timed out
-                now = System.nanoTime()
                 if (triggerTime - now <= 0) {
                   // we timed out
                   if (parked.getAndSet(false)) {
@@ -606,8 +609,10 @@ private final class WorkerThread(
           }
 
         case 2 =>
-          // First try to steal some expired timers:
+          // update the current time
           now = System.nanoTime()
+
+          // First try to steal some expired timers:
           if (pool.stealTimers(now, rnd)) {
             // some stolen timer created new work for us
             pool.transitionWorkerFromSearching(rnd)
