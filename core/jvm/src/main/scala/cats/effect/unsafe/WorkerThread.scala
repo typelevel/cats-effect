@@ -153,9 +153,13 @@ private final class WorkerThread(
   }
 
   def sleep(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
+    // take the opportunity to update the current time, just in case other timers can benefit
+    val _now = System.nanoTime()
+    now = _now
+
     // note that blockers aren't owned by the pool, meaning we only end up here if !blocking
     sleepers.insert(
-      now = System.nanoTime(),
+      now = _now,
       delay = delay.toNanos,
       callback = callback,
       tlr = random
