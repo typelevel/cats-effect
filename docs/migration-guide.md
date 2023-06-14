@@ -16,7 +16,7 @@ Here is an overview of the steps you should take to migrate your application to 
 ### Before You Begin: This Isn't A "Quick Start" Guide
 
 This guide is meant for existing users of Cats Effect 2 who want to upgrade their applications
-to 3.4.10.
+to 3.4.11.
 
 > If you haven't used Cats Effect before and want to give it a try,
 > please follow the [getting started guide](./getting-started.md) instead!
@@ -81,9 +81,9 @@ Cats Effect 3 splits the code dependency into multiple modules. If you were prev
 The current non-test modules are:
 
 ```scala
-"org.typelevel" %% "cats-effect-kernel" % "3.4.10",
-"org.typelevel" %% "cats-effect-std"    % "3.4.10",
-"org.typelevel" %% "cats-effect"        % "3.4.10",
+"org.typelevel" %% "cats-effect-kernel" % "3.5.0",
+"org.typelevel" %% "cats-effect-std"    % "3.5.0",
+"org.typelevel" %% "cats-effect"        % "3.5.0",
 ```
 
 - `kernel` - type class definitions, simple concurrency primitives
@@ -96,7 +96,7 @@ The current non-test modules are:
 libraryDependencies ++= Seq(
   //...
 -  "org.typelevel" %% "cats-effect" % "2.4.0",
-+  "org.typelevel" %% "cats-effect" % "3.4.10",
++  "org.typelevel" %% "cats-effect" % "3.5.0",
   //...
 )
 ```
@@ -108,8 +108,8 @@ sbt:demo> update
 [error] stack trace is suppressed; run last core / update for the full output
 [error] (core / update) found version conflict(s) in library dependencies; some are suspected to be binary incompatible:
 [error]
-[error] 	* org.typelevel:cats-effect_2.13:3.4.10 (early-semver) is selected over {2.3.1, 2.1.4}
-[error] 	    +- com.example:core-core_2.13:0.0.7-26-3183519d       (depends on 3.4.10)
+[error] 	* org.typelevel:cats-effect_2.13:3.4.11 (early-semver) is selected over {2.3.1, 2.1.4}
+[error] 	    +- com.example:core-core_2.13:0.0.7-26-3183519d       (depends on 3.4.11)
 [error] 	    +- io.monix:monix-catnap_2.13:3.3.0                   (depends on 2.1.4)
 [error] 	    +- com.github.valskalla:odin-core_2.13:0.11.0         (depends on 2.3.1)
 [error]
@@ -181,7 +181,7 @@ We can divide the parameter `k` into the following:
 
 - `Either[Throwable, A] => Unit` - the callback that will complete or fail this effect when called. This is identical as in CE2.
 - `=> F[...]` (outer effect) - the effect of registering the callback. This would be e.g. `delay { window.setTimeout(() => cb(...)) }`.
-- `Option[F[Unit]]` - an optional effect that will run if the action is canceled. Passing `None` here is equivalent to `Some(F.unit)`
+- `Option[F[Unit]]` - an optional effect that will run if the action is canceled. Passing `None` here makes the whole `async(...)` uncancelable.
 
 The most similar method to this in CE2 would be `Concurrent.cancelableF`:
 
@@ -217,7 +217,7 @@ Please refer to each library's appropriate documentation/changelog to see how to
 
 | Cats Effect 2.x                               | Cats Effect 3                               | Notes                                                                           |
 | --------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
-| `Blocker.apply`                               | -                                           | blocking pool is [provided by runtime](#where-does-the-blocking-pool-come-from) |
+| `Blocker.apply`                               | -                                           | blocking is [provided by runtime](#how-does-blocking-work) |
 | `Blocker#delay`                               | `Sync[F].blocking`, `Sync[F].interruptible`, `Sync[F].interruptibleMany` | `Blocker` was removed                                                           |
 | `Blocker(ec).blockOn(fa)`, `Blocker.blockOnK` | [see notes](#no-blockon)                    |                                                                                 |
 
@@ -242,7 +242,7 @@ It is now possible to make the blocking task interruptible using [`Sync`](./type
 
 ```scala mdoc
 val programInterruptible =
-  Sync[IO].interruptible(println("hello Sync blocking!"))
+  Sync[IO].interruptible(println("hello interruptible blocking!"))
 ```
 
 If we require our operation to be more sensitive to cancelation we can use `interruptibleMany`.
@@ -250,20 +250,19 @@ The difference between `interruptible` and `interruptibleMany` is that in case o
 `interruptibleMany` will repeatedly attempt to interrupt until the blocking operation completes or exits,
 on the other hand using `interruptible` the interrupt will be attempted only once.
 
-#### Where Does The Blocking Pool Come From?
+#### How Does Blocking Work?
 
-The blocking thread pool, similarly to the compute pool, is provided in `IORuntime` when you run your `IO`.
-For other effect systems it could be a `Runtime` or `Scheduler`, etc. You can learn more about CE3 [schedulers](./schedulers.md) and [the thread model in comparison to CE2's](./thread-model.md).
+Support for blocking actions is provided by `IORuntime`. The runtime provides the blocking threads as needed.
+(For other effect systems it could be a `Runtime` or `Scheduler`, etc.)
+You can learn more about CE3 [schedulers](./schedulers.md) and [the thread model in comparison to CE2's](./thread-model.md).
 
 ```scala mdoc
 val runtime = cats.effect.unsafe.IORuntime.global
 
 def showThread() = java.lang.Thread.currentThread().getName()
 
-IO.blocking(showThread())
-  .product(
-    IO(showThread())
-  )
+IO(showThread())
+  .product(IO.blocking(showThread()))
   .unsafeRunSync()(runtime)
 ```
 
@@ -439,15 +438,13 @@ You can get an instance of it with `Dispatcher.parallel[F]` (or `sequential[F]`)
 
 ```scala
 object Dispatcher {
-  def parallel[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
-  def sequential[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def parallel[F[_]](await: Boolean = false)(implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def sequential[F[_]](await: Boolean = false)(implicit F: Async[F]): Resource[F, Dispatcher[F]]
 }
 ```
 
 > Note: keep in mind the shape of that method: the resource is related to the lifecycle of all tasks you run with a dispatcher.
-> When this resource is closed, **all its running tasks are canceled**.
->
-> This [might be configurable](https://github.com/typelevel/cats-effect/issues/1881) in a future release.
+> When this resource is closed, **all its running tasks are canceled or joined** (depending on the `await` parameter).
 
 Creating a `Dispatcher` is relatively lightweight, so you can create one even for each task you execute, but sometimes it's worth keeping a `Dispatcher` alive for longer.
 To find out more, see [its docs](./std/dispatcher.md).
@@ -708,11 +705,6 @@ Depending on how you used it, you might be able to replace it with [`monix-catna
 For `Clock`, see [the relevant part of the guide](#clock).
 
 Similarly to `Clock`, `Timer` has been replaced with a lawful type class, `Temporal`. Learn more in [its documentation](./typeclasses/temporal.md).
-
-### Tracing
-
-Currently, improved stack traces are not implemented.
-There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
 
 ## Test Your Application
 

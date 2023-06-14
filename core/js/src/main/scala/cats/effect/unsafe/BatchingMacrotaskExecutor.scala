@@ -56,7 +56,7 @@ private[effect] final class BatchingMacrotaskExecutor(
   private[this] var needsReschedule = true
   private[this] val fibers = new JSArrayQueue[IOFiber[_]]
 
-  private[this] object executeBatchTaskRunnable extends Runnable {
+  private[this] val executeBatchTaskRunnable = new Runnable {
     def run() = {
       // do up to batchSize tasks
       var i = 0

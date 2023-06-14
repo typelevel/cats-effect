@@ -530,12 +530,21 @@ private final class IOFiber[A](
             def apply[B](ioa: IO[B]) = IO.Uncancelable.UnmaskRunLoop(ioa, id, IOFiber.this)
           }
 
+          val next =
+            try cur.body(poll)
+            catch {
+              case t if NonFatal(t) =>
+                IO.raiseError(t)
+              case t: Throwable =>
+                onFatalFailure(t)
+            }
+
           /*
            * The uncancelableK marker is used by `succeeded` and `failed`
            * to unmask once body completes.
            */
           conts = ByteStack.push(conts, UncancelableK)
-          runLoop(cur.body(poll), nextCancelation, nextAutoCede)
+          runLoop(next, nextCancelation, nextAutoCede)
 
         case 13 =>
           val cur = cur0.asInstanceOf[Uncancelable.UnmaskRunLoop[Any]]
@@ -711,7 +720,15 @@ private final class IOFiber[A](
 
           val get: IO[Any] = IOCont.Get(state)
 
-          val next = body[IO].apply(cb, get, FunctionK.id)
+          val next =
+            try {
+              body[IO].apply(cb, get, FunctionK.id)
+            } catch {
+              case t if NonFatal(t) =>
+                IO.raiseError(t)
+              case t: Throwable =>
+                onFatalFailure(t)
+            }
 
           runLoop(next, nextCancelation, nextAutoCede)
 
@@ -900,21 +917,24 @@ private final class IOFiber[A](
 
         case 19 =>
           val cur = cur0.asInstanceOf[Sleep]
+          val delay = cur.delay
 
-          val next = IO.async[Unit] { cb =>
-            IO {
-              val scheduler = runtime.scheduler
-              val delay = cur.delay
+          val next =
+            if (delay.length > 0)
+              IO.async[Unit] { cb =>
+                IO {
+                  val scheduler = runtime.scheduler
 
-              val cancel =
-                if (scheduler.isInstanceOf[WorkStealingThreadPool])
-                  scheduler.asInstanceOf[WorkStealingThreadPool].sleepInternal(delay, cb)
-                else
-                  scheduler.sleep(delay, () => cb(RightUnit))
+                  val cancel =
+                    if (scheduler.isInstanceOf[WorkStealingThreadPool])
+                      scheduler.asInstanceOf[WorkStealingThreadPool].sleepInternal(delay, cb)
+                    else
+                      scheduler.sleep(delay, () => cb(RightUnit))
 
-              Some(IO(cancel.run()))
-            }
-          }
+                  Some(IO(cancel.run()))
+                }
+              }
+            else IO.cede
 
           runLoop(next, nextCancelation, nextAutoCede)
 

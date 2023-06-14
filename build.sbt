@@ -160,9 +160,12 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     cond = Some(s"matrix.java == '${GraalVM.render}'")
   ),
   WorkflowStep.Use(
-    UseRef.Public("al-cheb", "configure-pagefile-action", "v1.3"),
+    UseRef.Public(
+      "al-cheb",
+      "configure-pagefile-action",
+      "d298bdee6b133626425040e3788f1055a8b4cf7a"),
     name = Some("Configure Windows Pagefile"),
-    params = Map("minimum-size" -> "2GB", "maximum-size" -> "8GB"),
+    params = Map("minimum-size" -> "2GB", "maximum-size" -> "8GB", "timeout" -> "600"),
     cond = Some(s"matrix.os == '$Windows'")
   )
 )
@@ -794,7 +797,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.unsafe.ES2021FiberMonitor.this"),
         // introduced by #3324, which specialized CallbackStack for JS
         // internal API change
-        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack"),
+        // introduced by #3642, which optimized the BatchingMacrotaskExecutor
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$")
       )
     },
     mimaBinaryIssueFilters ++= {
@@ -904,48 +910,58 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
       "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     ),
-    mimaBinaryIssueFilters ++= Seq(
-      // introduced by #2604, Fix Console on JS
-      // changes to `cats.effect.std` package private code
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole"),
-      // introduced by #2951
-      // added configurability to Supervisor's scope termination behavior
-      // the following are package-private APIs
-      ProblemFilters.exclude[IncompatibleMethTypeProblem](
-        "cats.effect.std.Supervisor#State.add"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.std.Supervisor#State.add"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.std.Supervisor#State.joinAll"),
-      // introduced by #3000
-      // package-private or private stuff
-      ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
-      ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#BoundedQueue.onOfferNoCapacity"),
-      ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
-      ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
-      // #3524, private class
-      ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.MapRef#ConcurrentHashMapImpl.keys"),
-      // introduced by #3346
-      // private stuff
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Mutex$Impl"),
-      // introduced by #3347
-      // private stuff
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.AtomicCell$Impl"),
-      // introduced by #3409
-      // extracted UnsafeUnbounded private data structure
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded$Cell"),
-      // introduced by #3480
-      // adds method to sealed Hotswap
-      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get")
-    )
+    mimaBinaryIssueFilters ++= {
+      if (tlIsScala3.value) {
+        Seq(
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.std.Supervisor.apply$default$2")
+        )
+      } else Seq()
+    },
+    mimaBinaryIssueFilters ++=
+      Seq(
+        // introduced by #2604, Fix Console on JS
+        // changes to `cats.effect.std` package private code
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole"),
+        // introduced by #2951
+        // added configurability to Supervisor's scope termination behavior
+        // the following are package-private APIs
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
+          "cats.effect.std.Supervisor#State.add"),
+        ProblemFilters.exclude[ReversedMissingMethodProblem](
+          "cats.effect.std.Supervisor#State.add"),
+        ProblemFilters.exclude[ReversedMissingMethodProblem](
+          "cats.effect.std.Supervisor#State.joinAll"),
+        // introduced by #3000
+        // package-private or private stuff
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
+        ProblemFilters.exclude[ReversedMissingMethodProblem](
+          "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Queue#BoundedQueue.onOfferNoCapacity"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
+        // #3524, private class
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.MapRef#ConcurrentHashMapImpl.keys"),
+        // introduced by #3346
+        // private stuff
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Mutex$Impl"),
+        // introduced by #3347
+        // private stuff
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.AtomicCell$Impl"),
+        // introduced by #3409
+        // extracted UnsafeUnbounded private data structure
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.std.Queue$UnsafeUnbounded$Cell"),
+        // introduced by #3480
+        // adds method to sealed Hotswap
+        ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get")
+      )
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test,
