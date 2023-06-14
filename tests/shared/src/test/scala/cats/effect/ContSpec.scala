@@ -118,7 +118,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
           cont {
             new Cont[IO, Unit, Unit] {
               def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                lift(IO(rt.scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
+                lift(IO(rt.scheduler.sleep(3.seconds, () => resume(().asRight)))) >>
                   get.onCancel {
                     lift(start.set(true)) >> get >> lift(end.set(true))
                   }
@@ -139,7 +139,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
           cont {
             new Cont[IO, Unit, Unit] {
               def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                lift(IO(rt.scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
+                lift(IO(rt.scheduler.sleep(3.seconds, () => resume(().asRight)))) >>
                   get.onCancel {
                     lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
                   }
