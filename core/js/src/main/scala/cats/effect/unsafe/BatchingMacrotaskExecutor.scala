@@ -46,7 +46,7 @@ private[effect] final class BatchingMacrotaskExecutor(
     if (js.typeOf(js.Dynamic.global.queueMicrotask) == "function")
       js.Dynamic.global.queueMicrotask.asInstanceOf[js.Function1[js.Function0[Any], Any]]
     else {
-      val resolved = js.Dynamic.global.Promise.resolved(())
+      val resolved = js.Dynamic.global.Promise.resolve(())
       task => resolved.`then`(task)
     }
 
