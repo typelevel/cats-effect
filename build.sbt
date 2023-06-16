@@ -647,7 +647,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ContStateResult"),
       // introduced by #3332, polling system
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.IORuntimeBuilder.this")
+        "cats.effect.unsafe.IORuntimeBuilder.this"),
+      // introduced by #3695, which enabled fiber dumps on native
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.unsafe.FiberMonitorCompanionPlatform")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
