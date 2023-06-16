@@ -93,13 +93,16 @@ private object Signal {
 
   private[this] final val SIGINT = 2
   private[this] final val SIGTERM = 15
-  private[this] final val SIGUSR1 = 10
+  private[this] final val SIGUSR1Linux = 10
+  private[this] final val SIGUSR1Mac = 30
   private[this] final val SIGINFO = 29
 
   if (isLinux || isMac) {
     installHandler(SIGINT, onInterrupt(_))
     installHandler(SIGTERM, onTerm(_))
-    installHandler(if (isMac) SIGINFO else SIGUSR1, onDump(_))
+    if (isLinux) installHandler(SIGUSR1Linux, onDump(_))
+    if (isMac) installHandler(SIGUSR1Mac, onDump(_))
+    if (isMac) installHandler(SIGINFO, onDump(_))
   }
 
   def awaitInterrupt(poller: FileDescriptorPoller): IO[Unit] =
