@@ -113,10 +113,31 @@ class IOAppSpec extends Specification {
     }
   }
 
+  object Native extends Platform("native") {
+    val dumpSignal = "USR1"
+
+    def builder(proto: String, args: List[String]) =
+      Process(BuildInfo.nativeRunner.getAbsolutePath, s"catseffect.examples.$proto" :: args)
+
+    def pid(proto: String): Option[Int] = {
+      val stdoutBuffer = new StringBuffer()
+      val process =
+        Process("ps", List("aux")).run(BasicIO(false, stdoutBuffer, None))
+      process.exitValue()
+
+      val output = stdoutBuffer.toString
+      Source
+        .fromString(output)
+        .getLines()
+        .find(l => l.contains(BuildInfo.nativeRunner.getAbsolutePath) && l.contains(proto))
+        .map(_.split(" +")(1).toInt)
+    }
+  }
+
   lazy val platform = BuildInfo.platform match {
     case "jvm" => JVM
     case "js" => Node
-    case "native" => ???
+    case "native" => Native
     case platform => throw new RuntimeException(s"unknown platform $platform")
   }
 

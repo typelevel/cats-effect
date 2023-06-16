@@ -22,7 +22,6 @@ import cats.syntax.all._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
 package object examples {
@@ -49,19 +48,6 @@ package examples {
         _ <- IO.blocking(IO(throw new OutOfMemoryError("Boom!")).start.unsafeRunSync())
         _ <- IO.never[Unit]
       } yield ExitCode.Success
-  }
-
-  object Finalizers extends IOApp {
-    import java.io.FileWriter
-
-    def writeToFile(string: String, file: File): IO[Unit] =
-      IO(new FileWriter(file)).bracket { writer => IO(writer.write(string)) }(writer =>
-        IO(writer.close()))
-
-    def run(args: List[String]): IO[ExitCode] =
-      (IO(println("Started")) >> IO.never)
-        .onCancel(writeToFile("canceled", new File(args.head)))
-        .as(ExitCode.Success)
   }
 
   object EvalOnMainThread extends IOApp {

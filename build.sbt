@@ -883,6 +883,9 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
   .jvmSettings(
     Test / fork := true
   )
+  .nativeSettings(
+    Compile / mainClass := Some("catseffect.examples.NativeRunner")
+  )
 
 def configureIOAppTests(p: Project): Project =
   p.enablePlugins(NoPublishPlugin, BuildInfoPlugin)
