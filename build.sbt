@@ -270,10 +270,6 @@ lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
 
-lazy val testJSIOApp =
-  settingKey[Boolean]("Whether to test JVM (false) or Node.js (true) in IOAppSpec")
-Global / testJSIOApp := false
-
 ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
@@ -326,7 +322,16 @@ tlReplaceCommandAlias(
   "; root/clean; +root/headerCreate; root/scalafixAll; scalafmtSbt; +root/scalafmtAll")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
+  Seq(
+    kernel.js,
+    kernelTestkit.js,
+    laws.js,
+    core.js,
+    testkit.js,
+    tests.js,
+    ioAppTestsJS,
+    std.js,
+    example.js)
 
 val nativeProjects: Seq[ProjectReference] =
   Seq(
@@ -336,6 +341,7 @@ val nativeProjects: Seq[ProjectReference] =
     core.native,
     testkit.native,
     tests.native,
+    ioAppTestsNative,
     std.native,
     example.native)
 
@@ -367,7 +373,7 @@ lazy val rootJVM = project
     laws.jvm,
     core.jvm,
     testkit.jvm,
-    testsJVM,
+    tests.jvm,
     std.jvm,
     example.jvm,
     graalVMExample,
@@ -857,7 +863,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("tests"))
   .dependsOn(core, laws % Test, kernelTestkit % Test, testkit % Test)
-  .enablePlugins(BuildInfoPlugin, NoPublishPlugin)
+  .enablePlugins(NoPublishPlugin)
   .settings(
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
@@ -866,7 +872,6 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
-    buildInfoPackage := "catseffect",
     githubWorkflowArtifactUpload := false
   )
   .jsSettings(
@@ -876,26 +881,48 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
     scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
   .jvmSettings(
-    Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
+    Test / fork := true
   )
 
-lazy val testsJS = tests.js
-lazy val testsJVM = tests
-  .jvm
-  .enablePlugins(BuildInfoPlugin)
-  .settings(
-    Test / compile := {
-      if (testJSIOApp.value)
-        (Test / compile).dependsOn(testsJS / Compile / fastOptJS).value
-      else
-        (Test / compile).value
-    },
-    buildInfoPackage := "cats.effect",
-    buildInfoKeys += testJSIOApp,
-    buildInfoKeys +=
-      "jsRunner" -> (testsJS / Compile / fastOptJS / artifactPath).value
-  )
+def configureIOAppTests(p: Project): Project =
+  p.enablePlugins(NoPublishPlugin, BuildInfoPlugin)
+    .settings(
+      Test / unmanagedSourceDirectories += (LocalRootProject / baseDirectory).value / "ioapp-tests" / "src" / "test" / "scala",
+      libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test,
+      buildInfoPackage := "cats.effect",
+      buildInfoKeys ++= Seq(
+        "jsRunner" -> (tests.js / Compile / fastOptJS / artifactPath).value,
+        "nativeRunner" -> (tests.native / Compile / nativeLink / artifactPath).value
+      )
+    )
+
+lazy val ioAppTestsJVM =
+  project
+    .in(file("ioapp-tests/.jvm"))
+    .configure(configureIOAppTests)
+    .settings(
+      buildInfoKeys += "platform" -> "jvm",
+      Test / fork := true,
+      Test / javaOptions += s"-Dcatseffect.examples.classpath=${(tests.jvm / Compile / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
+    )
+
+lazy val ioAppTestsJS =
+  project
+    .in(file("ioapp-tests/.js"))
+    .configure(configureIOAppTests)
+    .settings(
+      (Test / test) := (Test / test).dependsOn(tests.js / Compile / fastOptJS).value,
+      buildInfoKeys += "platform" -> "js"
+    )
+
+lazy val ioAppTestsNative =
+  project
+    .in(file("ioapp-tests/.native"))
+    .configure(configureIOAppTests)
+    .settings(
+      (Test / test) := (Test / test).dependsOn(tests.native / Compile / nativeLink).value,
+      buildInfoKeys += "platform" -> "native"
+    )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue) purely in terms

@@ -64,11 +64,6 @@ package examples {
         .as(ExitCode.Success)
   }
 
-  // just a stub to satisfy compiler, never run on JVM
-  object UndefinedProcessExit extends IOApp {
-    def run(args: List[String]): IO[ExitCode] = IO.never
-  }
-
   object EvalOnMainThread extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
       IO(Thread.currentThread().getId()).evalOn(MainThread) map {
