@@ -20,6 +20,8 @@ package unsafe
 import cats.effect.tracing.TracingConstants
 import cats.effect.unsafe.ref.WeakReference
 
+import scala.concurrent.ExecutionContext
+
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -219,4 +221,13 @@ private[effect] final class NoOpFiberMonitor extends FiberMonitor(null) {
   override def liveFiberSnapshot(print: String => Unit): Unit = {}
 }
 
-private[effect] object FiberMonitor extends FiberMonitorCompanionPlatform
+private[effect] object FiberMonitor {
+  def apply(compute: ExecutionContext): FiberMonitor = {
+    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool[_]]) {
+      val wstp = compute.asInstanceOf[WorkStealingThreadPool[_]]
+      new FiberMonitor(wstp)
+    } else {
+      new FiberMonitor(null)
+    }
+  }
+}

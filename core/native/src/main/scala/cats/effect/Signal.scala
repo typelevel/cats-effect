@@ -108,6 +108,11 @@ private object Signal {
   def awaitTerm(poller: FileDescriptorPoller): IO[Unit] =
     registerAndAwaitSignal(poller, termReadFd)
 
+  def foreachDump(poller: FileDescriptorPoller, action: IO[Unit]): IO[Nothing] =
+    poller.registerFileDescriptor(dumpReadFd, true, false).use { handle =>
+      (awaitSignal(handle, dumpReadFd) *> action).foreverM
+    }
+
   private[this] def registerAndAwaitSignal(poller: FileDescriptorPoller, fd: Int): IO[Unit] =
     poller.registerFileDescriptor(fd, true, false).use(awaitSignal(_, fd))
 

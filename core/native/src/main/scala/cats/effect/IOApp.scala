@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.effect.metrics.{CpuStarvationWarningMetrics, NativeCpuStarvationMetrics}
+import cats.syntax.all._
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
@@ -254,17 +255,28 @@ trait IOApp {
               IO.sleep(runtime.config.shutdownHookTimeout) *> IO(System.exit(code.code))
 
             interruptOrTerm.map(_.merge).flatTap(hardExit(_).start)
-          case _ => keepAlive
+          case None => keepAlive
         }
       else
         keepAlive
 
+    val fiberDumper =
+      if (isLinux || isMac)
+        FileDescriptorPoller.find.toResource.flatMap {
+          case Some(poller) =>
+            val dump = IO.blocking(runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
+            Signal.foreachDump(poller, dump).background.void
+          case None => Resource.unit[IO]
+        }
+      else Resource.unit[IO]
+
+    val starvationChecker = CpuStarvationCheck
+      .run(runtimeConfig, NativeCpuStarvationMetrics(), onCpuStarvationWarn)
+      .background
+
     Spawn[IO]
       .raceOutcome[ExitCode, ExitCode](
-        CpuStarvationCheck
-          .run(runtimeConfig, NativeCpuStarvationMetrics(), onCpuStarvationWarn)
-          .background
-          .surround(run(args.toList)),
+        (fiberDumper *> starvationChecker).surround(run(args.toList)),
         awaitInterruptOrStayAlive
       )
       .map(_.merge)
