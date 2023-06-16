@@ -20,6 +20,7 @@ import cats.effect.metrics.{CpuStarvationWarningMetrics, NativeCpuStarvationMetr
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
+import scala.scalanative.meta.LinktimeInfo._
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -239,20 +240,39 @@ trait IOApp {
     lazy val keepAlive: IO[Nothing] =
       IO.sleep(1.hour) >> keepAlive
 
+    val awaitInterruptOrStayAlive =
+      if (isLinux || isMac)
+        FileDescriptorPoller.find.flatMap {
+          case Some(poller) =>
+            val interruptOrTerm =
+              Signal
+                .awaitInterrupt(poller)
+                .as(ExitCode(130))
+                .race(Signal.awaitTerm(poller).as(ExitCode(143)))
+
+            def hardExit(code: ExitCode) =
+              IO.sleep(runtime.config.shutdownHookTimeout) *> IO(System.exit(code.code))
+
+            interruptOrTerm.map(_.merge).flatTap(hardExit(_).start)
+          case _ => keepAlive
+        }
+      else
+        keepAlive
+
     Spawn[IO]
-      .raceOutcome[ExitCode, Nothing](
+      .raceOutcome[ExitCode, ExitCode](
         CpuStarvationCheck
           .run(runtimeConfig, NativeCpuStarvationMetrics(), onCpuStarvationWarn)
           .background
           .surround(run(args.toList)),
-        keepAlive)
+        awaitInterruptOrStayAlive
+      )
+      .map(_.merge)
       .flatMap {
-        case Left(Outcome.Canceled()) =>
+        case Outcome.Canceled() =>
           IO.raiseError(new CancellationException("IOApp main fiber was canceled"))
-        case Left(Outcome.Errored(t)) => IO.raiseError(t)
-        case Left(Outcome.Succeeded(code)) => code
-        case Right(Outcome.Errored(t)) => IO.raiseError(t)
-        case Right(_) => sys.error("impossible")
+        case Outcome.Errored(t) => IO.raiseError(t)
+        case Outcome.Succeeded(code) => code
       }
       .unsafeRunFiber(
         System.exit(0),
