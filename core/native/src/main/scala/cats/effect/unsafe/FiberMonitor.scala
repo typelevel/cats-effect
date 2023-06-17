@@ -19,7 +19,6 @@ package unsafe
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.scalanative.meta.LinktimeInfo
 
 private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
@@ -89,7 +88,7 @@ private final class FiberMonitorImpl(
 
 /**
  * A no-op implementation of an unordered bag used for tracking asynchronously suspended fiber
- * instances on Scala.js. This is used as a fallback.
+ * instances on Scala Native. This is used as a fallback.
  */
 private final class NoOpFiberMonitor extends FiberMonitor {
   override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle = () => ()
@@ -98,7 +97,7 @@ private final class NoOpFiberMonitor extends FiberMonitor {
 
 private[effect] object FiberMonitor {
   def apply(compute: ExecutionContext): FiberMonitor = {
-    if (LinktimeInfo.debugMode && LinktimeInfo.isWeakReferenceSupported) {
+    if (false) { // LinktimeInfo.debugMode && LinktimeInfo.isWeakReferenceSupported
       if (compute.isInstanceOf[EventLoopExecutorScheduler[_]]) {
         val loop = compute.asInstanceOf[EventLoopExecutorScheduler[_]]
         new FiberMonitorImpl(loop)
