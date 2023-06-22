@@ -90,6 +90,12 @@ private final class WorkerThread(
   private[this] var blocking: Boolean = false
 
   /**
+   * Contains the current monotonic time. Updated by the main worker loop as well as the
+   * `Scheduler` functions when accessing system time in userspace.
+   */
+  private[unsafe] var now: Long = System.nanoTime()
+
+  /**
    * Holds a reference to the fiber currently being executed by this worker thread. This field
    * is sometimes published by the `head` and `tail` of the [[LocalQueue]] and sometimes by the
    * `parked` signal of this worker thread. Threads that want to observe this value should read
@@ -147,9 +153,13 @@ private final class WorkerThread(
   }
 
   def sleep(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
+    // take the opportunity to update the current time, just in case other timers can benefit
+    val _now = System.nanoTime()
+    now = _now
+
     // note that blockers aren't owned by the pool, meaning we only end up here if !blocking
     sleepers.insert(
-      now = System.nanoTime(),
+      now = _now,
       delay = delay.toNanos,
       callback = callback,
       tlr = random
@@ -335,12 +345,14 @@ private final class WorkerThread(
         }
       }
 
+      now = System.nanoTime()
+
       if (nextState != 4) {
         // after being unparked, we re-check sleepers;
         // if we find an already expired one, we go
         // immediately to state 4 (local queue stuff):
         val nextTrigger = sleepers.peekFirstTriggerTime()
-        if ((nextTrigger != MIN_VALUE) && (nextTrigger - System.nanoTime() <= 0L)) {
+        if ((nextTrigger != MIN_VALUE) && (nextTrigger - now <= 0L)) {
           pool.transitionWorkerFromSearching(rnd)
           4
         } else {
@@ -378,7 +390,7 @@ private final class WorkerThread(
           parkLoop()
           false
         } else {
-          val now = System.nanoTime()
+          now = System.nanoTime()
           val nanos = triggerTime - now
 
           if (nanos > 0L) {
@@ -388,9 +400,12 @@ private final class WorkerThread(
               pool.shutdown()
               false // we know `done` is `true`
             } else {
+              // we already parked and time passed, so update time again
+              // it doesn't matter if we timed out or were awakened, the update is free-ish
+              now = System.nanoTime()
               if (parked.get()) {
                 // we were either awakened spuriously, or we timed out
-                if (triggerTime - System.nanoTime() <= 0) {
+                if (triggerTime - now <= 0) {
                   // we timed out
                   if (parked.getAndSet(false)) {
                     pool.doneSleeping()
@@ -530,6 +545,9 @@ private final class WorkerThread(
             }
           }
 
+          // update the current time
+          now = System.nanoTime()
+
           // Transition to executing fibers from the local queue.
           state = 4
 
@@ -595,8 +613,11 @@ private final class WorkerThread(
           }
 
         case 2 =>
+          // update the current time
+          now = System.nanoTime()
+
           // First try to steal some expired timers:
-          if (pool.stealTimers(System.nanoTime(), rnd)) {
+          if (pool.stealTimers(now, rnd)) {
             // some stolen timer created new work for us
             pool.transitionWorkerFromSearching(rnd)
             state = 4
@@ -693,7 +714,6 @@ private final class WorkerThread(
 
         case _ =>
           // Call all of our expired timers:
-          val now = System.nanoTime()
           var cont = true
           while (cont) {
             val cb = sleepers.pollFirstIfTriggered(now)
