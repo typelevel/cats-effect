@@ -310,7 +310,7 @@ val CoopVersion = "1.2.0"
 
 val MacrotaskExecutorVersion = "1.1.1"
 
-val ScalacCompatVersion = "0.1.0"
+val ScalacCompatVersion = "0.1.1"
 
 tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
