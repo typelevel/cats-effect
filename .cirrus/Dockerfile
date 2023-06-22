@@ -1,4 +1,3 @@
-FROM eclipse-temurin:17
+FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.0_3.3.0
+
 RUN apt-get update && apt-get install -y clang
-RUN wget -q https://github.com/sbt/sbt/releases/download/v1.9.0/sbt-1.9.0.tgz && tar xvfz sbt-1.9.0.tgz
-ENV PATH="$PATH:/sbt/bin"
