@@ -38,6 +38,7 @@ final class IORuntime private[unsafe] (
     val compute: ExecutionContext,
     private[effect] val blocking: ExecutionContext,
     val scheduler: Scheduler,
+    private[effect] val pollers: List[Any],
     private[effect] val fiberMonitor: FiberMonitor,
     val shutdown: () => Unit,
     val config: IORuntimeConfig
@@ -57,10 +58,12 @@ final class IORuntime private[unsafe] (
 }
 
 object IORuntime extends IORuntimeCompanionPlatform {
+
   def apply(
       compute: ExecutionContext,
       blocking: ExecutionContext,
       scheduler: Scheduler,
+      pollers: List[Any],
       shutdown: () => Unit,
       config: IORuntimeConfig): IORuntime = {
     val fiberMonitor = FiberMonitor(compute)
@@ -71,16 +74,41 @@ object IORuntime extends IORuntimeCompanionPlatform {
     }
 
     val runtime =
-      new IORuntime(compute, blocking, scheduler, fiberMonitor, unregisterAndShutdown, config)
+      new IORuntime(
+        compute,
+        blocking,
+        scheduler,
+        pollers,
+        fiberMonitor,
+        unregisterAndShutdown,
+        config)
     allRuntimes.put(runtime, runtime.hashCode())
     runtime
   }
+
+  def apply(
+      compute: ExecutionContext,
+      blocking: ExecutionContext,
+      scheduler: Scheduler,
+      shutdown: () => Unit,
+      config: IORuntimeConfig): IORuntime =
+    apply(compute, blocking, scheduler, Nil, shutdown, config)
+
+  @deprecated("Preserved for bincompat", "3.6.0")
+  private[unsafe] def apply(
+      compute: ExecutionContext,
+      blocking: ExecutionContext,
+      scheduler: Scheduler,
+      fiberMonitor: FiberMonitor,
+      shutdown: () => Unit,
+      config: IORuntimeConfig): IORuntime =
+    new IORuntime(compute, blocking, scheduler, Nil, fiberMonitor, shutdown, config)
 
   def builder(): IORuntimeBuilder =
     IORuntimeBuilder()
 
   private[effect] def testRuntime(ec: ExecutionContext, scheduler: Scheduler): IORuntime =
-    new IORuntime(ec, ec, scheduler, new NoOpFiberMonitor(), () => (), IORuntimeConfig())
+    new IORuntime(ec, ec, scheduler, Nil, new NoOpFiberMonitor(), () => (), IORuntimeConfig())
 
   private[effect] final val allRuntimes: ThreadSafeHashtable[IORuntime] =
     new ThreadSafeHashtable(4)

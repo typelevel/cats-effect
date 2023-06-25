@@ -14,19 +14,30 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
+package unsafe
 
-import scala.concurrent.duration._
+object SleepSystem extends PollingSystem {
 
-// JVM WSTP sets ExternalQueueTicks = 64 so we steal it here
-private[effect] object QueueExecutorScheduler extends PollingExecutorScheduler(64) {
+  type Api = AnyRef
+  type Poller = AnyRef
 
-  def poll(timeout: Duration): Boolean = {
-    if (timeout != Duration.Zero && timeout.isFinite) {
-      val nanos = timeout.toNanos
+  def close(): Unit = ()
+
+  def makeApi(register: (Poller => Unit) => Unit): Api = this
+
+  def makePoller(): Poller = this
+
+  def closePoller(poller: Poller): Unit = ()
+
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+    if (nanos > 0)
       Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
-    }
     false
   }
+
+  def needsPoll(poller: Poller): Boolean = false
+
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
 }

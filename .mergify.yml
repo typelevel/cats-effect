@@ -1,10 +1,23 @@
 pull_request_rules:
-  - name: label scala-steward's PRs
+  - name: label typelevel-steward's PRs
     conditions:
-      - author=scala-steward
+      - author=typelevel-steward[bot]
+    actions:
+      label:
+        add: [':robot:']
+  - name: label typelevel-steward's update PRs
+    conditions:
+      - author=typelevel-steward[bot]
+      - body~=labels:.*library-update
     actions:
       label:
         add: [dependencies]
+  - name: label dependabots's PRs
+    conditions:
+      - author=dependabot[bot]
+    actions:
+      label:
+        add: [':robot:']
   - name: automatically merge dependabot docs PRs
     conditions:
       - author=dependabot[bot]

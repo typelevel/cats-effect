@@ -14,11 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
 
-private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
+import java.nio.channels.SelectableChannel
+import java.nio.channels.spi.SelectorProvider
 
-  def createDefaultScheduler(): (Scheduler, () => Unit) =
-    (EventLoopExecutorScheduler.global, () => ())
+trait Selector {
+
+  /**
+   * The [[java.nio.channels.spi.SelectorProvider]] that should be used to create
+   * [[java.nio.channels.SelectableChannel]]s that are compatible with this polling system.
+   */
+  def provider: SelectorProvider
+
+  /**
+   * Fiber-block until a [[java.nio.channels.SelectableChannel]] is ready on at least one of the
+   * designated operations. The returned value will indicate which operations are ready.
+   */
+  def select(ch: SelectableChannel, ops: Int): IO[Int]
 
 }

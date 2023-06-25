@@ -41,7 +41,7 @@ ThisBuild / git.gitUncommittedChanges := {
   }
 }
 
-ThisBuild / tlBaseVersion := "3.5"
+ThisBuild / tlBaseVersion := "3.6"
 ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
@@ -112,9 +112,9 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
-val Scala212 = "2.12.17"
-val Scala213 = "2.13.10"
-val Scala3 = "3.2.2"
+val Scala212 = "2.12.18"
+val Scala213 = "2.13.11"
+val Scala3 = "3.3.0"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
@@ -227,8 +227,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val windowsAndMacScalaFilters =
     (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
       Seq(
-        MatrixExclude(Map("os" -> Windows, "scala" -> scala)),
-        MatrixExclude(Map("os" -> MacOS, "scala" -> scala)))
+        MatrixExclude(Map("os" -> Windows, "scala" -> scala, "ci" -> CI.JVM.command)),
+        MatrixExclude(Map("os" -> MacOS, "scala" -> scala, "ci" -> CI.JVM.command)))
     }
 
   val jsScalaFilters = for {
@@ -257,9 +257,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
 
     javaFilters ++ Seq(
       MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212)),
-      // keep a native+2.13+macos job
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala3))
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212))
     )
   }
 
@@ -643,7 +641,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ExecuteRunnableR"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.IOFiberConstants.ContStateResult")
+        "cats.effect.IOFiberConstants.ContStateResult"),
+      // introduced by #3332, polling system
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.IORuntimeBuilder.this")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -829,6 +830,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         )
       } else Seq()
     }
+  )
+  .nativeSettings(
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.unsafe.PollingExecutorScheduler$SleepTask"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler$")
+    )
   )
   .disablePlugins(JCStressPlugin)
 

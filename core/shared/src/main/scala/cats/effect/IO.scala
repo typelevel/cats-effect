@@ -40,6 +40,7 @@ import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleDuration
 import cats.effect.std.{Backpressure, Console, Env, Supervisor, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
+import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import scala.annotation.unchecked.uncheckedVariance
@@ -1485,6 +1486,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def trace: IO[Trace] =
     IOTrace
 
+  private[effect] def runtime: IO[IORuntime] = ReadRT
+
+  def pollers: IO[List[Any]] =
+    IO.runtime.map(_.pollers)
+
   def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
     Uncancelable(body, Tracing.calculateTracingEvent(body))
 
@@ -2085,6 +2091,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object IOTrace extends IO[Trace] {
     def tag = 23
+  }
+
+  private[effect] case object ReadRT extends IO[IORuntime] {
+    def tag = 24
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
