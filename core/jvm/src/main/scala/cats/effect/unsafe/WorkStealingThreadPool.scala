@@ -624,8 +624,8 @@ private[effect] final class WorkStealingThreadPool[P](
     val back = System.nanoTime()
 
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].now = back
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      thread.asInstanceOf[WorkerThread[_]].now = back
     }
 
     back
