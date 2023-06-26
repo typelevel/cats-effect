@@ -1,0 +1,15 @@
+changelog:
+  categories:
+    - title: Features
+      labels:
+        - :mushroom: enhancement
+    - title: Bug Fixes
+      labels:
+        - :beetle: bug
+    - title: Behind the Scenes
+      labels:
+        - :gear: infrastructure
+        - :robot:
+    - title: Documentation
+      labels:
+        - :books: docs
