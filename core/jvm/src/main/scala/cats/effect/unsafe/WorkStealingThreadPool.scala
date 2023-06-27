@@ -620,7 +620,16 @@ private[effect] final class WorkStealingThreadPool[P](
    */
   override def reportFailure(cause: Throwable): Unit = reportFailure0(cause)
 
-  override def monotonicNanos(): Long = System.nanoTime()
+  override def monotonicNanos(): Long = {
+    val back = System.nanoTime()
+
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      thread.asInstanceOf[WorkerThread[_]].now = back
+    }
+
+    back
+  }
 
   override def nowMillis(): Long = System.currentTimeMillis()
 
