@@ -644,7 +644,15 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ContStateResult"),
       // introduced by #3332, polling system
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.IORuntimeBuilder.this")
+        "cats.effect.unsafe.IORuntimeBuilder.this"),
+      // introduced by #3636, IOLocal propagation
+      // IOLocal is a sealed trait
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.getOrDefault"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.set"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.reset"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.lens"),
+      // this filter is particulary terrible, because it can also mask real issues :(
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOLocal.lens")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
