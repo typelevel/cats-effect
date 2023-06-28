@@ -24,8 +24,8 @@ object IOLocals {
   def get[A](iol: IOLocal[A]): A = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
     val state =
-      if (thread.isInstanceOf[WorkerThread])
-        thread.asInstanceOf[WorkerThread].ioLocalState
+      if (thread.isInstanceOf[WorkerThread[_]])
+        thread.asInstanceOf[WorkerThread[_]].ioLocalState
       else
         threadLocal.get
     iol.getOrDefault(state)
@@ -33,8 +33,8 @@ object IOLocals {
 
   def set[A](iol: IOLocal[A], value: A): Unit = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[_]]
       worker.ioLocalState = iol.set(worker.ioLocalState, value)
     } else {
       threadLocal.set(iol.set(threadLocal.get(), value))
@@ -43,8 +43,8 @@ object IOLocals {
 
   def reset[A](iol: IOLocal[A]): Unit = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[_]]
       worker.ioLocalState = iol.reset(worker.ioLocalState)
     } else {
       threadLocal.set(iol.reset(threadLocal.get()))
@@ -53,8 +53,8 @@ object IOLocals {
 
   def update[A](iol: IOLocal[A])(f: A => A): Unit = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[_]]
       val state = worker.ioLocalState
       worker.ioLocalState = iol.set(state, f(iol.getOrDefault(state)))
     } else {
@@ -65,8 +65,8 @@ object IOLocals {
 
   def modify[A, B](iol: IOLocal[A])(f: A => (A, B)): B = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[_]]
       val state = worker.ioLocalState
       val (a2, b) = f(iol.getOrDefault(state))
       worker.ioLocalState = iol.set(state, a2)
@@ -81,8 +81,8 @@ object IOLocals {
 
   def getAndSet[A](iol: IOLocal[A], a: A): A = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[_]]
       val state = worker.ioLocalState
       worker.ioLocalState = iol.set(state, a)
       iol.getOrDefault(state)
@@ -95,8 +95,8 @@ object IOLocals {
 
   def getAndReset[A](iol: IOLocal[A]): A = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[_]]
       val state = worker.ioLocalState
       worker.ioLocalState = iol.reset(state)
       iol.getOrDefault(state)
@@ -113,24 +113,24 @@ object IOLocals {
 
   private[effect] def getState = {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread])
-      thread.asInstanceOf[WorkerThread].ioLocalState
+    if (thread.isInstanceOf[WorkerThread[_]])
+      thread.asInstanceOf[WorkerThread[_]].ioLocalState
     else
       threadLocal.get()
   }
 
   private[effect] def setState(state: IOLocalState) = {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread])
-      thread.asInstanceOf[WorkerThread].ioLocalState = state
+    if (thread.isInstanceOf[WorkerThread[_]])
+      thread.asInstanceOf[WorkerThread[_]].ioLocalState = state
     else
       threadLocal.set(state)
   }
 
   private[effect] def getAndClearState() = {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[_]]
       val state = worker.ioLocalState
       worker.ioLocalState = IOLocalState.empty
       state
