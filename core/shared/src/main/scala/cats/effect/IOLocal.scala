@@ -183,12 +183,12 @@ sealed trait IOLocal[A] {
   /**
    * Replaces the current value with `value`, returning the previous value.
    *
-   * The combination of [[get]] and [[set]].
+   * The combination of [[get]] and [[set(value:*]].
    *
    * @see
    *   [[get]]
    * @see
-   *   [[set]]
+   *   [[set(value:*]]
    */
   final def getAndSet(value: A): IO[A] =
     IO.Local(state => (set(state, value), getOrDefault(state)))
@@ -196,12 +196,12 @@ sealed trait IOLocal[A] {
   /**
    * Replaces the current value with the initial value, returning the previous value.
    *
-   * The combination of [[get]] and [[reset]].
+   * The combination of [[get]] and [[reset:*]].
    *
    * @see
    *   [[get]]
    * @see
-   *   [[reset]]
+   *   [[reset:*]]
    */
   final def getAndReset: IO[A] =
     IO.Local(state => (reset(state), getOrDefault(state)))
@@ -213,9 +213,9 @@ sealed trait IOLocal[A] {
    * All changes to the original value will be visible via lens getter and all changes applied
    * to 'refracted' value will be forwarded to the original via setter.
    *
-   * Note that [[.set]] method requires special mention: while from the `IOLocal[B]` point of
-   * view old value will be replaced with a new one, from `IOLocal[A]` POV old value will be
-   * updated via setter. This means that for 'refracted' `IOLocal[B]` use of `set(b)` is
+   * Note that [[.set(value*]] method requires special mention: while from the `IOLocal[B]`
+   * point of view old value will be replaced with a new one, from `IOLocal[A]` POV old value
+   * will be updated via setter. This means that for 'refracted' `IOLocal[B]` use of `set(b)` is
    * equivalent to `reset *> set(b)`, but it does not hold for original `IOLocal[A]`:
    *
    * {{{
