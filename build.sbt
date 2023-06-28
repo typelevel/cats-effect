@@ -869,7 +869,7 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
   .jvmSettings(
     Test / fork := true,
     Test / javaOptions ++= Seq(
-      "-Dcats.effect.tracing.dumpLocals=true",
+      "-Dcats.effect.ioLocalPropagation=true",
       s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
     )
   )

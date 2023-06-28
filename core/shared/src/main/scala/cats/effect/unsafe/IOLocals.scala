@@ -1,11 +1,27 @@
+/*
+ * Copyright 2020-2023 Typelevel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package cats.effect
 package unsafe
 
-import IOFiberConstants.dumpLocals
+import IOLocalsConstants.ioLocalPropagation
 
 object IOLocals {
 
-  def get[A](iol: IOLocal[A]): A = if (dumpLocals) {
+  def get[A](iol: IOLocal[A]): A = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
     val state =
       if (thread.isInstanceOf[WorkerThread])
@@ -15,7 +31,7 @@ object IOLocals {
     iol.getOrDefault(state)
   } else iol.getOrDefault(IOLocalState.empty)
 
-  def set[A](iol: IOLocal[A], value: A): Unit = if (dumpLocals) {
+  def set[A](iol: IOLocal[A], value: A): Unit = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
@@ -25,7 +41,7 @@ object IOLocals {
     }
   } else ()
 
-  def reset[A](iol: IOLocal[A]): Unit = if (dumpLocals) {
+  def reset[A](iol: IOLocal[A]): Unit = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
@@ -35,7 +51,7 @@ object IOLocals {
     }
   } else ()
 
-  def update[A](iol: IOLocal[A])(f: A => A): Unit = if (dumpLocals) {
+  def update[A](iol: IOLocal[A])(f: A => A): Unit = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
@@ -47,7 +63,7 @@ object IOLocals {
     }
   } else ()
 
-  def modify[A, B](iol: IOLocal[A])(f: A => (A, B)): B = if (dumpLocals) {
+  def modify[A, B](iol: IOLocal[A])(f: A => (A, B)): B = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
@@ -63,7 +79,7 @@ object IOLocals {
     }
   } else f(iol.getOrDefault(IOLocalState.empty))._2
 
-  def getAndSet[A](iol: IOLocal[A], a: A): A = if (dumpLocals) {
+  def getAndSet[A](iol: IOLocal[A], a: A): A = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
@@ -77,7 +93,7 @@ object IOLocals {
     }
   } else iol.getOrDefault(IOLocalState.empty)
 
-  def getAndReset[A](iol: IOLocal[A]): A = if (dumpLocals) {
+  def getAndReset[A](iol: IOLocal[A]): A = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]

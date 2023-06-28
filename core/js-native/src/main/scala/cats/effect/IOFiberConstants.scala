@@ -44,5 +44,5 @@ private object IOFiberConstants {
   final val AutoCedeR = 7
   final val DoneR = 8
 
-  final val dumpLocals = false
+  final val ioLocalPropagation = false
 }

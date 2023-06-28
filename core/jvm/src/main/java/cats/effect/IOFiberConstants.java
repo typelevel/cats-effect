@@ -17,7 +17,7 @@
 package cats.effect;
 
 // defined in Java since Scala doesn't let us define static fields
-public final class IOFiberConstants {
+final class IOFiberConstants {
 
   static final int MaxStackDepth = 512;
 
@@ -44,5 +44,5 @@ public final class IOFiberConstants {
   static final byte AutoCedeR = 7;
   static final byte DoneR = 8;
 
-  public static final boolean dumpLocals = Boolean.getBoolean("cats.effect.tracing.dumpLocals");
+  static final boolean ioLocalPropagation = Boolean.getBoolean("cats.effect.ioLocalPropagation");
 }

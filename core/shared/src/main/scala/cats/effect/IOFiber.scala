@@ -250,7 +250,7 @@ private final class IOFiber[A](
             pushTracingEvent(cur.event)
           }
 
-          if (dumpLocals) {
+          if (ioLocalPropagation) {
             IOLocals.setState(localState)
           }
 
@@ -264,7 +264,7 @@ private final class IOFiber[A](
                 onFatalFailure(t)
             }
 
-          if (dumpLocals) {
+          if (ioLocalPropagation) {
             localState = IOLocals.getAndClearState()
           }
 
@@ -332,7 +332,7 @@ private final class IOFiber[A](
                 pushTracingEvent(delay.event)
               }
 
-              if (dumpLocals) {
+              if (ioLocalPropagation) {
                 IOLocals.setState(localState)
               }
 
@@ -347,7 +347,7 @@ private final class IOFiber[A](
                     onFatalFailure(t)
                 }
 
-              if (dumpLocals) {
+              if (ioLocalPropagation) {
                 localState = IOLocals.getAndClearState()
               }
 
@@ -407,7 +407,7 @@ private final class IOFiber[A](
                 pushTracingEvent(delay.event)
               }
 
-              if (dumpLocals) {
+              if (ioLocalPropagation) {
                 IOLocals.setState(localState)
               }
 
@@ -421,7 +421,7 @@ private final class IOFiber[A](
                     onFatalFailure(t)
                 }
 
-              if (dumpLocals) {
+              if (ioLocalPropagation) {
                 localState = IOLocals.getAndClearState()
               }
 
@@ -470,7 +470,7 @@ private final class IOFiber[A](
                 pushTracingEvent(delay.event)
               }
 
-              if (dumpLocals) {
+              if (ioLocalPropagation) {
                 IOLocals.setState(localState)
               }
 
@@ -488,7 +488,7 @@ private final class IOFiber[A](
                     onFatalFailure(t)
                 }
 
-              if (dumpLocals) {
+              if (ioLocalPropagation) {
                 localState = IOLocals.getAndClearState()
               }
 
@@ -997,7 +997,7 @@ private final class IOFiber[A](
             if (ec.isInstanceOf[WorkStealingThreadPool]) {
               val wstp = ec.asInstanceOf[WorkStealingThreadPool]
               if (wstp.canExecuteBlockingCode()) {
-                if (dumpLocals) {
+                if (ioLocalPropagation) {
                   IOLocals.setState(localState)
                 }
 
@@ -1012,7 +1012,7 @@ private final class IOFiber[A](
                       onFatalFailure(t)
                   }
 
-                if (dumpLocals) {
+                if (ioLocalPropagation) {
                   localState = IOLocals.getAndClearState()
                 }
 
@@ -1419,7 +1419,7 @@ private final class IOFiber[A](
     val cur = resumeIO.asInstanceOf[Blocking[Any]]
     resumeIO = null
 
-    if (dumpLocals) {
+    if (ioLocalPropagation) {
       IOLocals.setState(localState)
     }
 
@@ -1432,7 +1432,7 @@ private final class IOFiber[A](
           onFatalFailure(t)
       }
 
-    if (dumpLocals) {
+    if (ioLocalPropagation) {
       localState = IOLocals.getAndClearState()
     }
 
