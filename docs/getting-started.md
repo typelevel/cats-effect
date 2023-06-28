@@ -6,7 +6,7 @@ title: Getting Started
 Add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.4.11"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.5.1"
 ```
 
 Naturally, if you're using ScalaJS, you should replace the double `%%` with a triple `%%%`. If you're on Scala 2, it is *highly* recommended that you enable the [better-monadic-for](https://github.com/oleg-py/better-monadic-for) plugin, which fixes a number of surprising elements of the `for`-comprehension syntax in the Scala language:

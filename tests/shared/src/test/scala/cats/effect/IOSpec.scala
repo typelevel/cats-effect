@@ -1322,6 +1322,14 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         IO.uncancelable[Unit](_ => throw new RuntimeException)
           .handleErrorWith(_ => IO.canceled *> IO.never) must selfCancel
       }
+
+      "catch exceptions in cont" in ticked { implicit ticker =>
+        IO.cont[Unit, Unit](new Cont[IO, Unit, Unit] {
+          override def apply[F[_]](implicit F: MonadCancel[F, Throwable]) = { (_, _, _) =>
+            throw new Exception
+          }
+        }).voidError must completeAs(())
+      }
     }
 
     "finalization" should {

@@ -11,11 +11,10 @@ This is true across both the JVM and JavaScript, and while it seems intuitive th
 
 `IO` programs and fibers are ultimately executed on JVM threads, which are themselves mapped directly to kernel threads and, ultimately (when scheduled), to processors. Determining the optimal method of mapping a real-world, concurrent application down to kernel-level threads is an extremely complex problem, and the details of *why* Cats Effect has chosen the particular strategies it employs are discussed later in this section.
 
-As an executive overview though, `IO` leverages three independent thread pools to evaluate programs:
+As an executive overview though, `IO` leverages these mostly independent thread pools to evaluate programs:
 
 - **A work-stealing pool for *computation***, consisting of exactly the same number of `Thread`s as there are hardware processors (minimum: 2)
-- **A single-threaded schedule dispatcher**, consisting of a single maximum-priority `Thread` which dispatches `sleep`s with high precision
-- **An unbounded blocking pool**, defaulting to zero `Thread`s and allocating as-needed (with caching and downsizing) to meet demand for *blocking* operations
+- **An unbounded blocking pool**, defaulting to zero `Thread`s and allocating as-needed (with caching and downsizing) to meet demand for *blocking* operations (technically this separate thread pool is built into the work-stealing pool, and handled transparently)
 
 The *vast* majority of any program will execute on the work-stealing pool. Shifting computation between these pools is done transparently to the user, and for the most part, you don't even need to know they are there.
 
@@ -39,19 +38,19 @@ Blocking operations are, in practice, unavoidable. Some of this has to do with t
 
 The JVM uses just such a native library call *within the `URL#equals` comparison*, and that library call blocks until the DNS resolution has been completed, because the underlying DNS client within every major OS is *itself* blocking and uses blocking network I/O. So this means that every time you innocently call `==` on `URL`s (or if you're unlucky enough to use them as `Map` keys), you're blocking a thread for as long as it takes for your DNS server to respond with an answer (or non-answer).
 
-Another excellent example is file I/O (such as `FileInputStream`). Filesystems are also a good example of exceptionally old software designed for a previous age being brought into the modern world, and to that end, they are almost universally blocking. Windows local NTFS mounts are a notable exception to this paradigm, but all macOS filesystem operations are blocking at the OS level, as are (in practice) nearly all Linux filesystem operations (io_uring is changing this, but it's still exceptionally new and not yet universally available, seeing its first public release in May 2019). 
+Another excellent example is file I/O (such as `FileInputStream`). Filesystems are also a good example of exceptionally old software designed for a previous age being brought into the modern world, and to that end, they are almost universally blocking. Windows local NTFS mounts are a notable exception to this paradigm, but all macOS filesystem operations are blocking at the OS level, as are (in practice) nearly all Linux filesystem operations.
 
 File I/O is effectively unavoidable in any application, but it too means blocking a thread while the kernel fishes out the bytes your application has requested.
 
-Clearly, we cannot simply pretend this problem does not exist. This is why the `blocking` and `interruptible`/`interruptibleMany` functions on `IO` are so important: they declare to the `IO` runtime that the effect in question will block a thread, and it *must* be shifted to the blocking worker pool:
+Clearly, we cannot simply pretend this problem does not exist. This is why the `blocking` and `interruptible`/`interruptibleMany` functions on `IO` are so important: they declare to the `IO` runtime that the effect in question will block a thread, and it *must* be shifted to a blocking thread:
 
 ```scala
 IO.blocking(url1 == url2) // => IO[Boolean]
 ```
 
-In the above, `URL#equals` effect (along with its associated blocking DNS resolution) is moved off of the precious thread-stealing compute pool and onto an unbounded blocking pool. This worker thread then blocks (which causes the kernel to remove it from the processor) for as long as necessary to complete the DNS resolution, after which it returns and completes the boolean comparison. As soon as this effect completes, `IO` *immediately* shifts the fiber back to the work-stealing compute pool, ensuring all of the benefits are applied and the blocking worker thread can be returned to its pool.
+In the above, the `URL#equals` effect (along with its associated blocking DNS resolution) is moved off of the precious thread-stealing compute pool and onto a blocking thread. This worker thread then blocks (which causes the kernel to remove it from the processor) for as long as necessary to complete the DNS resolution, after which it returns and completes the boolean comparison. After this effect completes, `IO` shifts the fiber back to the work-stealing compute pool, ensuring all of the benefits are applied and the blocking worker thread can be reused.
 
-This scheduling dance is handled for you entirely automatically, and the only extra work which must be performed by you, the user, is explicitly declaring your thread-blocking effects as `blocking` or `interruptible` (the `interruptible` implementation is similar to `blocking` except that it also utilizes thread interruption to allow fiber cancelation to function even within thread-blocking effects).
+This scheduling dance is handled for you entirely automatically, and the only extra work which must be performed by you, the user, is explicitly declaring your thread-blocking effects as `blocking` or `interruptible`/`interruptibleMany` (the `interruptible`/`interruptibleMany` implementation is similar to `blocking` except that it also utilizes thread interruption to allow fiber cancelation to function even within thread-blocking effects).
 
 ## JavaScript
 
@@ -83,5 +82,5 @@ For the most part, you should never have to worry about any of this. Just unders
 ## Scala Native
 
 The [Scala Native](https://github.com/scala-native/scala-native) runtime is [single-threaded](https://scala-native.org/en/latest/user/lang.html#multithreading), similarly to ScalaJS. That's why the `IO#unsafeRunSync` is not available.
-Be careful with `IO.blocking(...)` as it blocks the thread since there is no dedicated blocking thread pool. 
-For more in-depth details, see the [article](https://typelevel.org/blog/2022/09/19/typelevel-native.html#how-does-it-work) with explanations of how the Native runtime works. 
+Be careful with `IO.blocking(...)` as it blocks the thread since there is no dedicated blocking thread pool.
+For more in-depth details, see the [article](https://typelevel.org/blog/2022/09/19/typelevel-native.html#how-does-it-work) with explanations of how the Native runtime works.
