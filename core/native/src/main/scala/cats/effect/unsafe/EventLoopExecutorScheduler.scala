@@ -33,7 +33,8 @@ private[effect] final class EventLoopExecutorScheduler[P](
     pollEvery: Int,
     system: PollingSystem.WithPoller[P])
     extends ExecutionContextExecutor
-    with Scheduler {
+    with Scheduler
+    with FiberExecutor {
 
   private[unsafe] val poller: P = system.makePoller()
 

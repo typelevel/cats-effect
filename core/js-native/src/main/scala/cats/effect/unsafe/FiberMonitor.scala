@@ -17,9 +17,6 @@
 package cats.effect
 package unsafe
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
-
 private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
   /**
@@ -44,19 +41,19 @@ private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
 private final class FiberMonitorImpl(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
-    // operates. `null` if the compute pool of the `IORuntime` is not a `EventLoopExecutorScheduler`.
-    private[this] val compute: EventLoopExecutorScheduler[_]
+    // operates. `null` if the compute pool of the `IORuntime` is not a `FiberExecutor`.
+    private[this] val compute: FiberExecutor
 ) extends FiberMonitor {
   private[this] val bag = new WeakBag[IOFiber[_]]()
 
   override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle =
     bag.insert(fiber)
 
-  def foreignTraces(): Map[IOFiber[_], Trace] = {
-    val foreign = mutable.Map.empty[IOFiber[Any], Trace]
+  private[this] def foreignTraces(): Map[IOFiber[_], Trace] = {
+    val foreign = Map.newBuilder[IOFiber[_], Trace]
     bag.forEach(fiber =>
       if (!fiber.isDone) foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.captureTrace()))
-    foreign.toMap
+    foreign.result()
   }
 
   def liveFiberSnapshot(print: String => Unit): Unit =
@@ -66,7 +63,7 @@ private final class FiberMonitorImpl(
 
       // We trust the sources of data in the following order, ordered from
       // most trustworthy to least trustworthy.
-      // 1. Fibers from the macrotask executor
+      // 1. Fibers from the fiber executor
       // 2. Fibers from the foreign fallback weak GC map
 
       val allForeign = rawForeign -- queued.keys
@@ -95,18 +92,4 @@ private final class NoOpFiberMonitor extends FiberMonitor {
   def liveFiberSnapshot(print: String => Unit): Unit = ()
 }
 
-private[effect] object FiberMonitor {
-  def apply(compute: ExecutionContext): FiberMonitor = {
-    if (false) { // LinktimeInfo.debugMode && LinktimeInfo.isWeakReferenceSupported
-      if (compute.isInstanceOf[EventLoopExecutorScheduler[_]]) {
-        val loop = compute.asInstanceOf[EventLoopExecutorScheduler[_]]
-        new FiberMonitorImpl(loop)
-      } else {
-        new FiberMonitorImpl(null)
-      }
-    } else {
-      new NoOpFiberMonitor()
-    }
-  }
-
-}
+private[effect] object FiberMonitor extends FiberMonitorPlatform

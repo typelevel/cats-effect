@@ -810,7 +810,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack"),
         // introduced by #3642, which optimized the BatchingMacrotaskExecutor
         ProblemFilters.exclude[MissingClassProblem](
-          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$")
+          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$"),
+        // introduced by #3695, which ported fiber monitoring to Native
+        // internal API change
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.ES2021FiberMonitor")
       )
     },
     mimaBinaryIssueFilters ++= {
