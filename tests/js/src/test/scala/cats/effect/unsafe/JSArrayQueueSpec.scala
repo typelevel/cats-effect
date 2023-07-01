@@ -69,7 +69,7 @@ class JSArrayQueueSpec extends BaseSpec with ScalaCheck {
             }
         }
 
-        true must beTrue
+        ok
       }
     }
   }
