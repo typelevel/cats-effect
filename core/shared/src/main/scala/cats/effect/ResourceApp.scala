@@ -69,22 +69,16 @@ import cats.syntax.all._
  * @see
  *   [[ResourceApp.Forever]]
  */
-trait ResourceApp { self =>
+trait ResourceApp extends IOApp { self =>
 
   /**
    * @see
    *   [[IOApp.run]]
    */
-  def run(args: List[String]): Resource[IO, ExitCode]
+  def resource(args: List[String]): Resource[IO, ExitCode]
 
-  final def main(args: Array[String]): Unit = {
-    val ioApp = new IOApp {
-      override def run(args: List[String]): IO[ExitCode] =
-        self.run(args).use(IO.pure(_))
-    }
-
-    ioApp.main(args)
-  }
+  override def run(args: List[String]): IO[ExitCode] =
+    self.resource(args).use(IO.pure(_))
 }
 
 object ResourceApp {
@@ -102,9 +96,9 @@ object ResourceApp {
      * @see
      *   [[cats.effect.IOApp.Simple!.run:cats\.effect\.IO[Unit]*]]
      */
-    def run: Resource[IO, Unit]
+    def resource: Resource[IO, Unit]
 
-    final def run(args: List[String]): Resource[IO, ExitCode] = run.as(ExitCode.Success)
+    final def resource(args: List[String]): Resource[IO, ExitCode] = resource.as(ExitCode.Success)
   }
 
   /**
@@ -116,7 +110,7 @@ object ResourceApp {
    * @see
    *   [[cats.effect.kernel.Resource!.useForever]]
    */
-  trait Forever { self =>
+  trait Forever extends IOApp { self =>
 
     /**
      * Identical to [[ResourceApp.run]] except that it delegates to
@@ -126,15 +120,9 @@ object ResourceApp {
      * @see
      *   [[ResourceApp.run]]
      */
-    def run(args: List[String]): Resource[IO, Unit]
+    def resource(args: List[String]): Resource[IO, Unit]
 
-    final def main(args: Array[String]): Unit = {
-      val ioApp = new IOApp {
-        override def run(args: List[String]): IO[ExitCode] =
-          self.run(args).useForever
-      }
-
-      ioApp.main(args)
-    }
+    override def run(args: List[String]): IO[ExitCode] =
+      self.resource(args).useForever
   }
 }
