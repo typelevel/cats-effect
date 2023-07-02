@@ -98,7 +98,8 @@ object ResourceApp {
      */
     def resource: Resource[IO, Unit]
 
-    final def resource(args: List[String]): Resource[IO, ExitCode] = resource.as(ExitCode.Success)
+    final def resource(args: List[String]): Resource[IO, ExitCode] =
+      resource.as(ExitCode.Success)
   }
 
   /**
