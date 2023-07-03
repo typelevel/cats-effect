@@ -362,22 +362,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   /**
    * Shifts the execution of the current IO to the specified [[java.util.concurrent.Executor]].
    *
-   * @param executor
-   * @return
+   * @see [[evalOn]]
    */
-  def evalOnExecutor(executor: Executor): IO[A] = {
-    require(executor != null, "Cannot pass undefined Executor as an argument")
-    executor match {
-      case ec: ExecutionContext =>
-        evalOn(ec: ExecutionContext)
-      case executor =>
-        IO.executionContext.flatMap { refEc =>
-          val newEc: ExecutionContext =
-            ExecutionContext.fromExecutor(executor, refEc.reportFailure)
-          evalOn(newEc)
-        }
-    }
-  }
+  def evalOnExecutor(executor: Executor): IO[A] =
+    IO.asyncForIO.evalOnExecutor(this, executor)
 
   def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = start.evalOn(ec)
 
