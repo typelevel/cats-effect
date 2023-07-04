@@ -362,7 +362,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   /**
    * Shifts the execution of the current IO to the specified [[java.util.concurrent.Executor]].
    *
-   * @see [[evalOn]]
+   * @see
+   *   [[evalOn]]
    */
   def evalOnExecutor(executor: Executor): IO[A] =
     IO.asyncForIO.evalOnExecutor(this, executor)
