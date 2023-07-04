@@ -214,7 +214,7 @@ object PQueue {
     else ()
 }
 
-trait PQueueSource[F[_], A] {
+trait PQueueSource[F[_], A] extends QueueSource[F, A] {
 
   /**
    * Dequeues the least element from the PQueue, possibly fiber blocking until an element
@@ -302,7 +302,7 @@ object PQueueSource {
     }
 }
 
-trait PQueueSink[F[_], A] {
+trait PQueueSink[F[_], A] extends QueueSink[F, A] {
 
   /**
    * Enqueues the given element, possibly fiber blocking until sufficient capacity becomes
