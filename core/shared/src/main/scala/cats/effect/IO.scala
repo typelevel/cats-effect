@@ -371,14 +371,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = start.evalOn(ec)
 
   def startOnExecutor(executor: Executor): IO[FiberIO[A @uncheckedVariance]] =
-    start.evalOnExecutor(executor)
+    IO.asyncForIO.startOnExecutor(this, executor)
 
   def backgroundOn(ec: ExecutionContext): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
     Resource.make(startOn(ec))(_.cancel).map(_.join)
 
   def backgroundOnExecutor(
       executor: Executor): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
-    Resource.make(startOnExecutor(executor))(_.cancel).map(_.join)
+    IO.asyncForIO.backgroundOnExecutor(this, executor)
 
   /**
    * Given an effect which might be [[uncancelable]] and a finalizer, produce an effect which
