@@ -359,10 +359,26 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    */
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
+  /**
+   * Shifts the execution of the current IO to the specified [[java.util.concurrent.Executor]].
+   *
+   * @see
+   *   [[evalOn]]
+   */
+  def evalOnExecutor(executor: Executor): IO[A] =
+    IO.asyncForIO.evalOnExecutor(this, executor)
+
   def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = start.evalOn(ec)
+
+  def startOnExecutor(executor: Executor): IO[FiberIO[A @uncheckedVariance]] =
+    IO.asyncForIO.startOnExecutor(this, executor)
 
   def backgroundOn(ec: ExecutionContext): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
     Resource.make(startOn(ec))(_.cancel).map(_.join)
+
+  def backgroundOnExecutor(
+      executor: Executor): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
+    IO.asyncForIO.backgroundOnExecutor(this, executor)
 
   /**
    * Given an effect which might be [[uncancelable]] and a finalizer, produce an effect which
