@@ -121,7 +121,7 @@ purely functional promise that can only be completed once.
 trait Deferred[F[_], A] {
   def get: F[A]
 
-  def complete(a: A): F[Unit]
+  def complete(a: A): F[Boolean]
 }
 ```
 
