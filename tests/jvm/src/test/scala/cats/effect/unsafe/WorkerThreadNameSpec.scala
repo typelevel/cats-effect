@@ -20,6 +20,8 @@ import cats.effect.{BaseSpec, IO}
 import cats.effect.testkit.TestInstances
 import cats.syntax.all._
 
+import scala.concurrent.duration._
+
 class WorkerThreadNameSpec extends BaseSpec with TestInstances {
 
   override def runtime(): IORuntime = {
@@ -33,7 +35,8 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
         IORuntime.createWorkStealingComputeThreadPool(
           threads = 1,
           threadPrefix = s"io-compute-${getClass.getName}",
-          blockerThreadPrefix = s"io-blocker-${getClass.getName}")
+          blockerThreadPrefix = s"io-blocker-${getClass.getName}",
+          runtimeBlockingExpiration = 10.minutes)
 
       IORuntime(
         compute,
