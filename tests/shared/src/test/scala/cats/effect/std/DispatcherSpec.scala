@@ -360,7 +360,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       implicit ticker =>
         val test = dispatcher.allocated.flatMap {
           case (runner, release) =>
-            IO(runner.unsafeRunAndForget(IO.sleep(50.millis) *> release)) *>
+            IO(runner.unsafeRunAndForget(release)) *>
               IO.sleep(100.millis) *>
               IO(runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException])
         }
