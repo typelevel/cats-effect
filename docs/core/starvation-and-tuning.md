@@ -6,9 +6,9 @@ title: Starvation and Tuning
 All Cats Effect applications constructed via `IOApp` have an automatic mechanism which periodically checks to see if the application runtime is starving for compute resources. If you ever see warnings which look like the following, they are the result of this mechanism automatically detecting that the responsiveness of your application runtime is below the configured threshold. Note that the timestamp is the time when the starvation was detected, which is not precisely the time when starvation (or the task that is responsible) began.
 
 ```
-2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous 
+2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous
 event (such as a new connection, an upstream response, or a timer) was in excess
-of 40 milliseconds. Your CPU is probably starving. Consider increasing the 
+of 40 milliseconds. Your CPU is probably starving. Consider increasing the
 granularity of your delays or adding more cedes. This may also be a sign that you
 are unintentionally running blocking I/O operations (such as File or InetAddress)
 without the blocking combinator.
@@ -27,7 +27,7 @@ import cats.effect._
 import cats.syntax.all._
 
 object StarveThyself extends IOApp.Simple {
-  val run = 
+  val run =
     0.until(100).toList parTraverse_ { i =>
       IO.println(s"running #$i") >> IO(Thread.sleep(10000))
     }
@@ -114,7 +114,7 @@ import cats.effect._
 import cats.syntax.all._
 
 object StarveThyselfAgain extends IOApp.Simple {
-  val run = 
+  val run =
     0.until(100).toList parTraverse_ { i =>
       IO.println(s"running #$i") >> IO(while (true) {})
     }
@@ -193,9 +193,9 @@ A quick-and-dirty experimental way that this can be established for your specifi
 val expensiveThing: IO[A] = ???
 
 IO.unit.timed flatMap {
-  case (baseline, _) => 
+  case (baseline, _) =>
     IO.println(s"baseline stage cost is $baseline") >> expensiveThing.timed flatMap {
-      case (cost, result) => 
+      case (cost, result) =>
         if (cost / baseline > 1024)
           IO.println("expensiveThing is very expensive").as(result)
         else
@@ -348,6 +348,14 @@ The problem with "going wide" is it restricts the resources available within use
 
 Of course, it's never as simple as doubling the number of vCPUs and halving the number of instances. Scaling is complicated, and you'll likely need to adjust other resources such as memory, connection limits, file handle counts, autoscaling signals, and such. Overall though, a good rule of thumb is to consider 8 vCPUs to be the minimum that should be available to a Cats Effect application at scale. 16 or even 32 vCPUs is likely to improve performance even further, and it is very much worth experimenting with these types of tuning parameters.
 
+#### Not Enough Threads - Running in Kubernetes
+
+One cause of "not enough threads" can be that the application is running inside kubernetes with a cpu_quota not configured. When the cpu limit is not configured, the jvm detects the number of available processors as 1, which will severely restrict what the runtime is able to do.
+
+This guide on [containerizing java applications for kubernetes](https://learn.microsoft.com/en-us/azure/developer/java/containers/kubernetes#understand-jvm-available-processors) goes into more detail on the mechanism involved.
+
+**All cats-effect applications running in kubernetes should have either a cpu_quota configured or use the jvm `-XX:ActiveProcessorCount` argument to explicitly tell the jvm how many cores to use.**
+
 ### Too Many Threads
 
 In a sense, this scenario is like the correlated inverse of the "Not Enough CPUs" option, and it happens surprisingly frequently in conventional JVM applications. Consider the thread list from the previous section (assuming 8 CPUs):
@@ -397,7 +405,7 @@ This can be accomplished in some cases by using `IO.executionContext` or `IO.exe
 
 - The source of the rogue threads (e.g. another library) must have some initialization mechanism which accepts an `ExecutionContext` or `Executor`
 - The source of the rogue threads must not ever *block* on its rogue threads: they must only be used for compute
-  + The exception to this is if the library in question is a well-behaved Scala library, often from the Akka ecosystem, which wraps its blocking in `scala.concurrent.blocking(...)`. In this case, it is safe to use the Cats Effect compute pool, and the results will be similar to what happens with `IO.blocking`
+  - The exception to this is if the library in question is a well-behaved Scala library, often from the Akka ecosystem, which wraps its blocking in `scala.concurrent.blocking(...)`. In this case, it is safe to use the Cats Effect compute pool, and the results will be similar to what happens with `IO.blocking`
 
 Determining both of these factors often takes some investigation, usually of the "thread dumps and async profiler" variety, trying to catch the rogue threads in a blocked state. Alternatively, you can just read the library source code, though this can be very time consuming and error prone.
 
@@ -434,7 +442,7 @@ If this is not possible, the next-best approach is to rely on a circular buffer.
 
 > This scenario is specific to Kubernetes, Amazon ECS, and similar resource-controlled containerized deployments.
 
-In many Docker clusters, it is relatively standard practice to over-provision CPU credits by some factor (even 100% over-provisioning is quite common). What this effectively means is that the container environment will promise (or at least *allow*) *m* applications access to *n* vCPUs each, despite only *(m * n) / (1 + k)* CPUs being physically present across the underlying hardware cluster. In this equation, *k* is the over-provisioning factor, often referred to as "burst credits".
+In many Docker clusters, it is relatively standard practice to over-provision CPU credits by some factor (even 100% over-provisioning is quite common). What this effectively means is that the container environment will promise (or at least *allow*) *m* applications access to *n* vCPUs each, despite only *(m* n) / (1 + k)*CPUs being physically present across the underlying hardware cluster. In this equation,*k* is the over-provisioning factor, often referred to as "burst credits".
 
 This is a standard strategy because many applications are written in a fashion which is only loosely coupled to the underlying CPU count, to a large degree because many applications are simply not optimized to that extent. Cats Effect *is* optimized to take advantage of the precise number of underlying CPUs, and well-written Cats Effect applications inherit this optimization, meaning that they are inherently much more sensitive to this hardware factor than many other applications.
 
@@ -487,7 +495,7 @@ To entirely disable the checker (**not** recommended in most cases!), adjust you
 object MyMain extends IOApp {
 
   // fully disable the checker
-  override def runtimeConfig = 
+  override def runtimeConfig =
     super.runtimeConfig.copy(cpuStarvationCheckInitialDelay = Duration.Inf)
 
   override def run(args: List[String]) = ???
@@ -506,7 +514,7 @@ import scala.concurrent.duration._
 object MyOtherMain extends IOApp {
 
   // relax threshold to 500 milliseconds
-  override def runtimeConfig = 
+  override def runtimeConfig =
     super.runtimeConfig.copy(cpuStarvationCheckInterval = 5.seconds)
 
   override def run(args: List[String]) = ???
