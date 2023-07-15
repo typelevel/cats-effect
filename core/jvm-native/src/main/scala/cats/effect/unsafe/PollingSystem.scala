@@ -17,6 +17,23 @@
 package cats.effect
 package unsafe
 
+/**
+ * Encapsulates the methods required for managing and interacting with a polling system. Polling
+ * systems are typically used in scenarios such as handling asynchronous I/O or other
+ * event-driven systems, where one needs to repeatedly check (or "poll") some condition or
+ * state.
+ *
+ * This class abstracts the general components and actions of a polling system, such as:
+ *   - The user-facing interface (API) which interacts with the outside world
+ *   - The thread-local data structure used for polling, which keeps track of the internal state
+ *     of the system and its events
+ *   - The lifecycle management methods, such as creating and closing the polling system and its
+ *     components
+ *   - The interaction methods, such as polling events and interrupting the process
+ *
+ * A concrete implementation of `PollingSystem` should provide specific implementations for all
+ * these components and actions.
+ */
 abstract class PollingSystem {
 
   /**
@@ -29,18 +46,48 @@ abstract class PollingSystem {
    */
   type Poller <: AnyRef
 
+  /**
+   * Provides the functionality to close the polling system.
+   */
   def close(): Unit
 
+  /**
+   * Creates a new instance of the user-facing interface.
+   *
+   * @param register
+   *   callback that takes a function from `Poller` to `Unit` The function is used to register a
+   *   new poller.
+   * @return
+   *   an instance of the user-facing interface `Api`.
+   */
   def makeApi(register: (Poller => Unit) => Unit): Api
 
+  /**
+   * Creates a new instance of the thread-local data structure used for polling.
+   *
+   * @return
+   *   an instance of the poller `Poller`.
+   */
   def makePoller(): Poller
 
+  /**
+   * Provides the functionality to close a specific poller.
+   *
+   * @param poller
+   *   the poller to be closed.
+   */
   def closePoller(poller: Poller): Unit
 
   /**
+   * @param poller
+   *   the poller used to poll events.
+   *
    * @param nanos
    *   the maximum duration for which to block, where `nanos == -1` indicates to block
    *   indefinitely.
+   *
+   * @param reportFailure
+   *   callback that handles any failures that occur during polling.
    *
    * @return
    *   whether any events were polled
@@ -53,11 +100,26 @@ abstract class PollingSystem {
    */
   def needsPoll(poller: Poller): Boolean
 
+  /**
+   * Interrupt a specific target poller running on a specific target thread.
+   *
+   * @param targetThread
+   *   is the thread where the target poller is running.
+   * @param targetPoller
+   *   is the poller to be interrupted.
+   */
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit
 
 }
 
 private object PollingSystem {
+
+  /**
+   * Type alias for a `PollingSystem` that has a specified `Poller` type.
+   *
+   * @tparam P
+   *   The type of the `Poller` in the `PollingSystem`.
+   */
   type WithPoller[P] = PollingSystem {
     type Poller = P
   }
