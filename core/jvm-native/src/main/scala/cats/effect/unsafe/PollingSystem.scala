@@ -21,7 +21,7 @@ package unsafe
  * Encapsulates the methods required for managing and interacting with a polling system. Polling
  * systems are typically used in scenarios such as handling multiplexed blocking I/O or other
  * event-driven systems, where one needs to repeatedly check (or "poll") some condition or
- * state.
+ * state, blocking up to some timeout until it is ready.
  *
  * This class abstracts the general components and actions of a polling system, such as:
  *   - The user-facing interface (API) which interacts with the outside world
