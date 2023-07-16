@@ -80,7 +80,7 @@ abstract class PollingSystem {
 
   /**
    * @param poller
-   *   the poller used to poll events.
+   *   the thread-local [[Poller]] used to poll events.
    *
    * @param nanos
    *   the maximum duration for which to block, where `nanos == -1` indicates to block
