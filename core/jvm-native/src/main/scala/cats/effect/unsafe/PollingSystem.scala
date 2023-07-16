@@ -90,7 +90,7 @@ abstract class PollingSystem {
    *   callback that handles any failures that occur during polling.
    *
    * @return
-   *   whether any events were polled
+   *   whether any events were polled. e.g. if the method returned due to timeout, this should be `false`.
    */
   def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean
 
