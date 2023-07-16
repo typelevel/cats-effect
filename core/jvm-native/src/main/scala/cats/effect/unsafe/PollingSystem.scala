@@ -19,7 +19,7 @@ package unsafe
 
 /**
  * Encapsulates the methods required for managing and interacting with a polling system. Polling
- * systems are typically used in scenarios such as handling asynchronous I/O or other
+ * systems are typically used in scenarios such as handling multiplexed blocking I/O or other
  * event-driven systems, where one needs to repeatedly check (or "poll") some condition or
  * state.
  *
