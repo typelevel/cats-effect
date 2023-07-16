@@ -47,7 +47,7 @@ abstract class PollingSystem {
   type Poller <: AnyRef
 
   /**
-   * Provides the functionality to close the polling system.
+   * Closes the polling system.
    */
   def close(): Unit
 
