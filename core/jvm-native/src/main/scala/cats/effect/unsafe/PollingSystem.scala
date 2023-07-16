@@ -29,7 +29,7 @@ package unsafe
  *     of the system and its events
  *   - The lifecycle management methods, such as creating and closing the polling system and its
  *     components
- *   - The interaction methods, such as polling events and interrupting the process
+ *   - The runtime interaction methods, such as polling events and interrupting the process
  *
  * A concrete implementation of `PollingSystem` should provide specific implementations for all
  * these components and actions.
