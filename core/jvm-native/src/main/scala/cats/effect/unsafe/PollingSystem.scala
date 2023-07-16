@@ -71,7 +71,7 @@ abstract class PollingSystem {
   def makePoller(): Poller
 
   /**
-   * Provides the functionality to close a specific poller.
+   * Close a specific poller.
    *
    * @param poller
    *   the poller to be closed.
