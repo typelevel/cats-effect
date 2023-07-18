@@ -55,8 +55,7 @@ abstract class PollingSystem {
    * Creates a new instance of the user-facing interface.
    *
    * @param register
-   *   callback that takes a function from `Poller` to `Unit` The function is used to register a
-   *   new poller.
+   *   callback to obtain a thread-local `Poller`.
    * @return
    *   an instance of the user-facing interface `Api`.
    */
