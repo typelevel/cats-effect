@@ -18,7 +18,7 @@ package cats.effect
 package unsafe
 
 /**
- * Encapsulates the methods required for managing and interacting with a polling system. Polling
+ * Represents a stateful system for managing and interacting with a polling system. Polling
  * systems are typically used in scenarios such as handling multiplexed blocking I/O or other
  * event-driven systems, where one needs to repeatedly check (or "poll") some condition or
  * state, blocking up to some timeout until it is ready.
@@ -30,9 +30,6 @@ package unsafe
  *   - The lifecycle management methods, such as creating and closing the polling system and its
  *     components
  *   - The runtime interaction methods, such as polling events and interrupting the process
- *
- * A concrete implementation of `PollingSystem` should provide specific implementations for all
- * these components and actions.
  */
 abstract class PollingSystem {
 
@@ -54,12 +51,12 @@ abstract class PollingSystem {
   /**
    * Creates a new instance of the user-facing interface.
    *
-   * @param register
+   * @param access
    *   callback to obtain a thread-local `Poller`.
    * @return
    *   an instance of the user-facing interface `Api`.
    */
-  def makeApi(register: (Poller => Unit) => Unit): Api
+  def makeApi(access: (Poller => Unit) => Unit): Api
 
   /**
    * Creates a new instance of the thread-local data structure used for polling.
@@ -70,7 +67,7 @@ abstract class PollingSystem {
   def makePoller(): Poller
 
   /**
-   * Close a specific poller.
+   * Closes a specific poller.
    *
    * @param poller
    *   the poller to be closed.
@@ -89,7 +86,8 @@ abstract class PollingSystem {
    *   callback that handles any failures that occur during polling.
    *
    * @return
-   *   whether any events were polled. e.g. if the method returned due to timeout, this should be `false`.
+   *   whether any events were polled. e.g. if the method returned due to timeout, this should
+   *   be `false`.
    */
   def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean
 
@@ -100,7 +98,7 @@ abstract class PollingSystem {
   def needsPoll(poller: Poller): Boolean
 
   /**
-   * Interrupt a specific target poller running on a specific target thread.
+   * Interrupts a specific target poller running on a specific target thread.
    *
    * @param targetThread
    *   is the thread where the target poller is running.
