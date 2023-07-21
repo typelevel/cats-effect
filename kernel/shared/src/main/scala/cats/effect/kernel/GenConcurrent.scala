@@ -22,13 +22,15 @@ import cats.effect.kernel.instances.spawn._
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
-trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
+trait GenConcurrent[F[_], E] extends GenSpawn[F, E] { self =>
 
   import GenConcurrent._
 
   def ref[A](a: A): F[Ref[F, A]]
 
   def deferred[A]: F[Deferred[F, A]]
+
+  def seal: F[Seal[F]] = Seal.deferred[F](self)
 
   /**
    * Caches the result of `fa`.
