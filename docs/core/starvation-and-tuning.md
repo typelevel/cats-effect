@@ -442,7 +442,7 @@ If this is not possible, the next-best approach is to rely on a circular buffer.
 
 > This scenario is specific to Kubernetes, Amazon ECS, and similar resource-controlled containerized deployments.
 
-In many Docker clusters, it is relatively standard practice to over-provision CPU credits by some factor (even 100% over-provisioning is quite common). What this effectively means is that the container environment will promise (or at least *allow*) *m* applications access to *n* vCPUs each, despite only *(m* n) / (1 + k)*CPUs being physically present across the underlying hardware cluster. In this equation,*k* is the over-provisioning factor, often referred to as "burst credits".
+In many Docker clusters, it is relatively standard practice to over-provision CPU credits by some factor (even 100% over-provisioning is quite common). What this effectively means is that the container environment will promise (or at least *allow*) *m* applications access to *n* vCPUs each, despite only *(m* n) / (1 + k)*CPUs being physically present across the underlying hardware cluster. In this equation, *k* is the over-provisioning factor, often referred to as "burst credits".
 
 This is a standard strategy because many applications are written in a fashion which is only loosely coupled to the underlying CPU count, to a large degree because many applications are simply not optimized to that extent. Cats Effect *is* optimized to take advantage of the precise number of underlying CPUs, and well-written Cats Effect applications inherit this optimization, meaning that they are inherently much more sensitive to this hardware factor than many other applications.
 
@@ -453,6 +453,16 @@ To make matters worse, there is a fundamental assumption which underlies the not
 The solution is to eliminate this over-provisioning. If a scheduled container is promised *n* vCPUs, then those physical CPUs should be reserved for that container as long as it is active, no more and no less. This cluster tuning advice interacts particularly well with some advice from earlier in this document: Cats Effect applications benefit a lot from going *taller* rather than *wider*.
 
 As a very concrete example of this, if you have a cluster of 16 host instances in your cluster, each of which having 64 CPUs, that gives you a total of 1024 vCPUs to work with. If you configure each application container to use 4 vCPUs, you can support up to 256 application instances simultaneously (without resizing the cluster). Over-provisioning by a factor of 100% would suggest that you can support up to 512 application instances. **Do not do this.** Instead, resize the application instances to use either 8 or 16 vCPUs each. If you take the latter approach, your cluster will support up to 64 application instances simultaneously. This *seems* like a downgrade, but these taller instances should (absent other constraints) support more than 4x more traffic than the smaller instances, meaning that the overall cluster is much more efficient.
+
+#### Kubernetes CPU Pinning
+
+Even if you have followed the above advice and avoided over-provisioning, the linux kernel scheduler is unfortunately not aware of the Cats Effect scheduler and will likely actively work against the Cats Effect scheduler by moving Cats Effect worker threads between different CPUs, thereby destroying CPU cache-locality. In certain environments we can prevent this by configuring Kubernetes to pin an application to a gviven set of CPUs:
+1. Set the [CPU Manager Policy to static](https://kubernetes.io/docs/tasks/administer-cluster/cpu-management-policies/#static-policy)
+2. Ensure that your pod is in the [Guaranteed QoS class](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/#guaranteed)
+3. Request an integral number of CPUs for your Cats Effect application
+
+You should be able to see the CPU assignment updates reflected in the kubelet logs.
+
 
 ### Process Contention
 
