@@ -46,12 +46,13 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
     (v: A) => cb(Right(v)): js.UndefOr[js.Thenable[Unit]]
 
   @inline private[this] def mkOnRejected[A](
-      cb: Either[Throwable, A] => Unit): js.Function1[Any, js.UndefOr[js.Thenable[Unit]]] = { (a: Any) =>
-    val e = a match {
-      case th: Throwable => th
-      case _ => js.JavaScriptException(a)
-    }
+      cb: Either[Throwable, A] => Unit): js.Function1[Any, js.UndefOr[js.Thenable[Unit]]] = {
+    (a: Any) =>
+      val e = a match {
+        case th: Throwable => th
+        case _ => js.JavaScriptException(a)
+      }
 
-    cb(Left(e)): js.UndefOr[js.Thenable[Unit]]
+      cb(Left(e)): js.UndefOr[js.Thenable[Unit]]
   }
 }
