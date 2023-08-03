@@ -230,11 +230,25 @@ trait IOApp {
       )
 
   /**
-   * Configures the action to perform when unhandled errors are caught by the runtime. By
-   * default, this simply delegates to [[cats.effect.std.Console!.printStackTrace]]. It is safe
-   * to perform any `IO` action within this handler; it will not block the progress of the
-   * runtime. With that said, some care should be taken to avoid raising unhandled errors as a
-   * result of handling unhandled errors, since that will result in the obvious chaos.
+   * Configures the action to perform when unhandled errors are caught by the runtime. An
+   * unhandled error is an error that is raised on a Fiber that nobody is joining.
+   *
+   * For example:
+   *
+   * {{{
+   *   import scala.concurrent.duration._
+   *   override def run: IO[Unit] = IO(throw new Exception("")).start *> IO.sleep(1.second)
+   * }}}
+   *
+   * In this case, the exception is raised on a Fiber with no listeners. So nobody would be
+   * notified about that error. Therefore it is unhandled, and it goes through the reportFailure
+   * mechanism.
+   *
+   * By default, `reportFailure` simply delegates to
+   * [[cats.effect.std.Console!.printStackTrace]]. It is safe to perform any `IO` action within
+   * this handler; it will not block the progress of the runtime. With that said, some care
+   * should be taken to avoid raising unhandled errors as a result of handling unhandled errors,
+   * since that will result in the obvious chaos.
    */
   protected def reportFailure(err: Throwable): IO[Unit] =
     Console[IO].printStackTrace(err)
