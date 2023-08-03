@@ -278,7 +278,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
         q <- constructor(64)
 
         produce = 0.until(fiberCount).toList.parTraverse_(producer(q, _))
-        consume = 0.until(fiberCount).toList.parTraverse(consumer(q, _)).map(_.flatten)
+        consume = 0.until(fiberCount).toList.parTraverse(consumer(q, _)).map(_.flatMap(identity))
 
         results <- produce &> consume
 
