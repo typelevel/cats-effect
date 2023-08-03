@@ -1027,4 +1027,8 @@ lazy val stressTests = project
   )
   .enablePlugins(NoPublishPlugin, JCStressPlugin)
 
-lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
+lazy val docs = project
+  .in(file("site-docs"))
+  .dependsOn(core.jvm)
+  .enablePlugins(MdocPlugin)
+  .settings(tlFatalWarnings := { if (tlIsScala3.value) false else tlFatalWarnings.value })
