@@ -21,7 +21,6 @@ import cats.{Eq, Eval, Id, MonadError}
 import cats.effect.kernel.testkit.OutcomeGenerators
 import cats.laws.discipline.{ApplicativeErrorTests, MonadErrorTests}
 
-import org.scalacheck.{Arbitrary, Cogen}
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
 
@@ -34,9 +33,6 @@ class OutcomeSpec extends Specification with Discipline {
 
     implicit def monadErrorOutcomeIdInt: MonadError[OutcomeIdInt, Int] =
       Outcome.monadError[Id, Int]
-
-    implicit def arbitraryOutcomeId[A: Arbitrary: Cogen]: Arbitrary[OutcomeIdInt[A]] =
-      arbitraryOutcome[Id, Int, A]
 
     implicit def eqOutcomeId[A]: Eq[OutcomeIdInt[A]] = Outcome.eq[Id, Int, A]
 

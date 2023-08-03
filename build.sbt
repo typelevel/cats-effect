@@ -137,7 +137,7 @@ val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
 val ScalaNativeJava = OldGuardJava
-val GraalVM = JavaSpec.graalvm("11")
+val GraalVM = JavaSpec.graalvm("17")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
@@ -313,8 +313,6 @@ val CoopVersion = "1.2.0"
 
 val MacrotaskExecutorVersion = "1.1.1"
 
-val ScalacCompatVersion = "0.1.0"
-
 tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
 
@@ -420,6 +418,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.typelevel" %%% "cats-free" % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
       "org.typelevel" %%% "coop" % CoopVersion),
+    scalacOptions -= "-Xsource:3", // bugged
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.kernel.testkit.TestContext.this"),
@@ -463,9 +462,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
-    libraryDependencies ++= Seq(
-      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime
-    ),
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -915,7 +911,6 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-effect-std",
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
       "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     ),
