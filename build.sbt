@@ -358,7 +358,8 @@ lazy val root = project
     name := "cats-effect",
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
-    }
+    },
+    scalacOptions -= "-Xsource:3" // bugged
   )
 
 lazy val rootJVM = project
