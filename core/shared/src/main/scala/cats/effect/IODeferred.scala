@@ -29,8 +29,10 @@ private final class IODeferred[A] extends Deferred[IO, A] {
         def clear(): Unit = {
           stack.clearCurrent(handle)
           val clearCount = clearCounter.incrementAndGet()
-          if ((clearCount & (clearCount - 1)) == 0) // power of 2
+          if ((clearCount & (clearCount - 1)) == 0) { // power of 2
             clearCounter.addAndGet(-callbacks.pack(clearCount))
+            ()
+          }
           ()
         }
 
