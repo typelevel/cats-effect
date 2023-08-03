@@ -1538,7 +1538,7 @@ private object IOFiber {
   private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
 
-  def onFatalFailure(t: Throwable): Null = {
+  def onFatalFailure(t: Throwable): Nothing = {
     val interrupted = Thread.interrupted()
 
     if (IORuntime.globalFatalFailureHandled.compareAndSet(false, true)) {

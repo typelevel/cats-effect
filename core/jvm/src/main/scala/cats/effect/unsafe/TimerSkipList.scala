@@ -429,6 +429,7 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
             val hx = new Index(z, x, null)
             val nh = new Index(h.node, h, hx) // new head
             head.compareAndSet(h, nh)
+            ()
           }
 
           if (z.isDeleted()) {
