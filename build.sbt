@@ -137,7 +137,7 @@ val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
 val ScalaNativeJava = OldGuardJava
-val GraalVM = JavaSpec.graalvm("11")
+val GraalVM = JavaSpec.graalvm("17")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
