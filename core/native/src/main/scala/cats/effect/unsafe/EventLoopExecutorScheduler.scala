@@ -128,6 +128,7 @@ private[effect] final class EventLoopExecutorScheduler[P](
        */
       if (system.needsPoll(poller) || timeout != -1)
         system.poll(poller, timeout, reportFailure)
+      else ()
 
       continue = !executeQueue.isEmpty() || !sleepQueue.isEmpty() || system.needsPoll(poller)
     }

@@ -434,6 +434,8 @@ trait IOApp {
 
     if (isStackTracing)
       runtime.fiberMonitor.monitorSuspended(fiber)
+    else
+      ()
 
     def handleShutdown(): Unit = {
       if (counter.compareAndSet(1, 0)) {
