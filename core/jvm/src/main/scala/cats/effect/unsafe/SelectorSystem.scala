@@ -91,6 +91,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
         }
 
         key.attach(head) // if key was canceled this will null attachment
+        ()
       }
 
       polled

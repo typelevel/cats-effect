@@ -121,6 +121,7 @@ class RefSpec extends BaseSpec with DetectPlatform { outer =>
 
           op must completeAs(false)
       }
+    else ()
 
     "tryModifyState - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {

@@ -243,6 +243,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
           },
           IORuntimeConfig())
       }
+      ()
     }
 
     _global
