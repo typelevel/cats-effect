@@ -315,6 +315,29 @@ trait IOApp {
     CpuStarvationCheck.logWarning(metrics)
 
   /**
+   * Defines what to do when IOApp detects that `main` is being invoked on a `Thread` which
+   * isn't the main process thread. This condition can happen when we are running inside of an
+   * `sbt run` with `fork := false`
+   */
+  private def onNonMainThreadDetected(): Unit = {
+    val shouldPrint =
+      Option(System.getProperty("cats.effect.warnOnNonMainThreadDetected"))
+        .map(_.equalsIgnoreCase("true"))
+        .getOrElse(true)
+    if (shouldPrint)
+      System
+        .err
+        .println(
+          """|Warning: IOApp `main` is running on a thread other than the main thread.
+             |This may prevent correct resource cleanup after `main` completes.
+             |This condition could be caused by executing `run` in an interactive sbt session with `fork := false`.
+             |Set `Compile / run / fork := true` in this project to resolve this.
+             |""".stripMargin
+        )
+    else ()
+  }
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -333,6 +356,7 @@ trait IOApp {
   final def main(args: Array[String]): Unit = {
     // checked in openjdk 8-17; this attempts to detect when we're running under artificial environments, like sbt
     val isForked = Thread.currentThread().getId() == 1
+    if (!isForked) onNonMainThreadDetected()
 
     val installed = if (runtime == null) {
       import unsafe.IORuntime
