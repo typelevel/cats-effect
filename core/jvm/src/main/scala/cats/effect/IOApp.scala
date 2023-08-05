@@ -332,6 +332,9 @@ trait IOApp {
              |This may prevent correct resource cleanup after `main` completes.
              |This condition could be caused by executing `run` in an interactive sbt session with `fork := false`.
              |Set `Compile / run / fork := true` in this project to resolve this.
+             |
+             |To silence this warning set the system property:
+             |`-Dcats.effect.warnOnNonMainThreadDetected=false`.
              |""".stripMargin
         )
     else ()
