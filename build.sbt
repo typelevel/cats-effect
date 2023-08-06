@@ -643,7 +643,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ExecuteRunnableR"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.IOFiberConstants.ContStateResult")
+        "cats.effect.IOFiberConstants.ContStateResult"),
+      // #3775, changes to internal timers APIs
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.TimerSkipList.insert"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.WorkerThread.sleep")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
