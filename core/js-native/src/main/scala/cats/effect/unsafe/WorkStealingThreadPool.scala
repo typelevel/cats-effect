@@ -30,7 +30,7 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   private[effect] def reschedule(runnable: Runnable): Unit
   private[effect] def sleepInternal(
       delay: FiniteDuration,
-      callback: Right[Nothing, Unit] => Unit): Runnable
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable
   private[effect] def sleep(
       delay: FiniteDuration,
       task: Runnable,

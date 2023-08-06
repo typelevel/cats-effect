@@ -68,17 +68,20 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
       cb: Callback,
       next: Node
   ) extends TimerSkipListNodeBase[Callback, Node](cb, next)
+      with Function0[Unit]
       with Runnable {
 
     /**
      * Cancels the timer
      */
-    final override def run(): Unit = {
+    final def apply(): Unit = {
       // TODO: We could null the callback here directly,
       // TODO: and the do the lookup after (for unlinking).
       TimerSkipList.this.doRemove(triggerTime, sequenceNum)
       ()
     }
+
+    final def run() = apply()
 
     private[TimerSkipList] final def isMarker: Boolean = {
       // note: a marker node also has `triggerTime == MARKER`,
@@ -158,7 +161,7 @@ private final class TimerSkipList() extends AtomicLong(MARKER + 1L) { sequenceNu
       delay: Long,
       callback: Right[Nothing, Unit] => Unit,
       tlr: ThreadLocalRandom
-  ): Runnable = {
+  ): Function0[Unit] with Runnable = {
     require(delay >= 0L)
     // we have to check for overflow:
     val triggerTime = computeTriggerTime(now = now, delay = delay)
