@@ -230,8 +230,9 @@ trait IOApp {
       )
 
   /**
-   * Configures the action to perform when unhandled errors are caught by the runtime. 
-   * An unhandled error is an error that is raised (and not handled) on a Fiber that nobody is joining.
+   * Configures the action to perform when unhandled errors are caught by the runtime. An
+   * unhandled error is an error that is raised (and not handled) on a Fiber that nobody is
+   * joining.
    *
    * For example:
    *
@@ -240,8 +241,9 @@ trait IOApp {
    *   override def run: IO[Unit] = IO(throw new Exception("")).start *> IO.sleep(1.second)
    * }}}
    *
-   * In this case, the exception is raised on a Fiber with no listeners. Nobody would be notified 
-   * about that error. Therefore it is unhandled, and it goes through the reportFailure mechanism.
+   * In this case, the exception is raised on a Fiber with no listeners. Nobody would be
+   * notified about that error. Therefore it is unhandled, and it goes through the reportFailure
+   * mechanism.
    *
    * By default, `reportFailure` simply delegates to
    * [[cats.effect.std.Console!.printStackTrace]]. It is safe to perform any `IO` action within
