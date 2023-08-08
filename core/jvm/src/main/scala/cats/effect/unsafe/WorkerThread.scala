@@ -53,7 +53,7 @@ private final class WorkerThread(
     private[this] val external: ScalQueue[AnyRef],
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
-    private[this] var sleepers: TimerSkipList,
+    private[this] var sleepers: TimerHeap,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -256,7 +256,6 @@ private final class WorkerThread(
     val self = this
     random = ThreadLocalRandom.current()
     val rnd = random
-    val RightUnit = IOFiber.RightUnit
 
     /*
      * A counter (modulo `ExternalQueueTicks`) which represents the
@@ -716,15 +715,7 @@ private final class WorkerThread(
 
         case _ =>
           // Call all of our expired timers:
-          var cont = true
-          while (cont) {
-            val cb = sleepers.pollFirstIfTriggered(now)
-            if (cb ne null) {
-              cb(RightUnit)
-            } else {
-              cont = false
-            }
-          }
+          sleepers.trigger(now)
 
           // Check the queue bypass reference before dequeueing from the local
           // queue.
