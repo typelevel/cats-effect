@@ -663,7 +663,7 @@ will be carried and safely modified by an instance of <code>Ref</code>. Consumer
 work as follows:</p>
 <ol>
 <li>If <code>queue</code> is not empty, it will extract and return its head. The new state
-will keep the tail of the queue, not change on <code>takers</code> will be needed.</li>
+will keep the tail of the queue, no change on <code>takers</code> will be needed.</li>
 <li>If <code>queue</code> is empty it will use a new <code>Deferred</code> instance as a new <code>taker</code>,
 add it to the <code>takers</code> queue, and 'block' the caller by invoking <code>taker.get</code></li>
 </ol>
