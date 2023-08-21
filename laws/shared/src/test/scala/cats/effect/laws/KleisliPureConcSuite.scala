@@ -77,8 +77,9 @@ class KleisliPureConcSuite
     OutcomeGenerators.cogenOutcome[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int, A]
 
   override def scalaCheckTestParameters =
-    super.scalaCheckTestParameters
-    // we need to bound this a little tighter because these tests take FOREVER
+    super
+      .scalaCheckTestParameters
+      // we need to bound this a little tighter because these tests take FOREVER
       .withMinSuccessfulTests(25)
 
   checkAll(

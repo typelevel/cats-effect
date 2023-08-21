@@ -28,10 +28,7 @@ import cats.laws.discipline.eq._
 
 import munit.DisciplineSuite
 
-class KleisliFreeSyncSuite
-    extends DisciplineSuite
-    with BaseSuite
-    with LowPriorityImplicits {
+class KleisliFreeSyncSuite extends DisciplineSuite with BaseSuite with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
 

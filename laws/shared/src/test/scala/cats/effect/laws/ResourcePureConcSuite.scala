@@ -26,10 +26,7 @@ import org.scalacheck.{Cogen, Prop}
 
 import munit.DisciplineSuite
 
-class ResourcePureConcSuite
-    extends DisciplineSuite
-    with BaseSuite
-    with TestInstances {
+class ResourcePureConcSuite extends DisciplineSuite with BaseSuite with TestInstances {
   import PureConcGenerators._
   import OutcomeGenerators._
   import pure._
