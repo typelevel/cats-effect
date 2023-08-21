@@ -46,21 +46,21 @@ class OptionTPureConcSuite extends DisciplineSuite with BaseSuite {
           bO => bO.flatten.fold(false)(_ => true)
         ))
 
-    test("optiont bracket forward completed zeros on to the handler") {
-      var observed = false
+  test("optiont bracket forward completed zeros on to the handler") {
+    var observed = false
 
-      val test = OptionT.none[PureConc[Int, *], Unit] guaranteeCase {
-        case Outcome.Succeeded(fa) =>
-          observed = true
+    val test = OptionT.none[PureConc[Int, *], Unit] guaranteeCase {
+      case Outcome.Succeeded(fa) =>
+        observed = true
 
-          OptionT(fa.value.map(assertEquals(_, None)).map(_ => None))
+        OptionT(fa.value.map(assertEquals(_, None)).map(_ => None))
 
-        case _ => Applicative[OptionT[PureConc[Int, *], *]].unit
-      }
+      case _ => Applicative[OptionT[PureConc[Int, *], *]].unit
+    }
 
-      assert(pure.run(test.value) === Outcome.Succeeded(Some(Option.empty[Unit])))
+    assert(pure.run(test.value) === Outcome.Succeeded(Some(Option.empty[Unit])))
 
-      assert(observed)
+    assert(observed)
   }
 
   checkAll(

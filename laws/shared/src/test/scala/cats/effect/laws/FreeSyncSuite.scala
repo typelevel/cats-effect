@@ -25,10 +25,7 @@ import cats.laws.discipline.arbitrary._
 
 import munit.DisciplineSuite
 
-class FreeSyncSuite
-    extends DisciplineSuite
-    with BaseSuite
-    with LowPriorityImplicits {
+class FreeSyncSuite extends DisciplineSuite with BaseSuite with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
 
