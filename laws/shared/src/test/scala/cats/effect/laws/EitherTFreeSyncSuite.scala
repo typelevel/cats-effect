@@ -24,13 +24,11 @@ import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
 import cats.laws.discipline.arbitrary._
 
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
+import munit.DisciplineSuite
 
-class EitherTFreeSyncSpec
-    extends Specification
-    with Discipline
-    with BaseSpec
+class EitherTFreeSyncSuite
+    extends DisciplineSuite
+    with BaseSuite
     with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._

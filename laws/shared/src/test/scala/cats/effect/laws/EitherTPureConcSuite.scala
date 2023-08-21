@@ -17,35 +17,31 @@
 package cats.effect
 package laws
 
-import cats.data.IorT
+import cats.data.EitherT
 import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}
 import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.Prop
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class IorTPureConcSpec extends Specification with Discipline with BaseSpec {
+import munit.DisciplineSuite
+
+class EitherTPureConcSuite extends DisciplineSuite with BaseSuite {
   import PureConcGenerators._
   import OutcomeGenerators._
 
-  implicit def exec[L](sbool: IorT[TimeT[PureConc[Int, *], *], L, Boolean]): Prop =
+  implicit def exec[E](sbool: EitherT[TimeT[PureConc[Int, *], *], E, Boolean]): Prop =
     Prop(
       pure
         .run(TimeT.run(sbool.value))
-        .fold(
-          false,
-          _ => false,
-          iO => iO.fold(false)(i => i.fold(_ => false, _ => true, (_, _) => false)))
-    )
+        .fold(false, _ => false, bO => bO.fold(false)(e => e.fold(_ => false, b => b))))
 
   checkAll(
-    "IorT[PureConc]",
-    GenTemporalTests[IorT[TimeT[PureConc[Int, *], *], Int, *], Int]
+    "EitherT[TimeT[PureConc]]",
+    GenTemporalTests[EitherT[TimeT[PureConc[Int, *], *], Int, *], Int]
       .temporal[Int, Int, Int](10.millis)
   )
 }

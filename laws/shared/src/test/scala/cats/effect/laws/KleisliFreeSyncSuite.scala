@@ -18,19 +18,19 @@ package cats.effect
 package laws
 
 import cats.{Eq, Eval}
-import cats.data.IorT
+import cats.data.Kleisli
 import cats.effect.kernel.testkit.{FreeSyncGenerators, SyncTypeGenerators}
 import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
+import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.eq._
 
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
+import munit.DisciplineSuite
 
-class IorTFreeSyncSpec
-    extends Specification
-    with Discipline
-    with BaseSpec
+class KleisliFreeSyncSuite
+    extends DisciplineSuite
+    with BaseSuite
     with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
@@ -39,5 +39,7 @@ class IorTFreeSyncSpec
       : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =
     eqFreeSync[Either[Throwable, *], Either[Int, Either[Throwable, Int]]]
 
-  checkAll("IorT[FreeEitherSync]", SyncTests[IorT[FreeEitherSync, Int, *]].sync[Int, Int, Int])
+  checkAll(
+    "Kleisli[FreeEitherSync]",
+    SyncTests[Kleisli[FreeEitherSync, MiniInt, *]].sync[Int, Int, Int])
 }

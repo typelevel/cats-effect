@@ -27,7 +27,7 @@ import org.scalacheck.{Arbitrary, Gen, Prop}
 import org.scalacheck.util.Pretty
 
 // A dumping ground for random helpers for property tests
-private[effect] trait BaseSpec {
+private[effect] trait BaseSuite {
 
   implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
     Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
