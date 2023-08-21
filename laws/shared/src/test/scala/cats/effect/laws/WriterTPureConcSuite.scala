@@ -24,12 +24,12 @@ import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.Prop
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class WriterTPureConcSpec extends Specification with Discipline with BaseSpec {
+import munit.DisciplineSuite
+
+class WriterTPureConcSuite extends DisciplineSuite with BaseSuite {
   import PureConcGenerators._
   import OutcomeGenerators._
 

@@ -27,12 +27,12 @@ import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.Prop
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class OptionTPureConcSpec extends Specification with Discipline with BaseSpec {
+import munit.DisciplineSuite
+
+class OptionTPureConcSuite extends DisciplineSuite with BaseSuite {
   import PureConcGenerators._
   import OutcomeGenerators._
 
@@ -46,26 +46,21 @@ class OptionTPureConcSpec extends Specification with Discipline with BaseSpec {
           bO => bO.flatten.fold(false)(_ => true)
         ))
 
-  "optiont bracket" should {
-    "forward completed zeros on to the handler" in {
+    test("optiont bracket forward completed zeros on to the handler") {
       var observed = false
 
       val test = OptionT.none[PureConc[Int, *], Unit] guaranteeCase {
         case Outcome.Succeeded(fa) =>
           observed = true
 
-          OptionT(fa.value.map(_ must beNone).map(_ => None))
+          OptionT(fa.value.map(assertEquals(_, None)).map(_ => None))
 
         case _ => Applicative[OptionT[PureConc[Int, *], *]].unit
       }
 
-      pure.run(test.value) must beLike {
-        case Outcome.Succeeded(Some(None)) => ok
-        case _ => ko
-      }
+      assert(pure.run(test.value) === Outcome.Succeeded(Some(Option.empty[Unit])))
 
-      observed must beTrue
-    }
+      assert(observed)
   }
 
   checkAll(

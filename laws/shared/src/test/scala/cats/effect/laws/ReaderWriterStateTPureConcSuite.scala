@@ -17,28 +17,30 @@
 package cats.effect
 package laws
 
-import cats.{Eq, FlatMap}
-import cats.data.StateT
+import cats.{Eq, Monad}
+import cats.data.ReaderWriterStateT
 import cats.effect.kernel.testkit.PureConcGenerators
 import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 
-import org.specs2.mutable._
-import org.specs2.scalacheck.Parameters
-import org.typelevel.discipline.specs2.mutable.Discipline
+import munit.DisciplineSuite
 
-class StateTPureConcSpec extends Specification with Discipline with BaseSpec {
+class ReaderWriterStateTPureConcSuite extends DisciplineSuite with BaseSuite {
   import PureConcGenerators._
 
-  implicit def stateTEq[F[_]: FlatMap, S, A](
-      implicit ev: Eq[S => F[(S, A)]]): Eq[StateT[F, S, A]] =
-    Eq.by[StateT[F, S, A], S => F[(S, A)]](_.run)
+  implicit def rwstEq[F[_]: Monad, E, L, S, A](
+      implicit ev: Eq[(E, S) => F[(L, S, A)]]): Eq[ReaderWriterStateT[F, E, L, S, A]] =
+    Eq.by[ReaderWriterStateT[F, E, L, S, A], (E, S) => F[(L, S, A)]](_.run)
+
+  override def scalaCheckTestParameters =
+    // we need to bound this a little tighter because these tests take FOREVER, especially on scalajs
+    super.scalaCheckTestParameters.withMinSuccessfulTests(1)
 
   checkAll(
-    "StateT[PureConc]",
-    MonadCancelTests[StateT[PureConc[Int, *], MiniInt, *], Int].monadCancel[Int, Int, Int]
-  )(Parameters(minTestsOk =
-    25 /*, seed = Some(Seed.fromBase64("Ky43MND8m5h-10MZTckMFFAW6ea2pXWkFDE2A7ddtML=").get*/ ))
+    "ReaderWriterStateT[PureConc]",
+    MonadCancelTests[ReaderWriterStateT[PureConc[Int, *], MiniInt, Int, MiniInt, *], Int]
+      .monadCancel[Int, Int, Int]
+  )
 }

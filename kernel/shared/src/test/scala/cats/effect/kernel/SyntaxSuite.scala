@@ -18,14 +18,10 @@ package cats.effect.kernel
 
 import cats.implicits._
 
-import org.specs2.mutable.Specification
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-class SyntaxSpec extends Specification {
-
-  "kernel syntax" >> ok
+class SyntaxSuite {
 
   def concurrentForwarder[F[_]: Concurrent] =
     Concurrent[F]

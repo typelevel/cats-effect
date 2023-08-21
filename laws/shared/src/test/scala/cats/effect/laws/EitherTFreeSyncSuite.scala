@@ -18,21 +18,17 @@ package cats.effect
 package laws
 
 import cats.{Eq, Eval}
-import cats.data.Kleisli
+import cats.data.EitherT
 import cats.effect.kernel.testkit.{FreeSyncGenerators, SyncTypeGenerators}
 import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
-import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
-import cats.laws.discipline.eq._
 
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
+import munit.DisciplineSuite
 
-class KleisliFreeSyncSpec
-    extends Specification
-    with Discipline
-    with BaseSpec
+class EitherTFreeSyncSuite
+    extends DisciplineSuite
+    with BaseSuite
     with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
@@ -41,7 +37,12 @@ class KleisliFreeSyncSpec
       : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =
     eqFreeSync[Either[Throwable, *], Either[Int, Either[Throwable, Int]]]
 
+  implicit val like_really_buggy
+      : Eq[EitherT[FreeT[Eval, Either[Throwable, *], *], Int, Either[Throwable, Int]]] =
+    EitherT
+      .catsDataEqForEitherT[FreeT[Eval, Either[Throwable, *], *], Int, Either[Throwable, Int]]
+
   checkAll(
-    "Kleisli[FreeEitherSync]",
-    SyncTests[Kleisli[FreeEitherSync, MiniInt, *]].sync[Int, Int, Int])
+    "EitherT[FreeEitherSync]",
+    SyncTests[EitherT[FreeEitherSync, Int, *]].sync[Int, Int, Int])
 }

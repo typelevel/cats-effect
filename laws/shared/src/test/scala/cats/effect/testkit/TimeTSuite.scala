@@ -23,12 +23,12 @@ import cats.effect.laws.GenTemporalTests
 import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
 import java.util.concurrent.TimeUnit
+
+import munit.DisciplineSuite
 
 private[testkit] trait LowPriorityInstances {
 
@@ -36,7 +36,7 @@ private[testkit] trait LowPriorityInstances {
     Eq.by(TimeT.run(_))
 }
 
-class TimeTSpec extends Specification with Discipline with LowPriorityInstances {
+class TimeTSuite extends DisciplineSuite with LowPriorityInstances {
 
   import PureConcGenerators._
   import OutcomeGenerators._

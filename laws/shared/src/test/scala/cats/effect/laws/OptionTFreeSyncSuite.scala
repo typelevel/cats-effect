@@ -18,36 +18,22 @@ package cats.effect
 package laws
 
 import cats.{Eq, Eval}
-import cats.data.ReaderWriterStateT
-import cats.effect.kernel.testkit.{FreeSyncGenerators, SyncTypeGenerators}
+import cats.data.OptionT
+import cats.effect.kernel.testkit.{FreeSyncEq, FreeSyncGenerators, SyncTypeGenerators}
 import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
-import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 
-import org.specs2.mutable._
-import org.specs2.scalacheck._
-import org.typelevel.discipline.specs2.mutable.Discipline
+import munit.DisciplineSuite
 
-class ReaderWriterStateTFreeSyncSpec
-    extends Specification
-    with Discipline
-    with BaseSpec
-    with LowPriorityImplicits {
+class OptionTFreeSyncSuite extends DisciplineSuite with BaseSuite with FreeSyncEq {
+
   import FreeSyncGenerators._
   import SyncTypeGenerators._
-
-  implicit val params: Parameters =
-    if (cats.platform.Platform.isNative)
-      Parameters(minTestsOk = 5)
-    else
-      Parameters(minTestsOk = 100)
 
   implicit val scala_2_12_is_buggy
       : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =
     eqFreeSync[Either[Throwable, *], Either[Int, Either[Throwable, Int]]]
 
-  checkAll(
-    "ReaderWriterStateT[FreeEitherSync]",
-    SyncTests[ReaderWriterStateT[FreeEitherSync, MiniInt, Int, MiniInt, *]].sync[Int, Int, Int])
+  checkAll("OptionT[FreeEitherSync]", SyncTests[OptionT[FreeEitherSync, *]].sync[Int, Int, Int])
 }

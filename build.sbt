@@ -328,6 +328,8 @@ val Specs2Version = "4.20.5"
 val ScalaCheckVersion = "1.17.1"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
+val MUnitVersion = "1.0.0-M8"
+val DisciplineMUnitVersion = "2.0.0-M3"
 
 val MacrotaskExecutorVersion = "1.1.1"
 
@@ -416,8 +418,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-effect-kernel",
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % CatsVersion,
-      "org.specs2" %%% "specs2-core" % Specs2Version % Test
+      "org.typelevel" %%% "cats-core" % CatsVersion
     ),
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef"),
@@ -473,7 +474,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     name := "cats-effect-laws",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
-      "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test)
+      "org.typelevel" %%% "discipline-munit" % DisciplineMUnitVersion % Test)
   )
 
 /**

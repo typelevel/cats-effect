@@ -26,16 +26,14 @@ import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.{arbitrary, MiniInt}
 
 import org.scalacheck.{Arbitrary, Cogen, Prop}
-import org.specs2.mutable._
-import org.specs2.scalacheck.Parameters
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class KleisliPureConcSpec
-    extends Specification
-    with Discipline
-    with BaseSpec
+import munit.DisciplineSuite
+
+class KleisliPureConcSuite
+    extends DisciplineSuite
+    with BaseSuite
     with LowPriorityKleisliInstances {
   import PureConcGenerators._
   import arbitrary.{catsLawsArbitraryForKleisli => _, _}
@@ -78,12 +76,16 @@ class KleisliPureConcSpec
       : Cogen[Outcome[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int, A]] =
     OutcomeGenerators.cogenOutcome[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int, A]
 
+  override def scalaCheckTestParameters =
+    super.scalaCheckTestParameters
+    // we need to bound this a little tighter because these tests take FOREVER
+      .withMinSuccessfulTests(25)
+
   checkAll(
     "Kleisli[PureConc]",
     GenTemporalTests[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int]
       .temporal[Int, Int, Int](10.millis)
-    // we need to bound this a little tighter because these tests take FOREVER
-  )(Parameters(minTestsOk = 25))
+  )
 }
 
 //Push the priority of Kleisli instances down so we can explicitly summon more

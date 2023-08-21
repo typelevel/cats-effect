@@ -23,12 +23,12 @@ import cats.effect.kernel.testkit.TimeT
 import cats.effect.kernel.testkit.pure._
 import cats.syntax.all._
 
-import org.specs2.mutable.Specification
-
-import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-class GenTemporalSpec extends Specification { outer =>
+import munit.FunSuite
+// import scala.concurrent.TimeoutException
+
+class GenTemporalSuite extends FunSuite { outer =>
 
   type F[A] = PureConc[Throwable, A]
 
@@ -37,6 +37,10 @@ class GenTemporalSpec extends Specification { outer =>
 
   val loop: TimeT[F, Unit] = F.sleep(5.millis).foreverM
 
+  test("timeout should return identity when infinite duration") {
+    val fa = F.pure(true)
+    assertEquals(F.timeout(fa, Duration.Inf), fa)
+  }
   "temporal" should {
     "timeout" should {
       "return identity when infinite duration" in {
@@ -79,6 +83,11 @@ class GenTemporalSpec extends Specification { outer =>
       }
     }
 
+  test("timeoutTo should return identity when infinite duration") {
+    val fa: TimeT[F, Boolean] = F.pure(true)
+    val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+    assertEquals(F.timeoutTo(fa, Duration.Inf, fallback), fa)
+  }
     "timeoutTo" should {
       "return identity when infinite duration" in {
         val fa: TimeT[F, Boolean] = F.pure(true)
@@ -125,12 +134,9 @@ class GenTemporalSpec extends Specification { outer =>
       }
     }
 
-    "timeoutAndForget" should {
-      "return identity when infinite duration" in {
-        val fa: TimeT[F, Boolean] = F.pure(true)
-        F.timeoutAndForget(fa, Duration.Inf) mustEqual fa
-      }
-    }
+  test("timeoutAndForget should return identity when infinite duration") {
+    val fa: TimeT[F, Boolean] = F.pure(true)
+    assertEquals(F.timeoutAndForget(fa, Duration.Inf), fa)
   }
 
   // TODO enable these tests once Temporal for TimeT is fixed

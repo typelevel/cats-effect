@@ -18,28 +18,33 @@ package cats.effect
 package laws
 
 import cats.{Eq, Eval}
-import cats.data.WriterT
+import cats.data.ReaderWriterStateT
 import cats.effect.kernel.testkit.{FreeSyncGenerators, SyncTypeGenerators}
 import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
+import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
+import munit.DisciplineSuite
 
-class WriterTFreeSyncSpec
-    extends Specification
-    with Discipline
-    with BaseSpec
+class ReaderWriterStateTFreeSyncSuite
+    extends DisciplineSuite
+    with BaseSuite
     with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
+
+  override def scalaCheckTestParameters =
+    if (cats.platform.Platform.isNative)
+      super.scalaCheckTestParameters.withMinSuccessfulTests(5)
+    else
+      super.scalaCheckTestParameters
 
   implicit val scala_2_12_is_buggy
       : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =
     eqFreeSync[Either[Throwable, *], Either[Int, Either[Throwable, Int]]]
 
   checkAll(
-    "WriterT[FreeEitherSync]",
-    SyncTests[WriterT[FreeEitherSync, Int, *]].sync[Int, Int, Int])
+    "ReaderWriterStateT[FreeEitherSync]",
+    SyncTests[ReaderWriterStateT[FreeEitherSync, MiniInt, Int, MiniInt, *]].sync[Int, Int, Int])
 }
