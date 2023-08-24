@@ -36,23 +36,72 @@ on the JVM:
   - `java.util.Random`
   - `java.security.SecureRandom`
 
-## Creating a `Random` instance
+## Creating and using a `Random` instance
 
-Obtaining an instance of `Random` can be as simple as:
+The following example shows the usage of `Random` in a way that is *referentially transparent*, meaning that you can know from the 'outside' what the result will be by knowing the inputs:
 ```scala mdoc:silent
-import cats.effect.IO
 import cats.effect.std.Random
+import cats.implicits.*
+import cats.Monad
+import cats.effect.unsafe.implicits.global
 
-Random.scalaUtilRandom[IO]
+// Scala 3 syntax
+object BusinessLogic:
+
+  // use the standard implementation of Random backed by java.util.Random()
+  // (the same implementation as Random.javaUtilRandom(43))
+  given IO[Random[IO]] = Random.scalaUtilRandom[IO]
+
+  // other possible implemntations you could choose
+  val sr = SecureRandom.javaSecuritySecureRandom(3) // backed java.security.SecureRandom()
+  val jr = Random.javaUtilRandom(new java.util.Random()) // pass in the backing randomizer
+
+  // calling .unsafeRunSync() in business logic is an anti-patten. Doing it here just 
+  // to make the example easy to follow.
+  def unsafeGetMessage: String =
+    Magic
+      .getMagicNumber[IO](mult = 5) // instance of Random passed implicitly
+      .unsafeRunSync()
+
+object Magic:
+
+  def getMagicNumber[F[_]: Monad](mult: Int)(using randomizer: F[Random[F]]): F[String] =
+    for
+      rand <- randomizer.flatMap(random => random.betweenInt(1, 11)) // 11 is excluded
+      number = rand * mult
+      msg = s"the magic number is: $number"
+    yield msg
 ```
 
-## Using `Random`
-```scala mdoc
-import cats.Functor
-import cats.syntax.functor._
+Since `getMagicNumber` is not dependent on a particular implementation (it's referentially transparent), you can give it another instance of the type class as you see fit.
 
-def dieRoll[F[_]: Functor: Random]: F[Int] =
-  Random[F].betweenInt(0, 6).map(_ + 1) // `6` is excluded from the range
+This is particularly useful when testing. In the following example, we need our `Random` implementation give back a stable value so we can ensure everything else works correctly, and our test assert succeeds. Since `randomizer` is passed into `getMagicNumber` we can swap it out in our test with a `Random` of which we can make stable. In our test implementation, calls to `betweenInt` will always give back `7`. This stability of "randomness" allows us to test that our function `getMagicNumber` does what we intend:
+
+
+
+```scala mdoc
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.must.Matchers.*
+
+class MagicSpec extends AnyFunSuite:
+
+  // for testing, create a Random instance that gives back the same number ever time.
+  // with a "stable" version of Random, we 
+  given IO[Random[IO]] = IO(
+    new Random[IO]:
+      def betweenInt(minInclusive: Int, maxExclusive: Int): IO[Int] = 
+        IO(7) // gives back 7 every call
+        
+      // all other methods not implemented since they won't be called in our test
+      def betweenDouble(minInclusive: Double, maxExclusive: Double): IO[Double] = ???
+      def betweenFloat(minInclusive: Float, maxExclusive: Float): IO[Float] = ???
+      // ... snip: cutting out other method implementations for brevity 
+  )
+    
+  test("getMagicNumber text matches expectations") {
+    val result = MagicSpec.getMagicNumber[IO](5)
+    result.mustBe("the magic number is: 35")
+  }
 ```
 
 ## Derivation
