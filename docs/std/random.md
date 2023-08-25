@@ -50,7 +50,7 @@ object BusinessLogic {
 
   // use the standard implementation of Random backed by java.util.Random()
   // (the same implementation as Random.javaUtilRandom(43))
-  implicit r: IO[Random[IO]] = Random.scalaUtilRandom[IO]
+  implicit val r: IO[Random[IO]] = Random.scalaUtilRandom[IO]
 
   // other possible implemntations you could choose
   val sr = SecureRandom.javaSecuritySecureRandom(3) // backed java.security.SecureRandom()
@@ -90,7 +90,7 @@ class MagicSpec extends AnyFunSuite {
 
   // for testing, create a Random instance that gives back the same number ever time.
   // with a "stable" version of Random, we 
-  implicit r: IO[Random[IO]] = IO(
+  implicit val r: IO[Random[IO]] = IO(
     new Random[IO] {
       def betweenInt(minInclusive: Int, maxExclusive: Int): IO[Int] =
         IO(7) // gives back 7 every call
