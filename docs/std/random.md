@@ -46,31 +46,34 @@ import cats.Monad
 import cats.effect.unsafe.implicits.global
 
 // Scala 3 syntax
-object BusinessLogic:
+object BusinessLogic {
 
   // use the standard implementation of Random backed by java.util.Random()
   // (the same implementation as Random.javaUtilRandom(43))
-  given IO[Random[IO]] = Random.scalaUtilRandom[IO]
+  implicit r: IO[Random[IO]] = Random.scalaUtilRandom[IO]
 
   // other possible implemntations you could choose
   val sr = SecureRandom.javaSecuritySecureRandom(3) // backed java.security.SecureRandom()
   val jr = Random.javaUtilRandom(new java.util.Random()) // pass in the backing randomizer
 
-  // calling .unsafeRunSync() in business logic is an anti-patten. Doing it here just 
-  // to make the example easy to follow.
+  // calling .unsafeRunSync() in business logic is an anti-patten. 
+  // Doing it here to make the example easy to follow.
   def unsafeGetMessage: String =
     Magic
       .getMagicNumber[IO](mult = 5) // instance of Random passed implicitly
       .unsafeRunSync()
+}
 
-object Magic:
-
-  def getMagicNumber[F[_]: Monad](mult: Int)(using randomizer: F[Random[F]]): F[String] =
+object Magic {
+  def getMagicNumber[F[_] : Monad](
+    mult: Int
+  )(implicit randomizer: F[Random[F]]): F[String] =
     for
       rand <- randomizer.flatMap(random => random.betweenInt(1, 11)) // 11 is excluded
       number = rand * mult
       msg = s"the magic number is: $number"
     yield msg
+}
 ```
 
 Since `getMagicNumber` is not dependent on a particular implementation (it's referentially transparent), you can give it another instance of the type class as you see fit.
@@ -83,25 +86,27 @@ This is particularly useful when testing. In the following example, we need our 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.must.Matchers.*
 
-class MagicSpec extends AnyFunSuite:
+class MagicSpec extends AnyFunSuite {
 
   // for testing, create a Random instance that gives back the same number ever time.
   // with a "stable" version of Random, we 
-  given IO[Random[IO]] = IO(
-    new Random[IO]:
-      def betweenInt(minInclusive: Int, maxExclusive: Int): IO[Int] = 
+  implicit r: IO[Random[IO]] = IO(
+    new Random[IO] {
+      def betweenInt(minInclusive: Int, maxExclusive: Int): IO[Int] =
         IO(7) // gives back 7 every call
-        
+
       // all other methods not implemented since they won't be called in our test
       def betweenDouble(minInclusive: Double, maxExclusive: Double): IO[Double] = ???
       def betweenFloat(minInclusive: Float, maxExclusive: Float): IO[Float] = ???
-      // ... snip: cutting out other method implementations for brevity 
+      // ... snip: cutting out other method implementations for brevity
+    }
   )
     
   test("getMagicNumber text matches expectations") {
     val result = MagicSpec.getMagicNumber[IO](5)
     result.mustBe("the magic number is: 35")
   }
+}
 ```
 
 ## Derivation
