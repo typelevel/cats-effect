@@ -689,6 +689,7 @@ private[effect] final class WorkStealingThreadPool[P](
   def shutdown(): Unit = {
     // Clear the interrupt flag.
     val interruptCalling = Thread.interrupted()
+    val currentThread = Thread.currentThread()
 
     // Execute the shutdown logic only once.
     if (done.compareAndSet(false, true)) {
@@ -701,15 +702,17 @@ private[effect] final class WorkStealingThreadPool[P](
       // the face of unhandled exceptions or as part of the whole JVM exiting.
       var i = 0
       while (i < threadCount) {
-        workerThreads(i).interrupt()
+        val workerThread = workerThreads(i)
+        if (workerThread ne currentThread) {
+          workerThread.interrupt()
+          workerThread.join()
+          // wait to stop before closing pollers
+        }
         system.closePoller(pollers(i))
         i += 1
       }
 
       system.close()
-
-      // Clear the interrupt flag.
-      Thread.interrupted()
 
       var t: WorkerThread[P] = null
       while ({
@@ -717,11 +720,13 @@ private[effect] final class WorkStealingThreadPool[P](
         t ne null
       }) {
         t.interrupt()
+        // don't join, blocking threads may be uninterruptibly blocked.
+        // anyway, they do not have pollers to close.
       }
 
       // Drain the external queue.
       externalQueue.clear()
-      if (interruptCalling) Thread.currentThread().interrupt()
+      if (interruptCalling) currentThread.interrupt()
     }
   }
 

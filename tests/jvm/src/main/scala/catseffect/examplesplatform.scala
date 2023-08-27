@@ -37,7 +37,7 @@ package examples {
       super.runtimeConfig.copy(shutdownHookTimeout = Duration.Zero)
 
     val run: IO[Unit] =
-      IO(System.exit(0)).uncancelable
+      IO.blocking(System.exit(0)).uncancelable
   }
 
   object FatalErrorUnsafeRun extends IOApp {
