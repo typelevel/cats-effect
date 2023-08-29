@@ -18,6 +18,7 @@ package cats
 package effect
 package std
 
+import cats.effect.Resource
 import cats.effect.kernel.Ref
 
 import scala.concurrent.duration._
@@ -103,6 +104,15 @@ class HotswapSpec extends BaseSpec { outer =>
       }
 
       go must completeAs(())
+    }
+
+    "not block current resource while swap is instantiating new one" in ticked {
+      implicit ticker =>
+        val go = Hotswap.create[IO, Unit].use { hs =>
+          hs.swap(Resource.eval(IO.sleep(1.minute) *> IO.unit)).start *>
+            hs.get.use_.timeout(1.second) *> IO.unit
+        }
+        go must completeAs(())
     }
   }
 

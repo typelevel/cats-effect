@@ -131,12 +131,12 @@ object Hotswap {
         new Hotswap[F, R] {
 
           override def swap(next: Resource[F, R]): F[R] =
-            exclusive.surround {
-              F.uncancelable { poll =>
-                poll(next.allocated).flatMap {
-                  case (r, fin) =>
-                    swapFinalizer(Acquired(r, fin)).as(r)
-                }
+            F.uncancelable { poll =>
+              poll(next.allocated).flatMap {
+                case (r, fin) =>
+                  poll(exclusive.surround {
+                    swapFinalizer(Acquired(r, fin)).uncancelable.as(r)
+                  }).onCancel(fin)
               }
             }
 
