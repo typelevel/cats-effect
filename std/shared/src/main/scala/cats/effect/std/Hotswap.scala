@@ -135,7 +135,7 @@ object Hotswap {
               poll(next.allocated).flatMap {
                 case (r, fin) =>
                   exclusive.surround {
-                    swapFinalizer(Acquired(r, poll(fin))).as(r)
+                    swapFinalizer(Acquired(r, fin)).as(r)
                   }
               }
             }

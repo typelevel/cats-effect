@@ -20,10 +20,9 @@ package std
 
 import cats.effect.kernel.Ref
 
-import scala.concurrent.duration.*
+import scala.concurrent.duration._
 import cats.effect.Resource
 
-import java.util.concurrent.TimeoutException
 import scala.language.postfixOps
 
 class HotswapSpec extends BaseSpec { outer =>
