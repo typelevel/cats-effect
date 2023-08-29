@@ -134,9 +134,9 @@ object Hotswap {
             F.uncancelable { poll =>
               poll(next.allocated).flatMap {
                 case (r, fin) =>
-                  exclusive.surround {
-                    swapFinalizer(Acquired(r, fin)).as(r)
-                  }
+                  poll(exclusive.surround {
+                    swapFinalizer(Acquired(r, fin)).uncancelable.as(r)
+                  }).onCancel(fin)
               }
             }
 
