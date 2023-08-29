@@ -28,10 +28,6 @@ jvm_macos_highcore_task:
       script:
         - brew install sbt
         - sbt '++ 2.13' testsJVM/test
-    - name: JVM Apple Silicon high-core-count 3
-      script:
-        - brew install sbt
-        - sbt '++ 3' testsJVM/test
 
 native_arm_task:
   arm_container:
