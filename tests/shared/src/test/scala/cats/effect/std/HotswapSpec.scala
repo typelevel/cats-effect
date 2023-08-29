@@ -23,8 +23,6 @@ import cats.effect.kernel.Ref
 import scala.concurrent.duration._
 import cats.effect.Resource
 
-import scala.language.postfixOps
-
 class HotswapSpec extends BaseSpec { outer =>
 
   sequential
