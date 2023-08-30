@@ -110,9 +110,26 @@ class HotswapSpec extends BaseSpec { outer =>
       implicit ticker =>
         val go = Hotswap.create[IO, Unit].use { hs =>
           hs.swap(Resource.eval(IO.sleep(1.minute) *> IO.unit)).start *>
+            IO.sleep(5.seconds) *>
             hs.get.use_.timeout(1.second) *> IO.unit
         }
         go must completeAs(())
+    }
+
+    "successfully cancel during swap and run finalizer if cancelation is requested while waiting for get to release" in ticked {
+      implicit ticker =>
+        val go = (for {
+          log <- Ref.of[IO, List[String]](List()).toResource
+          (hs, _) <- Hotswap[IO, Unit](logged(log, "a"))
+          _ <- hs.get.evalMap(_ => IO.sleep(1.minute)).use_.start.toResource
+          _ <- IO.sleep(3.seconds).toResource
+          swapFib <- hs.swap(logged(log, "b")).start.toResource
+          _ <- IO.sleep(3.seconds).toResource
+          _ <- swapFib.cancel.toResource
+          value <- log.get.toResource
+        } yield value).use(res => IO(res))
+
+        go must completeAs(List("open a", "open b", "close b"))
     }
   }
 
