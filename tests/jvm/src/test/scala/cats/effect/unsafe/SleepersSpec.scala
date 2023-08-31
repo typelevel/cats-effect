@@ -21,8 +21,6 @@ import org.specs2.mutable.Specification
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
-import java.util.concurrent.atomic.AtomicReference
-
 class SleepersSpec extends Specification {
 
   "SleepCallback" should {
@@ -30,23 +28,28 @@ class SleepersSpec extends Specification {
       val sleepers = new TimerHeap
       val now = 100.millis.toNanos
       val delay = 500.millis.toNanos
-      sleepers.insertTlr(now, delay, _ => ())
+      sleepers.insert(now, delay, _ => (), new Array(1))
       val triggerTime = sleepers.peekFirstTriggerTime()
       val expected = 600.millis.toNanos // delay + now
 
       triggerTime mustEqual expected
     }
 
-    def dequeueAll(sleepers: TimerHeap, invoked: AtomicReference[Right[Nothing, Unit] => Unit])
-        : List[(Long, Right[Nothing, Unit] => Unit)] = {
+    def collectOuts(outs: (Long, Array[Right[Nothing, Unit] => Unit])*)
+        : List[(Long, Right[Nothing, Unit] => Unit)] =
+      outs.toList.flatMap {
+        case (now, out) =>
+          Option(out(0)).map(now -> _).toList
+      }
+
+    def dequeueAll(sleepers: TimerHeap): List[(Long, Right[Nothing, Unit] => Unit)] = {
       @tailrec
       def loop(acc: List[(Long, Right[Nothing, Unit] => Unit)])
           : List[(Long, Right[Nothing, Unit] => Unit)] = {
         val tt = sleepers.peekFirstTriggerTime()
         if (tt == Long.MinValue) acc.reverse
         else {
-          sleepers.trigger(now = tt)
-          val cb = invoked.getAndSet(null)
+          val cb = sleepers.pollFirstIfTriggered(now = tt)
           loop((tt, cb) :: acc)
         }
       }
@@ -55,12 +58,8 @@ class SleepersSpec extends Specification {
     }
 
     // creates a new callback, making sure it's a separate object:
-    def newCb(invoked: AtomicReference[Right[Nothing, Unit] => Unit])
-        : Right[Nothing, Unit] => Unit = {
-      new Function1[Right[Nothing, Unit], Unit] { self =>
-        def apply(x: Right[Nothing, Unit]) =
-          invoked.set(self)
-      }
+    def newCb(): Right[Nothing, Unit] => Unit = {
+      new Function1[Right[Nothing, Unit], Unit] { def apply(x: Right[Nothing, Unit]) = () }
     }
 
     "be ordered according to the trigger time" in {
@@ -74,47 +73,51 @@ class SleepersSpec extends Specification {
       val delay2 = 100.millis.toNanos
       val expected2 = 300.millis.toNanos // delay2 + now2
 
-      val now3 = 250.millis.toNanos
-      val delay3 = 150.millis.toNanos
-      val expected3 = 400.millis.toNanos // delay3 + now3
+      val now3 = 300.millis.toNanos
+      val delay3 = 50.millis.toNanos
+      val expected3 = 350.millis.toNanos // delay3 + now3
 
-      val invoked = new AtomicReference[Right[Nothing, Unit] => Unit]
-      val cb1 = newCb(invoked)
-      val cb2 = newCb(invoked)
-      val cb3 = newCb(invoked)
+      val cb1 = newCb()
+      val cb2 = newCb()
+      val cb3 = newCb()
 
-      sleepers.insertTlr(now1, delay1, cb1)
-      sleepers.insertTlr(now2, delay2, cb2)
-      sleepers.insertTlr(now3, delay3, cb3)
+      val out1 = new Array[Right[Nothing, Unit] => Unit](1)
+      val out2 = new Array[Right[Nothing, Unit] => Unit](1)
+      val out3 = new Array[Right[Nothing, Unit] => Unit](1)
+      sleepers.insert(now1, delay1, cb1, out1)
+      sleepers.insert(now2, delay2, cb2, out2)
+      sleepers.insert(now3, delay3, cb3, out3)
 
-      val ordering = dequeueAll(sleepers, invoked)
+      val ordering =
+        collectOuts(now1 -> out1, now2 -> out2, now3 -> out3) ::: dequeueAll(sleepers)
       val expectedOrdering = List(expected2 -> cb2, expected3 -> cb3, expected1 -> cb1)
 
       ordering mustEqual expectedOrdering
     }
 
-    // TODO
-    // "be ordered correctly even if Long overflows" in {
-    //   val sleepers = new TimerSkipList
+    "be ordered correctly even if Long overflows" in {
+      val sleepers = new TimerHeap
 
-    //   val now1 = Long.MaxValue - 20L
-    //   val delay1 = 10.nanos.toNanos
-    //   val expected1 = Long.MaxValue - 10L // no overflow yet
+      val now1 = Long.MaxValue - 20L
+      val delay1 = 10.nanos.toNanos
+      // val expected1 = Long.MaxValue - 10L // no overflow yet
 
-    //   val now2 = Long.MaxValue - 5L
-    //   val delay2 = 10.nanos.toNanos
-    //   val expected2 = Long.MinValue + 4L // overflow
+      val now2 = Long.MaxValue - 5L
+      val delay2 = 10.nanos.toNanos
+      val expected2 = Long.MinValue + 4L // overflow
 
-    //   val cb1 = newCb()
-    //   val cb2 = newCb()
+      val cb1 = newCb()
+      val cb2 = newCb()
 
-    //   sleepers.insertTlr(now1, delay1, cb1)
-    //   sleepers.insertTlr(now2, delay2, cb2)
+      val out1 = new Array[Right[Nothing, Unit] => Unit](1)
+      val out2 = new Array[Right[Nothing, Unit] => Unit](1)
+      sleepers.insert(now1, delay1, cb1, out1)
+      sleepers.insert(now2, delay2, cb2, out2)
 
-    //   val ordering = dequeueAll(sleepers)
-    //   val expectedOrdering = List(expected1 -> cb1, expected2 -> cb2)
+      val ordering = collectOuts(now1 -> out1, now2 -> out2) ::: dequeueAll(sleepers)
+      val expectedOrdering = List(now2 -> cb1, expected2 -> cb2)
 
-    //   ordering mustEqual expectedOrdering
-    // }
+      ordering mustEqual expectedOrdering
+    }
   }
 }

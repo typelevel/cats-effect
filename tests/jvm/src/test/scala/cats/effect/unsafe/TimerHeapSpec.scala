@@ -18,7 +18,7 @@ package cats.effect.unsafe
 
 import org.specs2.mutable.Specification
 
-class TimerSkipListSpec extends Specification {
+class TimerHeapSpec extends Specification {
 
   /**
    * Creates a new callback, making sure it's a separate object
@@ -34,25 +34,31 @@ class TimerSkipListSpec extends Specification {
   private val cb4 = newCb()
   private val cb5 = newCb()
 
-  "TimerSkipList" should {
+  "TimerHeap" should {
 
     "correctly insert / pollFirstIfTriggered" in {
-      val m = new TimerSkipList
+      val m = new TimerHeap
+      val out = new Array[Right[Nothing, Unit] => Unit](1)
       m.pollFirstIfTriggered(Long.MinValue) must beNull
       m.pollFirstIfTriggered(Long.MaxValue) must beNull
-      m.toString mustEqual "TimerSkipList()"
+      m.toString mustEqual "TimerHeap()"
 
-      m.insertTlr(0L, 0L, cb0)
-      m.toString mustEqual "TimerSkipList(...)"
+      m.insert(0L, 0L, cb0, out)
+      out(0) must beNull
+      m.toString mustEqual "TimerHeap(...)"
       m.pollFirstIfTriggered(Long.MinValue) must beNull
       m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb0
       m.pollFirstIfTriggered(Long.MaxValue) must beNull
       m.pollFirstIfTriggered(Long.MinValue) must beNull
 
-      m.insertTlr(0L, 10L, cb0)
-      m.insertTlr(0L, 30L, cb1)
-      m.insertTlr(0L, 0L, cb2)
-      m.insertTlr(0L, 20L, cb3)
+      m.insert(0L, 10L, cb0, out)
+      out(0) must beNull
+      m.insert(0L, 30L, cb1, out)
+      out(0) must beNull
+      m.insert(0L, 0L, cb2, out)
+      out(0) must beNull
+      m.insert(0L, 20L, cb3, out)
+      out(0) must beNull
       m.pollFirstIfTriggered(-1L) must beNull
       m.pollFirstIfTriggered(0L) mustEqual cb2
       m.pollFirstIfTriggered(0L) must beNull
@@ -66,13 +72,20 @@ class TimerSkipListSpec extends Specification {
     }
 
     "correctly insert / remove (cancel)" in {
-      val m = new TimerSkipList
-      val r0 = m.insertTlr(0L, 0L, cb0)
-      val r1 = m.insertTlr(0L, 1L, cb1)
-      val r5 = m.insertTlr(0L, 5L, cb5)
-      val r4 = m.insertTlr(0L, 4L, cb4)
-      val r2 = m.insertTlr(0L, 2L, cb2)
-      val r3 = m.insertTlr(0L, 3L, cb3)
+      val m = new TimerHeap
+      val out = new Array[Right[Nothing, Unit] => Unit](1)
+      val r0 = m.insert(0L, 0L, cb0, out)
+      out(0) must beNull
+      val r1 = m.insert(0L, 1L, cb1, out)
+      out(0) must beNull
+      val r5 = m.insert(0L, 5L, cb5, out)
+      out(0) must beNull
+      val r4 = m.insert(0L, 4L, cb4, out)
+      out(0) must beNull
+      val r2 = m.insert(0L, 2L, cb2, out)
+      out(0) must beNull
+      val r3 = m.insert(0L, 3L, cb3, out)
+      out(0) must beNull
 
       m.peekFirstQuiescent() mustEqual cb0
       m.peekFirstTriggerTime() mustEqual 0L
@@ -102,14 +115,14 @@ class TimerSkipListSpec extends Specification {
     }
 
     "behave correctly when nanoTime wraps around" in {
-      val m = new TimerSkipList
+      val m = new TimerHeap
       val startFrom = Long.MaxValue - 100L
       var nanoTime = startFrom
       val removersBuilder = Vector.newBuilder[Runnable]
       val callbacksBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
       for (_ <- 0 until 200) {
         val cb = newCb()
-        val r = m.insertTlr(nanoTime, 10L, cb)
+        val r = m.insert(nanoTime, 10L, cb, new Array(1))
         removersBuilder += r
         callbacksBuilder += cb
         nanoTime += 1L

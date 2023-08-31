@@ -106,6 +106,8 @@ private final class WorkerThread(
   private val indexTransfer: LinkedTransferQueue[Integer] = new LinkedTransferQueue()
   private[this] val runtimeBlockingExpiration: Duration = pool.runtimeBlockingExpiration
 
+  private[this] val RightUnit = Right(())
+
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.getAndIncrement()
 
   // Constructor code.
@@ -158,14 +160,20 @@ private final class WorkerThread(
     // take the opportunity to update the current time, just in case other timers can benefit
     val _now = System.nanoTime()
     now = _now
+    val out = new Array[Right[Nothing, Unit] => Unit](1)
 
     // note that blockers aren't owned by the pool, meaning we only end up here if !blocking
-    sleepers.insert(
+    val cancel = sleepers.insert(
       now = _now,
       delay = delay.toNanos,
       callback = callback,
-      tlr = random
+      out = out
     )
+
+    val cb = out(0)
+    if (cb ne null) cb(RightUnit)
+
+    cancel
   }
 
   /**
@@ -248,6 +256,9 @@ private final class WorkerThread(
     fiberBag.forEach(r => foreign ++= captureTrace(r))
     foreign.toMap
   }
+
+  private[unsafe] def ownsTimers(timers: TimerHeap): Boolean =
+    sleepers eq timers
 
   /**
    * The run loop of the [[WorkerThread]].
@@ -715,7 +726,15 @@ private final class WorkerThread(
 
         case _ =>
           // Call all of our expired timers:
-          sleepers.trigger(now)
+          var cont = true
+          while (cont) {
+            val cb = sleepers.pollFirstIfTriggered(now)
+            if (cb ne null) {
+              cb(RightUnit)
+            } else {
+              cont = false
+            }
+          }
 
           // Check the queue bypass reference before dequeueing from the local
           // queue.

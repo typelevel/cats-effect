@@ -31,8 +31,6 @@ package unsafe
 
 import scala.annotation.tailrec
 
-import java.util.concurrent.ThreadLocalRandom
-
 private final class TimerHeap {
 
   // The index 0 is not used; the root is at index 1.
@@ -40,41 +38,45 @@ private final class TimerHeap {
   private[this] var heap: Array[TimerNode] = new Array(8) // TODO what initial value
   private[this] var size: Int = 0
 
-  private[this] val RightUnit = IOFiber.RightUnit
+  private[this] val RightUnit = Right(())
 
-  def peekFirstTriggerTime(): Long = {
-    val heap = this.heap // local copy
-    if (size > 0) {
-      val node = heap(1)
-      if (node ne null)
-        node.triggerTime
-      else java.lang.Long.MIN_VALUE
-    } else java.lang.Long.MIN_VALUE
+  def peekFirstTriggerTime(): Long =
+    if (size > 0) heap(1).triggerTime
+    else Long.MinValue
+
+  /**
+   * for testing
+   */
+  def peekFirstQuiescent(): Right[Nothing, Unit] => Unit = {
+    if (size > 0) heap(1).get()
+    else null
   }
 
   /**
    * only called by owner thread
-   *
-   * returns `true` if we removed at least one timer TODO only return true if we actually
-   * triggered a timer, not just removed one
    */
-  def trigger(now: Long): Boolean = {
+  def pollFirstIfTriggered(now: Long): Right[Nothing, Unit] => Unit = {
     val heap = this.heap // local copy
 
     @tailrec
-    def loop(triggered: Boolean): Boolean = if (size > 0) {
+    def loop(): Right[Nothing, Unit] => Unit = if (size > 0) {
       val root = heap(1)
-      if (canRemove(root, now)) {
-        heap(1) = heap(size)
+      val rootCanceled = root.isCanceled()
+      val rootExpired = !rootCanceled && isExpired(root, now)
+      if (rootCanceled || rootExpired) {
+        if (size > 1) {
+          heap(1) = heap(size)
+          fixDown(1)
+        }
         heap(size) = null
         size -= 1
-        fixDown(1)
 
-        loop(true)
-      } else triggered
-    } else triggered
+        val back = root.getAndClear()
+        if (rootExpired && (back ne null)) back else loop()
+      } else null
+    } else null
 
-    loop(false)
+    loop()
   }
 
   /**
@@ -84,10 +86,15 @@ private final class TimerHeap {
     def go(heap: Array[TimerNode], size: Int, m: Int): Boolean =
       if (m <= size) {
         val node = heap(m)
-        if ((node ne null) && triggered(node, now)) {
-          go(heap, size, 2 * m)
-          go(heap, size, 2 * m + 1)
-          true
+        if ((node ne null) && isExpired(node, now)) {
+          val cb = node.getAndClear()
+          val invoked = cb ne null
+          if (invoked) cb(RightUnit)
+
+          val leftInvoked = go(heap, size, 2 * m)
+          val rightInvoked = go(heap, size, 2 * m + 1)
+
+          invoked || leftInvoked || rightInvoked
         } else false
       } else false
 
@@ -103,63 +110,56 @@ private final class TimerHeap {
       now: Long,
       delay: Long,
       callback: Right[Nothing, Unit] => Unit,
-      tlr: ThreadLocalRandom
+      out: Array[Right[Nothing, Unit] => Unit]
   ): Function0[Unit] with Runnable = if (size > 0) {
     val heap = this.heap // local copy
-    val node = new TimerNode(now + delay, callback)
+    val triggerTime = computeTriggerTime(now, delay)
 
-    if (canRemove(heap(1), now)) { // see if we can just replace the root
+    val root = heap(1)
+    val rootCanceled = root.isCanceled()
+    val rootExpired = !rootCanceled && isExpired(root, now)
+    if (rootCanceled || rootExpired) { // see if we can just replace the root
+      if (rootExpired) out(0) = root.getAndClear()
+      val node = new TimerNode(triggerTime, callback, 1)
       heap(1) = node
       fixDown(1)
-    } else { // look for a canceled node we can replace
-
-      @tailrec
-      def loop(m: Int, entropy: Int): Unit = if (m <= size) {
-        if (heap(m).isCanceled()) { // we found a spot!
-          heap(m) = node
-          fixUpOrDown(m)
-        } else loop(2 * m + (entropy % 2), entropy >>> 1)
-      } else { // insert at the end
-        val heap = growIfNeeded() // new heap array if it grew
-        size += 1
-        heap(size) = node
-        fixUp(size)
-      }
-
-      val entropy = tlr.nextInt()
-      loop(2 + (entropy % 2), entropy >>> 1)
+      node
+    } else { // insert at the end
+      val heap = growIfNeeded() // new heap array if it grew
+      size += 1
+      val node = new TimerNode(triggerTime, callback, size)
+      heap(size) = node
+      fixUp(size)
+      node
     }
-
-    node
   } else {
-    val node = new TimerNode(now + delay, callback)
+    val node = new TimerNode(now + delay, callback, 1)
     this.heap(1) = node
     size += 1
     node
   }
 
   /**
-   * For testing
+   * only called by owner thread
    */
-  private[unsafe] final def insertTlr(
-      now: Long,
-      delay: Long,
-      callback: Right[Nothing, Unit] => Unit
-  ): Runnable = {
-    insert(now, delay, callback, ThreadLocalRandom.current())
+  private def removeAt(i: Int): Unit = {
+    val heap = this.heap // local copy
+    heap(i).getAndClear()
+    if (i == size) {
+      heap(i) = null
+      size -= 1
+    } else {
+      val last = heap(size)
+      heap(size) = null
+      heap(i) = last
+      last.index = i
+      size -= 1
+      fixUpOrDown(i)
+    }
   }
 
-  /**
-   * Determines if a node can be removed. Triggers it if relevant.
-   */
-  private[this] def canRemove(node: TimerNode, now: Long): Boolean =
-    node.isCanceled() || triggered(node, now)
-
-  private[this] def triggered(node: TimerNode, now: Long): Boolean =
-    if (cmp(node.triggerTime, now) <= 0) { // triggerTime <= now
-      node.trigger(RightUnit)
-      true
-    } else false
+  private[this] def isExpired(node: TimerNode, now: Long): Boolean =
+    cmp(node.triggerTime, now) <= 0 // triggerTime <= now
 
   private[this] def growIfNeeded(): Array[TimerNode] = {
     val heap = this.heap // local copy
@@ -185,7 +185,6 @@ private final class TimerHeap {
 
   /**
    * Fixes the heap property from the last child at index `size` up the tree, towards the root.
-   * Along the way we remove up to one canceled node.
    */
   private[this] def fixUp(m: Int): Unit = {
     val heap = this.heap // local copy
@@ -203,9 +202,10 @@ private final class TimerHeap {
         if (cmp(heapAtParent, heapAtM) > 0) {
           heap(parent) = heapAtM
           heap(m) = heapAtParent
+          heapAtParent.index = m
           loop(parent)
-        }
-      }
+        } else heapAtM.index = m
+      } else heapAtM.index = m
     }
 
     loop(m)
@@ -240,10 +240,11 @@ private final class TimerHeap {
         // if the node `m` is greater than the selected child, swap and recurse
         if (cmp(heapAtM, heapAtJ) > 0) {
           heap(m) = heapAtJ
+          heapAtJ.index = m
           heap(j) = heapAtM
           loop(j)
-        }
-      }
+        } else heapAtM.index = m
+      } else heapAtM.index = m
     }
 
     loop(m)
@@ -267,31 +268,80 @@ private final class TimerHeap {
   private[this] def cmp(x: TimerNode, y: TimerNode): Int =
     cmp(x.triggerTime, y.triggerTime)
 
-  override def toString() = heap.drop(1).take(size).mkString("TimerHeap(", ", ", ")")
-
-}
-
-private final class TimerNode(
-    val triggerTime: Long,
-    private[this] var callback: Right[Nothing, Unit] => Unit)
-    extends Function0[Unit]
-    with Runnable {
-
-  def trigger(rightUnit: Right[Nothing, Unit]): Unit = {
-    val back = callback
-    callback = null
-    if (back ne null) back(rightUnit)
+  /**
+   * Computes the trigger time in an overflow-safe manner. The trigger time is essentially `now
+   * + delay`. However, we must constrain all trigger times in the skip list to be within
+   * `Long.MaxValue` of each other (otherwise there will be overflow when comparing in `cpr`).
+   * Thus, if `delay` is so big, we'll reduce it to the greatest allowable (in `overflowFree`).
+   *
+   * From the public domain JSR-166 `ScheduledThreadPoolExecutor` (`triggerTime` method).
+   */
+  private[this] def computeTriggerTime(now: Long, delay: Long): Long = {
+    val safeDelay = if (delay < (Long.MaxValue >> 1)) delay else overflowFree(now, delay)
+    now + safeDelay
   }
 
   /**
-   * racy cancelation
+   * See `computeTriggerTime`. The overflow can happen if a callback was already triggered
+   * (based on `now`), but was not removed yet; and `delay` is sufficiently big.
+   *
+   * From the public domain JSR-166 `ScheduledThreadPoolExecutor` (`overflowFree` method).
    */
-  def apply(): Unit = callback = null
+  private[this] def overflowFree(now: Long, delay: Long): Long = {
+    val root = heap(1)
+    if (root ne null) {
+      val rootDelay = root.triggerTime - now
+      if ((rootDelay < 0) && (delay - rootDelay < 0)) {
+        // head was already triggered, and `delay` is big enough,
+        // so we must clamp `delay`:
+        Long.MaxValue + rootDelay
+      } else {
+        delay
+      }
+    } else {
+      delay // empty
+    }
+  }
 
-  def run() = apply()
+  override def toString() = if (size > 0) "TimerHeap(...)" else "TimerHeap()"
 
-  def isCanceled(): Boolean = callback eq null
+  private final class TimerNode(
+      val triggerTime: Long,
+      private[this] var callback: Right[Nothing, Unit] => Unit,
+      var index: Int
+  ) extends Function0[Unit]
+      with Runnable {
 
-  override def toString() = s"TimerNode($triggerTime, $callback})"
+    def getAndClear(): Right[Nothing, Unit] => Unit = {
+      val back = callback
+      callback = null
+      back
+    }
+
+    def get(): Right[Nothing, Unit] => Unit = callback
+
+    /**
+     * Cancel this timer.
+     */
+    def apply(): Unit = {
+      // we can always clear the callback, without explicitly publishing
+      callback = null
+
+      // if we're on the thread that owns this heap, we can remove ourselves immediately
+      val thread = Thread.currentThread()
+      if (thread.isInstanceOf[WorkerThread]) {
+        val worker = thread.asInstanceOf[WorkerThread]
+        val heap = TimerHeap.this
+        if (worker.ownsTimers(heap)) heap.removeAt(index)
+      }
+    }
+
+    def run() = apply()
+
+    def isCanceled(): Boolean = callback eq null
+
+    override def toString() = s"TimerNode($triggerTime, $callback})"
+
+  }
 
 }
