@@ -119,13 +119,14 @@ class HotswapSpec extends BaseSpec { outer =>
     "successfully cancel during swap and run finalizer if cancelation is requested while waiting for get to release" in ticked {
       implicit ticker =>
         val go = Ref.of[IO, List[String]](List()).flatMap { log =>
-          Hotswap[IO, Unit](logged(log, "a")).use { case (hs, _) =>
-            for {
-              _ <- hs.get.evalMap(_ => IO.sleep(1.minute)).use_.start
-              _ <- IO.sleep(2.seconds)
-              _ <- hs.swap(logged(log, "b")).timeoutTo(1.second, IO.unit)
-              value <- log.get
-            } yield value
+          Hotswap[IO, Unit](logged(log, "a")).use {
+            case (hs, _) =>
+              for {
+                _ <- hs.get.evalMap(_ => IO.sleep(1.minute)).use_.start
+                _ <- IO.sleep(2.seconds)
+                _ <- hs.swap(logged(log, "b")).timeoutTo(1.second, IO.unit)
+                value <- log.get
+              } yield value
           }
         }
 
