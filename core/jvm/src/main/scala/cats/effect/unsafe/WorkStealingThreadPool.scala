@@ -41,8 +41,10 @@ import java.time.Instant
 import java.time.temporal.ChronoField
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
+
+import WorkStealingThreadPool._
 
 /**
  * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose
@@ -627,29 +629,29 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Chooses a random `TimerSkipList` from this pool, and inserts the `callback`.
+   * Reschedule onto a worker thread and then submit the sleep.
    */
   private[this] final def sleepExternal(
       delay: FiniteDuration,
       callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
-    val cancel = new AtomicReference[Function0[Unit]] with Function0[Unit] with Runnable {
-      def apply(): Unit = {
-        val back = get()
-        if (back ne null) back()
-      }
+    val scheduledAt = monotonicNanos()
+    val cancel = new ExternalSleepCancel
 
-      def run() = apply()
+    scheduleExternal { () =>
+      val worker = Thread.currentThread().asInstanceOf[WorkerThread]
+      cancel.setCallback(worker.sleepLate(scheduledAt, delay, callback))
     }
-
-    scheduleExternal(() => cancel.lazySet(sleepInternal(delay, callback)))
 
     cancel
   }
 
-  override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-    // TODO task should be run at most once
-    sleepInternal(delay, _ => task.run())
-  }
+  override def sleep(delay: FiniteDuration, task: Runnable): Runnable =
+    sleepInternal(
+      delay,
+      new AtomicBoolean with (Right[Nothing, Unit] => Unit) { // run at most once
+        def apply(ru: Right[Nothing, Unit]) = if (compareAndSet(false, true)) task.run()
+      }
+    )
 
   /**
    * Shut down the thread pool and clean up the pool state. Calling this method after the pool
@@ -764,4 +766,33 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def getSuspendedFiberCount(): Long =
     workerThreads.map(_.getSuspendedFiberCount().toLong).sum
+}
+
+private object WorkStealingThreadPool {
+
+  /**
+   * A wrapper for a cancelation callback that is created asynchronously. Best-effort: does not
+   * explicitly publish.
+   */
+  private final class ExternalSleepCancel extends Function0[Unit] with Runnable {
+    private[this] var callback: Function0[Unit] = null
+
+    def setCallback(cb: Function0[Unit]) = {
+      val back = callback
+      if (back eq CanceledSleepSentinel)
+        cb() // we were already canceled, invoke right away
+      else
+        callback = cb
+    }
+
+    def apply() = {
+      val back = callback
+      callback = CanceledSleepSentinel
+      if (back ne null) back()
+    }
+
+    def run() = apply()
+  }
+
+  private val CanceledSleepSentinel: Function0[Unit] = () => ()
 }

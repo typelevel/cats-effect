@@ -107,6 +107,10 @@ private final class WorkerThread(
   private[this] val runtimeBlockingExpiration: Duration = pool.runtimeBlockingExpiration
 
   private[this] val RightUnit = Right(())
+  private[this] val noop = new Function0[Unit] with Runnable {
+    def apply() = ()
+    def run() = ()
+  }
 
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.getAndIncrement()
 
@@ -154,18 +158,45 @@ private final class WorkerThread(
     }
   }
 
-  def sleep(
-      delay: FiniteDuration,
-      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+  private[this] def nanoTime(): Long = {
     // take the opportunity to update the current time, just in case other timers can benefit
     val _now = System.nanoTime()
     now = _now
+    _now
+  }
+
+  def sleep(
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable =
+    sleepImpl(nanoTime(), delay.toNanos, callback)
+
+  /**
+   * A sleep that is being scheduled "late"
+   */
+  def sleepLate(
+      scheduledAt: Long,
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+    val _now = nanoTime()
+    val newDelay = delay.toNanos - (_now - scheduledAt)
+    if (newDelay > 0) {
+      sleepImpl(_now, newDelay, callback)
+    } else {
+      callback(RightUnit)
+      noop
+    }
+  }
+
+  private[this] def sleepImpl(
+      now: Long,
+      delay: Long,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
     val out = new Array[Right[Nothing, Unit] => Unit](1)
 
     // note that blockers aren't owned by the pool, meaning we only end up here if !blocking
     val cancel = sleepers.insert(
-      now = _now,
-      delay = delay.toNanos,
+      now = now,
+      delay = delay,
       callback = callback,
       out = out
     )
