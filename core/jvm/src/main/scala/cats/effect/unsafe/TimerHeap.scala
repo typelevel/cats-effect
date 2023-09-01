@@ -323,7 +323,7 @@ private final class TimerHeap {
     /**
      * Cancel this timer.
      */
-    def apply(): Unit = {
+    def apply(): Unit = if (callback ne null) { // if we're not already canceled
       // we can always clear the callback, without explicitly publishing
       callback = null
 
