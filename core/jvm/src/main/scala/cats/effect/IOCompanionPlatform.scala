@@ -47,14 +47,14 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    * Implements [[cats.effect.kernel.Sync.blocking]].
    */
   def blocking[A](thunk: => A): IO[A] = {
-    val fn = Thunk.asFunction0(thunk)
+    val fn = () => thunk
     Blocking(TypeBlocking, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
   // this cannot be marked private[effect] because of static forwarders in Java
   @deprecated("use interruptible / interruptibleMany instead", "3.3.0")
   def interruptible[A](many: Boolean, thunk: => A): IO[A] = {
-    val fn = Thunk.asFunction0(thunk)
+    val fn = () => thunk
     Blocking(
       if (many) TypeInterruptibleMany else TypeInterruptibleOnce,
       fn,
@@ -80,7 +80,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    * Implements [[cats.effect.kernel.Sync.interruptible[A](thunk:=>A):*]]
    */
   def interruptible[A](thunk: => A): IO[A] = {
-    val fn = Thunk.asFunction0(thunk)
+    val fn = () => thunk
     Blocking(TypeInterruptibleOnce, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
@@ -104,7 +104,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    * Implements [[cats.effect.kernel.Sync!.interruptibleMany]]
    */
   def interruptibleMany[A](thunk: => A): IO[A] = {
-    val fn = Thunk.asFunction0(thunk)
+    val fn = () => thunk
     Blocking(TypeInterruptibleMany, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 

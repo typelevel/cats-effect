@@ -1130,7 +1130,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Any exceptions thrown by the effect will be caught and sequenced into the `IO`.
    */
   def delay[A](thunk: => A): IO[A] = {
-    val fn = Thunk.asFunction0(thunk)
+    val fn = () => thunk
     Delay(fn, Tracing.calculateTracingEvent(fn))
   }
 
