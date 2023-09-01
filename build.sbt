@@ -646,7 +646,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.unsafe.WorkerThread.sleep"),
       // #3787, internal utility that was no longer needed
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$"),
+      // #3781, replaced TimerSkipList with TimerHeap
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.TimerSkipList*")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
