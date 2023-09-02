@@ -328,7 +328,7 @@ trait IOApp {
       System
         .err
         .println(
-          """|Warning: IOApp `main` is running on a thread other than the main thread.
+          """|[WARNING] IOApp `main` is running on a thread other than the main thread.
              |This may prevent correct resource cleanup after `main` completes.
              |This condition could be caused by executing `run` in an interactive sbt session with `fork := false`.
              |Set `Compile / run / fork := true` in this project to resolve this.
