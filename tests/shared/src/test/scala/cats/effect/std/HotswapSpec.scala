@@ -20,6 +20,8 @@ package std
 
 import cats.effect.Resource
 import cats.effect.kernel.Ref
+import cats.effect.testkit.TestControl
+import cats.effect.unsafe.IORuntimeConfig
 
 import scala.concurrent.duration._
 
@@ -131,6 +133,19 @@ class HotswapSpec extends BaseSpec { outer =>
         }
 
         go must completeAs(List("open a", "open b", "close b"))
+    }
+
+    "swap is safe to concurrent cancelation" in ticked { implicit ticker =>
+      val go = IO.ref(false).flatMap { open =>
+        Hotswap[IO, Unit](Resource.unit)
+          .use {
+            case (hs, _) =>
+              hs.swap(Resource.make(open.set(true))(_ => open.set(false)))
+          }
+          .race(IO.unit) *> open.get.map(_ must beFalse)
+      }
+
+      TestControl.executeEmbed(go, IORuntimeConfig(1, 2)).replicateA_(1000) must completeAs(())
     }
   }
 
