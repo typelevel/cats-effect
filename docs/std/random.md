@@ -68,11 +68,11 @@ object Magic {
   def getMagicNumber[F[_] : Monad](
     mult: Int
   )(implicit randomizer: F[Random[F]]): F[String] =
-    for
+    for {
       rand <- randomizer.flatMap(random => random.betweenInt(1, 11)) // 11 is excluded
       number = rand * mult
       msg = s"the magic number is: $number"
-    yield msg
+    } yield msg
 }
 ```
 
