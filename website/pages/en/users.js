@@ -60,7 +60,8 @@ const users = [
   ['XITE', 'https://xite.com/'],
   ['Whisk', 'https://whisk.com'],
   ['Zalando', 'https://www.zalando.de'],
-  ['Zendesk', 'https://www.zendesk.com']
+  ['Zendesk', 'https://www.zendesk.com'],
+  ['Ubilab', 'https://www.ubilab.io'],
 ];
 
 function Users(props) {
