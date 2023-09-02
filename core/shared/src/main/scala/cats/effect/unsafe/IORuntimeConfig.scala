@@ -221,7 +221,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       shutdownHookTimeout: Duration,
       reportUnhandledFiberErrors: Boolean,
       cpuStarvationCheckInterval: FiniteDuration,
-      cpuStarvationCheckInitialDelay: FiniteDuration,
+      cpuStarvationCheckInitialDelay: Duration,
       cpuStarvationCheckThreshold: Double
   ): IORuntimeConfig = {
     if (autoYieldThreshold % cancelationCheckThreshold == 0)
@@ -244,4 +244,26 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
   }
+
+  def apply(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int,
+      shutdownHookTimeout: Duration,
+      reportUnhandledFiberErrors: Boolean,
+      cpuStarvationCheckInterval: FiniteDuration,
+      cpuStarvationCheckInitialDelay: FiniteDuration,
+      cpuStarvationCheckThreshold: Double): IORuntimeConfig =
+    apply(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout,
+      reportUnhandledFiberErrors,
+      cpuStarvationCheckInterval,
+      cpuStarvationCheckInitialDelay: Duration,
+      cpuStarvationCheckThreshold
+    )
 }
