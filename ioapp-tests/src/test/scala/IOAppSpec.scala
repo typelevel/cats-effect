@@ -224,7 +224,7 @@ class IOAppSpec extends Specification {
         h.awaitStatus() mustEqual 0
       }
 
-      if (platform != Native){
+      if (platform != Native) {
         "abort awaiting shutdown hooks" in {
           val h = platform("ShutdownHookImmediateTimeout", List.empty)
           h.awaitStatus() mustEqual 0
