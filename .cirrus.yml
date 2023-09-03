@@ -5,9 +5,9 @@ jvm_highcore_task:
     memory: 8G
   matrix:
     - name: JVM high-core-count 2.13
-      script: sbt '++ 2.13' testsJVM/test
+      script: sbt '++ 2.13' testsJVM/test ioAppTestsJVM/test
     - name: JVM high-core-count 3
-      script: sbt '++ 3' testsJVM/test
+      script: sbt '++ 3' testsJVM/test ioAppTestsJVM/test
 
 jvm_arm_highcore_task:
   arm_container:
@@ -16,9 +16,9 @@ jvm_arm_highcore_task:
     memory: 8G
   matrix:
     - name: JVM ARM high-core-count 2.13
-      script: sbt '++ 2.13' testsJVM/test
+      script: sbt '++ 2.13' testsJVM/test ioAppTestsJVM/test
     - name: JVM ARM high-core-count 3
-      script: sbt '++ 3' testsJVM/test
+      script: sbt '++ 3' testsJVM/test ioAppTestsJVM/test
 
 jvm_macos_highcore_task:
   macos_instance:
@@ -27,7 +27,7 @@ jvm_macos_highcore_task:
     - name: JVM Apple Silicon high-core-count 3
       script:
         - brew install sbt
-        - sbt '++ 3' testsJVM/test
+        - sbt '++ 3' testsJVM/test ioAppTestsJVM/test
 
 native_arm_task:
   arm_container:
@@ -36,7 +36,7 @@ native_arm_task:
     memory: 8G
   matrix:
     - name: Native ARM 3
-      script: sbt '++ 3' testsNative/test
+      script: sbt '++ 3' testsNative/test ioAppTestsNative/test
 
 native_macos_task:
   macos_instance:
@@ -45,4 +45,4 @@ native_macos_task:
     - name: Native Apple Silicon 3
       script:
         - brew install sbt
-        - sbt '++ 3' testsNative/test
+        - sbt '++ 3' testsNative/test ioAppTestsNative/test

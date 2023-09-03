@@ -26,6 +26,7 @@ import scala.annotation.tailrec
 import scala.scalanative.annotation.alwaysinline
 import scala.scalanative.libc.errno._
 import scala.scalanative.meta.LinktimeInfo
+import scala.scalanative.posix.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
 import scala.scalanative.runtime._
@@ -202,7 +203,7 @@ object EpollSystem extends PollingSystem {
             handle.notify(event.events.toInt)
             i += 1
           }
-        } else {
+        } else if (errno != EINTR) { // spurious wake-up by signal
           throw new IOException(fromCString(strerror(errno)))
         }
 

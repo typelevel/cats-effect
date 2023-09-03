@@ -25,6 +25,7 @@ import org.typelevel.scalaccompat.annotation._
 import scala.annotation.tailrec
 import scala.collection.mutable.LongMap
 import scala.scalanative.libc.errno._
+import scala.scalanative.posix.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.time._
 import scala.scalanative.posix.timeOps._
@@ -205,7 +206,7 @@ object KqueueSystem extends PollingSystem {
             i += 1
             event += 1
           }
-        } else {
+        } else if (errno != EINTR) { // spurious wake-up by signal
           throw new IOException(fromCString(strerror(errno)))
         }
 

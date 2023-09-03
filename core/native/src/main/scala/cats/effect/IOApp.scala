@@ -17,9 +17,11 @@
 package cats.effect
 
 import cats.effect.metrics.{CpuStarvationWarningMetrics, NativeCpuStarvationMetrics}
+import cats.syntax.all._
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
+import scala.scalanative.meta.LinktimeInfo._
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -239,20 +241,50 @@ trait IOApp {
     lazy val keepAlive: IO[Nothing] =
       IO.sleep(1.hour) >> keepAlive
 
+    val awaitInterruptOrStayAlive =
+      if (isLinux || isMac)
+        FileDescriptorPoller.find.flatMap {
+          case Some(poller) =>
+            val interruptOrTerm =
+              Signal
+                .awaitInterrupt(poller)
+                .as(ExitCode(130))
+                .race(Signal.awaitTerm(poller).as(ExitCode(143)))
+
+            def hardExit(code: ExitCode) =
+              IO.sleep(runtime.config.shutdownHookTimeout) *> IO(System.exit(code.code))
+
+            interruptOrTerm.map(_.merge).flatTap(hardExit(_).start)
+          case None => keepAlive
+        }
+      else
+        keepAlive
+
+    val fiberDumper =
+      if (isLinux || isMac)
+        FileDescriptorPoller.find.toResource.flatMap {
+          case Some(poller) =>
+            val dump = IO.blocking(runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
+            Signal.foreachDump(poller, dump).background.void
+          case None => Resource.unit[IO]
+        }
+      else Resource.unit[IO]
+
+    val starvationChecker = CpuStarvationCheck
+      .run(runtimeConfig, NativeCpuStarvationMetrics(), onCpuStarvationWarn)
+      .background
+
     Spawn[IO]
-      .raceOutcome[ExitCode, Nothing](
-        CpuStarvationCheck
-          .run(runtimeConfig, NativeCpuStarvationMetrics(), onCpuStarvationWarn)
-          .background
-          .surround(run(args.toList)),
-        keepAlive)
+      .raceOutcome[ExitCode, ExitCode](
+        (fiberDumper *> starvationChecker).surround(run(args.toList)),
+        awaitInterruptOrStayAlive
+      )
+      .map(_.merge)
       .flatMap {
-        case Left(Outcome.Canceled()) =>
+        case Outcome.Canceled() =>
           IO.raiseError(new CancellationException("IOApp main fiber was canceled"))
-        case Left(Outcome.Errored(t)) => IO.raiseError(t)
-        case Left(Outcome.Succeeded(code)) => code
-        case Right(Outcome.Errored(t)) => IO.raiseError(t)
-        case Right(_) => sys.error("impossible")
+        case Outcome.Errored(t) => IO.raiseError(t)
+        case Outcome.Succeeded(code) => code
       }
       .unsafeRunFiber(
         System.exit(0),
