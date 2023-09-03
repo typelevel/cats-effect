@@ -224,11 +224,13 @@ class IOAppSpec extends Specification {
         h.awaitStatus() mustEqual 0
       }
 
-      if (platform != Native)
+      if (platform != Native){
         "abort awaiting shutdown hooks" in {
           val h = platform("ShutdownHookImmediateTimeout", List.empty)
           h.awaitStatus() mustEqual 0
         }
+        ()
+      }
     }
 
     if (!isWindows) {
@@ -270,7 +272,7 @@ class IOAppSpec extends Specification {
         }
         readTest() must contain("canceled")
       }
-    }
+    } else ()
 
     "exit on fatal error without IOApp" in {
       val h = platform("FatalErrorRaw", List.empty)
@@ -302,6 +304,7 @@ class IOAppSpec extends Specification {
         val stderr = h.stderr()
         stderr must contain("cats.effect.IOFiber")
       }
+      ()
     }
 
     if (platform == JVM) {
@@ -329,6 +332,7 @@ class IOAppSpec extends Specification {
         err must contain(
           "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
       }
+      ()
     }
 
     if (platform == Node) {
@@ -336,6 +340,7 @@ class IOAppSpec extends Specification {
         val h = platform("UndefinedProcessExit", List.empty)
         h.awaitStatus() mustEqual 0
       }
+      ()
     }
 
     "make specs2 happy" in ok
