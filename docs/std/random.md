@@ -45,7 +45,6 @@ import cats.implicits.*
 import cats.Monad
 import cats.effect.unsafe.implicits.global
 
-// Scala 3 syntax
 object BusinessLogic {
 
   // use the standard implementation of Random backed by java.util.Random()
@@ -78,7 +77,7 @@ object Magic {
 
 Since `getMagicNumber` is not dependent on a particular implementation (it's referentially transparent), you can give it another instance of the type class as you see fit.
 
-This is particularly useful when testing. In the following example, we need our `Random` implementation give back a stable value so we can ensure everything else works correctly, and our test assert succeeds. Since `randomizer` is passed into `getMagicNumber` we can swap it out in our test with a `Random` of which we can make stable. In our test implementation, calls to `betweenInt` will always give back `7`. This stability of "randomness" allows us to test that our function `getMagicNumber` does what we intend:
+This is particularly useful when testing. In the following example, we need our `Random` implementation to give back a stable value so we can ensure everything else works correctly, and our test assert succeeds. Since `randomizer` is passed into `getMagicNumber`, we can swap it out in our test with a `Random` of which we can make stable. In our test implementation, calls to `betweenInt` will *always* give back `7`. This stability of "randomness" allows us to test that our function `getMagicNumber` does what we intend:
 
 
 
@@ -88,8 +87,8 @@ import org.scalatest.matchers.must.Matchers.*
 
 class MagicSpec extends AnyFunSuite {
 
-  // for testing, create a Random instance that gives back the same number ever time.
-  // with a "stable" version of Random, we 
+  // for testing, create a Random instance that gives back the same number every time. With
+  // this version of the Random type class, we can test our business logic works as intended.
   implicit val r: IO[Random[IO]] = IO(
     new Random[IO] {
       def betweenInt(minInclusive: Int, maxExclusive: Int): IO[Int] =
