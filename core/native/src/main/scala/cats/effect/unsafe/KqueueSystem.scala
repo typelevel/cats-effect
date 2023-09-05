@@ -136,7 +136,8 @@ object KqueueSystem extends PollingSystem {
   final class Poller private[KqueueSystem] (kqfd: Int) {
 
     private[this] val changelistArray = new Array[Byte](sizeof[kevent64_s].toInt * MaxEvents)
-    @inline private[this] def changelist = changelistArray.at(0).asInstanceOf[Ptr[kevent64_s]]
+    @inline private[this] def changelist =
+      changelistArray.atUnsafe(0).asInstanceOf[Ptr[kevent64_s]]
     private[this] var changeCount = 0
 
     private[this] val callbacks = new LongMap[Either[Throwable, Unit] => Unit]()

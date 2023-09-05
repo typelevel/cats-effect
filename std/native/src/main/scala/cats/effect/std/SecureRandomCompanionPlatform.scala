@@ -34,7 +34,7 @@ private[std] trait SecureRandomCompanionPlatform {
       var i = 0
       while (i < len) {
         val n = Math.min(256, len - i)
-        if (sysrandom.getentropy(bytes.at(i), n.toULong) < 0)
+        if (sysrandom.getentropy(bytes.atUnsafe(i), n.toULong) < 0)
           throw new RuntimeException(fromCString(strerror(errno)))
         i += n
       }
