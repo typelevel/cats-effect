@@ -105,6 +105,8 @@ private final class IOFiber[A](
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
 
+  def getLocalState(): IOLocalState = localState
+
   override def run(): Unit = {
     // insert a read barrier after every async boundary
     readBarrier()
