@@ -137,7 +137,7 @@ val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
 val ScalaNativeJava = OldGuardJava
-val GraalVM = JavaSpec.graalvm("11")
+val GraalVM = JavaSpec.graalvm("17")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
@@ -273,10 +273,6 @@ lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
 
-lazy val testJSIOApp =
-  settingKey[Boolean]("Whether to test JVM (false) or Node.js (true) in IOAppSpec")
-Global / testJSIOApp := false
-
 ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
@@ -305,15 +301,13 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.9.0"
-val Specs2Version = "4.20.0"
+val CatsVersion = "2.10.0"
+val Specs2Version = "4.20.2"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
 
 val MacrotaskExecutorVersion = "1.1.1"
-
-val ScalacCompatVersion = "0.1.0"
 
 tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
@@ -329,7 +323,16 @@ tlReplaceCommandAlias(
   "; root/clean; +root/headerCreate; root/scalafixAll; scalafmtSbt; +root/scalafmtAll")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
+  Seq(
+    kernel.js,
+    kernelTestkit.js,
+    laws.js,
+    core.js,
+    testkit.js,
+    tests.js,
+    ioAppTestsJS,
+    std.js,
+    example.js)
 
 val nativeProjects: Seq[ProjectReference] =
   Seq(
@@ -339,6 +342,7 @@ val nativeProjects: Seq[ProjectReference] =
     core.native,
     testkit.native,
     tests.native,
+    ioAppTestsNative,
     std.native,
     example.native)
 
@@ -360,7 +364,8 @@ lazy val root = project
     name := "cats-effect",
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
-    }
+    },
+    scalacOptions -= "-Xsource:3" // bugged
   )
 
 lazy val rootJVM = project
@@ -370,7 +375,7 @@ lazy val rootJVM = project
     laws.jvm,
     core.jvm,
     testkit.jvm,
-    testsJVM,
+    tests.jvm,
     std.jvm,
     example.jvm,
     graalVMExample,
@@ -420,6 +425,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.typelevel" %%% "cats-free" % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
       "org.typelevel" %%% "coop" % CoopVersion),
+    scalacOptions -= "-Xsource:3", // bugged
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.kernel.testkit.TestContext.this"),
@@ -463,9 +469,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
-    libraryDependencies ++= Seq(
-      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime
-    ),
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -645,6 +648,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // introduced by #3332, polling system
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.IORuntimeBuilder.this"),
+      // introduced by #3695, which enabled fiber dumps on native
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.unsafe.FiberMonitorCompanionPlatform"),
       // introduced by #3636, IOLocal propagation
       // IOLocal is a sealed trait
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.getOrDefault"),
@@ -809,7 +815,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack"),
         // introduced by #3642, which optimized the BatchingMacrotaskExecutor
         ProblemFilters.exclude[MissingClassProblem](
-          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$")
+          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$"),
+        // introduced by #3695, which ported fiber monitoring to Native
+        // internal API change
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.ES2021FiberMonitor")
       )
     },
     mimaBinaryIssueFilters ++= {
@@ -871,7 +880,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("tests"))
   .dependsOn(core, laws % Test, kernelTestkit % Test, testkit % Test)
-  .enablePlugins(BuildInfoPlugin, NoPublishPlugin)
+  .enablePlugins(NoPublishPlugin)
   .settings(
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
@@ -880,7 +889,6 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
-    buildInfoPackage := "catseffect",
     githubWorkflowArtifactUpload := false
   )
   .jsSettings(
@@ -896,23 +904,49 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
       s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
     )
   )
-
-lazy val testsJS = tests.js
-lazy val testsJVM = tests
-  .jvm
-  .enablePlugins(BuildInfoPlugin)
-  .settings(
-    Test / compile := {
-      if (testJSIOApp.value)
-        (Test / compile).dependsOn(testsJS / Compile / fastOptJS).value
-      else
-        (Test / compile).value
-    },
-    buildInfoPackage := "cats.effect",
-    buildInfoKeys += testJSIOApp,
-    buildInfoKeys +=
-      "jsRunner" -> (testsJS / Compile / fastOptJS / artifactPath).value
+  .nativeSettings(
+    Compile / mainClass := Some("catseffect.examples.NativeRunner")
   )
+
+def configureIOAppTests(p: Project): Project =
+  p.enablePlugins(NoPublishPlugin, BuildInfoPlugin)
+    .settings(
+      Test / unmanagedSourceDirectories += (LocalRootProject / baseDirectory).value / "ioapp-tests" / "src" / "test" / "scala",
+      libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test,
+      buildInfoPackage := "cats.effect",
+      buildInfoKeys ++= Seq(
+        "jsRunner" -> (tests.js / Compile / fastOptJS / artifactPath).value,
+        "nativeRunner" -> (tests.native / Compile / nativeLink / artifactPath).value
+      )
+    )
+
+lazy val ioAppTestsJVM =
+  project
+    .in(file("ioapp-tests/.jvm"))
+    .configure(configureIOAppTests)
+    .settings(
+      buildInfoKeys += "platform" -> "jvm",
+      Test / fork := true,
+      Test / javaOptions += s"-Dcatseffect.examples.classpath=${(tests.jvm / Compile / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
+    )
+
+lazy val ioAppTestsJS =
+  project
+    .in(file("ioapp-tests/.js"))
+    .configure(configureIOAppTests)
+    .settings(
+      (Test / test) := (Test / test).dependsOn(tests.js / Compile / fastOptJS).value,
+      buildInfoKeys += "platform" -> "js"
+    )
+
+lazy val ioAppTestsNative =
+  project
+    .in(file("ioapp-tests/.native"))
+    .configure(configureIOAppTests)
+    .settings(
+      (Test / test) := (Test / test).dependsOn(tests.native / Compile / nativeLink).value,
+      buildInfoKeys += "platform" -> "native"
+    )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue) purely in terms
@@ -926,7 +960,6 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-effect-std",
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
       "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     ),
@@ -1043,4 +1076,8 @@ lazy val stressTests = project
   )
   .enablePlugins(NoPublishPlugin, JCStressPlugin)
 
-lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
+lazy val docs = project
+  .in(file("site-docs"))
+  .dependsOn(core.jvm)
+  .enablePlugins(MdocPlugin)
+  .settings(tlFatalWarnings := { if (tlIsScala3.value) false else tlFatalWarnings.value })

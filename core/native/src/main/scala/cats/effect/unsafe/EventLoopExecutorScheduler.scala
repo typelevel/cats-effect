@@ -33,7 +33,8 @@ private[effect] final class EventLoopExecutorScheduler[P](
     pollEvery: Int,
     system: PollingSystem.WithPoller[P])
     extends ExecutionContextExecutor
-    with Scheduler {
+    with Scheduler
+    with FiberExecutor {
 
   private[unsafe] val poller: P = system.makePoller()
 
@@ -128,6 +129,7 @@ private[effect] final class EventLoopExecutorScheduler[P](
        */
       if (system.needsPoll(poller) || timeout != -1)
         system.poll(poller, timeout, reportFailure)
+      else ()
 
       continue = !executeQueue.isEmpty() || !sleepQueue.isEmpty() || system.needsPoll(poller)
     }
@@ -151,6 +153,15 @@ private[effect] final class EventLoopExecutorScheduler[P](
   }
 
   def shutdown(): Unit = system.close()
+
+  def liveTraces(): Map[IOFiber[_], Trace] = {
+    val builder = Map.newBuilder[IOFiber[_], Trace]
+    executeQueue.forEach {
+      case f: IOFiber[_] => builder += f -> f.captureTrace()
+      case _ => ()
+    }
+    builder.result()
+  }
 
 }
 

@@ -63,9 +63,6 @@ class FileDescriptorPollerSpec extends BaseSpec {
     }
   }
 
-  def getFdPoller: IO[FileDescriptorPoller] =
-    IO.pollers.map(_.collectFirst { case poller: FileDescriptorPoller => poller }).map(_.get)
-
   def mkPipe: Resource[IO, Pipe] =
     Resource
       .make {
@@ -94,7 +91,7 @@ class FileDescriptorPollerSpec extends BaseSpec {
       }
       .flatMap {
         case (readFd, writeFd) =>
-          Resource.eval(getFdPoller).flatMap { poller =>
+          Resource.eval(FileDescriptorPoller.get).flatMap { poller =>
             (
               poller.registerFileDescriptor(readFd, true, false),
               poller.registerFileDescriptor(writeFd, false, true)

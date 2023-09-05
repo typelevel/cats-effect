@@ -14,29 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect
+package unsafe
 
-import scala.scalajs.js
+import scala.concurrent.ExecutionContext
 
-private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
+private[effect] abstract class FiberMonitorPlatform {
+  def apply(compute: ExecutionContext): FiberMonitor = {
+    if (false) { // LinktimeInfo.debugMode && LinktimeInfo.isWeakReferenceSupported
+      if (compute.isInstanceOf[EventLoopExecutorScheduler[_]]) {
+        val loop = compute.asInstanceOf[EventLoopExecutorScheduler[_]]
+        new FiberMonitorImpl(loop)
+      } else {
+        new FiberMonitorImpl(null)
+      }
+    } else {
+      new NoOpFiberMonitor()
+    }
+  }
 
-  /**
-   * Submits an effect to be executed, returning a `Promise` that holds the result of its
-   * evaluation.
-   */
-  def unsafeToPromise[A](fa: F[A]): js.Promise[A] =
-    new js.Promise[A]((resolve, reject) =>
-      unsafeRunAsync(fa) {
-        case Left(js.JavaScriptException(e)) =>
-          reject(e)
-          ()
-
-        case Left(e) =>
-          reject(e)
-          ()
-
-        case Right(value) =>
-          resolve(value)
-          ()
-      })
 }
