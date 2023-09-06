@@ -347,16 +347,15 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       }
 
       "immediately surface fatal errors" in ticked { implicit ticker =>
-        import scala.util.control.NonFatal
-        val io = IO.raiseError[Unit](new VirtualMachineError {}).voidError
+        val error = new VirtualMachineError {}
+        val io = IO.raiseError[Unit](error).voidError
 
         val fatalThrown =
           try {
             unsafeRun[Unit](io)
             false
           } catch {
-            case t if NonFatal(t) => false
-            case _: Throwable => true
+            case t: Throwable => t eq error
           }
         IO(fatalThrown) must completeAs(true)
       }
