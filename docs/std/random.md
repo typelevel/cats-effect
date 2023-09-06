@@ -49,9 +49,9 @@ object BusinessLogic {
 
   // use the standard implementation of Random backed by java.util.Random()
   // (the same implementation as Random.javaUtilRandom(43))
-  implicit val r: IO[Random[IO]] = Random.scalaUtilRandom[IO]
+  val randomizer: IO[Random[IO]] = Random.scalaUtilRandom[IO]
 
-  // other possible implemntations you could choose
+  // other possible implementations you could choose
   val sr = SecureRandom.javaSecuritySecureRandom(3) // backed java.security.SecureRandom()
   val jr = Random.javaUtilRandom(new java.util.Random()) // pass in the backing randomizer
 
@@ -59,14 +59,15 @@ object BusinessLogic {
   // Doing it here to make the example easy to follow.
   def unsafeGetMessage: String =
     Magic
-      .getMagicNumber[IO](mult = 5) // instance of Random passed implicitly
+      .getMagicNumber[IO](5, randomizer)
       .unsafeRunSync()
 }
 
 object Magic {
   def getMagicNumber[F[_] : Monad](
-    mult: Int
-  )(implicit randomizer: F[Random[F]]): F[String] =
+    mult: Int,
+    randomizer: F[Random[F]]
+  ): F[String] =
     for {
       rand <- randomizer.flatMap(random => random.betweenInt(1, 11)) // 11 is excluded
       number = rand * mult
@@ -89,10 +90,10 @@ class MagicSpec extends AnyFunSuite {
 
   // for testing, create a Random instance that gives back the same number every time. With
   // this version of the Random type class, we can test our business logic works as intended.
-  implicit val r: IO[Random[IO]] = IO(
+  implicit val r: IO[Random[IO]] = IO.pure(
     new Random[IO] {
       def betweenInt(minInclusive: Int, maxExclusive: Int): IO[Int] =
-        IO(7) // gives back 7 every call
+        IO.pure(7) // gives back 7 every call
 
       // all other methods not implemented since they won't be called in our test
       def betweenDouble(minInclusive: Double, maxExclusive: Double): IO[Double] = ???
