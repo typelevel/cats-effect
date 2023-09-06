@@ -241,6 +241,9 @@ private final class IOFiber[A](
 
         case 1 =>
           val cur = cur0.asInstanceOf[Error]
+          if (!NonFatal(cur.t))
+            onFatalFailure(cur.t)
+
           runLoop(failed(cur.t, 0), nextCancelation, nextAutoCede)
 
         case 2 =>

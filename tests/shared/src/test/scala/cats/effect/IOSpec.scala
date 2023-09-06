@@ -345,6 +345,20 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         } yield reported
         test must completeAs(true)
       }
+
+      "immediately surface fatal errors" in ticked { implicit ticker =>
+        import scala.util.control.NonFatal
+        val io = IO.raiseError[Unit](new VirtualMachineError {}).voidError
+        
+        val fatalThrown = try {
+          unsafeRun[Unit](io)
+          false
+        } catch {
+          case t if NonFatal(t) => false
+          case _: Throwable => true
+        }
+        IO(fatalThrown) must completeAs(true)
+      }
     }
 
     "suspension of side effects" should {
