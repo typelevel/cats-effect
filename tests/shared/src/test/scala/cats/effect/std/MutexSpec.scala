@@ -126,7 +126,7 @@ final class MutexSpec extends BaseSpec with DetectPlatform {
     "not deadlock when highly contended" in real {
       mutex
         .flatMap(_.lock.use_.parReplicateA_(10))
-        .replicateA_(if (isJVM) 10000 else 100)
+        .replicateA_(if (isJVM) 10000 else 1000)
         .as(true)
     }
 
