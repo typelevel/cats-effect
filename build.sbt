@@ -894,7 +894,7 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
   )
   .nativeSettings(
     Compile / mainClass := Some("catseffect.examples.NativeRunner"),
-    Test / envVars += "GC_MAXIMUM_MAX_HEAP_SIZE" -> "2G"
+    Test / envVars += "GC_MAXIMUM_MAX_HEAP_SIZE" -> "1G"
   )
 
 def configureIOAppTests(p: Project): Project =
