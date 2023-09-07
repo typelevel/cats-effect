@@ -140,7 +140,7 @@ class HotswapSpec extends BaseSpec { outer =>
         Hotswap[IO, Unit](Resource.unit)
           .use {
             case (hs, _) =>
-              hs.swap(Resource.make(open.set(true))(_ => open.set(false)))
+              hs.swap(Resource.make(open.set(true))(_ => open.getAndSet(false).map(_ should beTrue).void))
           }
           .race(IO.unit) *> open.get.map(_ must beFalse)
       }
