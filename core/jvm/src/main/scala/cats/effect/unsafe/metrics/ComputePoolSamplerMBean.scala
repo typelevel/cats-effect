@@ -19,7 +19,7 @@ package cats.effect.unsafe.metrics
 /**
  * An MBean interface for monitoring a [[WorkStealingThreadPool]] backed compute thread pool.
  */
-private[unsafe] trait ComputePoolSamplerMBean {
+trait ComputePoolSamplerMBean {
 
   /**
    * Returns the number of [[WorkerThread]] instances backing the [[WorkStealingThreadPool]].

@@ -19,7 +19,7 @@ package cats.effect.unsafe.metrics
 /**
  * An MBean interface for monitoring a single [[WorkerThread]] [[LocalQueue]].
  */
-private[unsafe] trait LocalQueueSamplerMBean {
+trait LocalQueueSamplerMBean {
 
   /**
    * Returns the number of fibers enqueued on the monitored [[LocalQueue]].
