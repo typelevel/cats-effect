@@ -327,7 +327,6 @@ trait IOApp {
       .map(_.equalsIgnoreCase("true"))
       .getOrElse(true)
 
-
   /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
