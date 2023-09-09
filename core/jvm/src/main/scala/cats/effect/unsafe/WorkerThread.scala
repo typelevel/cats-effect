@@ -551,6 +551,9 @@ private final class WorkerThread(
             }
           }
 
+          // Clean up any externally canceled timers
+          sleepers.packIfNeeded()
+
           // Obtain a fiber or batch of fibers from the external queue.
           val element = external.poll(rnd)
           if (element.isInstanceOf[Array[Runnable]]) {

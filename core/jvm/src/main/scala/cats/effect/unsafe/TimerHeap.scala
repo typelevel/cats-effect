@@ -31,7 +31,9 @@ package unsafe
 
 import scala.annotation.tailrec
 
-private final class TimerHeap {
+import java.util.concurrent.atomic.AtomicBoolean
+
+private final class TimerHeap extends AtomicBoolean { needsPack =>
 
   // The index 0 is not used; the root is at index 1.
   // This is standard practice in binary heaps, to simplify arithmetics.
@@ -138,6 +140,23 @@ private final class TimerHeap {
     size += 1
     node
   }
+
+  /**
+   * only called by owner thread
+   */
+  def packIfNeeded(): Unit =
+    if (needsPack.getAndSet(false)) { // we now see all external cancelations
+      val heap = this.heap // local copy
+      var i = 1
+      while (i <= size) {
+        if (heap(i).isCanceled()) {
+          removeAt(i)
+          // don't increment i, the new i may be canceled too
+        } else {
+          i += 1
+        }
+      }
+    }
 
   /**
    * only called by owner thread
@@ -332,8 +351,14 @@ private final class TimerHeap {
       if (thread.isInstanceOf[WorkerThread]) {
         val worker = thread.asInstanceOf[WorkerThread]
         val heap = TimerHeap.this
-        if (worker.ownsTimers(heap)) heap.removeAt(index)
+        if (worker.ownsTimers(heap)) {
+          heap.removeAt(index)
+          return ()
+        }
       }
+
+      // otherwise this heap will need packing
+      needsPack.set(true)
     }
 
     def run() = apply()
