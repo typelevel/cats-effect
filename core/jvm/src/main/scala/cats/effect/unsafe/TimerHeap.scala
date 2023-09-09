@@ -35,7 +35,7 @@ private final class TimerHeap {
 
   // The index 0 is not used; the root is at index 1.
   // This is standard practice in binary heaps, to simplify arithmetics.
-  private[this] var heap: Array[TimerNode] = new Array(8) // TODO what initial value
+  private[this] var heap: Array[Node] = new Array(8) // TODO what initial value
   private[this] var size: Int = 0
 
   private[this] val RightUnit = Right(())
@@ -83,7 +83,7 @@ private final class TimerHeap {
    * called by other threads
    */
   def steal(now: Long): Boolean = {
-    def go(heap: Array[TimerNode], size: Int, m: Int): Boolean =
+    def go(heap: Array[Node], size: Int, m: Int): Boolean =
       if (m <= size) {
         val node = heap(m)
         if ((node ne null) && isExpired(node, now)) {
@@ -120,20 +120,20 @@ private final class TimerHeap {
     val rootExpired = !rootCanceled && isExpired(root, now)
     if (rootCanceled || rootExpired) { // see if we can just replace the root
       if (rootExpired) out(0) = root.getAndClear()
-      val node = new TimerNode(triggerTime, callback, 1)
+      val node = new Node(triggerTime, callback, 1)
       heap(1) = node
       fixDown(1)
       node
     } else { // insert at the end
       val heap = growIfNeeded() // new heap array if it grew
       size += 1
-      val node = new TimerNode(triggerTime, callback, size)
+      val node = new Node(triggerTime, callback, size)
       heap(size) = node
       fixUp(size)
       node
     }
   } else {
-    val node = new TimerNode(now + delay, callback, 1)
+    val node = new Node(now + delay, callback, 1)
     this.heap(1) = node
     size += 1
     node
@@ -158,13 +158,13 @@ private final class TimerHeap {
     }
   }
 
-  private[this] def isExpired(node: TimerNode, now: Long): Boolean =
+  private[this] def isExpired(node: Node, now: Long): Boolean =
     cmp(node.triggerTime, now) <= 0 // triggerTime <= now
 
-  private[this] def growIfNeeded(): Array[TimerNode] = {
+  private[this] def growIfNeeded(): Array[Node] = {
     val heap = this.heap // local copy
     if (size >= heap.length - 1) {
-      val newHeap = new Array[TimerNode](heap.length * 2)
+      val newHeap = new Array[Node](heap.length * 2)
       System.arraycopy(heap, 1, newHeap, 1, heap.length - 1)
       this.heap = newHeap
       newHeap
@@ -265,7 +265,7 @@ private final class TimerHeap {
     java.lang.Long.signum(d)
   }
 
-  private[this] def cmp(x: TimerNode, y: TimerNode): Int =
+  private[this] def cmp(x: Node, y: Node): Int =
     cmp(x.triggerTime, y.triggerTime)
 
   /**
@@ -305,7 +305,7 @@ private final class TimerHeap {
 
   override def toString() = if (size > 0) "TimerHeap(...)" else "TimerHeap()"
 
-  private final class TimerNode(
+  private final class Node(
       val triggerTime: Long,
       private[this] var callback: Right[Nothing, Unit] => Unit,
       var index: Int
@@ -340,7 +340,7 @@ private final class TimerHeap {
 
     def isCanceled(): Boolean = callback eq null
 
-    override def toString() = s"TimerNode($triggerTime, $callback})"
+    override def toString() = s"Node($triggerTime, $callback})"
 
   }
 
