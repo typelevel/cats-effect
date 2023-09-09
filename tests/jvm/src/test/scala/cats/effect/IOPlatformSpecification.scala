@@ -421,6 +421,16 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         spin.as(ok)
       }
 
+      "lots of externally-canceled timers" in real {
+        Resource
+          .make(IO(Executors.newSingleThreadExecutor()))(exec => IO(exec.shutdownNow()).void)
+          .map(ExecutionContext.fromExecutor(_))
+          .use { ec =>
+            IO.sleep(1.day).start.flatMap(_.cancel.evalOn(ec)).parReplicateA_(100000)
+          }
+          .as(ok)
+      }
+
       "not lose cedeing threads from the bypass when blocker transitioning" in {
         // writing this test in terms of IO seems to not reproduce the issue
         0.until(5) foreach { _ =>
