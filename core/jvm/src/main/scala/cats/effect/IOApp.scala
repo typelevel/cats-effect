@@ -318,6 +318,17 @@ trait IOApp {
     CpuStarvationCheck.logWarning(metrics)
 
   /**
+   * Defines what to do when IOApp detects that `main` is being invoked on a `Thread` which
+   * isn't the main process thread. This condition can happen when we are running inside of an
+   * `sbt run` with `fork := false`
+   */
+  def warnOnNonMainThreadDetected: Boolean =
+    Option(System.getProperty("cats.effect.warnOnNonMainThreadDetected"))
+      .map(_.equalsIgnoreCase("true"))
+      .getOrElse(true)
+
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
