@@ -327,6 +327,23 @@ trait IOApp {
       .map(_.equalsIgnoreCase("true"))
       .getOrElse(true)
 
+  private def onNonMainThreadDetected(): Unit = {
+    if (warnOnNonMainThreadDetected)
+      System
+        .err
+        .println(
+          """|[WARNING] IOApp `main` is running on a thread other than the main thread.
+             |This may prevent correct resource cleanup after `main` completes.
+             |This condition could be caused by executing `run` in an interactive sbt session with `fork := false`.
+             |Set `Compile / run / fork := true` in this project to resolve this.
+             |
+             |To silence this warning set the system property:
+             |`-Dcats.effect.warnOnNonMainThreadDetected=false`.
+             |""".stripMargin
+        )
+    else ()
+  }
+
   /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
@@ -346,6 +363,7 @@ trait IOApp {
   final def main(args: Array[String]): Unit = {
     // checked in openjdk 8-17; this attempts to detect when we're running under artificial environments, like sbt
     val isForked = Thread.currentThread().getId() == 1
+    if (!isForked) onNonMainThreadDetected()
 
     val installed = if (runtime == null) {
       import unsafe.IORuntime
