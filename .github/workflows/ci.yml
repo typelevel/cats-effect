@@ -287,12 +287,12 @@ jobs:
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
         shell: bash
-        run: mkdir -p benchmarks/target testkit/native/target target stress-tests/target std/jvm/target example/js/target kernel-testkit/jvm/target testkit/js/target rootJS/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target graalvm-example/target kernel-testkit/js/target core/jvm/target rootJVM/target rootNative/target example/native/target kernel/native/target example/jvm/target laws/jvm/target std/native/target testkit/jvm/target project/target
+        run: mkdir -p benchmarks/target testkit/native/target target std/jvm/target example/js/target kernel-testkit/jvm/target testkit/js/target rootJS/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target graalvm-example/target kernel-testkit/js/target core/jvm/target rootJVM/target rootNative/target example/native/target kernel/native/target example/jvm/target laws/jvm/target std/native/target testkit/jvm/target project/target
 
       - name: Compress target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
         shell: bash
-        run: tar cf targets.tar benchmarks/target testkit/native/target target stress-tests/target std/jvm/target example/js/target kernel-testkit/jvm/target testkit/js/target rootJS/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target graalvm-example/target kernel-testkit/js/target core/jvm/target rootJVM/target rootNative/target example/native/target kernel/native/target example/jvm/target laws/jvm/target std/native/target testkit/jvm/target project/target
+        run: tar cf targets.tar benchmarks/target testkit/native/target target std/jvm/target example/js/target kernel-testkit/jvm/target testkit/js/target rootJS/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target graalvm-example/target kernel-testkit/js/target core/jvm/target rootJVM/target rootNative/target example/native/target kernel/native/target example/jvm/target laws/jvm/target std/native/target testkit/jvm/target project/target
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
