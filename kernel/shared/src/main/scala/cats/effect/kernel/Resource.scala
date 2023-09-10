@@ -1223,7 +1223,7 @@ private[effect] trait ResourceHOInstances0 extends ResourceHOInstances1 {
   implicit def catsEffectAsyncForResource[F[_]](implicit F0: Async[F]): Async[Resource[F, *]] =
     new ResourceAsync[F] {
       def F = F0
-      override def applicative = this
+      override def applicative: ResourceAsync[F] = this
     }
 
   implicit def catsEffectSemigroupKForResource[F[_], A](
@@ -1242,7 +1242,7 @@ private[effect] trait ResourceHOInstances1 extends ResourceHOInstances2 {
       implicit F0: Temporal[F]): Temporal[Resource[F, *]] =
     new ResourceTemporal[F] {
       def F = F0
-      override def applicative = this
+      override def applicative: Applicative[Resource[F, *]] = this
     }
 
   implicit def catsEffectSyncForResource[F[_]](implicit F0: Sync[F]): Sync[Resource[F, *]] =
@@ -1257,7 +1257,7 @@ private[effect] trait ResourceHOInstances2 extends ResourceHOInstances3 {
       implicit F0: Concurrent[F]): Concurrent[Resource[F, *]] =
     new ResourceConcurrent[F] {
       def F = F0
-      override def applicative = this
+      override def applicative: ResourceConcurrent[F] = this
     }
 
   implicit def catsEffectClockForResource[F[_]](
@@ -1430,7 +1430,7 @@ abstract private[effect] class ResourceAsync[F[_]]
     with Async[Resource[F, *]] { self =>
   implicit protected def F: Async[F]
 
-  override def applicative = this
+  override def applicative: ResourceAsync[F] = this
 
   override def unique: Resource[F, Unique.Token] =
     Resource.unique
