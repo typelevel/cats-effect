@@ -70,17 +70,15 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
    * Submits an effect to be executed with fire-and-forget semantics.
    */
   def unsafeRunAndForget[A](fa: F[A]): Unit =
-    unsafeToFutureCancelable(fa)
-      ._1
-      .onComplete {
-        case Failure(ex) => ex.printStackTrace()
-        case _ => ()
-      }(parasiticEC)
+    unsafeToFuture(fa).onComplete {
+      case Failure(ex) => ex.printStackTrace()
+      case _ => ()
+    }(parasiticEC)
 
   // package-private because it's just an internal utility which supports specific implementations
   // anyone who needs this type of thing should use unsafeToFuture and then onComplete
   private[std] def unsafeRunAsync[A](fa: F[A])(cb: Either[Throwable, A] => Unit): Unit =
-    unsafeToFutureCancelable(fa)._1.onComplete(t => cb(t.toEither))(parasiticEC)
+    unsafeToFuture(fa).onComplete(t => cb(t.toEither))(parasiticEC)
 }
 
 object Dispatcher {
