@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        scala: [3.3.1, 2.12.18, 2.13.11]
+        scala: [3.3.1, 2.12.18, 2.13.12]
         java: [temurin@8, temurin@11, temurin@17, graalvm@17]
         ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
@@ -218,7 +218,7 @@ jobs:
       - shell: bash
         run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.11' || matrix.scala == '3.3.1') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.12' || matrix.scala == '3.3.1') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' docs/mdoc
 
@@ -233,7 +233,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Test GraalVM Native Image
-        if: matrix.scala == '2.13.11' && matrix.java == 'graalvm@17' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.12' && matrix.java == 'graalvm@17' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
 
@@ -243,7 +243,7 @@ jobs:
         run: example/test-native.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.11' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.12' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix
