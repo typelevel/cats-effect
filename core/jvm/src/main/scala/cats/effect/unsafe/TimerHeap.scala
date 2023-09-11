@@ -362,14 +362,10 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
       if (thread.isInstanceOf[WorkerThread]) {
         val worker = thread.asInstanceOf[WorkerThread]
         val heap = TimerHeap.this
-        if (worker.ownsTimers(heap)) {
+        if (worker.ownsTimers(heap))
           heap.removeAt(index)
-          return ()
-        }
-      }
-
-      // otherwise this heap will need packing
-      needsPack.set(true)
+        else needsPack.set(true) // otherwise this heap will need packing
+      } else needsPack.set(true)
     }
 
     def run() = apply()
