@@ -46,7 +46,7 @@ class TimerHeapSpec extends Specification {
       m.insert(0L, 0L, cb0, out)
       out(0) must beNull
       m.toString mustEqual "TimerHeap(...)"
-      m.pollFirstIfTriggered(Long.MinValue) must beNull
+      m.pollFirstIfTriggered(Long.MinValue + 1) must beNull
       m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb0
       m.pollFirstIfTriggered(Long.MaxValue) must beNull
       m.pollFirstIfTriggered(Long.MinValue) must beNull
@@ -58,9 +58,8 @@ class TimerHeapSpec extends Specification {
       m.insert(0L, 0L, cb2, out)
       out(0) must beNull
       m.insert(0L, 20L, cb3, out)
-      out(0) must beNull
+      out(0) mustEqual cb2
       m.pollFirstIfTriggered(-1L) must beNull
-      m.pollFirstIfTriggered(0L) mustEqual cb2
       m.pollFirstIfTriggered(0L) must beNull
       m.pollFirstIfTriggered(10L) mustEqual cb0
       m.pollFirstIfTriggered(10L) must beNull
@@ -74,43 +73,47 @@ class TimerHeapSpec extends Specification {
     "correctly insert / remove (cancel)" in {
       val m = new TimerHeap
       val out = new Array[Right[Nothing, Unit] => Unit](1)
-      val r0 = m.insert(0L, 0L, cb0, out)
+      val r0 = m.insert(0L, 1L, cb0, out)
       out(0) must beNull
-      val r1 = m.insert(0L, 1L, cb1, out)
+      val r1 = m.insert(0L, 2L, cb1, out)
       out(0) must beNull
-      val r5 = m.insert(0L, 5L, cb5, out)
+      val r5 = m.insert(0L, 6L, cb5, out)
       out(0) must beNull
-      val r4 = m.insert(0L, 4L, cb4, out)
+      val r4 = m.insert(0L, 5L, cb4, out)
       out(0) must beNull
-      val r2 = m.insert(0L, 2L, cb2, out)
+      val r2 = m.insert(0L, 3L, cb2, out)
       out(0) must beNull
-      val r3 = m.insert(0L, 3L, cb3, out)
+      val r3 = m.insert(0L, 4L, cb3, out)
       out(0) must beNull
 
       m.peekFirstQuiescent() mustEqual cb0
-      m.peekFirstTriggerTime() mustEqual 0L
-      r0.run()
-      m.peekFirstQuiescent() mustEqual cb1
       m.peekFirstTriggerTime() mustEqual 1L
+      r0.run()
+      m.packIfNeeded()
+      m.peekFirstQuiescent() mustEqual cb1
+      m.peekFirstTriggerTime() mustEqual 2L
       m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb1
       m.peekFirstQuiescent() mustEqual cb2
-      m.peekFirstTriggerTime() mustEqual 2L
+      m.peekFirstTriggerTime() mustEqual 3L
       r1.run() // NOP
       r3.run()
+      m.packIfNeeded()
       m.peekFirstQuiescent() mustEqual cb2
-      m.peekFirstTriggerTime() mustEqual 2L
+      m.peekFirstTriggerTime() mustEqual 3L
       m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb2
       m.peekFirstQuiescent() mustEqual cb4
-      m.peekFirstTriggerTime() mustEqual 4L
+      m.peekFirstTriggerTime() mustEqual 5L
       m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb4
       m.peekFirstQuiescent() mustEqual cb5
-      m.peekFirstTriggerTime() mustEqual 5L
+      m.peekFirstTriggerTime() mustEqual 6L
       r2.run()
       r5.run()
+      m.packIfNeeded()
       m.peekFirstQuiescent() must beNull
       m.peekFirstTriggerTime() mustEqual Long.MinValue
       m.pollFirstIfTriggered(Long.MaxValue) must beNull
       r4.run() // NOP
+      m.packIfNeeded()
       m.pollFirstIfTriggered(Long.MaxValue) must beNull
     }
 
@@ -122,6 +125,7 @@ class TimerHeapSpec extends Specification {
       val callbacksBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
       for (_ <- 0 until 200) {
         val cb = newCb()
+        val out = new Array[Right[Nothing, Unit] => Unit](1)
         val r = m.insert(nanoTime, 10L, cb, new Array(1))
         removersBuilder += r
         callbacksBuilder += cb

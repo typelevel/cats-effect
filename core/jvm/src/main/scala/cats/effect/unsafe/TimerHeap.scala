@@ -43,8 +43,19 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
   private[this] val RightUnit = Right(())
 
   def peekFirstTriggerTime(): Long =
-    if (size > 0) heap(1).triggerTime
-    else Long.MinValue
+    if (size > 0) {
+      val tt = heap(1).triggerTime
+      if (tt != Long.MinValue) {
+        tt
+      } else {
+        // in the VERY unlikely case when
+        // the trigger time is exactly our
+        // sentinel, we just cheat a little
+        // (this could cause threads to wake
+        // up 1 ns too early):
+        Long.MaxValue
+      }
+    } else Long.MinValue
 
   /**
    * for testing
