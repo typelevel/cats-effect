@@ -75,16 +75,16 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
     }
   }
 
+  private[this] lazy val parasitic: ExecutionContext = new ExecutionContext {
+    def execute(runnable: Runnable) = runnable.run()
+    def reportFailure(t: Throwable) = t.printStackTrace()
+  }
+
   // package-private because it's just an internal utility which supports specific implementations
   // anyone who needs this type of thing should use unsafeToFuture and then onComplete
   private[std] def unsafeRunAsync[A](fa: F[A])(cb: Either[Throwable, A] => Unit): Unit = {
     // this is safe because the only invocation will be cb
-    implicit val parasitic: ExecutionContext = new ExecutionContext {
-      def execute(runnable: Runnable) = runnable.run()
-      def reportFailure(t: Throwable) = t.printStackTrace()
-    }
-
-    unsafeToFuture(fa).onComplete(t => cb(t.toEither))
+    unsafeToFuture(fa).onComplete(t => cb(t.toEither))(parasitic)
   }
 }
 
