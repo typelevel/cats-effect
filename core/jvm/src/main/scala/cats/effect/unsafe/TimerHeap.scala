@@ -364,7 +364,8 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
         val heap = TimerHeap.this
         if (worker.ownsTimers(heap))
           heap.removeAt(index)
-        else needsPack.set(true) // otherwise this heap will need packing
+        else // otherwise this heap will need packing
+          needsPack.set(true)
       } else needsPack.set(true)
     }
 
