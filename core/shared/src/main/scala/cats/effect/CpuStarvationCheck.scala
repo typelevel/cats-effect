@@ -20,7 +20,7 @@ import cats.effect.metrics.CpuStarvationWarningMetrics
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.effect.unsafe.metrics.CpuStarvationSampler
-import cats.syntax.all.*
+import cats.syntax.all._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
