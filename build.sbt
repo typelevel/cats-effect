@@ -41,7 +41,7 @@ ThisBuild / git.gitUncommittedChanges := {
   }
 }
 
-ThisBuild / tlBaseVersion := "3.5"
+ThisBuild / tlBaseVersion := "3.6"
 ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
@@ -112,9 +112,9 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
-val Scala212 = "2.12.17"
-val Scala213 = "2.13.10"
-val Scala3 = "3.2.2"
+val Scala212 = "2.12.18"
+val Scala213 = "2.13.12"
+val Scala3 = "3.3.1"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
@@ -122,15 +122,22 @@ ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
-ThisBuild / tlCiReleaseTags := false
+ThisBuild / tlCiReleaseTags := true
 ThisBuild / tlCiReleaseBranches := Nil
+
+ThisBuild / githubWorkflowArtifactDownloadExtraKeys += "ci"
+ThisBuild / githubWorkflowPublishPreamble +=
+  WorkflowStep.Use(
+    UseRef.Public("typelevel", "await-cirrus", "main"),
+    name = Some("Wait for Cirrus CI")
+  )
 
 val OldGuardJava = JavaSpec.temurin("8")
 val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
 val ScalaNativeJava = OldGuardJava
-val GraalVM = JavaSpec.graalvm("11")
+val GraalVM = JavaSpec.graalvm("17")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
@@ -151,6 +158,15 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     List("gu install native-image"),
     name = Some("Install GraalVM Native Image"),
     cond = Some(s"matrix.java == '${GraalVM.render}'")
+  ),
+  WorkflowStep.Use(
+    UseRef.Public(
+      "al-cheb",
+      "configure-pagefile-action",
+      "d298bdee6b133626425040e3788f1055a8b4cf7a"),
+    name = Some("Configure Windows Pagefile"),
+    params = Map("minimum-size" -> "2GB", "maximum-size" -> "8GB", "timeout" -> "600"),
+    cond = Some(s"matrix.os == '$Windows'")
   )
 )
 
@@ -211,8 +227,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val windowsAndMacScalaFilters =
     (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
       Seq(
-        MatrixExclude(Map("os" -> Windows, "scala" -> scala)),
-        MatrixExclude(Map("os" -> MacOS, "scala" -> scala)))
+        MatrixExclude(Map("os" -> Windows, "scala" -> scala, "ci" -> CI.JVM.command)),
+        MatrixExclude(Map("os" -> MacOS, "scala" -> scala, "ci" -> CI.JVM.command)))
     }
 
   val jsScalaFilters = for {
@@ -241,9 +257,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
 
     javaFilters ++ Seq(
       MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212)),
-      // keep a native+2.13+macos job
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala3))
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212))
     )
   }
 
@@ -258,10 +272,6 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
 lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
-
-lazy val testJSIOApp =
-  settingKey[Boolean]("Whether to test JVM (false) or Node.js (true) in IOAppSpec")
-Global / testJSIOApp := false
 
 ThisBuild / jsEnv := {
   useJSEnv.value match {
@@ -291,15 +301,13 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.9.0"
-val Specs2Version = "4.19.2"
+val CatsVersion = "2.10.0"
+val Specs2Version = "4.20.2"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
 
 val MacrotaskExecutorVersion = "1.1.1"
-
-val ScalacCompatVersion = "0.1.0"
 
 tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
@@ -315,7 +323,16 @@ tlReplaceCommandAlias(
   "; root/clean; +root/headerCreate; root/scalafixAll; scalafmtSbt; +root/scalafmtAll")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
+  Seq(
+    kernel.js,
+    kernelTestkit.js,
+    laws.js,
+    core.js,
+    testkit.js,
+    tests.js,
+    ioAppTestsJS,
+    std.js,
+    example.js)
 
 val nativeProjects: Seq[ProjectReference] =
   Seq(
@@ -325,12 +342,14 @@ val nativeProjects: Seq[ProjectReference] =
     core.native,
     testkit.native,
     tests.native,
+    ioAppTestsNative,
     std.native,
     example.native)
 
 val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
     benchmarks,
+    stressTests,
     example.jvm,
     graalVMExample,
     tests.jvm,
@@ -345,7 +364,8 @@ lazy val root = project
     name := "cats-effect",
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
-    }
+    },
+    scalacOptions -= "-Xsource:3" // bugged
   )
 
 lazy val rootJVM = project
@@ -355,11 +375,12 @@ lazy val rootJVM = project
     laws.jvm,
     core.jvm,
     testkit.jvm,
-    testsJVM,
+    tests.jvm,
     std.jvm,
     example.jvm,
     graalVMExample,
-    benchmarks)
+    benchmarks,
+    stressTests)
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project.aggregate(jsProjects: _*).enablePlugins(NoPublishPlugin)
@@ -383,6 +404,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[Problem]("cats.effect.kernel.GenConcurrent#Memoize*")
     )
   )
+  .disablePlugins(JCStressPlugin)
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
@@ -403,6 +425,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.typelevel" %%% "cats-free" % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
       "org.typelevel" %%% "coop" % CoopVersion),
+    scalacOptions -= "-Xsource:3", // bugged
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.kernel.testkit.TestContext.this"),
@@ -418,6 +441,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.kernel.testkit.TestContext#Task.copy")
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid jar file and
@@ -433,6 +457,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test)
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * Concrete, production-grade implementations of the abstractions. Or, more simply-put: IO. Also
@@ -444,9 +469,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
-    libraryDependencies ++= Seq(
-      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime
-    ),
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -609,7 +631,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingTypesProblem]("cats.effect.ContState"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
-      // #3393, IOFiberConstants is a (package) private class/object:
+      // #3393 and #3464, IOFiberConstants is a (package) private class/object:
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateInitial"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
@@ -618,9 +640,17 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.IOFiberConstants.ContStateWinner"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateResult"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ExecuteRunnableR"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateResult"),
+      // introduced by #3332, polling system
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.IORuntimeBuilder.this"),
+      // introduced by #3695, which enabled fiber dumps on native
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.unsafe.FiberMonitorCompanionPlatform"),
       // introduced by #3317, internal API change
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation$"),
@@ -792,7 +822,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.unsafe.ES2021FiberMonitor.this"),
         // introduced by #3324, which specialized CallbackStack for JS
         // internal API change
-        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack"),
+        // introduced by #3642, which optimized the BatchingMacrotaskExecutor
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$"),
+        // introduced by #3695, which ported fiber monitoring to Native
+        // internal API change
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.ES2021FiberMonitor")
       )
     },
     mimaBinaryIssueFilters ++= {
@@ -822,6 +858,15 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       } else Seq()
     }
   )
+  .nativeSettings(
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.unsafe.PollingExecutorScheduler$SleepTask"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler$")
+    )
+  )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
@@ -837,6 +882,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.specs2" %%% "specs2-core" % Specs2Version % Test
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
@@ -844,7 +890,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("tests"))
   .dependsOn(core, laws % Test, kernelTestkit % Test, testkit % Test)
-  .enablePlugins(BuildInfoPlugin, NoPublishPlugin)
+  .enablePlugins(NoPublishPlugin)
   .settings(
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
@@ -853,7 +899,7 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
-    buildInfoPackage := "catseffect"
+    githubWorkflowArtifactUpload := false
   )
   .jsSettings(
     Compile / scalaJSUseMainModuleInitializer := true,
@@ -862,26 +908,51 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
     scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
   .jvmSettings(
-    Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
+    Test / fork := true
+  )
+  .nativeSettings(
+    Compile / mainClass := Some("catseffect.examples.NativeRunner")
   )
 
-lazy val testsJS = tests.js
-lazy val testsJVM = tests
-  .jvm
-  .enablePlugins(BuildInfoPlugin)
-  .settings(
-    Test / compile := {
-      if (testJSIOApp.value)
-        (Test / compile).dependsOn(testsJS / Compile / fastOptJS).value
-      else
-        (Test / compile).value
-    },
-    buildInfoPackage := "cats.effect",
-    buildInfoKeys += testJSIOApp,
-    buildInfoKeys +=
-      "jsRunner" -> (testsJS / Compile / fastOptJS / artifactPath).value
-  )
+def configureIOAppTests(p: Project): Project =
+  p.enablePlugins(NoPublishPlugin, BuildInfoPlugin)
+    .settings(
+      Test / unmanagedSourceDirectories += (LocalRootProject / baseDirectory).value / "ioapp-tests" / "src" / "test" / "scala",
+      libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test,
+      buildInfoPackage := "cats.effect",
+      buildInfoKeys ++= Seq(
+        "jsRunner" -> (tests.js / Compile / fastOptJS / artifactPath).value,
+        "nativeRunner" -> (tests.native / Compile / nativeLink / artifactPath).value
+      )
+    )
+
+lazy val ioAppTestsJVM =
+  project
+    .in(file("ioapp-tests/.jvm"))
+    .configure(configureIOAppTests)
+    .settings(
+      buildInfoKeys += "platform" -> "jvm",
+      Test / fork := true,
+      Test / javaOptions += s"-Dcatseffect.examples.classpath=${(tests.jvm / Compile / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
+    )
+
+lazy val ioAppTestsJS =
+  project
+    .in(file("ioapp-tests/.js"))
+    .configure(configureIOAppTests)
+    .settings(
+      (Test / test) := (Test / test).dependsOn(tests.js / Compile / fastOptJS).value,
+      buildInfoKeys += "platform" -> "js"
+    )
+
+lazy val ioAppTestsNative =
+  project
+    .in(file("ioapp-tests/.native"))
+    .configure(configureIOAppTests)
+    .settings(
+      (Test / test) := (Test / test).dependsOn(tests.native / Compile / nativeLink).value,
+      buildInfoKeys += "platform" -> "native"
+    )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue) purely in terms
@@ -895,46 +966,61 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-effect-std",
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
       "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     ),
-    mimaBinaryIssueFilters ++= Seq(
-      // introduced by #2604, Fix Console on JS
-      // changes to `cats.effect.std` package private code
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole"),
-      // introduced by #2951
-      // added configurability to Supervisor's scope termination behavior
-      // the following are package-private APIs
-      ProblemFilters.exclude[IncompatibleMethTypeProblem](
-        "cats.effect.std.Supervisor#State.add"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.std.Supervisor#State.add"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.std.Supervisor#State.joinAll"),
-      // introduced by #3000
-      // package-private or private stuff
-      ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
-      ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#BoundedQueue.onOfferNoCapacity"),
-      ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
-      ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
-      // introduced by #3346
-      // private stuff
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Mutex$Impl"),
-      // introduced by #3347
-      // private stuff
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.AtomicCell$Impl"),
-      // introduced by #3409
-      // extracted UnsafeUnbounded private data structure
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded$Cell")
-    )
+    mimaBinaryIssueFilters ++= {
+      if (tlIsScala3.value) {
+        Seq(
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.std.Supervisor.apply$default$2")
+        )
+      } else Seq()
+    },
+    mimaBinaryIssueFilters ++=
+      Seq(
+        // introduced by #2604, Fix Console on JS
+        // changes to `cats.effect.std` package private code
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole"),
+        // introduced by #2951
+        // added configurability to Supervisor's scope termination behavior
+        // the following are package-private APIs
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
+          "cats.effect.std.Supervisor#State.add"),
+        ProblemFilters.exclude[ReversedMissingMethodProblem](
+          "cats.effect.std.Supervisor#State.add"),
+        ProblemFilters.exclude[ReversedMissingMethodProblem](
+          "cats.effect.std.Supervisor#State.joinAll"),
+        // introduced by #3000
+        // package-private or private stuff
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
+        ProblemFilters.exclude[ReversedMissingMethodProblem](
+          "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Queue#BoundedQueue.onOfferNoCapacity"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
+        // #3524, private class
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.MapRef#ConcurrentHashMapImpl.keys"),
+        // introduced by #3346
+        // private stuff
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Mutex$Impl"),
+        // introduced by #3347
+        // private stuff
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.AtomicCell$Impl"),
+        // introduced by #3409
+        // extracted UnsafeUnbounded private data structure
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$UnsafeUnbounded"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.std.Queue$UnsafeUnbounded$Cell"),
+        // introduced by #3480
+        // adds method to sealed Hotswap
+        ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get")
+      )
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test,
@@ -948,6 +1034,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom$")
     )
   )
+  .disablePlugins(JCStressPlugin)
 
 /**
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
@@ -986,4 +1073,17 @@ lazy val benchmarks = project
       "-Dcats.effect.tracing.exceptions.enhanced=false"))
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
-lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
+lazy val stressTests = project
+  .in(file("stress-tests"))
+  .dependsOn(core.jvm, std.jvm)
+  .settings(
+    name := "cats-effect-stress-tests",
+    Jcstress / version := "0.16"
+  )
+  .enablePlugins(NoPublishPlugin, JCStressPlugin)
+
+lazy val docs = project
+  .in(file("site-docs"))
+  .dependsOn(core.jvm)
+  .enablePlugins(MdocPlugin)
+  .settings(tlFatalWarnings := { if (tlIsScala3.value) false else tlFatalWarnings.value })

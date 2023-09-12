@@ -3,12 +3,12 @@ id: thread-model
 title: Thread Model
 ---
 
-Cats effect is a powerful tool for creating and reasoning about highly
+Cats Effect is a powerful tool for creating and reasoning about highly
 concurrent systems. However, to utilize it effectively it is necessary to
 understand something about the underlying thread model and how fibers are
 scheduled on top of it.
 
-This section also discusses cats effect 2 as the comparison is instructive and
+This section also discusses Cats Effect 2 as the comparison is instructive and
 many of our users are already at least somewhat familiar with it.
 
 ## High-level goals
@@ -104,8 +104,8 @@ it is quite different between CE2 and CE3.
 ### Fiber blocking (previously "Semantic Blocking")
 
 Of course, we do also need the ability to tell fibers to wait for conditions to
-be fulfilled. If we can't call thread blocking operations (eg Java/Scala builtin
-locks, semaphores, etc) then what can we do? It seems we need a notion of
+be fulfilled. If we can't call thread blocking operations (e.g., Java/Scala builtin
+locks, semaphores, etc.) then what can we do? It seems we need a notion of
 _semantic_ blocking, where the execution of a fiber is suspended and control of
 the thread it was running on is yielded. This concept is called "fiber blocking" in cats-effect.
 
@@ -115,7 +115,7 @@ Cats effect provides various APIs which have these semantics, such as
 whereas `IO.sleep` is only fiber blocking.
 
 The building block for arbitrary semantic blocking is `Deferred`, which is a
-purely functional promise that can only be completed once
+purely functional promise that can only be completed once.
 
 ```scala
 trait Deferred[F[_], A] {
@@ -126,7 +126,7 @@ trait Deferred[F[_], A] {
 ```
 
 `Deferred#get` is fiber blocking until `Deferred#complete` is called and
-cats effect provides many more fiber blocking abstractions like
+Cats Effect provides many more fiber blocking abstractions like
 semaphores that are built on top of this.
 
 ## Summary thus far
@@ -134,7 +134,7 @@ semaphores that are built on top of this.
 So we've seen that best performance is achieved when we dedicate use of the compute pool
 to evaluating `IO` fiber runloops and ensure that we shift _all_ blocking operations
 to a separate blocking threadpool. We've also seen that many things do not need to
-block a thread at all - cats effect provides fiber blocking abstractions for waiting
+block a thread at all – cats effect provides fiber blocking abstractions for waiting
 for arbitrary conditions to be satisfied. Now it's time to see the details of how we achieve
 this in cats effect 2 and 3.
 
@@ -294,7 +294,7 @@ object Main extends IOApp.WithContext {
 The good news is that CE3 fixes these things and makes other things nicer as well! :)
 Notably, `ContextShift` and `Blocker` are no more.
 
-### Spawn
+### Async
 
 CE3 introduces a re-designed typeclass `Async`
 

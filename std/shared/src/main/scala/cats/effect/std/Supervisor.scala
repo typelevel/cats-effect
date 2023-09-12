@@ -127,7 +127,7 @@ object Supervisor {
 
   private[std] def apply[F[_]](
       await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean] = None)(
+      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     F match {
       case asyncF: Async[F] => applyForAsync(await, checkRestart)(asyncF)
@@ -136,10 +136,7 @@ object Supervisor {
   }
 
   def apply[F[_]: Concurrent]: Resource[F, Supervisor[F]] =
-    apply[F](
-      false,
-      None
-    ) // TODO we have to do this for now because Scala 3 doesn't like it (lampepfl/dotty#15546)
+    apply[F](false)
 
   private trait State[F[_]] {
     def remove(token: Unique.Token): F[Unit]

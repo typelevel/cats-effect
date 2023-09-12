@@ -14,19 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
 
-import scala.concurrent.duration._
+import java.nio.channels.SelectableChannel
+import java.nio.channels.spi.SelectorProvider
 
-// JVM WSTP sets ExternalQueueTicks = 64 so we steal it here
-private[effect] object QueueExecutorScheduler extends PollingExecutorScheduler(64) {
+trait Selector {
 
-  def poll(timeout: Duration): Boolean = {
-    if (timeout != Duration.Zero && timeout.isFinite) {
-      val nanos = timeout.toNanos
-      Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
-    }
-    false
-  }
+  /**
+   * The [[java.nio.channels.spi.SelectorProvider]] that should be used to create
+   * [[java.nio.channels.SelectableChannel]]s that are compatible with this polling system.
+   */
+  def provider: SelectorProvider
+
+  /**
+   * Fiber-block until a [[java.nio.channels.SelectableChannel]] is ready on at least one of the
+   * designated operations. The returned value will indicate which operations are ready.
+   */
+  def select(ch: SelectableChannel, ops: Int): IO[Int]
 
 }

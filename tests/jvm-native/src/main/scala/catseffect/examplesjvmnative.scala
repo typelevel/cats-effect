@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package catseffect
 
-import cats.effect.tracing.TracingConstants
+import cats.effect.{ExitCode, IO, IOApp}
 
-import scala.concurrent.ExecutionContext
+import java.io.{File, FileWriter}
 
-private[unsafe] trait FiberMonitorCompanionPlatform {
-  def apply(compute: ExecutionContext): FiberMonitor = {
-    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
-      new FiberMonitor(wstp)
-    } else {
-      new FiberMonitor(null)
-    }
+package examples {
+  object Finalizers extends IOApp {
+
+    def writeToFile(string: String, file: File): IO[Unit] =
+      IO(new FileWriter(file)).bracket { writer => IO(writer.write(string)) }(writer =>
+        IO(writer.close()))
+
+    def run(args: List[String]): IO[ExitCode] =
+      (IO(println("Started")) >> IO.never)
+        .onCancel(writeToFile("canceled", new File(args.head)))
+        .as(ExitCode.Success)
   }
 }

@@ -24,6 +24,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._
 import org.scalacheck.Prop.forAll
 import org.scalacheck.util.Pretty
+import org.typelevel.discipline.Laws
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
@@ -84,7 +85,7 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
 
     new RuleSet {
       val name = "async"
-      val bases = Nil
+      val bases: Seq[(String, Laws#RuleSet)] = Nil
       val parents = Seq(
         temporal[A, B, C](
           tolerance,
@@ -194,7 +195,7 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
 
     new RuleSet {
       val name = "async"
-      val bases = Nil
+      val bases: Seq[(String, Laws#RuleSet)] = Nil
       val parents = Seq(
         temporal[A, B, C](tolerance)(
           implicitly[Arbitrary[A]],

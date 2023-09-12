@@ -17,5 +17,5 @@
 package cats.effect.unsafe
 
 object implicits {
-  implicit val global: IORuntime = IORuntime.global
+  implicit def global: IORuntime = IORuntime.global
 }

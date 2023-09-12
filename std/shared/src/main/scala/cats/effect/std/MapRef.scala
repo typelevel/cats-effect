@@ -17,12 +17,9 @@
 package cats.effect.std
 
 import cats._
-import cats.conversions.all._
 import cats.data._
 import cats.effect.kernel._
 import cats.syntax.all._
-
-import scala.collection.mutable
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -193,7 +190,7 @@ object MapRef extends MapRefCompanionPlatform {
 
       def tryModify[B](f: Option[V] => (Option[V], B)): F[Option[B]] =
         // we need the suspend because we do effects inside
-        delay {
+        delay[F[Option[B]]] {
           val init = chm.get(k)
           if (init == null) {
             f(None) match {
@@ -230,18 +227,6 @@ object MapRef extends MapRefCompanionPlatform {
         }
         loop
       }
-    }
-
-    val keys: F[List[K]] = delay {
-      val k = chm.keys()
-      val builder = new mutable.ListBuffer[K]
-      if (k != null) {
-        while (k.hasMoreElements()) {
-          val next = k.nextElement()
-          builder.+=(next)
-        }
-      }
-      builder.result()
     }
 
     def apply(k: K): Ref[F, Option[V]] = new HandleRef(k)

@@ -23,6 +23,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._
 import org.scalacheck.Prop.forAll
+import org.typelevel.discipline.Laws
 
 trait SyncTests[F[_]]
     extends MonadCancelTests[F, Throwable]
@@ -58,7 +59,7 @@ trait SyncTests[F[_]]
 
     new RuleSet {
       val name = "sync"
-      val bases = Nil
+      val bases: Seq[(String, Laws#RuleSet)] = Nil
       val parents = Seq(
         monadCancel[A, B, C](
           implicitly[Arbitrary[A]],

@@ -16,9 +16,11 @@
 
 package cats.effect.kernel.syntax
 
-import cats.effect.kernel.{Async, Fiber, Outcome, Resource, Sync}
+import cats.effect.kernel._
 
 import scala.concurrent.ExecutionContext
+
+import java.util.concurrent.Executor
 
 trait AsyncSyntax {
   implicit def asyncOps[F[_], A](wrapped: F[A]): AsyncOps[F, A] =
@@ -30,12 +32,22 @@ final class AsyncOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A]
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): F[A] =
     Async[F].evalOn(wrapped, ec)
 
+  def evalOnExecutor(executor: Executor)(implicit F: Async[F]): F[A] =
+    Async[F].evalOnExecutor(wrapped, executor)
+
   def startOn(ec: ExecutionContext)(implicit F: Async[F]): F[Fiber[F, Throwable, A]] =
     Async[F].startOn(wrapped, ec)
+
+  def startOnExecutor(executor: Executor)(implicit F: Async[F]): F[Fiber[F, Throwable, A]] =
+    Async[F].startOnExecutor(wrapped, executor)
 
   def backgroundOn(ec: ExecutionContext)(
       implicit F: Async[F]): Resource[F, F[Outcome[F, Throwable, A]]] =
     Async[F].backgroundOn(wrapped, ec)
+
+  def backgroundOnExecutor(executor: Executor)(
+      implicit F: Async[F]): Resource[F, F[Outcome[F, Throwable, A]]] =
+    Async[F].backgroundOnExecutor(wrapped, executor)
 
   def syncStep[G[_]: Sync](limit: Int)(implicit F: Async[F]): G[Either[F[A], A]] =
     Async[F].syncStep[G, A](wrapped, limit)

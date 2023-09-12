@@ -214,7 +214,7 @@ object Sync {
       with Clock.OptionTClock[F] {
 
     implicit protected def F: Sync[F]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     def suspend[A](hint: Type)(thunk: => A): OptionT[F, A] =
       OptionT.liftF(F.suspend(hint)(thunk))
@@ -225,7 +225,7 @@ object Sync {
       with MonadCancel.EitherTMonadCancel[F, E, Throwable]
       with Clock.EitherTClock[F, E] {
     implicit protected def F: Sync[F]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     def suspend[A](hint: Type)(thunk: => A): EitherT[F, E, A] =
       EitherT.liftF(F.suspend(hint)(thunk))
@@ -236,7 +236,7 @@ object Sync {
       with MonadCancel.StateTMonadCancel[F, S, Throwable]
       with Clock.StateTClock[F, S] {
     implicit protected def F: Sync[F]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     def suspend[A](hint: Type)(thunk: => A): StateT[F, S, A] =
       StateT.liftF(F.suspend(hint)(thunk))
@@ -247,7 +247,7 @@ object Sync {
       with MonadCancel.WriterTMonadCancel[F, S, Throwable]
       with Clock.WriterTClock[F, S] {
     implicit protected def F: Sync[F]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     def suspend[A](hint: Type)(thunk: => A): WriterT[F, S, A] =
       WriterT.liftF(F.suspend(hint)(thunk))
@@ -258,7 +258,7 @@ object Sync {
       with MonadCancel.IorTMonadCancel[F, L, Throwable]
       with Clock.IorTClock[F, L] {
     implicit protected def F: Sync[F]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     def suspend[A](hint: Type)(thunk: => A): IorT[F, L, A] =
       IorT.liftF(F.suspend(hint)(thunk))
@@ -269,7 +269,7 @@ object Sync {
       with MonadCancel.KleisliMonadCancel[F, R, Throwable]
       with Clock.KleisliClock[F, R] {
     implicit protected def F: Sync[F]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     def suspend[A](hint: Type)(thunk: => A): Kleisli[F, R, A] =
       Kleisli.liftF(F.suspend(hint)(thunk))
@@ -280,7 +280,7 @@ object Sync {
       with MonadCancel.ReaderWriterStateTMonadCancel[F, R, L, S, Throwable]
       with Clock.ReaderWriterStateTClock[F, R, L, S] {
     implicit protected def F: Sync[F]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     def suspend[A](hint: Type)(thunk: => A): ReaderWriterStateT[F, R, L, S, A] =
       ReaderWriterStateT.liftF(F.suspend(hint)(thunk))

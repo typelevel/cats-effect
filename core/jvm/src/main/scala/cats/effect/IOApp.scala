@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
-import cats.effect.unsafe.metrics.CpuStarvationSamplerMBean
+import cats.effect.unsafe.metrics.{CpuStarvationWarningMetrics, CpuStarvationSamplerMBean}
 import cats.syntax.all._
 
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}
@@ -165,6 +165,9 @@ trait IOApp {
    */
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
+  protected def pollingSystem: unsafe.PollingSystem =
+    unsafe.IORuntime.createDefaultPollingSystem()
+
   /**
    * Controls the number of worker threads which will be allocated to the compute pool in the
    * underlying runtime. In general, this should be no ''greater'' than the number of physical
@@ -250,8 +253,11 @@ trait IOApp {
    *
    * This may be of interest if you've been getting warnings about CPU starvation printed to
    * stderr. [[https://typelevel.org/cats-effect/docs/core/starvation-and-tuning]]
+   *
+   * Can also be configured by setting the `cats.effect.detectBlockedThreads` system property.
    */
-  protected def blockedThreadDetectionEnabled: Boolean = false
+  protected def blockedThreadDetectionEnabled: Boolean =
+    java.lang.Boolean.getBoolean("cats.effect.detectBlockedThreads") // defaults to disabled
 
   /**
    * Controls whether non-daemon threads blocking application exit are logged to stderr when the
@@ -305,6 +311,13 @@ trait IOApp {
       .getOrElse(10.seconds)
 
   /**
+   * Defines what to do when CpuStarvationCheck is triggered. Defaults to log a warning to
+   * System.err.
+   */
+  protected def onCpuStarvationWarn(metrics: CpuStarvationWarningMetrics): IO[Unit] =
+    CpuStarvationCheck.logWarning(metrics)
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -328,11 +341,12 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
-        val (compute, compDown) =
+        val (compute, poller, compDown) =
           IORuntime.createWorkStealingComputeThreadPool(
             threads = computeWorkerThreadCount,
             reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
-            blockedThreadDetectionEnabled = blockedThreadDetectionEnabled
+            blockedThreadDetectionEnabled = blockedThreadDetectionEnabled,
+            pollingSystem = pollingSystem
           )
 
         val (blocking, blockDown) =
@@ -342,9 +356,11 @@ trait IOApp {
           compute,
           blocking,
           compute,
+          List(poller),
           { () =>
             compDown()
             blockDown()
+            IORuntime.resetGlobal()
           },
           runtimeConfig)
       }
@@ -390,9 +406,21 @@ trait IOApp {
     val fiber = {
       val cpuStarvationSampler = runtime.cpuStarvationSampler
 
+      /*
+      JvmCpuStarvationMetrics()
+        .flatMap { cpuStarvationMetrics =>
+          CpuStarvationCheck
+            .run(runtimeConfig, cpuStarvationMetrics, onCpuStarvationWarn)
+            .background
+        }
+       */
       CpuStarvationSamplerMBean
         .register(cpuStarvationSampler)
-        .flatMap(_ => CpuStarvationCheck.run(runtimeConfig, cpuStarvationSampler).background)
+        .flatMap { _ =>
+          CpuStarvationCheck
+            .run(runtimeConfig, cpuStarvationSampler, onCpuStarvationWarn)
+            .background
+        }
         .surround(ioa)
         .unsafeRunFiber(
           {
@@ -418,6 +446,8 @@ trait IOApp {
 
     if (isStackTracing)
       runtime.fiberMonitor.monitorSuspended(fiber)
+    else
+      ()
 
     def handleShutdown(): Unit = {
       if (counter.compareAndSet(1, 0)) {

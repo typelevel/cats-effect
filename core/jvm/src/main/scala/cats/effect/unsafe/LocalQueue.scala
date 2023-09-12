@@ -337,7 +337,7 @@ private final class LocalQueue extends LocalQueuePadding {
    * @return
    *   a fiber to be executed directly
    */
-  def enqueueBatch(batch: Array[Runnable], worker: WorkerThread): Runnable = {
+  def enqueueBatch(batch: Array[Runnable], worker: WorkerThread[_]): Runnable = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -410,7 +410,7 @@ private final class LocalQueue extends LocalQueuePadding {
    *   the fiber at the head of the queue, or `null` if the queue is empty (in order to avoid
    *   unnecessary allocations)
    */
-  def dequeue(worker: WorkerThread): Runnable = {
+  def dequeue(worker: WorkerThread[_]): Runnable = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -487,7 +487,7 @@ private final class LocalQueue extends LocalQueuePadding {
    *   a reference to the first fiber to be executed by the stealing [[WorkerThread]], or `null`
    *   if the stealing was unsuccessful
    */
-  def stealInto(dst: LocalQueue, dstWorker: WorkerThread): Runnable = {
+  def stealInto(dst: LocalQueue, dstWorker: WorkerThread[_]): Runnable = {
     // A plain, unsynchronized load of the tail of the destination queue, owned
     // by the executing thread.
     val dstTl = dst.tail

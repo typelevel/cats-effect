@@ -32,7 +32,8 @@ final class IORuntimeBuilder protected (
     protected var customScheduler: Option[(Scheduler, () => Unit)] = None,
     protected var extraShutdownHooks: List[() => Unit] = Nil,
     protected var builderExecuted: Boolean = false,
-    protected var failureReporter: Throwable => Unit = _.printStackTrace()
+    protected var failureReporter: Throwable => Unit = _.printStackTrace(),
+    protected var extraPollers: List[(Any, () => Unit)] = Nil
 ) extends IORuntimeBuilderPlatform {
 
   /**
@@ -116,6 +117,11 @@ final class IORuntimeBuilder protected (
       throw new RuntimeException("Scheduler can only be set once")
     }
     customScheduler = Some((scheduler, shutdown))
+    this
+  }
+
+  def addPoller(poller: Any, shutdown: () => Unit): IORuntimeBuilder = {
+    extraPollers = (poller, shutdown) :: extraPollers
     this
   }
 

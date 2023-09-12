@@ -72,6 +72,38 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
       test must completeAs(0.until(5).toList)
     }
 
+    "not lose offer when taker is canceled during exchange" in real {
+      val test = for {
+        q <- Queue.synchronous[IO, Unit]
+        latch <- CountDownLatch[IO](2)
+        offererDone <- IO.ref(false)
+
+        _ <- (latch.release *> latch.await *> q.offer(()))
+          .guarantee(offererDone.set(true))
+          .start
+        taker <- (latch.release *> latch.await *> q.take).start
+
+        _ <- latch.await
+        _ <- taker.cancel
+
+        // we should either have received the value successfully, or we left the value in queue
+        // what we *don't* want is to remove the value and then lose it due to cancelation
+        oc <- taker.join
+
+        _ <-
+          if (oc.isCanceled) {
+            // we (maybe) hit the race condition
+            // if we lost the value, q.take will hang
+            offererDone.get.flatMap(b => IO(b must beFalse)) *> q.take
+          } else {
+            // we definitely didn't hit the race condition, because we got the value in taker
+            IO.unit
+          }
+      } yield ok
+
+      test.parReplicateA_(if (isJVM) 10000 else 1).as(ok)
+    }
+
     "not lose takers when offerer is canceled and there are no other takers" in real {
       val test = for {
         q <- Queue.synchronous[IO, Unit]
@@ -246,7 +278,11 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
         q <- constructor(64)
 
         produce = 0.until(fiberCount).toList.parTraverse_(producer(q, _))
-        consume = 0.until(fiberCount).toList.parTraverse(consumer(q, _)).map(_.flatten)
+        consume = 0
+          .until(fiberCount)
+          .toList
+          .parTraverse(consumer(q, _))
+          .map(_.flatMap(identity))
 
         results <- produce &> consume
 
@@ -277,7 +313,8 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
       constructor(8) flatMap { q =>
         val offerer = List.fill(8)(List.fill(8)(0)).parTraverse_(_.traverse(q.offer(_)))
 
-        (offerer &> 0.until(8 * 8).toList.traverse_(_ => q.take)).replicateA_(1000) *>
+        val iter = if (isJVM) 1000 else 1
+        (offerer &> 0.until(8 * 8).toList.traverse_(_ => q.take)).replicateA_(iter) *>
           q.size.flatMap(s => IO(s mustEqual 0))
       }
     }
@@ -300,7 +337,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
           }
         }
 
-        (offerer &> taker(0)).replicateA_(1000) *>
+        (offerer &> taker(0)).replicateA_(if (isJVM) 1000 else 1) *>
           q.size.flatMap(s => IO(s mustEqual 0))
       }
     }

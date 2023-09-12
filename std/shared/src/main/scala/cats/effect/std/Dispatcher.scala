@@ -69,8 +69,10 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
    * Submits an effect to be executed with fire-and-forget semantics.
    */
   def unsafeRunAndForget[A](fa: F[A]): Unit = {
-    unsafeToFutureCancelable(fa)
-    ()
+    unsafeRunAsync(fa) {
+      case Left(t) => t.printStackTrace()
+      case Right(_) => ()
+    }
   }
 
   // package-private because it's just an internal utility which supports specific implementations
@@ -204,8 +206,7 @@ object Dispatcher {
     val (workers, makeFork) =
       mode match {
         case Mode.Parallel =>
-          // TODO we have to do this for now because Scala 3 doesn't like it (lampepfl/dotty#15546)
-          (Cpus, Supervisor[F](await, None).map(s => s.supervise(_: F[Unit]).map(_.cancel)))
+          (Cpus, Supervisor[F](await).map(s => s.supervise(_: F[Unit]).map(_.cancel)))
 
         case Mode.Sequential =>
           (
@@ -240,27 +241,28 @@ object Dispatcher {
         states
       })
       ec <- Resource.eval(F.executionContext)
-      alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
 
       // supervisor for the main loop, which needs to always restart unless the Supervisor itself is canceled
       // critically, inner actions can be canceled without impacting the loop itself
       supervisor <- Supervisor[F](await, Some((_: Outcome[F, Throwable, _]) => true))
 
       _ <- {
-        def dispatcher(
-            doneR: AtomicBoolean,
-            latch: AtomicReference[() => Unit],
-            state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
-
-          val step = for {
+        def step(
+            state: Array[AtomicReference[List[Registration]]],
+            await: F[Unit],
+            doneR: AtomicBoolean): F[Unit] =
+          for {
+            done <- F.delay(doneR.get())
             regs <- F delay {
               val buffer = mutable.ListBuffer.empty[Registration]
               var i = 0
               while (i < workers) {
                 val st = state(i)
-                if (st.get() ne Nil) {
-                  val list = st.getAndSet(Nil)
-                  buffer ++= list.reverse // FIFO order here is a form of fairness
+                if (st.get() ne null) {
+                  val list = if (done) st.getAndSet(null) else st.getAndSet(Nil)
+                  if ((list ne null) && (list ne Nil)) {
+                    buffer ++= list.reverse // FIFO order here is a form of fairness
+                  }
                 }
                 i += 1
               }
@@ -269,12 +271,7 @@ object Dispatcher {
 
             _ <-
               if (regs.isEmpty) {
-                F.async_[Unit] { cb =>
-                  if (!latch.compareAndSet(Noop, () => cb(Completed))) {
-                    // state was changed between when we last set the latch and now; complete the callback immediately
-                    cb(Completed)
-                  }
-                }
+                await
               } else {
                 regs traverse_ {
                   case r @ Registration(action, prepareCancel) =>
@@ -287,10 +284,23 @@ object Dispatcher {
               }
           } yield ()
 
+        def dispatcher(
+            doneR: AtomicBoolean,
+            latch: AtomicReference[() => Unit],
+            state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
+
+          val await =
+            F.async_[Unit] { cb =>
+              if (!latch.compareAndSet(Noop, () => cb(Completed))) {
+                // state was changed between when we last set the latch and now; complete the callback immediately
+                cb(Completed)
+              }
+            }
+
           F.delay(latch.set(Noop)) *> // reset latch
             // if we're marked as done, yield immediately to give other fibers a chance to shut us down
             // we might loop on this a few times since we're marked as done before the supervisor is canceled
-            F.delay(doneR.get()).ifM(F.cede, step)
+            F.delay(doneR.get()).ifM(F.cede, step(state, await, doneR))
         }
 
         0.until(workers).toList traverse_ { n =>
@@ -299,20 +309,26 @@ object Dispatcher {
             val worker = dispatcher(doneR, latch, states(n))
             val release = F.delay(latch.getAndSet(Open)())
             Resource.make(supervisor.supervise(worker)) { _ =>
-              // published by release
-              F.delay(doneR.lazySet(true)) *> release
+              F.delay(doneR.set(true)) *> step(states(n), F.unit, doneR) *> release
             }
           }
         }
       }
     } yield {
       new Dispatcher[F] {
+        override def unsafeRunAndForget[A](fa: F[A]): Unit = {
+          unsafeRunAsync(fa) {
+            case Left(t) => ec.reportFailure(t)
+            case Right(_) => ()
+          }
+        }
+
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
           val promise = Promise[E]()
 
           val action = fe
             .flatMap(e => F.delay(promise.success(e)))
-            .onError { case t => F.delay(promise.failure(t)) }
+            .handleErrorWith(t => F.delay(promise.failure(t)))
             .void
 
           val cancelState = new AtomicReference[CancelState](CancelInit)
@@ -347,65 +363,57 @@ object Dispatcher {
           @tailrec
           def enqueue(state: AtomicReference[List[Registration]], reg: Registration): Unit = {
             val curr = state.get()
-            val next = reg :: curr
-
-            if (!state.compareAndSet(curr, next)) enqueue(state, reg)
-          }
-
-          if (alive.get()) {
-            val (state, lt) = if (workers > 1) {
-              val rand = ThreadLocalRandom.current()
-              val dispatcher = rand.nextInt(workers)
-              val inner = rand.nextInt(workers)
-
-              (states(dispatcher)(inner), latches(dispatcher))
-            } else {
-              (states(0)(0), latches(0))
-            }
-
-            val reg = Registration(action, registerCancel _)
-            enqueue(state, reg)
-
-            if (lt.get() ne Open) {
-              val f = lt.getAndSet(Open)
-              f()
-            }
-
-            val cancel = { () =>
-              reg.lazySet(false)
-
-              @tailrec
-              def loop(): Future[Unit] = {
-                val state = cancelState.get()
-                state match {
-                  case CancelInit =>
-                    val promise = Promise[Unit]()
-                    if (!cancelState.compareAndSet(state, CanceledNoToken(promise))) {
-                      loop()
-                    } else {
-                      promise.future
-                    }
-                  case CanceledNoToken(promise) =>
-                    promise.future
-                  case CancelToken(cancelToken) =>
-                    cancelToken()
-                }
-              }
-
-              loop()
-            }
-
-            // double-check after we already put things in the structure
-            if (alive.get()) {
-              (promise.future, cancel)
-            } else {
-              // we were shutdown *during* the enqueue
-              cancel()
+            if (curr eq null) {
               throw new IllegalStateException("dispatcher already shutdown")
+            } else {
+              val next = reg :: curr
+              if (!state.compareAndSet(curr, next)) enqueue(state, reg)
             }
-          } else {
-            throw new IllegalStateException("dispatcher already shutdown")
           }
+
+          val (state, lt) = if (workers > 1) {
+            val rand = ThreadLocalRandom.current()
+            val dispatcher = rand.nextInt(workers)
+            val inner = rand.nextInt(workers)
+
+            (states(dispatcher)(inner), latches(dispatcher))
+          } else {
+            (states(0)(0), latches(0))
+          }
+
+          val reg = Registration(action, registerCancel _)
+          enqueue(state, reg)
+
+          if (lt.get() ne Open) {
+            val f = lt.getAndSet(Open)
+            f()
+          }
+
+          val cancel = { () =>
+            reg.lazySet(false)
+
+            @tailrec
+            def loop(): Future[Unit] = {
+              val state = cancelState.get()
+              state match {
+                case CancelInit =>
+                  val promise = Promise[Unit]()
+                  if (!cancelState.compareAndSet(state, CanceledNoToken(promise))) {
+                    loop()
+                  } else {
+                    promise.future
+                  }
+                case CanceledNoToken(promise) =>
+                  promise.future
+                case CancelToken(cancelToken) =>
+                  cancelToken()
+              }
+            }
+
+            loop()
+          }
+
+          (promise.future, cancel)
         }
       }
     }

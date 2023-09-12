@@ -17,7 +17,13 @@
 package cats.effect
 
 import cats.effect.std.Semaphore
-import cats.effect.unsafe.{IORuntime, IORuntimeConfig, WorkStealingThreadPool}
+import cats.effect.unsafe.{
+  IORuntime,
+  IORuntimeConfig,
+  PollingSystem,
+  SleepSystem,
+  WorkStealingThreadPool
+}
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
@@ -30,9 +36,10 @@ import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
   CountDownLatch,
-  Executors
+  Executors,
+  ThreadLocalRandom
 }
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, AtomicReference}
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
@@ -262,7 +269,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       "run a timer which crosses into a blocking region" in realWithRuntime { rt =>
         rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
+          case sched: WorkStealingThreadPool[_] =>
             // we structure this test by calling the runtime directly to avoid nondeterminism
             val delay = IO.async[Unit] { cb =>
               IO {
@@ -285,7 +292,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       "run timers exactly once when crossing into a blocking region" in realWithRuntime { rt =>
         rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
+          case sched: WorkStealingThreadPool[_] =>
             IO defer {
               val ai = new AtomicInteger(0)
 
@@ -303,7 +310,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       "run a timer registered on a blocker" in realWithRuntime { rt =>
         rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
+          case sched: WorkStealingThreadPool[_] =>
             // we structure this test by calling the runtime directly to avoid nondeterminism
             val delay = IO.async[Unit] { cb =>
               IO {
@@ -323,7 +330,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
       }
 
       "safely detect hard-blocked threads even while blockers are being created" in {
-        val (compute, shutdown) =
+        val (compute, _, shutdown) =
           IORuntime.createWorkStealingComputeThreadPool(blockedThreadDetectionEnabled = true)
 
         implicit val runtime: IORuntime =
@@ -343,7 +350,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       // this test ensures that the parkUntilNextSleeper bit works
       "run a timer when parking thread" in {
-        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+        val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
 
         implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
 
@@ -358,7 +365,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       // this test ensures that we always see the timer, even when it fires just as we're about to park
       "run a timer when detecting just prior to park" in {
-        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+        val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
 
         implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
 
@@ -371,16 +378,66 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         }
       }
 
+      "random racing sleeps" in real {
+        def randomSleep: IO[Unit] = IO.defer {
+          val n = ThreadLocalRandom.current().nextInt(2000000)
+          IO.sleep(n.micros) // less than 2 seconds
+        }
+
+        def raceAll(ios: List[IO[Unit]]): IO[Unit] = {
+          ios match {
+            case head :: tail => tail.foldLeft(head) { (x, y) => IO.race(x, y).void }
+            case Nil => IO.unit
+          }
+        }
+
+        // we race a lot of "sleeps", it must not hang
+        // (this includes inserting and cancelling
+        // a lot of callbacks into the skip list,
+        // thus hopefully stressing the data structure):
+        List
+          .fill(500) {
+            raceAll(List.fill(500) { randomSleep })
+          }
+          .parSequence_
+          .as(ok)
+      }
+
+      "steal timers" in realWithRuntime { rt =>
+        val spin = IO.cede *> IO { // first make sure we're on a `WorkerThread`
+          // The `WorkerThread` which executes this IO
+          // will never exit the `while` loop, unless
+          // the timer is triggered, so it will never
+          // be able to trigger the timer itself. The
+          // only way this works is if some other worker
+          // steals the the timer.
+          val flag = new AtomicBoolean(false)
+          val _ = rt.scheduler.sleep(500.millis, () => { flag.set(true) })
+          var ctr = 0L
+          while (!flag.get()) {
+            if ((ctr % 8192L) == 0L) {
+              // Make sure there is another unparked
+              // worker searching (and stealing timers):
+              rt.compute.execute(() => { () })
+            }
+            ctr += 1L
+          }
+        }
+
+        spin.as(ok)
+      }
+
       "not lose cedeing threads from the bypass when blocker transitioning" in {
         // writing this test in terms of IO seems to not reproduce the issue
         0.until(5) foreach { _ =>
-          val wstp = new WorkStealingThreadPool(
+          val wstp = new WorkStealingThreadPool[AnyRef](
             threadCount = 2,
             threadPrefix = "testWorker",
             blockerThreadPrefix = "testBlocker",
             runtimeBlockingExpiration = 3.seconds,
             reportFailure0 = _.printStackTrace(),
-            blockedThreadDetectionEnabled = false
+            blockedThreadDetectionEnabled = false,
+            system = SleepSystem
           )
 
           val runtime = IORuntime
@@ -413,6 +470,65 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         }
 
         ok
+      }
+
+      "wake parked thread for polled events" in {
+
+        trait DummyPoller {
+          def poll: IO[Unit]
+        }
+
+        object DummySystem extends PollingSystem {
+          type Api = DummyPoller
+          type Poller = AtomicReference[List[Either[Throwable, Unit] => Unit]]
+
+          def close() = ()
+
+          def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Unit])
+          def needsPoll(poller: Poller) = poller.get.nonEmpty
+          def closePoller(poller: Poller) = ()
+
+          def interrupt(targetThread: Thread, targetPoller: Poller) =
+            SleepSystem.interrupt(targetThread, SleepSystem.makePoller())
+
+          def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit) = {
+            poller.getAndSet(Nil) match {
+              case Nil =>
+                SleepSystem.poll(SleepSystem.makePoller(), nanos, reportFailure)
+              case cbs =>
+                cbs.foreach(_.apply(Right(())))
+                true
+            }
+          }
+
+          def makeApi(register: (Poller => Unit) => Unit): DummySystem.Api =
+            new DummyPoller {
+              def poll = IO.async_[Unit] { cb =>
+                register { poller =>
+                  poller.getAndUpdate(cb :: _)
+                  ()
+                }
+              }
+            }
+        }
+
+        val (pool, poller, shutdown) = IORuntime.createWorkStealingComputeThreadPool(
+          threads = 2,
+          pollingSystem = DummySystem)
+
+        implicit val runtime: IORuntime =
+          IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()
+
+        try {
+          val test =
+            IO.pollers.map(_.head.asInstanceOf[DummyPoller]).flatMap { poller =>
+              val blockAndPoll = IO.blocking(Thread.sleep(10)) *> poller.poll
+              blockAndPoll.replicateA(100).as(true)
+            }
+          test.unsafeRunSync() must beTrue
+        } finally {
+          runtime.shutdown()
+        }
       }
     }
   }

@@ -42,6 +42,5 @@ private object IOFiberConstants {
   final val BlockingR = 5
   final val CedeR = 6
   final val AutoCedeR = 7
-  final val ExecuteRunnableR = 8
-  final val DoneR = 9
+  final val DoneR = 8
 }

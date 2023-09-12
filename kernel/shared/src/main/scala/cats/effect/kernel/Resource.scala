@@ -866,10 +866,9 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     applyCase[F, A](acquire.map(a => (a, e => release(a, e))))
 
   /**
-   * Creates a resource from an acquiring effect and a release function that can discriminate
-   * between different [[ExitCase exit cases]].
+   * Creates a resource from a possibly cancelable acquiring effect and a release function.
    *
-   * The acquiring effect takes a `Poll[F]` to allow for interruptible acquires, which is most
+   * The acquiring effect takes a `Poll[F]` to allow for cancelable acquires, which is most
    * often useful when acquiring lock-like structures: it should be possible to interrupt a
    * fiber waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
@@ -891,10 +890,10 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     applyFull[F, A](poll => acquire(poll).map(a => (a, _ => release(a))))
 
   /**
-   * Creates a resource from an acquiring effect and a release function that can discriminate
-   * between different [[ExitCase exit cases]].
+   * Creates a resource from a possibly cancelable acquiring effect and a release function that
+   * can discriminate between different [[ExitCase exit cases]].
    *
-   * The acquiring effect takes a `Poll[F]` to allow for interruptible acquires, which is most
+   * The acquiring effect takes a `Poll[F]` to allow for cancelable acquires, which is most
    * often useful when acquiring lock-like structures: it should be possible to interrupt a
    * fiber waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
@@ -1224,7 +1223,6 @@ private[effect] trait ResourceHOInstances0 extends ResourceHOInstances1 {
   implicit def catsEffectAsyncForResource[F[_]](implicit F0: Async[F]): Async[Resource[F, *]] =
     new ResourceAsync[F] {
       def F = F0
-      override def applicative = this
     }
 
   implicit def catsEffectSemigroupKForResource[F[_], A](
@@ -1243,7 +1241,6 @@ private[effect] trait ResourceHOInstances1 extends ResourceHOInstances2 {
       implicit F0: Temporal[F]): Temporal[Resource[F, *]] =
     new ResourceTemporal[F] {
       def F = F0
-      override def applicative = this
     }
 
   implicit def catsEffectSyncForResource[F[_]](implicit F0: Sync[F]): Sync[Resource[F, *]] =
@@ -1258,7 +1255,6 @@ private[effect] trait ResourceHOInstances2 extends ResourceHOInstances3 {
       implicit F0: Concurrent[F]): Concurrent[Resource[F, *]] =
     new ResourceConcurrent[F] {
       def F = F0
-      override def applicative = this
     }
 
   implicit def catsEffectClockForResource[F[_]](
@@ -1430,8 +1426,6 @@ abstract private[effect] class ResourceAsync[F[_]]
     with ResourceSync[F]
     with Async[Resource[F, *]] { self =>
   implicit protected def F: Async[F]
-
-  override def applicative = this
 
   override def unique: Resource[F, Unique.Token] =
     Resource.unique

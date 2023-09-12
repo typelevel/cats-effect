@@ -59,7 +59,7 @@ object PQueue {
     assertNonNegative(capacity)
     F.ref(State.empty[F, A]).map { ref =>
       new PQueueImpl[F, A](ref, capacity) {
-        implicit val Ord = O
+        implicit val Ord: Order[A] = O
       }
     }
   }

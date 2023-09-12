@@ -498,14 +498,14 @@ object MyMain extends IOApp {
 
 ### Increasing/Decreasing Sensitivity
 
-By default, the checker will warn whenever the compute latency exceeds 100 milliseconds. This is calculated based on the `cpuStarvationCheckInterval` (default: `1.second`) multiplied by the `cpuStarvationCheckThreshold` (default: `0.1d`). In general, it is recommended that if you want to increase or decrease the sensitivity of the checker, you should do so by adjusting the interval (meaning that a more sensitive check will run more frequently):
+By default, the checker will warn whenever the compute latency exceeds 100 milliseconds. This is calculated based on the `cpuStarvationCheckInterval` (default: `1.second`) multiplied by the `cpuStarvationCheckThreshold` (default: `0.1d`). In general, it is recommended that if you want to increase or decrease the sensitivity of the checker, you should do so by adjusting the interval. Decreasing the interval results in a more sensitive check running more frequently, while increasing the interval results in a less sensitive check running less frequently:
 
 ```scala mdoc:silent
 import scala.concurrent.duration._
 
 object MyOtherMain extends IOApp {
 
-  // adjust threshold to 50 milliseconds
+  // relax threshold to 500 milliseconds
   override def runtimeConfig = 
     super.runtimeConfig.copy(cpuStarvationCheckInterval = 5.seconds)
 

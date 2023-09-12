@@ -79,6 +79,23 @@ package examples {
       Console[IO].errorln("boom").whenA(!r.eq(runtime)) >> IO.pure(ExitCode.Success)
   }
 
+  object GlobalShutdown extends IOApp {
+
+    var r: IORuntime = null
+
+    def foo(): Unit = {
+      // touch the global runtime to force its initialization
+      r = cats.effect.unsafe.implicits.global
+      ()
+    }
+
+    foo()
+    r.shutdown()
+
+    def run(args: List[String]): IO[ExitCode] =
+      Console[IO].errorln("boom").whenA(r.eq(runtime)) >> IO.pure(ExitCode.Success)
+  }
+
   object LiveFiberSnapshot extends IOApp.Simple {
 
     import scala.concurrent.duration._

@@ -18,8 +18,6 @@ package cats
 package effect
 package std
 
-import cats.syntax.all._
-
 import org.specs2.specification.core.Fragments
 
 import scala.concurrent.duration._
@@ -103,6 +101,18 @@ final class AtomicCellSpec extends BaseSpec {
           _ <- cell.update(_ + 1).replicateA_(2)
           r <- cell.get
         } yield r == 2
+
+        op must completeAs(true)
+      }
+
+      "get should not block during concurrent modification" in ticked { implicit ticker =>
+        val op = for {
+          cell <- factory(0)
+          gate <- IO.deferred[Unit]
+          _ <- cell.evalModify(_ => gate.complete(()) *> IO.never).start
+          _ <- gate.get
+          r <- cell.get
+        } yield r == 0
 
         op must completeAs(true)
       }

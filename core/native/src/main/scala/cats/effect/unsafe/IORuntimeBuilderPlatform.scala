@@ -18,17 +18,41 @@ package cats.effect.unsafe
 
 private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder =>
 
+  protected var customPollingSystem: Option[PollingSystem] = None
+
+  /**
+   * Override the default [[PollingSystem]]
+   */
+  def setPollingSystem(system: PollingSystem): IORuntimeBuilder = {
+    if (customPollingSystem.isDefined) {
+      throw new RuntimeException("Polling system can only be set once")
+    }
+    customPollingSystem = Some(system)
+    this
+  }
+
   protected def platformSpecificBuild: IORuntime = {
     val defaultShutdown: () => Unit = () => ()
-    val (compute, computeShutdown) =
-      customCompute.getOrElse((IORuntime.defaultComputeExecutionContext, defaultShutdown))
+    lazy val (loop, poller, loopDown) = IORuntime.createEventLoop(
+      customPollingSystem.getOrElse(IORuntime.createDefaultPollingSystem())
+    )
+    val (compute, pollers, computeShutdown) =
+      customCompute
+        .map { case (c, s) => (c, Nil, s) }
+        .getOrElse(
+          (
+            loop,
+            List(poller),
+            loopDown
+          ))
     val (blocking, blockingShutdown) = customBlocking.getOrElse((compute, defaultShutdown))
     val (scheduler, schedulerShutdown) =
-      customScheduler.getOrElse((IORuntime.defaultScheduler, defaultShutdown))
+      customScheduler.getOrElse((loop, defaultShutdown))
     val shutdown = () => {
       computeShutdown()
       blockingShutdown()
       schedulerShutdown()
+      extraPollers.foreach(_._2())
       extraShutdownHooks.reverse.foreach(_())
     }
     val runtimeConfig = customConfig.getOrElse(IORuntimeConfig())
@@ -37,6 +61,7 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
       computeTransform(compute),
       blockingTransform(blocking),
       scheduler,
+      pollers ::: extraPollers.map(_._1),
       shutdown,
       runtimeConfig
     )

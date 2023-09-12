@@ -17,10 +17,6 @@
 package cats.effect
 package unsafe
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
-import scala.scalajs.{js, LinkingInfo}
-
 private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
   /**
@@ -43,24 +39,21 @@ private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
   def liveFiberSnapshot(print: String => Unit): Unit
 }
 
-/**
- * Relies on features *standardized* in ES2021, although already offered in many environments
- */
-private final class ES2021FiberMonitor(
+private final class FiberMonitorImpl(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
-    // operates. `null` if the compute pool of the `IORuntime` is not a `BatchingMacrotaskExecutor`.
-    private[this] val compute: BatchingMacrotaskExecutor
+    // operates. `null` if the compute pool of the `IORuntime` is not a `FiberExecutor`.
+    private[this] val compute: FiberExecutor
 ) extends FiberMonitor {
   private[this] val bag = new WeakBag[IOFiber[_]]()
 
   override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle =
     bag.insert(fiber)
 
-  def foreignTraces(): Map[IOFiber[_], Trace] = {
-    val foreign = mutable.Map.empty[IOFiber[Any], Trace]
+  private[this] def foreignTraces(): Map[IOFiber[_], Trace] = {
+    val foreign = Map.newBuilder[IOFiber[_], Trace]
     bag.forEach(fiber =>
       if (!fiber.isDone) foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.captureTrace()))
-    foreign.toMap
+    foreign.result()
   }
 
   def liveFiberSnapshot(print: String => Unit): Unit =
@@ -70,7 +63,7 @@ private final class ES2021FiberMonitor(
 
       // We trust the sources of data in the following order, ordered from
       // most trustworthy to least trustworthy.
-      // 1. Fibers from the macrotask executor
+      // 1. Fibers from the fiber executor
       // 2. Fibers from the foreign fallback weak GC map
 
       val allForeign = rawForeign -- queued.keys
@@ -92,33 +85,11 @@ private final class ES2021FiberMonitor(
 
 /**
  * A no-op implementation of an unordered bag used for tracking asynchronously suspended fiber
- * instances on Scala.js. This is used as a fallback.
+ * instances on Scala Native. This is used as a fallback.
  */
 private final class NoOpFiberMonitor extends FiberMonitor {
   override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle = () => ()
   def liveFiberSnapshot(print: String => Unit): Unit = ()
 }
 
-private[effect] object FiberMonitor {
-  def apply(compute: ExecutionContext): FiberMonitor = {
-    if (LinkingInfo.developmentMode && weakRefsAvailable) {
-      if (compute.isInstanceOf[BatchingMacrotaskExecutor]) {
-        val bmec = compute.asInstanceOf[BatchingMacrotaskExecutor]
-        new ES2021FiberMonitor(bmec)
-      } else {
-        new ES2021FiberMonitor(null)
-      }
-    } else {
-      new NoOpFiberMonitor()
-    }
-  }
-
-  private[this] final val Undefined = "undefined"
-
-  /**
-   * Feature-tests for all the required, well, features :)
-   */
-  private[unsafe] def weakRefsAvailable: Boolean =
-    js.typeOf(js.Dynamic.global.WeakRef) != Undefined &&
-      js.typeOf(js.Dynamic.global.FinalizationRegistry) != Undefined
-}
+private[effect] object FiberMonitor extends FiberMonitorPlatform

@@ -40,6 +40,7 @@ import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleDuration
 import cats.effect.std.{Backpressure, Console, Env, Supervisor, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
+import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import scala.annotation.unchecked.uncheckedVariance
@@ -358,10 +359,26 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    */
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
+  /**
+   * Shifts the execution of the current IO to the specified [[java.util.concurrent.Executor]].
+   *
+   * @see
+   *   [[evalOn]]
+   */
+  def evalOnExecutor(executor: Executor): IO[A] =
+    IO.asyncForIO.evalOnExecutor(this, executor)
+
   def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = start.evalOn(ec)
+
+  def startOnExecutor(executor: Executor): IO[FiberIO[A @uncheckedVariance]] =
+    IO.asyncForIO.startOnExecutor(this, executor)
 
   def backgroundOn(ec: ExecutionContext): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
     Resource.make(startOn(ec))(_.cancel).map(_.join)
+
+  def backgroundOnExecutor(
+      executor: Executor): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
+    IO.asyncForIO.backgroundOnExecutor(this, executor)
 
   /**
    * Given an effect which might be [[uncancelable]] and a finalizer, produce an effect which
@@ -555,18 +572,13 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.OnCancel(this, fin)
 
   def onError(f: Throwable => IO[Unit]): IO[A] =
-    handleErrorWith(t => f(t).attempt *> IO.raiseError(t))
+    handleErrorWith(t => f(t).voidError *> IO.raiseError(t))
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
     IO.race(this, that)
 
   def raceOutcome[B](that: IO[B]): IO[Either[OutcomeIO[A @uncheckedVariance], OutcomeIO[B]]] =
-    IO.uncancelable { _ =>
-      racePair(that).flatMap {
-        case Left((oc, f)) => f.cancel.as(Left(oc))
-        case Right((f, oc)) => f.cancel.as(Right(oc))
-      }
-    }
+    IO.asyncForIO.raceOutcome(this, that)
 
   def racePair[B](that: IO[B]): IO[Either[
     (OutcomeIO[A @uncheckedVariance], FiberIO[B]),
@@ -938,7 +950,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * should never be totally silent.
    */
   def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit = {
-    val _ = unsafeRunFiber((), _ => (), _ => ())
+    val _ = unsafeRunFiber(
+      (),
+      t => {
+        if (NonFatal(t)) {
+          if (runtime.config.reportUnhandledFiberErrors)
+            runtime.compute.reportFailure(t)
+        } else { t.printStackTrace() }
+      },
+      _ => ())
     ()
   }
 
@@ -1482,6 +1502,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def trace: IO[Trace] =
     IOTrace
 
+  private[effect] def runtime: IO[IORuntime] = ReadRT
+
+  def pollers: IO[List[Any]] =
+    IO.runtime.map(_.pollers)
+
   def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
     Uncancelable(body, Tracing.calculateTracingEvent(body))
 
@@ -1594,7 +1619,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
-  def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
+  def deferred[A]: IO[Deferred[IO, A]] = IO(new IODeferred[A])
 
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
@@ -2082,6 +2107,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object IOTrace extends IO[Trace] {
     def tag = 23
+  }
+
+  private[effect] case object ReadRT extends IO[IORuntime] {
+    def tag = 24
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations

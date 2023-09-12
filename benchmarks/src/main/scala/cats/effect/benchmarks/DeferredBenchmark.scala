@@ -48,9 +48,17 @@ class DeferredBenchmark {
   var count: Int = _
 
   @Benchmark
-  def get(): Unit = {
+  def getBefore(): Unit = {
     IO.deferred[Unit]
       .flatMap(d => d.complete(()) *> d.get.replicateA_(count))
+      .replicateA_(1000)
+      .unsafeRunSync()
+  }
+
+  @Benchmark
+  def getAfter(): Unit = {
+    IO.deferred[Unit]
+      .flatMap(d => d.complete(()) >> d.get.replicateA_(count))
       .replicateA_(1000)
       .unsafeRunSync()
   }

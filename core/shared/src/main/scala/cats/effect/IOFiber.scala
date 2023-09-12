@@ -87,7 +87,7 @@ private final class IOFiber[A](
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
   private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
-  private[this] var resumeIO: AnyRef = startIO
+  private[this] var resumeIO: IO[Any] = startIO
   private[this] val runtime: IORuntime = rt
   private[this] val tracingEvents: RingBuffer =
     if (TracingConstants.isStackTracing) RingBuffer.empty(runtime.traceBufferLogSize) else null
@@ -105,12 +105,6 @@ private final class IOFiber[A](
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
 
-  /* prefetch for Right(()) */
-  private[this] val RightUnit: Either[Throwable, Unit] = IOFiber.RightUnit
-
-  /* similar prefetch for EndFiber */
-  private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
-
   override def run(): Unit = {
     // insert a read barrier after every async boundary
     readBarrier()
@@ -123,8 +117,7 @@ private final class IOFiber[A](
       case 5 => blockingR()
       case 6 => cedeR()
       case 7 => autoCedeR()
-      case 8 => executeRunnableR()
-      case 9 => ()
+      case 8 => () // DoneR
     }
   }
 
@@ -203,7 +196,7 @@ private final class IOFiber[A](
      * either because the entire IO is done, or because this branch is done
      * and execution is continuing asynchronously in a different runloop invocation.
      */
-    if (_cur0 eq IOEndFiber) {
+    if (_cur0 eq IO.EndFiber) {
       return
     }
 
@@ -534,15 +527,25 @@ private final class IOFiber[A](
           masks += 1
           val id = masks
           val poll = new Poll[IO] {
-            def apply[B](ioa: IO[B]) = IO.Uncancelable.UnmaskRunLoop(ioa, id, IOFiber.this)
+            def apply[B](ioa: IO[B]): IO[B] =
+              IO.Uncancelable.UnmaskRunLoop(ioa, id, IOFiber.this)
           }
+
+          val next =
+            try cur.body(poll)
+            catch {
+              case t if NonFatal(t) =>
+                IO.raiseError(t)
+              case t: Throwable =>
+                onFatalFailure(t)
+            }
 
           /*
            * The uncancelableK marker is used by `succeeded` and `failed`
            * to unmask once body completes.
            */
           conts = ByteStack.push(conts, UncancelableK)
-          runLoop(cur.body(poll), nextCancelation, nextAutoCede)
+          runLoop(next, nextCancelation, nextAutoCede)
 
         case 13 =>
           val cur = cur0.asInstanceOf[Uncancelable.UnmaskRunLoop[Any]]
@@ -718,7 +721,15 @@ private final class IOFiber[A](
 
           val get: IO[Any] = IOCont.Get(state)
 
-          val next = body[IO].apply(cb, get, FunctionK.id)
+          val next =
+            try {
+              body[IO].apply(cb, get, FunctionK.id)
+            } catch {
+              case t if NonFatal(t) =>
+                IO.raiseError(t)
+              case t: Throwable =>
+                onFatalFailure(t)
+            }
 
           runLoop(next, nextCancelation, nextAutoCede)
 
@@ -907,21 +918,24 @@ private final class IOFiber[A](
 
         case 19 =>
           val cur = cur0.asInstanceOf[Sleep]
+          val delay = cur.delay
 
-          val next = IO.async[Unit] { cb =>
-            IO {
-              val scheduler = runtime.scheduler
-              val delay = cur.delay
+          val next =
+            if (delay.length > 0)
+              IO.async[Unit] { cb =>
+                IO {
+                  val scheduler = runtime.scheduler
 
-              val cancel =
-                if (scheduler.isInstanceOf[WorkStealingThreadPool])
-                  scheduler.asInstanceOf[WorkStealingThreadPool].sleepInternal(delay, cb)
-                else
-                  scheduler.sleep(delay, () => cb(RightUnit))
+                  val cancel =
+                    if (scheduler.isInstanceOf[WorkStealingThreadPool[_]])
+                      scheduler.asInstanceOf[WorkStealingThreadPool[_]].sleepInternal(delay, cb)
+                    else
+                      scheduler.sleep(delay, () => cb(RightUnit))
 
-              Some(IO(cancel.run()))
-            }
-          }
+                  Some(IO(cancel.run()))
+                }
+              }
+            else IO.cede
 
           runLoop(next, nextCancelation, nextAutoCede)
 
@@ -957,8 +971,8 @@ private final class IOFiber[A](
 
           if (cur.hint eq IOFiber.TypeBlocking) {
             val ec = currentCtx
-            if (ec.isInstanceOf[WorkStealingThreadPool]) {
-              val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+            if (ec.isInstanceOf[WorkStealingThreadPool[_]]) {
+              val wstp = ec.asInstanceOf[WorkStealingThreadPool[_]]
               if (wstp.canExecuteBlockingCode()) {
                 var error: Throwable = null
                 val r =
@@ -992,6 +1006,10 @@ private final class IOFiber[A](
 
         case 23 =>
           runLoop(succeeded(Trace(tracingEvents), 0), nextCancelation, nextAutoCede)
+
+        /* ReadRT */
+        case 24 =>
+          runLoop(succeeded(runtime, 0), nextCancelation, nextAutoCede)
       }
     }
   }
@@ -1087,7 +1105,7 @@ private final class IOFiber[A](
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
 
       // Exit from the run loop after this. The fiber is finished.
-      IOEndFiber
+      IO.EndFiber
     }
   }
 
@@ -1280,8 +1298,8 @@ private final class IOFiber[A](
 
   private[this] def rescheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     if (Platform.isJvm) {
-      if (ec.isInstanceOf[WorkStealingThreadPool]) {
-        val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+      if (ec.isInstanceOf[WorkStealingThreadPool[_]]) {
+        val wstp = ec.asInstanceOf[WorkStealingThreadPool[_]]
         wstp.reschedule(fiber)
       } else {
         scheduleOnForeignEC(ec, fiber)
@@ -1293,8 +1311,8 @@ private final class IOFiber[A](
 
   private[this] def scheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     if (Platform.isJvm) {
-      if (ec.isInstanceOf[WorkStealingThreadPool]) {
-        val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+      if (ec.isInstanceOf[WorkStealingThreadPool[_]]) {
+        val wstp = ec.asInstanceOf[WorkStealingThreadPool[_]]
         wstp.execute(fiber)
       } else {
         scheduleOnForeignEC(ec, fiber)
@@ -1342,7 +1360,7 @@ private final class IOFiber[A](
       objectState.init(16)
       finalizers.init(16)
 
-      val io = resumeIO.asInstanceOf[IO[Any]]
+      val io = resumeIO
       resumeIO = null
       runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
     }
@@ -1403,26 +1421,9 @@ private final class IOFiber[A](
   }
 
   private[this] def autoCedeR(): Unit = {
-    val io = resumeIO.asInstanceOf[IO[Any]]
+    val io = resumeIO
     resumeIO = null
     runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
-  }
-
-  private[this] def executeRunnableR(): Unit = {
-    val runnable = resumeIO.asInstanceOf[Runnable]
-    resumeIO = null
-
-    try runnable.run()
-    catch {
-      case t if NonFatal(t) =>
-        currentCtx.reportFailure(t)
-      case t: Throwable =>
-        onFatalFailure(t)
-        ()
-    } finally {
-      resumeTag = DoneR
-      currentCtx = null
-    }
   }
 
   /* Implementations of continuations */
@@ -1445,7 +1446,7 @@ private final class IOFiber[A](
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
 
       // Exit from the run loop after this. The fiber is finished.
-      IOEndFiber
+      IO.EndFiber
     }
   }
 
@@ -1456,12 +1457,12 @@ private final class IOFiber[A](
 
   private[this] def runTerminusSuccessK(result: Any): IO[Any] = {
     done(Outcome.Succeeded(IO.pure(result.asInstanceOf[A])))
-    IOEndFiber
+    IO.EndFiber
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
     done(Outcome.Errored(t))
-    IOEndFiber
+    IO.EndFiber
   }
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
@@ -1476,7 +1477,7 @@ private final class IOFiber[A](
       resumeTag = AsyncContinueSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
       scheduleOnForeignEC(ec, this)
-      IOEndFiber
+      IO.EndFiber
     } else {
       prepareFiberForCancelation(null)
     }
@@ -1494,7 +1495,7 @@ private final class IOFiber[A](
       resumeTag = AsyncContinueFailedR
       objectState.push(t)
       scheduleOnForeignEC(ec, this)
-      IOEndFiber
+      IO.EndFiber
     } else {
       prepareFiberForCancelation(null)
     }
@@ -1521,7 +1522,7 @@ private final class IOFiber[A](
   }
 
   private[effect] def isDone: Boolean =
-    resumeTag == DoneR
+    outcome ne null
 
   private[effect] def captureTrace(): Trace =
     if (tracingEvents ne null) {
@@ -1538,7 +1539,7 @@ private object IOFiber {
   private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
 
-  def onFatalFailure(t: Throwable): Null = {
+  def onFatalFailure(t: Throwable): Nothing = {
     val interrupted = Thread.interrupted()
 
     if (IORuntime.globalFatalFailureHandled.compareAndSet(false, true)) {

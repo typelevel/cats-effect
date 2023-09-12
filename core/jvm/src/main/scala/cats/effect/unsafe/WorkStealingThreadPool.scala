@@ -41,8 +41,7 @@ import java.time.Instant
 import java.time.temporal.ChronoField
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
-import java.util.concurrent.locks.LockSupport
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 /**
  * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose
@@ -59,12 +58,13 @@ import java.util.concurrent.locks.LockSupport
  * contention. Work stealing is tried using a linear search starting from a random worker thread
  * index.
  */
-private[effect] final class WorkStealingThreadPool(
+private[effect] final class WorkStealingThreadPool[P](
     threadCount: Int, // number of worker threads
     private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
     private[unsafe] val blockerThreadPrefix: String, // prefix for the name of worker threads currently in a blocking region
     private[unsafe] val runtimeBlockingExpiration: Duration,
     private[unsafe] val blockedThreadDetectionEnabled: Boolean,
+    system: PollingSystem.WithPoller[P],
     reportFailure0: Throwable => Unit
 ) extends ExecutionContextExecutor
     with Scheduler {
@@ -75,11 +75,27 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * References to worker threads and their local queues.
    */
-  private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
+  private[this] val workerThreads: Array[WorkerThread[P]] = new Array(threadCount)
   private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
+  private[unsafe] val sleepers: Array[TimerSkipList] = new Array(threadCount)
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
-  private[unsafe] val sleepersQueues: Array[SleepersQueue] = new Array(threadCount)
+  private[unsafe] val pollers: Array[P] =
+    new Array[AnyRef](threadCount).asInstanceOf[Array[P]]
+
+  private[unsafe] def register(cb: P => Unit): Unit = {
+
+    // figure out where we are
+    val thread = Thread.currentThread()
+    val pool = WorkStealingThreadPool.this
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[P]]
+      if (worker.isOwnedBy(pool)) // we're good
+        cb(worker.poller())
+      else // possibly a blocking worker thread, possibly on another wstp
+        scheduleExternal(() => register(cb))
+    } else scheduleExternal(() => register(cb))
+  }
 
   /**
    * Atomic variable for used for publishing changes to the references in the `workerThreads`
@@ -100,8 +116,8 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
-  private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread] =
-    new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread](_.nameIndex))
+  private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread[P]] =
+    new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread[P]](_.nameIndex))
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -118,13 +134,16 @@ private[effect] final class WorkStealingThreadPool(
     while (i < threadCount) {
       val queue = new LocalQueue()
       localQueues(i) = queue
+      val sleepersList = new TimerSkipList()
+      sleepers(i) = sleepersList
       val parkedSignal = new AtomicBoolean(false)
       parkedSignals(i) = parkedSignal
       val index = i
       val fiberBag = new WeakBag[Runnable]()
       fiberBags(i) = fiberBag
-      val sleepersQueue = SleepersQueue.empty
-      sleepersQueues(i) = sleepersQueue
+      val poller = system.makePoller()
+      pollers(i) = poller
+
       val thread =
         new WorkerThread(
           index,
@@ -132,8 +151,11 @@ private[effect] final class WorkStealingThreadPool(
           parkedSignal,
           externalQueue,
           fiberBag,
-          sleepersQueue,
+          sleepersList,
+          system,
+          poller,
           this)
+
       workerThreads(i) = thread
       i += 1
     }
@@ -149,7 +171,7 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
-  private[unsafe] def getWorkerThreads: Array[WorkerThread] = workerThreads
+  private[unsafe] def getWorkerThreads: Array[WorkerThread[P]] = workerThreads
 
   /**
    * Tries to steal work from other worker threads. This method does a linear search of the
@@ -170,7 +192,7 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] def stealFromOtherWorkerThread(
       dest: Int,
       random: ThreadLocalRandom,
-      destWorker: WorkerThread): Runnable = {
+      destWorker: WorkerThread[P]): Runnable = {
     val destQueue = localQueues(dest)
     val from = random.nextInt(threadCount)
 
@@ -212,6 +234,51 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * Tries to invoke the expired timers of some (possibly) other `WorkerThread`. After
+   * successfully stealing the timers of a thread, it returns (i.e., it doesn't try to steal
+   * from ALL threads).
+   *
+   * @param now
+   *   the current time as returned by `System.nanoTime`
+   * @param random
+   *   the `ThreadLocalRandom` of the current thread
+   * @return
+   *   whether stealing was successful
+   */
+  private[unsafe] def stealTimers(now: Long, random: ThreadLocalRandom): Boolean = {
+    val from = random.nextInt(threadCount)
+    var i = 0
+    while (i < threadCount) {
+      // Compute the index of the thread to steal from
+      // (note: it doesn't matter if we try to steal
+      // from ourselves).
+      val index = (from + i) % threadCount
+      val tsl = sleepers(index)
+      var invoked = false // whether we successfully invoked a timer
+      var cont = true
+      while (cont) {
+        val cb = tsl.pollFirstIfTriggered(now)
+        if (cb ne null) {
+          cb(RightUnit)
+          invoked = true
+        } else {
+          cont = false
+        }
+      }
+
+      if (invoked) {
+        // we did some work, don't
+        // check other threads
+        return true
+      } else {
+        i += 1
+      }
+    }
+
+    false
+  }
+
+  /**
    * Potentially unparks a worker thread.
    *
    * @param random
@@ -250,7 +317,7 @@ private[effect] final class WorkStealingThreadPool(
         // impossible.
         workerThreadPublisher.get()
         val worker = workerThreads(index)
-        LockSupport.unpark(worker)
+        system.interrupt(worker, pollers(index))
         return true
       }
 
@@ -258,6 +325,24 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     false
+  }
+
+  /**
+   * A specialized version of `notifyParked`, for when we know which thread to wake up, and know
+   * that it should wake up due to a new timer (i.e., it must always wake up, even if only to go
+   * back to sleep, because its current sleeping time might be incorrect).
+   *
+   * @param index
+   *   The index of the thread to notify (must be less than `threadCount`).
+   */
+  private[this] final def notifyForTimer(index: Int): Unit = {
+    val signal = parkedSignals(index)
+    if (signal.getAndSet(false)) {
+      state.getAndAdd(DeltaSearching)
+      workerThreadPublisher.get()
+      val worker = workerThreads(index)
+      system.interrupt(worker, pollers(index))
+    } // else: was already unparked
   }
 
   /**
@@ -386,7 +471,7 @@ private[effect] final class WorkStealingThreadPool(
    * @param newWorker
    *   the new worker thread instance to be installed at the provided index
    */
-  private[unsafe] def replaceWorker(index: Int, newWorker: WorkerThread): Unit = {
+  private[unsafe] def replaceWorker(index: Int, newWorker: WorkerThread[P]): Unit = {
     workerThreads(index) = newWorker
     workerThreadPublisher.lazySet(true)
   }
@@ -409,8 +494,8 @@ private[effect] final class WorkStealingThreadPool(
     val pool = this
     val thread = Thread.currentThread()
 
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[P]]
       if (worker.isOwnedBy(pool)) {
         worker.reschedule(runnable)
       } else {
@@ -427,8 +512,8 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[effect] def canExecuteBlockingCode(): Boolean = {
     val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[P]]
       worker.canExecuteBlockingCodeOn(this)
     } else {
       false
@@ -459,7 +544,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def liveTraces(): (
       Map[Runnable, Trace],
-      Map[WorkerThread, (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
+      Map[WorkerThread[P], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
       Map[Runnable, Trace]) = {
     val externalFibers: Map[Runnable, Trace] = externalQueue
       .snapshot()
@@ -474,7 +559,7 @@ private[effect] final class WorkStealingThreadPool(
 
     val map = mutable
       .Map
-      .empty[WorkerThread, (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])]
+      .empty[WorkerThread[P], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])]
     val suspended = mutable.Map.empty[Runnable, Trace]
 
     var i = 0
@@ -513,8 +598,8 @@ private[effect] final class WorkStealingThreadPool(
     val pool = this
     val thread = Thread.currentThread()
 
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[P]]
       if (worker.isOwnedBy(pool)) {
         worker.schedule(runnable)
       } else {
@@ -535,7 +620,16 @@ private[effect] final class WorkStealingThreadPool(
    */
   override def reportFailure(cause: Throwable): Unit = reportFailure0(cause)
 
-  override def monotonicNanos(): Long = System.nanoTime()
+  override def monotonicNanos(): Long = {
+    val back = System.nanoTime()
+
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      thread.asInstanceOf[WorkerThread[_]].now = back
+    }
+
+    back
+  }
 
   override def nowMillis(): Long = System.currentTimeMillis()
 
@@ -546,39 +640,46 @@ private[effect] final class WorkStealingThreadPool(
 
   private[this] val RightUnit = IOFiber.RightUnit
 
+  /**
+   * Tries to call the current worker's `sleep`, but falls back to `sleepExternal` if needed.
+   */
   def sleepInternal(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
     val thread = Thread.currentThread()
-
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
+    if (thread.isInstanceOf[WorkerThread[_]]) {
+      val worker = thread.asInstanceOf[WorkerThread[P]]
       if (worker.isOwnedBy(this)) {
         worker.sleep(delay, callback)
       } else {
-        sleep(delay, () => callback(RightUnit))
+        // called from another WSTP
+        sleepExternal(delay, callback)
       }
     } else {
-      sleep(delay, () => callback(RightUnit))
+      // not called from a WSTP
+      sleepExternal(delay, callback)
     }
   }
 
-  private[this] val CancelSentinel: Runnable = () => ()
+  /**
+   * Chooses a random `TimerSkipList` from this pool, and inserts the `callback`.
+   */
+  private[this] final def sleepExternal(
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Runnable = {
+    val random = ThreadLocalRandom.current()
+    val idx = random.nextInt(threadCount)
+    val tsl = sleepers(idx)
+    val cancel = tsl.insert(
+      now = System.nanoTime(),
+      delay = delay.toNanos,
+      callback = callback,
+      tlr = random
+    )
+    notifyForTimer(idx)
+    cancel
+  }
 
   override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-    val signal = new AtomicReference[Runnable]
-
-    // note we'll retain the reference to task until the outer task is scheduled
-    execute { () =>
-      val cancel = sleepInternal(delay, _ => task.run())
-      if (!signal.compareAndSet(null, cancel)) {
-        cancel.run()
-      }
-    }
-
-    { () =>
-      if (!signal.compareAndSet(null, CancelSentinel)) {
-        signal.get().run()
-      }
-    }
+    sleepInternal(delay, _ => task.run())
   }
 
   /**
@@ -601,13 +702,16 @@ private[effect] final class WorkStealingThreadPool(
       var i = 0
       while (i < threadCount) {
         workerThreads(i).interrupt()
+        system.closePoller(pollers(i))
         i += 1
       }
+
+      system.close()
 
       // Clear the interrupt flag.
       Thread.interrupted()
 
-      var t: WorkerThread = null
+      var t: WorkerThread[P] = null
       while ({
         t = cachedThreads.pollFirst()
         t ne null

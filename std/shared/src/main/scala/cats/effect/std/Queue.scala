@@ -187,26 +187,27 @@ object Queue {
       extends Queue[F, A] {
 
     def offer(a: A): F[Unit] =
-      F.deferred[Deferred[F, A]] flatMap { latch =>
+      F.deferred[Boolean] flatMap { latch =>
         F uncancelable { poll =>
-          val cleanupF = stateR modify {
-            case SyncState(offerers, takers) =>
-              val fallback = latch.tryGet flatMap {
-                case Some(offerer) => offerer.complete(a).void
-                case None => F.unit
-              }
-
-              SyncState(offerers.filter(_ ne latch), takers) -> fallback
-          }
+          // this is the 2-phase commit
+          // we don't need an onCancel for latch.get since if *we* are canceled, it's okay to drop the value
+          val checkCommit = poll(latch.get).ifM(F.unit, poll(offer(a)))
 
           val modificationF = stateR modify {
             case SyncState(offerers, takers) if takers.nonEmpty =>
               val (taker, tail) = takers.dequeue
-              SyncState(offerers, tail) -> taker.complete(a).void
+
+              val finish = taker.complete((a, latch)) *> checkCommit
+              SyncState(offerers, tail) -> finish
 
             case SyncState(offerers, takers) =>
-              SyncState(offerers.enqueue(latch), takers) ->
-                poll(latch.get).onCancel(cleanupF.flatten).flatMap(_.complete(a).void)
+              val cleanupF = stateR update {
+                case SyncState(offerers, takers) =>
+                  SyncState(offerers.filter(_._2 ne latch), takers)
+              }
+
+              // if we're canceled here, make sure we clean up
+              SyncState(offerers.enqueue((a, latch)), takers) -> checkCommit.onCancel(cleanupF)
           }
 
           modificationF.flatten
@@ -217,49 +218,105 @@ object Queue {
       stateR.flatModify {
         case SyncState(offerers, takers) if takers.nonEmpty =>
           val (taker, tail) = takers.dequeue
-          SyncState(offerers, tail) -> taker.complete(a).as(true)
+
+          val commitF = F.deferred[Boolean] flatMap { latch =>
+            F uncancelable { poll =>
+              // this won't block for long since we complete quickly in this handoff
+              taker.complete((a, latch)) *> poll(latch.get)
+            }
+          }
+
+          SyncState(offerers, tail) -> commitF
 
         case st =>
           st -> F.pure(false)
       }
 
     val take: F[A] =
-      F.deferred[A] flatMap { latch =>
-        val modificationF = stateR modify {
-          case SyncState(offerers, takers) if offerers.nonEmpty =>
-            val (offerer, tail) = offerers.dequeue
-            SyncState(tail, takers) -> offerer.complete(latch).void
+      F.deferred[(A, Deferred[F, Boolean])] flatMap { latch =>
+        F uncancelable { poll =>
+          val modificationF = stateR modify {
+            case SyncState(offerers, takers) if offerers.nonEmpty =>
+              val ((value, offerer), tail) = offerers.dequeue
+              SyncState(tail, takers) -> offerer.complete(true).as(value) // can't be canceled
 
-          case SyncState(offerers, takers) =>
-            SyncState(offerers, takers.enqueue(latch)) -> F.unit
+            case SyncState(offerers, takers) =>
+              val cleanupF = {
+                val removeListener = stateR modify {
+                  case SyncState(offerers, takers) =>
+                    // like filter, but also returns a Boolean indicating whether it was found
+                    @tailrec
+                    def filterFound[Z <: AnyRef](
+                        in: ScalaQueue[Z],
+                        out: ScalaQueue[Z]): (Boolean, ScalaQueue[Z]) = {
+
+                      if (in.isEmpty) {
+                        (false, out)
+                      } else {
+                        val (head, tail) = in.dequeue
+
+                        if (head eq latch)
+                          (true, out ++ tail)
+                        else
+                          filterFound(tail, out.enqueue(head))
+                      }
+                    }
+
+                    val (found, takers2) = filterFound(takers, ScalaQueue())
+                    SyncState(offerers, takers2) -> found
+                }
+
+                val failCommit = latch.get flatMap {
+                  // this is where we *fail* the 2-phase commit up in offer
+                  case (_, commitLatch) => commitLatch.complete(false).void
+                }
+
+                // if we *don't* find our latch, it means an offerer has it
+                // we need to wait to handshake with them
+                removeListener.ifM(F.unit, failCommit)
+              }
+
+              val awaitF = poll(latch.get).onCancel(cleanupF) flatMap {
+                case (a, latch) => latch.complete(true).as(a)
+              }
+
+              SyncState(offerers, takers.enqueue(latch)) -> awaitF
+          }
+
+          modificationF.flatten
         }
-
-        val cleanupF = stateR update {
-          case SyncState(offerers, takers) =>
-            SyncState(offerers, takers.filter(_ ne latch))
-        }
-
-        F uncancelable { poll => modificationF.flatten *> poll(latch.get).onCancel(cleanupF) }
       }
 
     val tryTake: F[Option[A]] =
-      stateR.flatModify {
-        case SyncState(offerers, takers) if offerers.nonEmpty =>
-          val (offerer, tail) = offerers.dequeue
-          SyncState(tail, takers) -> F
-            .deferred[A]
-            .flatMap(d => offerer.complete(d) *> d.get.map(_.some))
+      F uncancelable { _ =>
+        stateR.flatModify {
+          case SyncState(offerers, takers) if offerers.nonEmpty =>
+            val ((value, offerer), tail) = offerers.dequeue
+            SyncState(tail, takers) -> offerer.complete(true).as(value.some)
 
-        case st =>
-          st -> none[A].pure[F]
+          case st =>
+            st -> none[A].pure[F]
+        }
       }
 
     val size: F[Int] = F.pure(0)
   }
 
+  /*
+   * From first principles, some of the asymmetry here is justified by the fact that the offerer
+   * already has a value, so if the offerer is canceled, it's not at all unusual for that value to
+   * be "lost". The taker starts out *without* a value, so it's the taker-cancelation situation
+   * where we must take extra care to ensure atomicity.
+   *
+   * The booleans here indicate whether the taker was canceled after acquiring the value. This
+   * allows the taker to signal back to the offerer whether it should retry (because the taker was
+   * canceled), while the offerer is careful to block until that signal is received. The tradeoff
+   * here (aside from added complexity) is that operations like tryOffer now can block for a short
+   * time, and tryTake becomes uncancelable.
+   */
   private final case class SyncState[F[_], A](
-      offerers: ScalaQueue[Deferred[F, Deferred[F, A]]],
-      takers: ScalaQueue[Deferred[F, A]])
+      offerers: ScalaQueue[(A, Deferred[F, Boolean])],
+      takers: ScalaQueue[Deferred[F, (A, Deferred[F, Boolean])]])
 
   private object SyncState {
     def empty[F[_], A]: SyncState[F, A] = SyncState(ScalaQueue(), ScalaQueue())

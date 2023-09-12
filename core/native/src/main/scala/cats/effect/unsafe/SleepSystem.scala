@@ -14,13 +14,30 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
+package unsafe
 
-import scala.concurrent.ExecutionContext
+object SleepSystem extends PollingSystem {
 
-private[unsafe] trait FiberMonitorCompanionPlatform {
-  def apply(compute: ExecutionContext): FiberMonitor = {
-    val _ = compute
-    new NoOpFiberMonitor
+  type Api = AnyRef
+  type Poller = AnyRef
+
+  def close(): Unit = ()
+
+  def makeApi(register: (Poller => Unit) => Unit): Api = this
+
+  def makePoller(): Poller = this
+
+  def closePoller(poller: Poller): Unit = ()
+
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+    if (nanos > 0)
+      Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
+    false
   }
+
+  def needsPoll(poller: Poller): Boolean = false
+
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
+
 }

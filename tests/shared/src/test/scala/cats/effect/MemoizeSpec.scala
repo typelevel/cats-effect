@@ -42,6 +42,8 @@ class MemoizeSpec extends BaseSpec with Discipline {
 
     "Concurrent.memoize does not evaluate the effect if the inner `F[A]` isn't bound" in ticked {
       implicit ticker =>
+        import cats.syntax.all._
+
         val op = for {
           ref <- Ref.of[F, Int](0)
           action = ref.update(_ + 1)
@@ -57,6 +59,8 @@ class MemoizeSpec extends BaseSpec with Discipline {
 
     "Concurrent.memoize evaluates effect once if inner `F[A]` is bound twice" in ticked {
       implicit ticker =>
+        import cats.syntax.all._
+
         val op = for {
           ref <- Ref.of[F, Int](0)
           action = ref.modify { s =>
@@ -77,6 +81,8 @@ class MemoizeSpec extends BaseSpec with Discipline {
 
     "Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)" in ticked {
       implicit ticker =>
+        import cats.syntax.all._
+
         val op = for {
           ref <- Ref.of[F, Int](0)
           action = ref.modify { s =>
@@ -108,6 +114,8 @@ class MemoizeSpec extends BaseSpec with Discipline {
 
     "Memoized effects can be canceled when there are no other active subscribers (1)" in ticked {
       implicit ticker =>
+        import cats.syntax.all._
+
         val op = for {
           completed <- Ref[F].of(false)
           action = liftK(IO.sleep(200.millis)) >> completed.set(true)
@@ -127,6 +135,8 @@ class MemoizeSpec extends BaseSpec with Discipline {
 
     "Memoized effects can be canceled when there are no other active subscribers (2)" in ticked {
       implicit ticker =>
+        import cats.syntax.all._
+
         val op = for {
           completed <- Ref[F].of(false)
           action = liftK(IO.sleep(300.millis)) >> completed.set(true)
@@ -149,6 +159,8 @@ class MemoizeSpec extends BaseSpec with Discipline {
 
     "Memoized effects can be canceled when there are no other active subscribers (3)" in ticked {
       implicit ticker =>
+        import cats.syntax.all._
+
         val op = for {
           completed <- Ref[F].of(false)
           action = liftK(IO.sleep(300.millis)) >> completed.set(true)
@@ -171,6 +183,8 @@ class MemoizeSpec extends BaseSpec with Discipline {
 
     "Running a memoized effect after it was previously canceled reruns it" in ticked {
       implicit ticker =>
+        import cats.syntax.all._
+
         val op = for {
           started <- Ref[F].of(0)
           completed <- Ref[F].of(0)
@@ -195,6 +209,8 @@ class MemoizeSpec extends BaseSpec with Discipline {
 
     "Attempting to cancel a memoized effect with active subscribers is a no-op" in ticked {
       implicit ticker =>
+        import cats.syntax.all._
+
         val op = for {
           startCounter <- Ref[F].of(0)
           condition <- Deferred[F, Unit]

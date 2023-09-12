@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.duration._
+
 class SchedulerSpec extends BaseSpec {
 
   "Default scheduler" should {
@@ -27,11 +29,17 @@ class SchedulerSpec extends BaseSpec {
         deltas = times.map(_ - start)
       } yield deltas.exists(_.toMicros % 1000 != 0)
     }
+
     "correctly calculate real time" in real {
       IO.realTime.product(IO(System.currentTimeMillis())).map {
         case (realTime, currentTime) =>
           (realTime.toMillis - currentTime) should be_<=(1L)
       }
+    }
+
+    "sleep for correct duration" in real {
+      val duration = 1500.millis
+      IO.sleep(duration).timed.map(_._1 should be_>=(duration))
     }
   }
 

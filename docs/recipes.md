@@ -90,3 +90,73 @@ object Server extends IOApp.Simple {
 
 In this example, `longRunningTask` is started in the background.
 The server returns to the client without waiting for the task to finish.
+
+## Atomically update a Ref with result of an effect
+
+Cats Effect provides [Ref](std/ref.md), that we can use to model mutable concurrent reference. 
+However, if we want to update our ref using result of an effect `Ref` will usually not be enough and we need a more powerful construct to achieve that. 
+In cases like that we can use the [AtomicCell](std/atomic-cell.md) that can be viewed as a synchronized `Ref`.
+
+The most typical example for `Ref` is the concurrent counter, but what if the update function for our counter would be effectful?
+
+Assume we have the following function:
+
+```scala mdoc:silent
+def update(input: Int): IO[Int] =
+  IO(input + 1)
+```
+If we want to concurrently update a variable using our `update` function it's not possible to do it directly with `Ref`, luckily `AtomicCell` has `evalUpdate`:
+
+```scala mdoc:silent
+import cats.effect.std.AtomicCell
+
+class Server(atomicCell: AtomicCell[IO, Int]) {
+  def update(input: Int): IO[Int] =
+    IO(input + 1)
+
+  def performUpdate(): IO[Int] =
+    atomicCell.evalGetAndUpdate(i => update(i))
+}
+```
+
+To better present real-life use-case scenario, let's imagine that we have a `Service` that performs some HTTP request to external service holding exchange rates over time:
+
+```scala mdoc:silent
+import cats.effect.std.Random
+
+case class ServiceResponse(exchangeRate: Double)
+
+trait Service {
+  def query(): IO[ServiceResponse]
+}
+
+object StubService extends Service {
+  override def query(): IO[ServiceResponse] = Random
+    .scalaUtilRandom[IO]
+    .flatMap(random => random.nextDouble)
+    .map(ServiceResponse(_))
+}
+```
+To simplify we model the `StubService` to just return some random `Double` values.
+
+Now, say that we want to have a cache that holds the highest exchange rate that is ever returned by our service, we can have the proxy implementation based on `AtomicCell` like below:
+
+```scala mdoc:silent
+class MaxProxy(atomicCell: AtomicCell[IO, Double], requestService: Service) {
+
+  def queryCache(): IO[ServiceResponse] = 
+    atomicCell evalModify { current =>
+      requestService.query() map { result =>
+        if (result.exchangeRate > current)
+          (result.exchangeRate, result)
+        else
+          (current, result)
+      }
+    }
+  
+  def getHistoryMax(): IO[Double] = atomicCell.get
+}
+
+
+```
+

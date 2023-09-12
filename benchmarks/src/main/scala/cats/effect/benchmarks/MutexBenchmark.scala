@@ -56,12 +56,7 @@ class MutexBenchmark {
 
   @Benchmark
   def happyPathConcurrent(): Unit = {
-    happyPathImpl(mutex = Mutex.concurrent)
-  }
-
-  @Benchmark
-  def happyPathAsync(): Unit = {
-    happyPathImpl(mutex = Mutex.async)
+    happyPathImpl(mutex = Mutex.apply)
   }
 
   private def highContentionImpl(mutex: IO[Mutex[IO]]): Unit = {
@@ -73,12 +68,7 @@ class MutexBenchmark {
 
   @Benchmark
   def highContentionConcurrent(): Unit = {
-    highContentionImpl(mutex = Mutex.concurrent)
-  }
-
-  @Benchmark
-  def highContentionAsync(): Unit = {
-    highContentionImpl(mutex = Mutex.async)
+    highContentionImpl(mutex = Mutex.apply)
   }
 
   private def cancellationImpl(mutex: IO[Mutex[IO]]): Unit = {
@@ -94,11 +84,6 @@ class MutexBenchmark {
 
   @Benchmark
   def cancellationConcurrent(): Unit = {
-    cancellationImpl(mutex = Mutex.concurrent)
-  }
-
-  @Benchmark
-  def cancellationAsync(): Unit = {
-    cancellationImpl(mutex = Mutex.async)
+    cancellationImpl(mutex = Mutex.apply)
   }
 }

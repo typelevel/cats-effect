@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
+import scala.scalajs.js
 
 private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
 
@@ -24,10 +24,10 @@ private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
    * Submits an effect to be executed, returning a `Promise` that holds the result of its
    * evaluation.
    */
-  def unsafeToPromise[A](fa: F[A]): Promise[A] =
-    new Promise[A]((resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
+  def unsafeToPromise[A](fa: F[A]): js.Promise[A] =
+    new js.Promise[A]((resolve, reject) =>
       unsafeRunAsync(fa) {
-        case Left(JavaScriptException(e)) =>
+        case Left(js.JavaScriptException(e)) =>
           reject(e)
           ()
 

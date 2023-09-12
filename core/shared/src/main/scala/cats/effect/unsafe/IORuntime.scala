@@ -40,6 +40,7 @@ final class IORuntime private[unsafe] (
     val compute: ExecutionContext,
     private[effect] val blocking: ExecutionContext,
     val scheduler: Scheduler,
+    private[effect] val pollers: List[Any],
     private[effect] val fiberMonitor: FiberMonitor,
     val shutdown: () => Unit,
     val config: IORuntimeConfig,
@@ -61,10 +62,12 @@ final class IORuntime private[unsafe] (
 }
 
 object IORuntime extends IORuntimeCompanionPlatform {
+
   def apply(
       compute: ExecutionContext,
       blocking: ExecutionContext,
       scheduler: Scheduler,
+      pollers: List[Any],
       shutdown: () => Unit,
       config: IORuntimeConfig): IORuntime = {
     val fiberMonitor = FiberMonitor(compute)
@@ -81,16 +84,33 @@ object IORuntime extends IORuntimeCompanionPlatform {
         compute,
         blocking,
         scheduler,
-        fiberMonitor,
+       pollers, fiberMonitor,
         unregisterAndShutdown,
         config,
         cpuStarvationSampler,
         metrics
       )
-
     allRuntimes.put(runtime, runtime.hashCode())
     runtime
   }
+
+  def apply(
+      compute: ExecutionContext,
+      blocking: ExecutionContext,
+      scheduler: Scheduler,
+      shutdown: () => Unit,
+      config: IORuntimeConfig): IORuntime =
+    apply(compute, blocking, scheduler, Nil, shutdown, config)
+
+  @deprecated("Preserved for bincompat", "3.6.0")
+  private[unsafe] def apply(
+      compute: ExecutionContext,
+      blocking: ExecutionContext,
+      scheduler: Scheduler,
+      fiberMonitor: FiberMonitor,
+      shutdown: () => Unit,
+      config: IORuntimeConfig): IORuntime =
+    new IORuntime(compute, blocking, scheduler, Nil, fiberMonitor, shutdown, config)
 
   def builder(): IORuntimeBuilder =
     IORuntimeBuilder()
@@ -100,7 +120,7 @@ object IORuntime extends IORuntimeCompanionPlatform {
       ec,
       ec,
       scheduler,
-      new NoOpFiberMonitor(),
+     Nil, new NoOpFiberMonitor(),
       () => (),
       IORuntimeConfig(),
       CpuStarvationSampler.noop,

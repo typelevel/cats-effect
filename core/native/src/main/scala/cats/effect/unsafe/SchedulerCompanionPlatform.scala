@@ -18,6 +18,7 @@ package cats.effect.unsafe
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
 
-  def createDefaultScheduler(): (Scheduler, () => Unit) = (QueueExecutorScheduler, () => ())
+  def createDefaultScheduler(): (Scheduler, () => Unit) =
+    (EventLoopExecutorScheduler.global, () => ())
 
 }

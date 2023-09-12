@@ -40,13 +40,14 @@ import scala.util.control.NonFatal
 private[effect] final class BatchingMacrotaskExecutor(
     batchSize: Int,
     reportFailure0: Throwable => Unit
-) extends ExecutionContextExecutor {
+) extends ExecutionContextExecutor
+    with FiberExecutor {
 
   private[this] val queueMicrotask: js.Function1[js.Function0[Any], Any] =
     if (js.typeOf(js.Dynamic.global.queueMicrotask) == "function")
       js.Dynamic.global.queueMicrotask.asInstanceOf[js.Function1[js.Function0[Any], Any]]
     else {
-      val resolved = js.Dynamic.global.Promise.resolved(())
+      val resolved = js.Dynamic.global.Promise.resolve(())
       task => resolved.`then`(task)
     }
 
@@ -56,7 +57,7 @@ private[effect] final class BatchingMacrotaskExecutor(
   private[this] var needsReschedule = true
   private[this] val fibers = new JSArrayQueue[IOFiber[_]]
 
-  private[this] object executeBatchTaskRunnable extends Runnable {
+  private[this] val executeBatchTaskRunnable = new Runnable {
     def run() = {
       // do up to batchSize tasks
       var i = 0

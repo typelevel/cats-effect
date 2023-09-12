@@ -848,7 +848,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         val outerInit = Resource.make(IO.unit)(_ => IO { outerClosed = true })
 
         val async = Async[Resource[IO, *]].async[Unit] { cb =>
-          (inner *> Resource.eval(IO(cb(Right(()))))).as(None)
+          (inner *> Resource.eval(IO(cb(Right(()))))).map(_ => None)
         }
 
         (outerInit *> async *> waitR).use_.unsafeToFuture()
@@ -933,11 +933,11 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           val winner = Resource
             .make(IO.unit)(_ => IO { winnerClosed = true })
             .evalMap(_ => IO.sleep(100.millis))
-            .as("winner")
+            .map(_ => "winner")
           val loser = Resource
             .make(IO.unit)(_ => IO { loserClosed = true })
             .evalMap(_ => IO.sleep(200.millis))
-            .as("loser")
+            .map(_ => "loser")
 
           val target =
             winner.race(loser).evalMap(e => IO { results = e }) *> waitR *> Resource.eval(IO {

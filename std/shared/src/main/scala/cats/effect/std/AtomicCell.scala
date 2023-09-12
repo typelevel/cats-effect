@@ -25,7 +25,7 @@ import cats.syntax.all._
  * A synchronized, concurrent, mutable reference.
  *
  * Provides safe concurrent access and modification of its contents, by ensuring only one fiber
- * can operate on them at the time. Thus, '''all''' operations may semantically block the
+ * can operate on them at the time. Thus, all operations except `get` may semantically block the
  * calling fiber.
  *
  * {{{
@@ -154,11 +154,11 @@ object AtomicCell {
   }
 
   private[effect] def async[F[_], A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
-    Mutex.async[F].map(mutex => new AsyncImpl(init, mutex))
+    Mutex.apply[F].map(mutex => new AsyncImpl(init, mutex))
 
   private[effect] def concurrent[F[_], A](init: A)(
       implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
-    (Ref.of[F, A](init), Mutex.concurrent[F]).mapN { (ref, m) => new ConcurrentImpl(ref, m) }
+    (Ref.of[F, A](init), Mutex.apply[F]).mapN { (ref, m) => new ConcurrentImpl(ref, m) }
 
   private final class ConcurrentImpl[F[_], A](
       ref: Ref[F, A],
@@ -166,8 +166,7 @@ object AtomicCell {
   )(
       implicit F: Concurrent[F]
   ) extends AtomicCell[F, A] {
-    override def get: F[A] =
-      mutex.lock.surround(ref.get)
+    override def get: F[A] = ref.get
 
     override def set(a: A): F[Unit] =
       mutex.lock.surround(ref.set(a))
@@ -199,13 +198,11 @@ object AtomicCell {
   )(
       implicit F: Async[F]
   ) extends AtomicCell[F, A] {
-    private var cell: A = init
+    @volatile private var cell: A = init
 
     override def get: F[A] =
-      mutex.lock.surround {
-        F.delay {
-          cell
-        }
+      F.delay {
+        cell
       }
 
     override def set(a: A): F[Unit] =
