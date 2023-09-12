@@ -84,7 +84,8 @@ object IORuntime extends IORuntimeCompanionPlatform {
         compute,
         blocking,
         scheduler,
-       pollers, fiberMonitor,
+        pollers,
+        fiberMonitor,
         unregisterAndShutdown,
         config,
         cpuStarvationSampler,
@@ -109,8 +110,20 @@ object IORuntime extends IORuntimeCompanionPlatform {
       scheduler: Scheduler,
       fiberMonitor: FiberMonitor,
       shutdown: () => Unit,
-      config: IORuntimeConfig): IORuntime =
-    new IORuntime(compute, blocking, scheduler, Nil, fiberMonitor, shutdown, config)
+      config: IORuntimeConfig): IORuntime = {
+    val cpuStarvationSampler = CpuStarvationSampler.create()
+    val metrics = IORuntimeMetrics.create(compute, cpuStarvationSampler)
+    new IORuntime(
+      compute,
+      blocking,
+      scheduler,
+      Nil,
+      fiberMonitor,
+      shutdown,
+      config,
+      cpuStarvationSampler,
+      metrics)
+  }
 
   def builder(): IORuntimeBuilder =
     IORuntimeBuilder()
@@ -120,7 +133,8 @@ object IORuntime extends IORuntimeCompanionPlatform {
       ec,
       ec,
       scheduler,
-     Nil, new NoOpFiberMonitor(),
+      Nil,
+      new NoOpFiberMonitor(),
       () => (),
       IORuntimeConfig(),
       CpuStarvationSampler.noop,

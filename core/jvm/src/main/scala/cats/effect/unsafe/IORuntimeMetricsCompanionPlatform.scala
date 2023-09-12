@@ -52,11 +52,11 @@ private[unsafe] abstract class IORuntimeMetricsCompanionPlatform {
 
   private def computeMetrics(compute: ExecutionContext): Option[ComputeMetrics] =
     compute match {
-      case wstp: WorkStealingThreadPool => Some(fromWSTP(wstp))
+      case wstp: WorkStealingThreadPool[_] => Some(fromWSTP(wstp))
       case _ => None
     }
 
-  private def fromWSTP(wstp: WorkStealingThreadPool): ComputeMetrics =
+  private def fromWSTP(wstp: WorkStealingThreadPool[_]): ComputeMetrics =
     new ComputeMetrics {
       def workerThreadCount(): Int = wstp.getWorkerThreadCount()
       def activeThreadCount(): Int = wstp.getActiveThreadCount()
