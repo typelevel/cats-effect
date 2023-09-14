@@ -136,7 +136,7 @@ object Hotswap {
                 case (r, fin) =>
                   exclusive.mapK(poll).onCancel(Resource.eval(fin)).surround {
                     swapFinalizer(Acquired(r, fin)).as(r)
-                  })
+                  }
               }
             }
 
