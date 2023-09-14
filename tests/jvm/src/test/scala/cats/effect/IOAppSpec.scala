@@ -190,14 +190,14 @@ class IOAppSpec extends Specification {
         "exit on raising a fatal error with attempt" in {
           val h = platform(RaiseFatalErrorAttempt, List.empty)
           h.awaitStatus() mustEqual 1
-          h.stderr() must contain ("Boom!")
+          h.stderr() must contain("Boom!")
           h.stdout() must not(contain("sadness"))
         }
 
         "exit on raising a fatal error with handleError" in {
           val h = platform(RaiseFatalErrorHandle, List.empty)
           h.awaitStatus() mustEqual 1
-          h.stderr() must contain ("Boom!")
+          h.stderr() must contain("Boom!")
           h.stdout() must not(contain("sadness"))
         }
 
