@@ -29,9 +29,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * This is a total map from `K` to `Ref[F, V]`.
  *
  * It is conceptually similar to a `Ref[F, Map[K, V]]`, but with better ergonomics when working
- * on a per key basis. It also has less contention since the key-value pairs are sharded; thus
- * multiple concurrent updates may be performed independently to each other. Note, however, that
- * it does not support atomic updates to multiple keys.
+ * on a per key basis. Note, however, that it does not support atomic updates to multiple keys.
+ *
+ * Additionally, some implementations also provide less contention, since all operations are
+ * performed over individual key-value pairs, those could be sharded. Thus, multiple concurrent
+ * updates may be executed independently to each other; as long as their keys belong to
+ * different shards.
  */
 trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 
