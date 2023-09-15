@@ -26,8 +26,12 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * This is a total map from K to Ref[F, V]. This allows us to use the Ref API backed by a
- * ConcurrentHashMap or similar.
+ * This is a total map from `K` to `Ref[F, V]`.
+ *
+ * It is conceptually similar to a `Ref[F, Map[K, V]]`, but with better ergonomics when working
+ * on a per key basis. It also has less contention since the key-value pairs are sharded; thus
+ * multiple concurrent updates may be performed independently to each other. Note, however, that
+ * it does not support atomic updates to multiple keys.
  */
 trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 
