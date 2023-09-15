@@ -49,10 +49,10 @@ object DatabaseClient {
       shardCount = 5 // Arbitrary number of shards just for demonstration.
     ).map { mapRef =>
       new DatabaseClient[IO] {
-        override def getDataById(id: Id): F[Option[Data]] =
+        override def getDataById(id: Id): IO[Option[Data]] =
           mapRef(id).get
 
-        override def upsertData(id: Id, data: Data): F[Unit] =
+        override def upsertData(id: Id, data: Data): IO[Unit] =
           mapRef(id).update(_ => Some(data))
       }
     }
