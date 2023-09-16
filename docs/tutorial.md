@@ -488,7 +488,7 @@ the other hand when the execution of some fiber is blocked _e.g._ because it
 must wait for a semaphore to be released, the thread running the fiber is
 recycled by cats-effect so it is available for other fibers. When the fiber
 execution can be resumed cats-effect will look for some free thread to continue
-the execution. The term "_semantically blocked_" is used sometimes to denote
+the execution. The term "_fiber blocking_" is used sometimes to denote
 that blocking the fiber does not involve halting any thread. Cats-effect also
 recycles threads of finished and canceled fibers. But keep in mind that, in
 contrast, if the fiber is truly blocked by some external action like waiting for
@@ -566,7 +566,7 @@ Then our code calls `queueR.getAndUpdate` to add data into the queue. Note
 that `.getAndUpdate` provides the current queue, then we use `.enqueue` to
 insert the next value `counter+1`. This call returns a new queue with the value
 added that is stored by the ref instance. If some other fiber is accessing to
-`queueR` then the fiber is (semantically) blocked.
+`queueR` then the fiber (but no thread) is blocked.
 
 The `consumer` method is a bit different. It will try to read data from the
 queue but it must be aware that the queue can be empty:
@@ -712,12 +712,12 @@ Can we alleviate this? Sure! There are a few options you can implement:
      } yield ()
    ```
 2. Replace `Ref` with `AtomicCell` to keep the `Queue` instance. `AtomicCell`,
-   as `Ref`, is a concurrent data structure to keep a reference to some data.
+   like `Ref`, is a concurrent data structure to keep a reference to some data.
    But unlike `Ref` it ensures that only one fiber can operate on that reference
    at any given time. Thus the consumer won't have to try once and again to modify
-   its content. Otoh `AtomicCell` is slower than `Ref`. This is because `Ref` is
-   nonblocking while `AtomicCell` will block calling fibers to ensure only one
-   operates on its content.
+   its content. On the other hand `AtomicCell` is slower than `Ref`. This is
+   because `Ref` is nonblocking while `AtomicCell` will block calling fibers to
+   ensure only one operates on its content.
 3. Make the queue bound by size so producers are forced to wait for consumers to
    extract data when the queue is full. We will do this later on in Section
    [Producer consumer with bounded
@@ -899,7 +899,7 @@ previous example this program shall run forever until the user presses CTRL-C.
 
 ### Producer consumer with bounded queue
 Having a bounded queue implies that producers, when the queue is full, will wait
-(be 'semantically blocked') until there is some empty bucket available to be
+(be 'filter blocked') until there is some empty bucket available to be
 filled.  So an implementation needs to keep track of these waiting producers. To
 do so we will add a new queue `offerers` that will be added to the `State`
 alongside `takers`.  For each waiting producer the `offerers` queue will keep a
