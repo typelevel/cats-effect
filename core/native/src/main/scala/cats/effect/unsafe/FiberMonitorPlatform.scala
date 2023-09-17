@@ -18,11 +18,10 @@ package cats.effect
 package unsafe
 
 import scala.concurrent.ExecutionContext
-import scala.scalanative.meta.LinktimeInfo
 
 private[effect] abstract class FiberMonitorPlatform {
   def apply(compute: ExecutionContext): FiberMonitor = {
-    if (LinktimeInfo.debugMode && LinktimeInfo.isWeakReferenceSupported) {
+    if (false) { // LinktimeInfo.debugMode && LinktimeInfo.isWeakReferenceSupported
       if (compute.isInstanceOf[EventLoopExecutorScheduler[_]]) {
         val loop = compute.asInstanceOf[EventLoopExecutorScheduler[_]]
         new FiberMonitorImpl(loop)

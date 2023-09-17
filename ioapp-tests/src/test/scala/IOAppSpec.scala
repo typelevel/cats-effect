@@ -286,7 +286,7 @@ class IOAppSpec extends Specification {
       h.awaitStatus() mustEqual 1
     }
 
-    if (!isJava8 && !isWindows) {
+    if (!isJava8 && !isWindows && platform != Native) {
       // JDK 8 does not have free signals for live fiber snapshots
       // cannot observe signals sent to process termination on Windows
       "live fiber snapshot" in {
