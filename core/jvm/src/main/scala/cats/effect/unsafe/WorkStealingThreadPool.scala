@@ -41,7 +41,7 @@ import java.time.Instant
 import java.time.temporal.ChronoField
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 import java.util.concurrent.locks.LockSupport
 
 import WorkStealingThreadPool._
@@ -756,20 +756,18 @@ private object WorkStealingThreadPool {
    * A wrapper for a cancelation callback that is created asynchronously. Best-effort: does not
    * explicitly publish.
    */
-  private final class ExternalSleepCancel extends Function0[Unit] with Runnable {
-    private[this] var callback: Function0[Unit] = null
-
+  private final class ExternalSleepCancel
+      extends AtomicReference[Function0[Unit]]
+      with Function0[Unit]
+      with Runnable { callback =>
     def setCallback(cb: Function0[Unit]) = {
-      val back = callback
+      val back = callback.getAndSet(cb)
       if (back eq CanceledSleepSentinel)
         cb() // we were already canceled, invoke right away
-      else
-        callback = cb
     }
 
     def apply() = {
-      val back = callback
-      callback = CanceledSleepSentinel
+      val back = callback.getAndSet(CanceledSleepSentinel)
       if (back ne null) back()
     }
 
