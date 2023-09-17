@@ -121,27 +121,33 @@ class TimerHeapSpec extends Specification {
       val m = new TimerHeap
       val startFrom = Long.MaxValue - 100L
       var nanoTime = startFrom
-      val removersBuilder = Vector.newBuilder[Runnable]
+      val removers = new Array[Runnable](200)
       val callbacksBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
-      for (_ <- 0 until 200) {
+      val triggeredBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
+      for (i <- 0 until 200) {
+        if (i >= 10 && i % 2 == 0) removers(i - 10).run()
         val cb = newCb()
         val out = new Array[Right[Nothing, Unit] => Unit](1)
-        val r = m.insert(nanoTime, 10L, cb, new Array(1))
-        removersBuilder += r
+        val r = m.insert(nanoTime, 10L, cb, out)
+        triggeredBuilder ++= Option(out(0))
+        removers(i) = r
         callbacksBuilder += cb
         nanoTime += 1L
       }
-      val removers = removersBuilder.result()
-      for (idx <- 0 until removers.size by 2) {
+      for (idx <- 190 until removers.size by 2) {
         removers(idx).run()
       }
       nanoTime += 100L
       val callbacks = callbacksBuilder.result()
-      for (i <- 0 until 200 by 2) {
+      while ({
         val cb = m.pollFirstIfTriggered(nanoTime)
-        val expected = callbacks(i + 1)
-        cb mustEqual expected
-      }
+        triggeredBuilder ++= Option(cb)
+        cb ne null
+      }) {}
+      val triggered = triggeredBuilder.result()
+
+      val nonCanceled = callbacks.grouped(2).map(_.last).toVector
+      triggered should beEqualTo(nonCanceled)
 
       ok
     }
