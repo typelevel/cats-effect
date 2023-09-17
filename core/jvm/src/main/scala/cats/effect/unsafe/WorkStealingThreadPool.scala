@@ -627,13 +627,18 @@ private[effect] final class WorkStealingThreadPool(
     cancel
   }
 
-  override def sleep(delay: FiniteDuration, task: Runnable): Runnable =
-    sleepInternal(
-      delay,
-      new AtomicBoolean with (Right[Nothing, Unit] => Unit) { // run at most once
-        def apply(ru: Right[Nothing, Unit]) = if (compareAndSet(false, true)) task.run()
-      }
-    )
+  override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+    val cb = new AtomicBoolean with (Right[Nothing, Unit] => Unit) { // run at most once
+      def apply(ru: Right[Nothing, Unit]) = if (compareAndSet(false, true)) task.run()
+    }
+
+    val cancel = sleepInternal(delay, cb)
+
+    () => {
+      cb.set(true)
+      cancel.run()
+    }
+  }
 
   /**
    * Shut down the thread pool and clean up the pool state. Calling this method after the pool
