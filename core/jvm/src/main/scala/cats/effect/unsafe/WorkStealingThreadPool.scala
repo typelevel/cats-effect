@@ -297,24 +297,6 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * A specialized version of `notifyParked`, for when we know which thread to wake up, and know
-   * that it should wake up due to a new timer (i.e., it must always wake up, even if only to go
-   * back to sleep, because its current sleeping time might be incorrect).
-   *
-   * @param index
-   *   The index of the thread to notify (must be less than `threadCount`).
-   */
-  // private[this] final def notifyForTimer(index: Int): Unit = {
-  //   val signal = parkedSignals(index)
-  //   if (signal.getAndSet(false)) {
-  //     state.getAndAdd(DeltaSearching)
-  //     workerThreadPublisher.get()
-  //     val worker = workerThreads(index)
-  //     LockSupport.unpark(worker)
-  //   } // else: was already unparked
-  // }
-
-  /**
    * Checks the number of active and searching worker threads and decides whether another thread
    * should be notified of new work.
    *
