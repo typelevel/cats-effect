@@ -527,7 +527,8 @@ private final class IOFiber[A](
           masks += 1
           val id = masks
           val poll = new Poll[IO] {
-            def apply[B](ioa: IO[B]) = IO.Uncancelable.UnmaskRunLoop(ioa, id, IOFiber.this)
+            def apply[B](ioa: IO[B]): IO[B] =
+              IO.Uncancelable.UnmaskRunLoop(ioa, id, IOFiber.this)
           }
 
           val next =
