@@ -344,7 +344,8 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
 
     def getAndClear(): Right[Nothing, Unit] => Unit = {
       val back = callback
-      callback = null
+      if (back ne null) // only clear if we read something
+        callback = null
       back
     }
 
