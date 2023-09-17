@@ -16,9 +16,8 @@
 
 package cats.effect.unsafe
 
-import cats.effect.{BaseSpec/*, IO*/}
+import cats.effect.{BaseSpec /*, IO*/}
 import cats.effect.testkit.TestInstances
-// import cats.syntax.all._
 
 import scala.concurrent.duration._
 
@@ -55,7 +54,9 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
   }
 
   "WorkerThread" should {
-    "rename itself when entering and exiting blocking region" in skipped("this test is quite flaky in CI") /*real {
+    "rename itself when entering and exiting blocking region" in skipped(
+      "this test is quite flaky in CI"
+    ) /*real {
       for {
         _ <- IO.cede
         computeThread <- threadInfo
