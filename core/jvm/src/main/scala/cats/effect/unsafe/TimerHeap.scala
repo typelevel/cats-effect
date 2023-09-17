@@ -74,9 +74,9 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
     @tailrec
     def loop(): Right[Nothing, Unit] => Unit = if (size > 0) {
       val root = heap(1)
-      val rootCanceled = root.isCanceled()
-      val rootExpired = !rootCanceled && isExpired(root, now)
-      if (rootCanceled || rootExpired) {
+      val rootDeleted = root.isDeleted()
+      val rootExpired = !rootDeleted && isExpired(root, now)
+      if (rootDeleted || rootExpired) {
         if (size > 1) {
           heap(1) = heap(size)
           fixDown(1)
@@ -129,9 +129,9 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
     val triggerTime = computeTriggerTime(now, delay)
 
     val root = heap(1)
-    val rootCanceled = root.isCanceled()
-    val rootExpired = !rootCanceled && isExpired(root, now)
-    if (rootCanceled || rootExpired) { // see if we can just replace the root
+    val rootDeleted = root.isDeleted()
+    val rootExpired = !rootDeleted && isExpired(root, now)
+    if (rootDeleted || rootExpired) { // see if we can just replace the root
       if (rootExpired) out(0) = root.getAndClear()
       val node = new Node(triggerTime, callback, 1)
       heap(1) = node
@@ -160,9 +160,9 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
       val heap = this.heap // local copy
       var i = 1
       while (i <= size) {
-        if (heap(i).isCanceled()) {
+        if (heap(i).isDeleted()) {
           removeAt(i)
-          // don't increment i, the new i may be canceled too
+          // don't increment i, the new i may be deleted too
         } else {
           i += 1
         }
@@ -354,7 +354,7 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
     /**
      * Cancel this timer.
      */
-    def apply(): Unit = if (callback ne null) { // if we're not already canceled
+    def apply(): Unit = if (callback ne null) { // if we're not already deleted
       // we can always clear the callback, without explicitly publishing
       callback = null
 
@@ -372,7 +372,7 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
 
     def run() = apply()
 
-    def isCanceled(): Boolean = callback eq null
+    def isDeleted(): Boolean = callback eq null
 
     override def toString() = s"Node($triggerTime, $callback})"
 
