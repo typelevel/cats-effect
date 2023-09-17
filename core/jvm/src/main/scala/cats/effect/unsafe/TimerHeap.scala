@@ -354,7 +354,7 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
     /**
      * Cancel this timer.
      */
-    def apply(): Unit = if (callback ne null) { // if we're not already deleted
+    def apply(): Unit = {
       // we can always clear the callback, without explicitly publishing
       callback = null
 
@@ -363,9 +363,12 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
       if (thread.isInstanceOf[WorkerThread]) {
         val worker = thread.asInstanceOf[WorkerThread]
         val heap = TimerHeap.this
-        if (worker.ownsTimers(heap))
-          heap.removeAt(index)
-        else // otherwise this heap will need packing
+        if (worker.ownsTimers(heap)) {
+          if (index >= 0) { // remove ourselves at most once
+            heap.removeAt(index)
+            index = -1 // prevent further removals
+          }
+        } else // otherwise this heap will need packing
           needsPack.set(true)
       } else needsPack.set(true)
     }
