@@ -113,7 +113,7 @@ class HotswapSpec extends BaseSpec { outer =>
         val go = Hotswap.create[IO, Unit].use { hs =>
           hs.swap(IO.sleep(1.minute).toResource).start *>
             IO.sleep(5.seconds) *>
-            hs.get.use_.timeout(1.second) *> IO.unit
+            hs.get.use_.timeout(1.second).void
         }
         go must completeAs(())
     }
