@@ -103,6 +103,12 @@ object Hotswap {
    */
   def create[F[_], R](implicit F: Concurrent[F]): Resource[F, Hotswap[F, R]] =
     Resource.eval(Semaphore[F](Long.MaxValue)).flatMap { semaphore =>
+      def shared: Resource[F, Unit] = semaphore.permit
+
+      def exclusive: Resource[F, Unit] =
+        Resource.makeFull[F, Unit](poll => poll(semaphore.acquireN(Long.MaxValue)))(_ =>
+          semaphore.releaseN(Long.MaxValue))
+
       sealed abstract class State
       case object Cleared extends State
       case class Acquired(r: R, fin: F[Unit]) extends State
@@ -111,21 +117,16 @@ object Hotswap {
       def initialize: F[Ref[F, State]] =
         F.ref(Cleared)
 
-      def finalize(state: Ref[F, State]): F[Unit] =
+      def finalize(state: Ref[F, State]): F[Unit] = exclusive.surround {
         state.getAndSet(Finalized).flatMap {
           case Acquired(_, finalizer) => finalizer
           case Cleared => F.unit
           case Finalized => raise("Hotswap already finalized")
         }
+      }
 
       def raise(message: String): F[Unit] =
         F.raiseError[Unit](new RuntimeException(message))
-
-      def shared: Resource[F, Unit] = semaphore.permit
-
-      def exclusive: Resource[F, Unit] =
-        Resource.makeFull[F, Unit](poll => poll(semaphore.acquireN(Long.MaxValue)))(_ =>
-          semaphore.releaseN(Long.MaxValue))
 
       Resource.make(initialize)(finalize).map { state =>
         new Hotswap[F, R] {
