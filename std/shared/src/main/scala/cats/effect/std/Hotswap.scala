@@ -117,13 +117,12 @@ object Hotswap {
       def initialize: F[Ref[F, State]] =
         F.ref(Cleared)
 
-      def finalize(state: Ref[F, State]): F[Unit] = exclusive.surround {
+      def finalize(state: Ref[F, State]): F[Unit] =
         state.getAndSet(Finalized).flatMap {
-          case Acquired(_, finalizer) => finalizer
+          case Acquired(_, finalizer) => exclusive.surround(finalizer)
           case Cleared => F.unit
           case Finalized => raise("Hotswap already finalized")
         }
-      }
 
       def raise(message: String): F[Unit] =
         F.raiseError[Unit](new RuntimeException(message))
