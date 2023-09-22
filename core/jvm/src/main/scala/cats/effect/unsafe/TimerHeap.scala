@@ -175,7 +175,9 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
    */
   private def removeAt(i: Int): Unit = {
     val heap = this.heap // local copy
-    heap(i).getAndClear()
+    val back = heap(i)
+    back.getAndClear()
+    back.index = -1
     if (i == size) {
       heap(i) = null
       size -= 1
@@ -365,10 +367,9 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
         val worker = thread.asInstanceOf[WorkerThread]
         val heap = TimerHeap.this
         if (worker.ownsTimers(heap)) {
-          if (index >= 0) { // remove ourselves at most once
-            heap.removeAt(index)
-            index = -1 // prevent further removals
-          }
+          // remove only if we are still in the heap
+          if (index >= 0) heap.removeAt(index)
+          else ()
         } else // otherwise this heap will need packing
           needsPack.set(true)
       } else needsPack.set(true)

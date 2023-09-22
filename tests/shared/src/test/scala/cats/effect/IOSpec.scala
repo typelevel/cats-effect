@@ -1832,6 +1832,12 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           }
           .as(ok)
       }
+
+      "no-op when canceling a timer twice" in realWithRuntime { rt =>
+        IO(rt.scheduler.sleep(1.day, () => ()))
+          .flatMap(cancel => IO(cancel.run()) *> IO(cancel.run()))
+          .as(ok)
+      }
     }
 
     "syncStep" should {
