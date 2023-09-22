@@ -17,12 +17,12 @@
 package cats.effect.unsafe.metrics
 
 /**
- * An MBean interface for monitoring a single [[WorkerThread]] [[LocalQueue]].
+ * An MBean interface for monitoring a single `WorkerThread` `LocalQueue`.
  */
 trait LocalQueueSamplerMBean {
 
   /**
-   * Returns the number of fibers enqueued on the monitored [[LocalQueue]].
+   * Returns the number of fibers enqueued on the monitored `LocalQueue`.
    *
    * @return
    *   the number of fibers enqueued on the local queue
@@ -30,7 +30,7 @@ trait LocalQueueSamplerMBean {
   def getFiberCount(): Int
 
   /**
-   * Returns the index into the circular buffer backing the monitored [[LocalQueue]] which
+   * Returns the index into the circular buffer backing the monitored `LocalQueue` which
    * represents the head of the queue.
    *
    * @return
@@ -39,7 +39,7 @@ trait LocalQueueSamplerMBean {
   def getHeadIndex(): Int
 
   /**
-   * Returns the index into the circular buffer backing the monitored [[LocalQueue]] which
+   * Returns the index into the circular buffer backing the monitored `LoLcalQueue` which
    * represents the tail of the queue.
    *
    * @return
@@ -48,7 +48,7 @@ trait LocalQueueSamplerMBean {
   def getTailIndex(): Int
 
   /**
-   * Returns the total number of fibers enqueued on the monitored [[LocalQueue]] during its
+   * Returns the total number of fibers enqueued on the monitored `LocalQueue` during its
    * lifetime.
    *
    * @return
@@ -58,7 +58,7 @@ trait LocalQueueSamplerMBean {
 
   /**
    * Returns the total number of fibers spilt over to the external queue during the lifetime of
-   * the monitored [[LocalQueue]].
+   * the monitored `LocalQueue`.
    *
    * @return
    *   the total number of fibers spilt over to the external queue
@@ -67,7 +67,7 @@ trait LocalQueueSamplerMBean {
 
   /**
    * Returns the total number of successful steal attempts by other worker threads from the
-   * monitored [[LocalQueue]] during its lifetime.
+   * monitored `LocalQueue` during its lifetime.
    *
    * @return
    *   the total number of successful steal attempts by other worker threads
@@ -76,7 +76,7 @@ trait LocalQueueSamplerMBean {
 
   /**
    * Returns the total number of stolen fibers by other worker threads from the monitored
-   * [[LocalQueue]] during its lifetime.
+   * `LocalQueue` during its lifetime.
    *
    * @return
    *   the total number of stolen fibers by other worker threads
@@ -84,7 +84,7 @@ trait LocalQueueSamplerMBean {
   def getStolenFiberCount(): Long
 
   /**
-   * Exposes the "real" value of the head of the monitored [[LocalQueue]]. This value represents
+   * Exposes the "real" value of the head of the monitored `LocalQueue`. This value represents
    * the state of the head which is valid for the owner worker thread. This is an unsigned 16
    * bit integer.
    *
@@ -98,7 +98,7 @@ trait LocalQueueSamplerMBean {
   def getRealHeadTag(): Int
 
   /**
-   * Exposes the "steal" tag of the head of the monitored [[LocalQueue]]. This value represents
+   * Exposes the "steal" tag of the head of the monitored `LocalQueue`. This value represents
    * the state of the head which is valid for any worker thread looking to steal work from this
    * local queue. This is an unsigned 16 bit integer.
    *
@@ -112,8 +112,8 @@ trait LocalQueueSamplerMBean {
   def getStealHeadTag(): Int
 
   /**
-   * Exposes the "tail" tag of the tail of the monitored [[LocalQueue]]. This value represents
-   * the state of the tail which is valid for the owner worker thread, used for enqueuing fibers
+   * Exposes the "tail" tag of the tail of the monitored `LocalQueue`. This value represents the
+   * state of the tail which is valid for the owner worker thread, used for enqueuing fibers
    * into the local queue, as well as any other worker thread looking to steal work from this
    * local queue, used for calculating how many fibers to steal. This is an unsigned 16 bit
    * integer.

@@ -17,15 +17,15 @@
 package cats.effect.unsafe.metrics
 
 /**
- * An MBean interface for monitoring a [[WorkStealingThreadPool]] backed compute thread pool.
+ * An MBean interface for monitoring a `WorkStealingThreadPool` backed compute thread pool.
  */
 trait ComputePoolSamplerMBean {
 
   /**
-   * Returns the number of [[WorkerThread]] instances backing the [[WorkStealingThreadPool]].
+   * Returns the number of `WorkerThread` instances backing the `WorkStealingThreadPool`.
    *
    * @note
-   *   This is a fixed value, as the [[WorkStealingThreadPool]] has a fixed number of worker
+   *   This is a fixed value, as the `WorkStealingThreadPool` has a fixed number of worker
    *   threads.
    *
    * @return
@@ -34,7 +34,7 @@ trait ComputePoolSamplerMBean {
   def getWorkerThreadCount(): Int
 
   /**
-   * Returns the number of active [[WorkerThread]] instances currently executing fibers on the
+   * Returns the number of active `WorkerThread` instances currently executing fibers on the
    * compute thread pool.
    *
    * @return
@@ -43,8 +43,8 @@ trait ComputePoolSamplerMBean {
   def getActiveThreadCount(): Int
 
   /**
-   * Returns the number of [[WorkerThread]] instances currently searching for fibers to steal
-   * from other worker threads.
+   * Returns the number of `WorkerThread` instances currently searching for fibers to steal from
+   * other worker threads.
    *
    * @return
    *   the number of worker threads searching for work
@@ -52,7 +52,7 @@ trait ComputePoolSamplerMBean {
   def getSearchingThreadCount(): Int
 
   /**
-   * Returns the number of [[WorkerThread]] instances which are currently blocked due to running
+   * Returns the number of `WorkerThread` instances which are currently blocked due to running
    * blocking actions on the compute thread pool.
    *
    * @return
