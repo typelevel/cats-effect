@@ -28,7 +28,7 @@ import cats.syntax.all._
 import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.{CancellationException, ExecutionContext, TimeoutException}
+import scala.concurrent.{CancellationException, ExecutionContext, Promise, TimeoutException}
 import scala.concurrent.duration._
 
 import Prop.forAll
@@ -1821,6 +1821,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             }
           }
         }
+      }
+
+      "no-op when canceling an expired timer" in realWithRuntime { rt =>
+        IO(Promise[Unit]())
+          .flatMap { p =>
+            IO(rt.scheduler.sleep(1.nanosecond, () => p.success(()))).flatMap { cancel =>
+              IO.fromFuture(IO(p.future)) *> IO(cancel.run())
+            }
+          }
+          .as(ok)
       }
     }
 

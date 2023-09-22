@@ -77,6 +77,7 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
       val rootDeleted = root.isDeleted()
       val rootExpired = !rootDeleted && isExpired(root, now)
       if (rootDeleted || rootExpired) {
+        root.index = -1
         if (size > 1) {
           heap(1) = heap(size)
           fixDown(1)
