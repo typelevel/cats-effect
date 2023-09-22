@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
-
-import cats.effect.IO
+package cats.effect.unsafe.metrics
 
 import scala.concurrent.duration.FiniteDuration
 
-private[effect] trait CpuStarvationMetrics {
-  def incCpuStarvationCount: IO[Unit]
-
-  def recordClockDrift(drift: FiniteDuration): IO[Unit]
-}
+final case class CpuStarvationWarningMetrics(
+    occurrenceTime: FiniteDuration,
+    clockDrift: FiniteDuration,
+    starvationThreshold: Double,
+    starvationInterval: FiniteDuration)

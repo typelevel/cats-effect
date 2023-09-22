@@ -16,9 +16,9 @@
 
 package cats.effect
 
-import cats.effect.metrics.{CpuStarvationMetrics, CpuStarvationWarningMetrics}
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
+import cats.effect.unsafe.metrics.{CpuStarvationMetrics, CpuStarvationWarningMetrics}
 import cats.syntax.all._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}

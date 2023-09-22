@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
 import cats.effect.{IO, Resource}
 import cats.effect.std.Console
@@ -27,7 +27,7 @@ import java.lang.management.ManagementFactory
 import javax.management.{MBeanServer, ObjectName}
 
 private[effect] class JvmCpuStarvationMetrics private (mbean: CpuStarvation)
-    extends UnsealedCpuStarvationMetrics {
+    extends CpuStarvationMetrics {
   override def incCpuStarvationCount: IO[Unit] = mbean.incStarvationCount
 
   override def recordClockDrift(drift: FiniteDuration): IO[Unit] = mbean.recordDrift(drift)

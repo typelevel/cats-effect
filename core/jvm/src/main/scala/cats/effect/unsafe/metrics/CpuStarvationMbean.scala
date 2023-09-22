@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
 /**
  * An MBean interfaces for monitoring when CPU starvation occurs.
