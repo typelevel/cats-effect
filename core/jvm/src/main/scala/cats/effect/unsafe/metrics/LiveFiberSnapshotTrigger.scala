@@ -27,7 +27,7 @@ import scala.collection.mutable.ArrayBuffer
  *   the backing fiber monitor
  */
 private[unsafe] final class LiveFiberSnapshotTrigger(monitor: FiberMonitor)
-    extends LiveFiberSnapshotTriggerMBean {
+    extends UnsealedLiveFiberSnapshotTriggerMBean {
   def liveFiberSnapshot(): Array[String] = {
     val buffer = new ArrayBuffer[String]
     monitor.liveFiberSnapshot(buffer += _)

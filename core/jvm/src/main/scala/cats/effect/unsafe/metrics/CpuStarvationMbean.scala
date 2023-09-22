@@ -19,7 +19,7 @@ package cats.effect.metrics
 /**
  * An MBean interfaces for monitoring when CPU starvation occurs.
  */
-trait CpuStarvationMBean {
+sealed trait CpuStarvationMBean {
 
   /**
    * Returns the number of times CPU starvation has occurred.
@@ -45,3 +45,5 @@ trait CpuStarvationMBean {
    */
   def getCurrentClockDriftMs(): Long
 }
+
+private[unsafe] trait UnsealedCpuStarvationMBean extends CpuStarvationMBean

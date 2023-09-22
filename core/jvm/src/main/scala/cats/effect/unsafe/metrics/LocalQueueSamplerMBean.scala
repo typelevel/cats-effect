@@ -19,7 +19,7 @@ package cats.effect.unsafe.metrics
 /**
  * An MBean interface for monitoring a single `WorkerThread` `LocalQueue`.
  */
-trait LocalQueueSamplerMBean {
+sealed trait LocalQueueSamplerMBean {
 
   /**
    * Returns the number of fibers enqueued on the monitored `LocalQueue`.
@@ -127,3 +127,5 @@ trait LocalQueueSamplerMBean {
    */
   def getTailTag(): Int
 }
+
+private[unsafe] trait UnsealedLocalQueueSamplerMBean extends LocalQueueSamplerMBean

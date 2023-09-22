@@ -26,7 +26,7 @@ private[metrics] class CpuStarvation private (
     counter: AtomicLong,
     currentClockDrift: AtomicLong,
     maxClockDrift: AtomicLong)
-    extends CpuStarvationMBean {
+    extends UnsealedCpuStarvationMBean {
 
   override def getCpuStarvationCount(): Long = counter.get()
 

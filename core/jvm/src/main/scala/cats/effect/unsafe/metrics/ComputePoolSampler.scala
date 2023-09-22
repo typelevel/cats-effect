@@ -25,7 +25,7 @@ package metrics
  *   the monitored compute work stealing thread pool
  */
 private[unsafe] final class ComputePoolSampler(compute: WorkStealingThreadPool[_])
-    extends ComputePoolSamplerMBean {
+    extends UnsealedComputePoolSamplerMBean {
   def getWorkerThreadCount(): Int = compute.getWorkerThreadCount()
   def getActiveThreadCount(): Int = compute.getActiveThreadCount()
   def getSearchingThreadCount(): Int = compute.getSearchingThreadCount()
