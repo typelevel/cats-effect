@@ -133,6 +133,7 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
     val rootDeleted = root.isDeleted()
     val rootExpired = !rootDeleted && isExpired(root, now)
     if (rootDeleted || rootExpired) { // see if we can just replace the root
+      root.index = -1
       if (rootExpired) out(0) = root.getAndClear()
       val node = new Node(triggerTime, callback, 1)
       heap(1) = node
@@ -369,7 +370,6 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
         if (worker.ownsTimers(heap)) {
           // remove only if we are still in the heap
           if (index >= 0) heap.removeAt(index)
-          else ()
         } else // otherwise this heap will need packing
           needsPack.set(true)
       } else needsPack.set(true)

@@ -1823,11 +1823,23 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
       }
 
-      "no-op when canceling an expired timer" in realWithRuntime { rt =>
+      "no-op when canceling an expired timer 1" in realWithRuntime { rt =>
+        // this one excercises a timer removed via `TimerHeap#pollFirstIfTriggered`
         IO(Promise[Unit]())
           .flatMap { p =>
             IO(rt.scheduler.sleep(1.nanosecond, () => p.success(()))).flatMap { cancel =>
               IO.fromFuture(IO(p.future)) *> IO(cancel.run())
+            }
+          }
+          .as(ok)
+      }
+
+      "no-op when canceling an expired timer 2" in realWithRuntime { rt =>
+        // this one excercises a timer removed via `TimerHeap#insert`
+        IO(Promise[Unit]())
+          .flatMap { p =>
+            IO(rt.scheduler.sleep(1.nanosecond, () => p.success(()))).flatMap { cancel =>
+              IO.sleep(1.nanosecond) *> IO.fromFuture(IO(p.future)) *> IO(cancel.run())
             }
           }
           .as(ok)
