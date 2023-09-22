@@ -16,7 +16,8 @@
 
 package cats.effect
 
-import cats.effect.unsafe.metrics.{CpuStarvationWarningMetrics, NativeCpuStarvationMetrics}
+import cats.effect.metrics.CpuStarvationWarningMetrics
+import cats.effect.unsafe.metrics.NativeCpuStarvationMetrics
 import cats.syntax.all._
 
 import scala.concurrent.CancellationException

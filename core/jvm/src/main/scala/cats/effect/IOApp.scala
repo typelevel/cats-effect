@@ -16,9 +16,10 @@
 
 package cats.effect
 
+import cats.effect.metrics.CpuStarvationWarningMetrics
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
-import cats.effect.unsafe.metrics.{CpuStarvationWarningMetrics, JvmCpuStarvationMetrics}
+import cats.effect.unsafe.metrics.JvmCpuStarvationMetrics
 import cats.syntax.all._
 
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}

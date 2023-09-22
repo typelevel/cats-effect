@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe.metrics
+package cats.effect.metrics
 
 import scala.concurrent.duration.FiniteDuration
 
