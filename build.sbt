@@ -1011,6 +1011,7 @@ lazy val benchmarks = project
   .dependsOn(core.jvm, std.jvm)
   .settings(
     name := "cats-effect-benchmarks",
+    fork := true,
     javaOptions ++= Seq(
       "-Dcats.effect.tracing.mode=none",
       "-Dcats.effect.tracing.exceptions.enhanced=false"))
