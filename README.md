@@ -11,7 +11,7 @@
 
 ## Getting Started
 
-- Wired: **3.4.11**
+- Wired: **3.5.1**
 - Tired: **2.5.5** (end of life)
 
 ```scala
