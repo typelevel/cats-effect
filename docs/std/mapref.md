@@ -19,18 +19,18 @@ It is conceptually similar to a `Ref[F, Map[K, V]]`,
 but with better ergonomics when working on a per key basis.
 Note, however, that it does not support atomic updates to multiple keys.
 
-Additionally, some implementations also provide less contention,
-since all operations are performed over individual key-value pairs,
-those could be sharded.
-Thus, multiple concurrent updates may be executed independently to each other;
+Additionally, some implementations also provide less contention:
+since all operations are performed on individual key-value pairs,
+the pairs can be sharded by key.
+Thus, multiple concurrent updates may be executed independently to each other,
 as long as their keys belong to different shards.
 
 ### In-Memory database
 
-This is probably one of the most common uses of this tool.
+This is probably one of the most common uses of this datatype.
 
 ```scala mdoc:reset:silent
-//> using lib "org.typelevel::cats-effect:3.4.11"
+//> using lib "org.typelevel::cats-effect:3.5.1"
 
 import cats.effect.IO
 import cats.effect.std.MapRef

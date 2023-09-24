@@ -31,10 +31,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  * It is conceptually similar to a `Ref[F, Map[K, V]]`, but with better ergonomics when working
  * on a per key basis. Note, however, that it does not support atomic updates to multiple keys.
  *
- * Additionally, some implementations also provide less contention, since all operations are
- * performed over individual key-value pairs, those could be sharded. Thus, multiple concurrent
- * updates may be executed independently to each other; as long as their keys belong to
- * different shards.
+ * Additionally, some implementations also provide less contention: since all operations are
+ * performed on individual key-value pairs, the pairs can be sharded by key. Thus, multiple
+ * concurrent updates may be executed independently to each other, as long as their keys belong
+ * to different shards.
  */
 trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 
