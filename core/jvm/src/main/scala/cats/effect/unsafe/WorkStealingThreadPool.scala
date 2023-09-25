@@ -643,7 +643,9 @@ private[effect] final class WorkStealingThreadPool[P](
   /**
    * Tries to call the current worker's `sleep`, but falls back to `sleepExternal` if needed.
    */
-  def sleepInternal(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
+  def sleepInternal(
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread[_]]) {
       val worker = thread.asInstanceOf[WorkerThread[P]]
@@ -664,7 +666,7 @@ private[effect] final class WorkStealingThreadPool[P](
    */
   private[this] final def sleepExternal(
       delay: FiniteDuration,
-      callback: Right[Nothing, Unit] => Unit): Runnable = {
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
     val random = ThreadLocalRandom.current()
     val idx = random.nextInt(threadCount)
     val tsl = sleepers(idx)

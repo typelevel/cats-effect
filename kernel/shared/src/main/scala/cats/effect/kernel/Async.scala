@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * {{{async(k)}}} is semantically blocked until the callback is invoked.
  *
- * `async_` is somewhat contrained however. We can't perform any `F[_]` effects in the process
+ * `async_` is somewhat constrained however. We can't perform any `F[_]` effects in the process
  * of registering the callback and we also can't register a finalizer to eg cancel the
  * asynchronous task in the event that the fiber running `async_` is canceled.
  *
