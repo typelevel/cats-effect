@@ -63,17 +63,11 @@ private[effect] final class BatchingMacrotaskExecutor(
       var i = 0
       while (i < batchSize && !fibers.isEmpty()) {
         val fiber = fibers.take()
-
-        if (LinkingInfo.developmentMode)
-          if (fiberBag ne null)
-            fiberBag -= fiber
-
         try fiber.run()
         catch {
           case t if NonFatal(t) => reportFailure(t)
           case t: Throwable => IOFiber.onFatalFailure(t)
         }
-
         i += 1
       }
 
@@ -100,10 +94,6 @@ private[effect] final class BatchingMacrotaskExecutor(
    * batch.
    */
   def schedule(fiber: IOFiber[_]): Unit = {
-    if (LinkingInfo.developmentMode)
-      if (fiberBag ne null)
-        fiberBag += fiber
-
     fibers.offer(fiber)
 
     if (needsReschedule) {
@@ -117,8 +107,12 @@ private[effect] final class BatchingMacrotaskExecutor(
 
   def reportFailure(t: Throwable): Unit = reportFailure0(t)
 
-  def liveTraces(): Map[IOFiber[_], Trace] =
-    fiberBag.iterator.filterNot(_.isDone).map(f => f -> f.captureTrace()).toMap
+  def liveTraces(): Map[IOFiber[_], Trace] = {
+    val traces = Map.newBuilder[IOFiber[_], Trace]
+    fibers.foreach(f => if (!f.isDone) traces += f -> f.captureTrace())
+    fiberBag.foreach(f => if (!f.isDone) traces += f -> f.captureTrace())
+    traces.result()
+  }
 
   @inline private[this] def monitor(runnable: Runnable): Runnable =
     if (LinkingInfo.developmentMode)

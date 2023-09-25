@@ -719,7 +719,7 @@ Both producer and consumer will access the same shared state instance, which
 will be carried and safely modified by an instance of `Ref`. Consumer shall
 work as follows:
 1. If `queue` is not empty, it will extract and return its head. The new state
-   will keep the tail of the queue, not change on `takers` will be needed.
+   will keep the tail of the queue, no change on `takers` will be needed.
 2. If `queue` is empty it will use a new `Deferred` instance as a new `taker`,
    add it to the `takers` queue, and 'block' the caller by invoking `taker.get`
 

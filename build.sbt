@@ -645,6 +645,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateResult"),
+      // #3775, changes to internal timers APIs
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.TimerSkipList.insert"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.WorkerThread.sleep"),
+      // #3787, internal utility that was no longer needed
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$"),
       // introduced by #3332, polling system
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.IORuntimeBuilder.this"),
