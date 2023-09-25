@@ -47,6 +47,8 @@ package examples {
     register(FatalError)
     register(RaiseFatalErrorAttempt)
     register(RaiseFatalErrorHandle)
+    register(RaiseFatalErrorMap)
+    register(RaiseFatalErrorFlatMap)
     registerRaw(FatalErrorRaw)
     register(Canceled)
     registerLazy("catseffect.examples.GlobalRacingInit", GlobalRacingInit)

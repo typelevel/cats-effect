@@ -76,6 +76,26 @@ package examples {
     }
   }
 
+  object RaiseFatalErrorMap extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .map(_ => ())
+        .handleError(_ => ())
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
+  object RaiseFatalErrorFlatMap extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .flatMap(_ => IO(()))
+        .handleError(_ => ())
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
   object Canceled extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
       IO.canceled.as(ExitCode.Success)

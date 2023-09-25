@@ -319,7 +319,11 @@ private final class IOFiber[A](
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextCancelation - 1, nextAutoCede)
+              val ex = error.t
+              if (!NonFatal(ex))
+                onFatalFailure(ex)
+
+              runLoop(failed(ex, 0), nextCancelation - 1, nextAutoCede)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
@@ -386,7 +390,11 @@ private final class IOFiber[A](
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextCancelation - 1, nextAutoCede)
+              val ex = error.t
+              if (!NonFatal(ex))
+                onFatalFailure(ex)
+
+              runLoop(failed(ex, 0), nextCancelation - 1, nextAutoCede)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
