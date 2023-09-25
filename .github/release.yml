@@ -2,14 +2,14 @@ changelog:
   categories:
     - title: Features
       labels:
-        - :mushroom: enhancement
+        - ':mushroom: enhancement'
     - title: Bug Fixes
       labels:
-        - :beetle: bug
+        - ':beetle: bug'
     - title: Behind the Scenes
       labels:
-        - :gear: infrastructure
-        - :robot:
+        - ':gear: infrastructure'
+        - ':robot:'
     - title: Documentation
       labels:
-        - :books: docs
+        - ':books: docs'
