@@ -929,7 +929,9 @@ private final class IOFiber[A](
                   val cancelIO =
                     if (scheduler.isInstanceOf[WorkStealingThreadPool[_]]) {
                       val cancel =
-                        scheduler.asInstanceOf[WorkStealingThreadPool[_]].sleepInternal(delay, cb)
+                        scheduler
+                          .asInstanceOf[WorkStealingThreadPool[_]]
+                          .sleepInternal(delay, cb)
                       IO.Delay(cancel, null)
                     } else {
                       val cancel = scheduler.sleep(delay, () => cb(RightUnit))
