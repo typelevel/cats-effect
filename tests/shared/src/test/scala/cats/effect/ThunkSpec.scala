@@ -18,11 +18,11 @@ package cats.effect
 
 class ThunkSpec extends BaseSpec {
 
-  "Thunk.asFunction0" should {
+  "IO.delay" should {
     "return the same function" in {
       var i = 0
       val f = () => i += 1
-      Thunk.asFunction0(f()) eq f
+      IO.delay(f()).asInstanceOf[IO.Delay[Unit]].thunk eq f
     }
   }
 
