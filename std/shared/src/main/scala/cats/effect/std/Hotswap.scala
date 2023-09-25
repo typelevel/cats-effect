@@ -113,7 +113,7 @@ object Hotswap {
 
       def finalize(state: Ref[F, State]): F[Unit] =
         state.getAndSet(Finalized).flatMap {
-          case Acquired(_, finalizer) => finalizer
+          case Acquired(_, finalizer) => exclusive.surround(finalizer)
           case Cleared => F.unit
           case Finalized => raise("Hotswap already finalized")
         }
