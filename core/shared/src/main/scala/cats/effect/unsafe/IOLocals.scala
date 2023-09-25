@@ -21,6 +21,9 @@ import IOLocalsConstants.ioLocalPropagation
 
 object IOLocals {
 
+  /** `true` if IOLocal propagation is enabled */
+  def propagating: Boolean = ioLocalPropagation
+
   def get[A](iol: IOLocal[A]): A = if (ioLocalPropagation) {
     val thread = Thread.currentThread()
     val state =
