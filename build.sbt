@@ -898,7 +898,8 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
     scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
   .jvmSettings(
-    Test / fork := true
+    fork := true,
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
   )
   .nativeSettings(
     Compile / mainClass := Some("catseffect.examples.NativeRunner")
