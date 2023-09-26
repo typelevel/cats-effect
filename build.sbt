@@ -213,6 +213,13 @@ ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
   )
 )
 
+ThisBuild / githubWorkflowPublish +=
+  WorkflowStep.Run(
+    List("scripts/post-release-discord ${{ github.ref }}"),
+    name = Some("Post release to Discord"),
+    env = Map("DISCORD_WEBHOOK_URL" -> "${{ secrets.DISCORD_WEBHOOK_URL }}")
+  )
+
 val ciVariants = CI.AllCIs.map(_.command)
 val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
