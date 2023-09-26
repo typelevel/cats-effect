@@ -13,3 +13,7 @@ changelog:
     - title: Documentation
       labels:
         - ':books: docs'
+    # Not for published notes, just to make sure we don't forget any accidentally unlabeled PRs
+    - title: Uncategorized
+      labels:
+        - '*'
