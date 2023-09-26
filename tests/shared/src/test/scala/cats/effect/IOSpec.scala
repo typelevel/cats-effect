@@ -24,6 +24,7 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
+import cats.~>
 
 import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -1325,8 +1326,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "catch exceptions in cont" in ticked { implicit ticker =>
         IO.cont[Unit, Unit](new Cont[IO, Unit, Unit] {
-          override def apply[F[_]](implicit F: MonadCancel[F, Throwable]) = { (_, _, _) =>
-            throw new Exception
+          override def apply[F[_]](implicit F: MonadCancel[F, Throwable])
+              : (Either[Throwable, Unit] => Unit, F[Unit], cats.effect.IO ~> F) => F[Unit] = {
+            (_, _, _) => throw new Exception
           }
         }).voidError must completeAs(())
       }

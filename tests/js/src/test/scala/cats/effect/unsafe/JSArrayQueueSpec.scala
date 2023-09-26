@@ -20,7 +20,7 @@ package unsafe
 import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ListBuffer, Queue}
 
 class JSArrayQueueSpec extends BaseSpec with ScalaCheck {
 
@@ -39,6 +39,39 @@ class JSArrayQueueSpec extends BaseSpec with ScalaCheck {
         while (!queue.isEmpty()) taken += queue.take()
 
         taken.toList must beEqualTo(stuff.flatten)
+      }
+    }
+
+    "iterate over contents in foreach" in {
+      forAll { (stuff: List[Option[Int]]) =>
+        val queue = new JSArrayQueue[Int]
+        val shadow = new Queue[Int]
+
+        def checkContents() = {
+          val builder = List.newBuilder[Int]
+          queue.foreach(builder += _)
+          builder.result() must beEqualTo(shadow.toList)
+        }
+
+        checkContents()
+
+        stuff.foreach {
+          case Some(i) =>
+            queue.offer(i)
+            shadow.enqueue(i)
+            checkContents()
+          case None =>
+            if (!shadow.isEmpty) {
+              val got = queue.take()
+              val expected = shadow.dequeue()
+              got must beEqualTo(expected)
+              checkContents()
+            } else {
+              ok
+            }
+        }
+
+        ok
       }
     }
   }

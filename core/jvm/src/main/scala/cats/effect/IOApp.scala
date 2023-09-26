@@ -233,11 +233,26 @@ trait IOApp {
       )
 
   /**
-   * Configures the action to perform when unhandled errors are caught by the runtime. By
-   * default, this simply delegates to [[cats.effect.std.Console!.printStackTrace]]. It is safe
-   * to perform any `IO` action within this handler; it will not block the progress of the
-   * runtime. With that said, some care should be taken to avoid raising unhandled errors as a
-   * result of handling unhandled errors, since that will result in the obvious chaos.
+   * Configures the action to perform when unhandled errors are caught by the runtime. An
+   * unhandled error is an error that is raised (and not handled) on a Fiber that nobody is
+   * joining.
+   *
+   * For example:
+   *
+   * {{{
+   *   import scala.concurrent.duration._
+   *   override def run: IO[Unit] = IO(throw new Exception("")).start *> IO.sleep(1.second)
+   * }}}
+   *
+   * In this case, the exception is raised on a Fiber with no listeners. Nobody would be
+   * notified about that error. Therefore it is unhandled, and it goes through the reportFailure
+   * mechanism.
+   *
+   * By default, `reportFailure` simply delegates to
+   * [[cats.effect.std.Console!.printStackTrace]]. It is safe to perform any `IO` action within
+   * this handler; it will not block the progress of the runtime. With that said, some care
+   * should be taken to avoid raising unhandled errors as a result of handling unhandled errors,
+   * since that will result in the obvious chaos.
    */
   protected def reportFailure(err: Throwable): IO[Unit] =
     Console[IO].printStackTrace(err)
@@ -322,6 +337,7 @@ trait IOApp {
    * isn't the main process thread. This condition can happen when we are running inside of an
    * `sbt run` with `fork := false`
    */
+
   def warnOnNonMainThreadDetected: Boolean =
     Option(System.getProperty("cats.effect.warnOnNonMainThreadDetected"))
       .map(_.equalsIgnoreCase("true"))
