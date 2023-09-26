@@ -6,6 +6,8 @@ title: MapRef
 A total map from a key to a `Ref` of its value.
 
 ```scala mdoc:silent
+import cats.effect.Ref
+
 trait MapRef[F[_], K, V] {
 
   /**
@@ -35,20 +37,17 @@ This is probably one of the most common uses of this datatype.
 import cats.effect.IO
 import cats.effect.std.MapRef
 
-type Id
-type Data
-
-trait DatabaseClient[F[_]] {
+trait DatabaseClient[F[_], Id, Data] {
   def getDataById(id: Id): F[Option[Data]]
   def upsertData(id: Id, data: Data): F[Unit]
 }
 
 object DatabaseClient {
-  def inMemory: IO[DatabaseClient[IO]] =
+  def inMemory[Id, Data]: IO[DatabaseClient[IO, Id, Data]] =
     MapRef.ofShardedImmutableMap[IO, Id, Data](
       shardCount = 5 // Arbitrary number of shards just for demonstration.
     ).map { mapRef =>
-      new DatabaseClient[IO] {
+      new DatabaseClient[IO, Id, Data] {
         override def getDataById(id: Id): IO[Option[Data]] =
           mapRef(id).get
 
