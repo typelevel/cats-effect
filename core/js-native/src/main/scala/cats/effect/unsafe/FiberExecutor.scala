@@ -15,15 +15,11 @@
  */
 
 package cats.effect
+package unsafe
 
 /**
- * A utility to convert a by-name `thunk: => A` to a `Function0[A]` (its binary representation).
- * Scala 2 performs this optimization automatically but on Scala 3 the thunk is wrapped inside
- * of a new `Function0`. See https://github.com/typelevel/cats-effect/pull/2226
+ * An introspectable executor that runs fibers. Useful for fiber dumps.
  */
-private object Thunk {
-  private[this] val impl =
-    ((x: Any) => x).asInstanceOf[(=> Any) => Function0[Any]]
-
-  def asFunction0[A](thunk: => A): Function0[A] = impl(thunk).asInstanceOf[Function0[A]]
+private[unsafe] trait FiberExecutor {
+  def liveTraces(): Map[IOFiber[_], Trace]
 }

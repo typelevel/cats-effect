@@ -233,11 +233,26 @@ trait IOApp {
       )
 
   /**
-   * Configures the action to perform when unhandled errors are caught by the runtime. By
-   * default, this simply delegates to [[cats.effect.std.Console!.printStackTrace]]. It is safe
-   * to perform any `IO` action within this handler; it will not block the progress of the
-   * runtime. With that said, some care should be taken to avoid raising unhandled errors as a
-   * result of handling unhandled errors, since that will result in the obvious chaos.
+   * Configures the action to perform when unhandled errors are caught by the runtime. An
+   * unhandled error is an error that is raised (and not handled) on a Fiber that nobody is
+   * joining.
+   *
+   * For example:
+   *
+   * {{{
+   *   import scala.concurrent.duration._
+   *   override def run: IO[Unit] = IO(throw new Exception("")).start *> IO.sleep(1.second)
+   * }}}
+   *
+   * In this case, the exception is raised on a Fiber with no listeners. Nobody would be
+   * notified about that error. Therefore it is unhandled, and it goes through the reportFailure
+   * mechanism.
+   *
+   * By default, `reportFailure` simply delegates to
+   * [[cats.effect.std.Console!.printStackTrace]]. It is safe to perform any `IO` action within
+   * this handler; it will not block the progress of the runtime. With that said, some care
+   * should be taken to avoid raising unhandled errors as a result of handling unhandled errors,
+   * since that will result in the obvious chaos.
    */
   protected def reportFailure(err: Throwable): IO[Unit] =
     Console[IO].printStackTrace(err)
@@ -318,6 +333,32 @@ trait IOApp {
     CpuStarvationCheck.logWarning(metrics)
 
   /**
+   * Defines what to do when IOApp detects that `main` is being invoked on a `Thread` which
+   * isn't the main process thread. This condition can happen when we are running inside of an
+   * `sbt run` with `fork := false`
+   */
+  private def onNonMainThreadDetected(): Unit = {
+    val shouldPrint =
+      Option(System.getProperty("cats.effect.warnOnNonMainThreadDetected"))
+        .map(_.equalsIgnoreCase("true"))
+        .getOrElse(true)
+    if (shouldPrint)
+      System
+        .err
+        .println(
+          """|[WARNING] IOApp `main` is running on a thread other than the main thread.
+             |This may prevent correct resource cleanup after `main` completes.
+             |This condition could be caused by executing `run` in an interactive sbt session with `fork := false`.
+             |Set `Compile / run / fork := true` in this project to resolve this.
+             |
+             |To silence this warning set the system property:
+             |`-Dcats.effect.warnOnNonMainThreadDetected=false`.
+             |""".stripMargin
+        )
+    else ()
+  }
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -336,6 +377,7 @@ trait IOApp {
   final def main(args: Array[String]): Unit = {
     // checked in openjdk 8-17; this attempts to detect when we're running under artificial environments, like sbt
     val isForked = Thread.currentThread().getId() == 1
+    if (!isForked) onNonMainThreadDetected()
 
     val installed = if (runtime == null) {
       import unsafe.IORuntime

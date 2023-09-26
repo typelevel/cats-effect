@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.syntax.all._
+
 trait FileDescriptorPoller {
 
   /**
@@ -27,6 +29,15 @@ trait FileDescriptorPoller {
       monitorWriteReady: Boolean
   ): Resource[IO, FileDescriptorPollHandle]
 
+}
+
+object FileDescriptorPoller {
+  def find: IO[Option[FileDescriptorPoller]] =
+    IO.pollers.map(_.collectFirst { case poller: FileDescriptorPoller => poller })
+
+  def get = find.flatMap(
+    _.liftTo[IO](new RuntimeException("No FileDescriptorPoller installed in this IORuntime"))
+  )
 }
 
 trait FileDescriptorPollHandle {

@@ -14,19 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
-
-import cats.effect.tracing.TracingConstants
+package cats.effect
+package unsafe
 
 import scala.concurrent.ExecutionContext
 
-private[unsafe] trait FiberMonitorCompanionPlatform {
+private[effect] abstract class FiberMonitorPlatform {
   def apply(compute: ExecutionContext): FiberMonitor = {
-    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool[_]]) {
-      val wstp = compute.asInstanceOf[WorkStealingThreadPool[_]]
-      new FiberMonitor(wstp)
+    if (false) { // LinktimeInfo.debugMode && LinktimeInfo.isWeakReferenceSupported
+      if (compute.isInstanceOf[EventLoopExecutorScheduler[_]]) {
+        val loop = compute.asInstanceOf[EventLoopExecutorScheduler[_]]
+        new FiberMonitorImpl(loop)
+      } else {
+        new FiberMonitorImpl(null)
+      }
     } else {
-      new FiberMonitor(null)
+      new NoOpFiberMonitor()
     }
   }
+
 }

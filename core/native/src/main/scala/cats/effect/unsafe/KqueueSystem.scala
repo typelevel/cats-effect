@@ -25,6 +25,7 @@ import org.typelevel.scalaccompat.annotation._
 import scala.annotation.tailrec
 import scala.collection.mutable.LongMap
 import scala.scalanative.libc.errno._
+import scala.scalanative.posix.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.time._
 import scala.scalanative.posix.timeOps._
@@ -135,7 +136,8 @@ object KqueueSystem extends PollingSystem {
   final class Poller private[KqueueSystem] (kqfd: Int) {
 
     private[this] val changelistArray = new Array[Byte](sizeof[kevent64_s].toInt * MaxEvents)
-    @inline private[this] def changelist = changelistArray.at(0).asInstanceOf[Ptr[kevent64_s]]
+    @inline private[this] def changelist =
+      changelistArray.atUnsafe(0).asInstanceOf[Ptr[kevent64_s]]
     private[this] var changeCount = 0
 
     private[this] val callbacks = new LongMap[Either[Throwable, Unit] => Unit]()
@@ -205,7 +207,7 @@ object KqueueSystem extends PollingSystem {
             i += 1
             event += 1
           }
-        } else {
+        } else if (errno != EINTR) { // spurious wake-up by signal
           throw new IOException(fromCString(strerror(errno)))
         }
 

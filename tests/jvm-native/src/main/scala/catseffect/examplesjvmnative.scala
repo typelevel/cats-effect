@@ -14,13 +14,22 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package catseffect
 
-import scala.concurrent.ExecutionContext
+import cats.effect.{ExitCode, IO, IOApp}
 
-private[unsafe] trait FiberMonitorCompanionPlatform {
-  def apply(compute: ExecutionContext): FiberMonitor = {
-    val _ = compute
-    new NoOpFiberMonitor
+import java.io.{File, FileWriter}
+
+package examples {
+  object Finalizers extends IOApp {
+
+    def writeToFile(string: String, file: File): IO[Unit] =
+      IO(new FileWriter(file)).bracket { writer => IO(writer.write(string)) }(writer =>
+        IO(writer.close()))
+
+    def run(args: List[String]): IO[ExitCode] =
+      (IO(println("Started")) >> IO.never)
+        .onCancel(writeToFile("canceled", new File(args.head)))
+        .as(ExitCode.Success)
   }
 }

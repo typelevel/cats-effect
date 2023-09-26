@@ -40,13 +40,15 @@ class FileDescriptorPollerSpec extends BaseSpec {
   ) {
     def read(buf: Array[Byte], offset: Int, length: Int): IO[Unit] =
       readHandle
-        .pollReadRec(()) { _ => IO(guard(unistd.read(readFd, buf.at(offset), length.toULong))) }
+        .pollReadRec(()) { _ =>
+          IO(guard(unistd.read(readFd, buf.atUnsafe(offset), length.toULong)))
+        }
         .void
 
     def write(buf: Array[Byte], offset: Int, length: Int): IO[Unit] =
       writeHandle
         .pollWriteRec(()) { _ =>
-          IO(guard(unistd.write(writeFd, buf.at(offset), length.toULong)))
+          IO(guard(unistd.write(writeFd, buf.atUnsafe(offset), length.toULong)))
         }
         .void
 
@@ -62,9 +64,6 @@ class FileDescriptorPollerSpec extends BaseSpec {
         Right(rtn)
     }
   }
-
-  def getFdPoller: IO[FileDescriptorPoller] =
-    IO.pollers.map(_.collectFirst { case poller: FileDescriptorPoller => poller }).map(_.get)
 
   def mkPipe: Resource[IO, Pipe] =
     Resource
@@ -94,7 +93,7 @@ class FileDescriptorPollerSpec extends BaseSpec {
       }
       .flatMap {
         case (readFd, writeFd) =>
-          Resource.eval(getFdPoller).flatMap { poller =>
+          Resource.eval(FileDescriptorPoller.get).flatMap { poller =>
             (
               poller.registerFileDescriptor(readFd, true, false),
               poller.registerFileDescriptor(writeFd, false, true)
@@ -124,7 +123,7 @@ class FileDescriptorPollerSpec extends BaseSpec {
             .surround {
               IO { // trigger all the pipes at once
                 pipes.foreach { pipe =>
-                  unistd.write(pipe.writeFd, Array[Byte](42).at(0), 1.toULong)
+                  unistd.write(pipe.writeFd, Array[Byte](42).atUnsafe(0), 1.toULong)
                 }
               }.background.surround(latch.await.as(true))
             }
