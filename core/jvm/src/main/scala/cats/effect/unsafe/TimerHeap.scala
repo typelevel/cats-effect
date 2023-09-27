@@ -320,20 +320,18 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
    * (based on `now`), but was not removed yet; and `delay` is sufficiently big.
    *
    * From the public domain JSR-166 `ScheduledThreadPoolExecutor` (`overflowFree` method).
+   *
+   * Pre-condition that the heap is non-empty.
    */
   private[this] def overflowFree(now: Long, delay: Long): Long = {
     val root = heap(1)
-    if (root ne null) {
-      val rootDelay = root.triggerTime - now
-      if ((rootDelay < 0) && (delay - rootDelay < 0)) {
-        // head was already triggered, and `delay` is big enough,
-        // so we must clamp `delay`:
-        Long.MaxValue + rootDelay
-      } else {
-        delay
-      }
+    val rootDelay = root.triggerTime - now
+    if ((rootDelay < 0) && (delay - rootDelay < 0)) {
+      // head was already triggered, and `delay` is big enough,
+      // so we must clamp `delay`:
+      Long.MaxValue + rootDelay
     } else {
-      delay // empty
+      delay
     }
   }
 
