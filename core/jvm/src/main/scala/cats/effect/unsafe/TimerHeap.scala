@@ -34,6 +34,22 @@ import scala.annotation.tailrec
 import java.util.Arrays
 import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * A specialized heap that serves as a priority queue for timers i.e. callbacks with trigger
+ * times.
+ *
+ * In general, this heap is not threadsafe and modifications (insertion/removal) may only be
+ * performed on its owner WorkerThread. The exception is that the callback value of nodes may be
+ * `null`ed by other threads and published via data race.
+ *
+ * Other threads may traverse the heap with the `steal` method during which they may `null` some
+ * callbacks. This is entirely subject to data races.
+ *
+ * The only explicit synchronization is the `needsPack` atomic, which is used to track and
+ * publish "removals" from other threads. Because other threads cannot safely remove a node,
+ * they only `null` the callback and toggle a boolean to indicate that the owner thread should
+ * iterate the heap to properly remove these nodes.
+ */
 private final class TimerHeap extends AtomicBoolean { needsPack =>
 
   // The index 0 is not used; the root is at index 1.
@@ -43,6 +59,9 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
 
   private[this] val RightUnit = Right(())
 
+  /**
+   * only called by owner thread
+   */
   def peekFirstTriggerTime(): Long =
     if (size > 0) {
       val tt = heap(1).triggerTime
