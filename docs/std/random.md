@@ -80,9 +80,7 @@ Since `getMagicNumber` is not dependent on a particular implementation (it's ref
 
 This is particularly useful when testing. In the following example, we need our `Random` implementation to give back a stable value so we can ensure everything else works correctly, and our test assert succeeds. Since `randomizer` is passed into `getMagicNumber`, we can swap it out in our test with a `Random` of which we can make stable. In our test implementation, calls to `betweenInt` will *always* give back `7`. This stability of "randomness" allows us to test that our function `getMagicNumber` does what we intend:
 
-
-
-```scala mdoc
+```scala mdoc:silent
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.must.Matchers.*
 
