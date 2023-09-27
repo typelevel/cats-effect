@@ -31,6 +31,7 @@ package unsafe
 
 import scala.annotation.tailrec
 
+import java.util.Arrays
 import java.util.concurrent.atomic.AtomicBoolean
 
 private final class TimerHeap extends AtomicBoolean { needsPack =>
@@ -198,8 +199,7 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
   private[this] def growIfNeeded(): Array[Node] = {
     val heap = this.heap // local copy
     if (size >= heap.length - 1) {
-      val newHeap = new Array[Node](heap.length * 2)
-      System.arraycopy(heap, 1, newHeap, 1, heap.length - 1)
+      val newHeap = Arrays.copyOf(heap, heap.length * 2, classOf[Array[Node]])
       this.heap = newHeap
       newHeap
     } else heap
