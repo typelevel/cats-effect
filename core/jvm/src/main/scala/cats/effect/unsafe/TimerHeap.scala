@@ -32,7 +32,7 @@ package unsafe
 import scala.annotation.tailrec
 
 import java.util.Arrays
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A specialized heap that serves as a priority queue for timers i.e. callbacks with trigger
@@ -45,12 +45,12 @@ import java.util.concurrent.atomic.AtomicInteger
  * Other threads may traverse the heap with the `steal` method during which they may `null` some
  * callbacks. This is entirely subject to data races.
  *
- * The only explicit synchronization is the `deletedCounter` atomic, which is used to track and
+ * The only explicit synchronization is the `needsPack` atomic, which is used to track and
  * publish "removals" from other threads. Because other threads cannot safely remove a node,
- * they only `null` the callback and increment the counter to indicate that the owner thread
- * should iterate the heap to properly remove these nodes.
+ * they only `null` the callback and toggle a boolean to indicate that the owner thread should
+ * iterate the heap to properly remove these nodes.
  */
-private final class TimerHeap extends AtomicInteger { deletedCounter =>
+private final class TimerHeap extends AtomicBoolean { needsPack =>
 
   // The index 0 is not used; the root is at index 1.
   // This is standard practice in binary heaps, to simplify arithmetics.
@@ -177,23 +177,19 @@ private final class TimerHeap extends AtomicInteger { deletedCounter =>
   /**
    * only called by owner thread
    */
-  def packIfNeeded(): Unit = {
-    val deleted = deletedCounter.getAndSet(0) // we now see all external deletions
-    val heap = this.heap // local copy
-
-    // we track how many deleted we found so we can try to exit the loop early
-    var i = 1
-    var d = 0
-    while (d < deleted && i <= size) {
-      if (heap(i).isDeleted()) {
-        removeAt(i)
-        d += 1
-        // don't increment i, the new i may be deleted too
-      } else {
-        i += 1
+  def packIfNeeded(): Unit =
+    if (needsPack.getAndSet(false)) { // we now see all external cancelations
+      val heap = this.heap // local copy
+      var i = 1
+      while (i <= size) {
+        if (heap(i).isDeleted()) {
+          removeAt(i)
+          // don't increment i, the new i may be deleted too
+        } else {
+          i += 1
+        }
       }
     }
-  }
 
   /**
    * only called by owner thread
@@ -391,14 +387,9 @@ private final class TimerHeap extends AtomicInteger { deletedCounter =>
         if (worker.ownsTimers(heap)) {
           // remove only if we are still in the heap
           if (index >= 0) heap.removeAt(index)
-        } else { // otherwise this heap will need packing
-          deletedCounter.getAndIncrement()
-          ()
-        }
-      } else {
-        deletedCounter.getAndIncrement()
-        ()
-      }
+        } else // otherwise this heap will need packing
+          needsPack.set(true)
+      } else needsPack.set(true)
     }
 
     def run() = apply()
