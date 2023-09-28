@@ -90,7 +90,7 @@ sealed trait LocalQueueSamplerMBean {
    *
    * @note
    *   For more details, consult the comments in the source code for
-   *   [[cats.effect.unsafe.LocalQueue]].
+   *   `cats.effect.unsafe.LocalQueue`.
    *
    * @return
    *   the "real" value of the head of the local queue
@@ -104,7 +104,7 @@ sealed trait LocalQueueSamplerMBean {
    *
    * @note
    *   For more details, consult the comments in the source code for
-   *   [[cats.effect.unsafe.LocalQueue]].
+   *   `cats.effect.unsafe.LocalQueue`.
    *
    * @return
    *   the "steal" tag of the head of the local queue
@@ -120,7 +120,7 @@ sealed trait LocalQueueSamplerMBean {
    *
    * @note
    *   For more details, consult the comments in the source code for
-   *   [[cats.effect.unsafe.LocalQueue]].
+   *   `cats.effect.unsafe.LocalQueue`.
    *
    * @return
    *   the "tail" tag of the tail of the local queue
