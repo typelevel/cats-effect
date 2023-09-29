@@ -17,6 +17,7 @@
 package cats.effect.std
 
 import cats.effect.kernel.{Async, Outcome, Resource}
+import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
 
 import scala.annotation.tailrec
@@ -68,27 +69,25 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
   /**
    * Submits an effect to be executed with fire-and-forget semantics.
    */
-  def unsafeRunAndForget[A](fa: F[A]): Unit = {
-    unsafeRunAsync(fa) {
-      case Left(t) => t.printStackTrace()
-      case Right(_) => ()
-    }
-  }
+  def unsafeRunAndForget[A](fa: F[A]): Unit =
+    unsafeToFuture(fa).onComplete {
+      case Failure(ex) => ex.printStackTrace()
+      case _ => ()
+    }(parasiticEC)
 
   // package-private because it's just an internal utility which supports specific implementations
   // anyone who needs this type of thing should use unsafeToFuture and then onComplete
-  private[std] def unsafeRunAsync[A](fa: F[A])(cb: Either[Throwable, A] => Unit): Unit = {
-    // this is safe because the only invocation will be cb
-    implicit val parasitic: ExecutionContext = new ExecutionContext {
-      def execute(runnable: Runnable) = runnable.run()
-      def reportFailure(t: Throwable) = t.printStackTrace()
-    }
-
-    unsafeToFuture(fa).onComplete(t => cb(t.toEither))
-  }
+  private[std] def unsafeRunAsync[A](fa: F[A])(cb: Either[Throwable, A] => Unit): Unit =
+    unsafeToFuture(fa).onComplete(t => cb(t.toEither))(parasiticEC)
 }
 
 object Dispatcher {
+
+  private val parasiticEC: ExecutionContext = new ExecutionContext {
+    def execute(runnable: Runnable) = runnable.run()
+
+    def reportFailure(t: Throwable) = t.printStackTrace()
+  }
 
   private[this] val Cpus: Int = Runtime.getRuntime().availableProcessors()
 

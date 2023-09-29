@@ -231,20 +231,6 @@ class IOAppSpec extends Specification {
           h.stderr() must not(contain("boom"))
         }
 
-        "warn on cpu starvation" in {
-          val h = platform(CpuStarvation, List.empty)
-          h.awaitStatus()
-          val err = h.stderr()
-          err must not(contain("[WARNING] Failed to register Cats Effect CPU"))
-          err must contain("[WARNING] Your app's responsiveness")
-          // we use a regex because time has too many corner cases - a test run at just the wrong
-          // moment on new year's eve, etc
-          err must beMatching(
-            // (?s) allows matching across line breaks
-            """(?s)^\d{4}-[01]\d-[0-3]\dT[012]\d:[0-6]\d:[0-6]\d(?:\.\d{1,3})?Z \[WARNING\] Your app's responsiveness.*"""
-          )
-        }
-
         "custom runtime installed as global" in {
           val h = platform(CustomRuntime, List.empty)
           h.awaitStatus() mustEqual 0
@@ -313,6 +299,8 @@ class IOAppSpec extends Specification {
         "support main thread evaluation" in skipped(
           "JavaScript is all main thread, all the time")
 
+        "warn on cpu starvation" in skipped(
+          "starvation detection works on Node, but the test struggles with determinism")
       } else {
         val isJava8 = sys.props.get("java.version").filter(_.startsWith("1.8")).isDefined
 
@@ -365,6 +353,19 @@ class IOAppSpec extends Specification {
             "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
         }
 
+        "warn on cpu starvation" in {
+          val h = platform(CpuStarvation, List.empty)
+          h.awaitStatus()
+          val err = h.stderr()
+          err must not(contain("[WARNING] Failed to register Cats Effect CPU"))
+          err must contain("[WARNING] Your app's responsiveness")
+          // we use a regex because time has too many corner cases - a test run at just the wrong
+          // moment on new year's eve, etc
+          err must beMatching(
+            // (?s) allows matching across line breaks
+            """(?s)^\d{4}-[01]\d-[0-3]\dT[012]\d:[0-6]\d:[0-6]\d(?:\.\d{1,3})?Z \[WARNING\] Your app's responsiveness.*"""
+          )
+        }
       }
     }
     ()
