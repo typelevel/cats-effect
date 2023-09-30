@@ -899,7 +899,7 @@ previous example this program shall run forever until the user presses CTRL-C.
 
 ### Producer consumer with bounded queue
 Having a bounded queue implies that producers, when the queue is full, will wait
-(be 'filter blocked') until there is some empty bucket available to be
+(be 'fiber blocked') until there is some empty bucket available to be
 filled.  So an implementation needs to keep track of these waiting producers. To
 do so we will add a new queue `offerers` that will be added to the `State`
 alongside `takers`.  For each waiting producer the `offerers` queue will keep a
