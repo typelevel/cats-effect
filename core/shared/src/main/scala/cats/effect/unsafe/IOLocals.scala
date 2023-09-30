@@ -27,122 +27,82 @@ object IOLocals {
   def arePropagating: Boolean = ioLocalPropagation
 
   def get[A](iol: IOLocal[A]): A = if (ioLocalPropagation) {
-    val thread = Thread.currentThread()
-    val state =
-      if (thread.isInstanceOf[WorkerThread[_]])
-        thread.asInstanceOf[WorkerThread[_]].ioLocalState
-      else
-        threadLocal.get
+    val fiber = IOFiber.currentIOFiber()
+    val state = if (fiber ne null) fiber.getLocalState() else IOLocalState.empty
     iol.getOrDefault(state)
   } else iol.getOrDefault(IOLocalState.empty)
 
   def set[A](iol: IOLocal[A], value: A): Unit = if (ioLocalPropagation) {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread[_]]) {
-      val worker = thread.asInstanceOf[WorkerThread[_]]
-      worker.ioLocalState = iol.set(worker.ioLocalState, value)
-    } else {
-      threadLocal.set(iol.set(threadLocal.get(), value))
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) {
+      fiber.setLocalState(iol.set(fiber.getLocalState(), value))
     }
-  } else ()
+  }
 
   def reset[A](iol: IOLocal[A]): Unit = if (ioLocalPropagation) {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread[_]]) {
-      val worker = thread.asInstanceOf[WorkerThread[_]]
-      worker.ioLocalState = iol.reset(worker.ioLocalState)
-    } else {
-      threadLocal.set(iol.reset(threadLocal.get()))
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) {
+      fiber.setLocalState(iol.reset(fiber.getLocalState()))
     }
-  } else ()
+  }
 
   def update[A](iol: IOLocal[A])(f: A => A): Unit = if (ioLocalPropagation) {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread[_]]) {
-      val worker = thread.asInstanceOf[WorkerThread[_]]
-      val state = worker.ioLocalState
-      worker.ioLocalState = iol.set(state, f(iol.getOrDefault(state)))
-    } else {
-      val state = threadLocal.get()
-      threadLocal.set(iol.set(state, f(iol.getOrDefault(state))))
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) {
+      val state = fiber.getLocalState()
+      fiber.setLocalState(iol.set(state, f(iol.getOrDefault(state))))
     }
-  } else ()
+  }
 
   def modify[A, B](iol: IOLocal[A])(f: A => (A, B)): B = if (ioLocalPropagation) {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread[_]]) {
-      val worker = thread.asInstanceOf[WorkerThread[_]]
-      val state = worker.ioLocalState
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) {
+      val state = fiber.getLocalState()
       val (a2, b) = f(iol.getOrDefault(state))
-      worker.ioLocalState = iol.set(state, a2)
+      fiber.setLocalState(iol.set(state, a2))
       b
-    } else {
-      val state = threadLocal.get()
-      val (a2, b) = f(iol.getOrDefault(state))
-      threadLocal.set(iol.set(state, a2))
-      b
-    }
+    } else f(iol.getOrDefault(IOLocalState.empty))._2
   } else f(iol.getOrDefault(IOLocalState.empty))._2
 
   def getAndSet[A](iol: IOLocal[A], a: A): A = if (ioLocalPropagation) {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread[_]]) {
-      val worker = thread.asInstanceOf[WorkerThread[_]]
-      val state = worker.ioLocalState
-      worker.ioLocalState = iol.set(state, a)
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) {
+      val state = fiber.getLocalState()
+      fiber.setLocalState(iol.set(state, a))
       iol.getOrDefault(state)
-    } else {
-      val state = threadLocal.get()
-      threadLocal.set(iol.set(state, a))
-      iol.getOrDefault(state)
-    }
+    } else iol.getOrDefault(IOLocalState.empty)
   } else iol.getOrDefault(IOLocalState.empty)
 
   def getAndReset[A](iol: IOLocal[A]): A = if (ioLocalPropagation) {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread[_]]) {
-      val worker = thread.asInstanceOf[WorkerThread[_]]
-      val state = worker.ioLocalState
-      worker.ioLocalState = iol.reset(state)
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) {
+      val state = fiber.getLocalState()
+      fiber.setLocalState(iol.reset(state))
       iol.getOrDefault(state)
-    } else {
-      val state = threadLocal.get()
-      threadLocal.set(iol.reset(state))
-      iol.getOrDefault(state)
-    }
+    } else iol.getOrDefault(IOLocalState.empty)
   } else iol.getOrDefault(IOLocalState.empty)
 
-  private[this] val threadLocal = new ThreadLocal[IOLocalState] {
-    override def initialValue() = IOLocalState.empty
-  }
-
   private[effect] def getState = {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread[_]])
-      thread.asInstanceOf[WorkerThread[_]].ioLocalState
-    else
-      threadLocal.get()
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) fiber.getLocalState() else IOLocalState.empty
   }
 
   private[effect] def setState(state: IOLocalState) = {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread[_]])
-      thread.asInstanceOf[WorkerThread[_]].ioLocalState = state
-    else
-      threadLocal.set(state)
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) fiber.setLocalState(state)
   }
 
-  private[effect] def getAndClearState() = {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread[_]]) {
-      val worker = thread.asInstanceOf[WorkerThread[_]]
-      val state = worker.ioLocalState
-      worker.ioLocalState = IOLocalState.empty
-      state
-    } else {
-      val state = threadLocal.get()
-      threadLocal.set(IOLocalState.empty)
-      state
-    }
-  }
+  // private[effect] def getAndClearState() = {
+  //   val thread = Thread.currentThread()
+  //   if (thread.isInstanceOf[WorkerThread[_]]) {
+  //     val worker = thread.asInstanceOf[WorkerThread[_]]
+  //     val state = worker.ioLocalState
+  //     worker.ioLocalState = IOLocalState.empty
+  //     state
+  //   } else {
+  //     val state = threadLocal.get()
+  //     threadLocal.set(IOLocalState.empty)
+  //     state
+  //   }
+  // }
 }

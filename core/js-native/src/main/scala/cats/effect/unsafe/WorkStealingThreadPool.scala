@@ -42,9 +42,9 @@ private[effect] sealed abstract class WorkStealingThreadPool[P] private ()
       Map[Runnable, Trace])
 }
 
-private[unsafe] sealed abstract class WorkerThread[P] private () extends Thread {
+private[effect] sealed abstract class WorkerThread[P] private () extends Thread {
   private[unsafe] def isOwnedBy(threadPool: WorkStealingThreadPool[_]): Boolean
   private[unsafe] def monitor(fiber: Runnable): WeakBag.Handle
   private[unsafe] def index: Int
-  private[unsafe] var ioLocalState: IOLocalState
+  private[effect] var currentIOFiber: IOFiber[_]
 }
