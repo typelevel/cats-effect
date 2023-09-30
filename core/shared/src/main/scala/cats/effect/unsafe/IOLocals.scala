@@ -21,7 +21,9 @@ import IOLocalsConstants.ioLocalPropagation
 
 object IOLocals {
 
-  /** `true` if IOLocal propagation is enabled */
+  /**
+   * `true` if IOLocal propagation is enabled
+   */
   def arePropagating: Boolean = ioLocalPropagation
 
   def get[A](iol: IOLocal[A]): A = if (ioLocalPropagation) {
