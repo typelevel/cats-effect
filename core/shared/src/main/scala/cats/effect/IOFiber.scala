@@ -993,7 +993,6 @@ private final class IOFiber[A](
             if (ec.isInstanceOf[WorkStealingThreadPool[_]]) {
               val wstp = ec.asInstanceOf[WorkStealingThreadPool[_]]
               if (wstp.canExecuteBlockingCode()) {
-
                 var error: Throwable = null
                 val r =
                   try {
@@ -1411,7 +1410,6 @@ private final class IOFiber[A](
     var error: Throwable = null
     val cur = resumeIO.asInstanceOf[Blocking[Any]]
     resumeIO = null
-
     val r =
       try cur.thunk()
       catch {
