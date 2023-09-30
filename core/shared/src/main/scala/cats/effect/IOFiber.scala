@@ -561,7 +561,8 @@ private final class IOFiber[A](
           masks += 1
           val id = masks
           val poll = new Poll[IO] {
-            def apply[B](ioa: IO[B]) = IO.Uncancelable.UnmaskRunLoop(ioa, id, IOFiber.this)
+            def apply[B](ioa: IO[B]): IO[B] =
+              IO.Uncancelable.UnmaskRunLoop(ioa, id, IOFiber.this)
           }
 
           val next =
@@ -959,13 +960,19 @@ private final class IOFiber[A](
                 IO {
                   val scheduler = runtime.scheduler
 
-                  val cancel =
-                    if (scheduler.isInstanceOf[WorkStealingThreadPool[_]])
-                      scheduler.asInstanceOf[WorkStealingThreadPool[_]].sleepInternal(delay, cb)
-                    else
-                      scheduler.sleep(delay, () => cb(RightUnit))
+                  val cancelIO =
+                    if (scheduler.isInstanceOf[WorkStealingThreadPool[_]]) {
+                      val cancel =
+                        scheduler
+                          .asInstanceOf[WorkStealingThreadPool[_]]
+                          .sleepInternal(delay, cb)
+                      IO.Delay(cancel, null)
+                    } else {
+                      val cancel = scheduler.sleep(delay, () => cb(RightUnit))
+                      IO(cancel.run())
+                    }
 
-                  Some(IO(cancel.run()))
+                  Some(cancelIO)
                 }
               }
             else IO.cede

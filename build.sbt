@@ -113,8 +113,8 @@ val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
 val Scala212 = "2.12.18"
-val Scala213 = "2.13.11"
-val Scala3 = "3.3.0"
+val Scala213 = "2.13.12"
+val Scala3 = "3.3.1"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
@@ -645,6 +645,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IOFiberConstants.ContStateResult"),
+      // #3775, changes to internal timers APIs
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.TimerSkipList.insert"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.WorkerThread.sleep"),
+      // #3787, internal utility that was no longer needed
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$"),
       // introduced by #3332, polling system
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.IORuntimeBuilder.this"),
@@ -898,11 +906,8 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
     scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
   .jvmSettings(
-    Test / fork := true,
-    Test / javaOptions ++= Seq(
-      "-Dcats.effect.ioLocalPropagation=true",
-      s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
-    )
+    fork := true,
+    Test / javaOptions += "-Dcats.effect.ioLocalPropagation=true"
   )
   .nativeSettings(
     Compile / mainClass := Some("catseffect.examples.NativeRunner")

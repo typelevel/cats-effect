@@ -171,6 +171,7 @@ class WorkStealingBenchmark {
       "io-blocker",
       60.seconds,
       false,
+      1.second,
       SleepSystem,
       _.printStackTrace())
 

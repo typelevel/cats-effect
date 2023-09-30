@@ -157,7 +157,9 @@ private final class WorkerThread[P](
     }
   }
 
-  def sleep(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
+  def sleep(
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
     // take the opportunity to update the current time, just in case other timers can benefit
     val _now = System.nanoTime()
     now = _now

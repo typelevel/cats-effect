@@ -310,7 +310,7 @@ object GenTemporal {
       with Clock.OptionTClock[F] {
 
     implicit protected def F: GenTemporal[F, E]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     override protected def delegate: MonadError[OptionT[F, *], E] =
       OptionT.catsDataMonadErrorForOptionT[F, E]
@@ -325,7 +325,7 @@ object GenTemporal {
       with Clock.EitherTClock[F, E0] {
 
     implicit protected def F: GenTemporal[F, E]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     override protected def delegate: MonadError[EitherT[F, E0, *], E] =
       EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
@@ -339,7 +339,7 @@ object GenTemporal {
       with Clock.IorTClock[F, L] {
 
     implicit protected def F: GenTemporal[F, E]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     override protected def delegate: MonadError[IorT[F, L, *], E] =
       IorT.catsDataMonadErrorFForIorT[F, L, E]
@@ -353,7 +353,7 @@ object GenTemporal {
       with Clock.WriterTClock[F, L] {
 
     implicit protected def F: GenTemporal[F, E]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     implicit protected def L: Monoid[L]
 
@@ -369,7 +369,7 @@ object GenTemporal {
       with Clock.KleisliClock[F, R] {
 
     implicit protected def F: GenTemporal[F, E]
-    protected def C = F
+    protected def C: Clock[F] = F
 
     override protected def delegate: MonadError[Kleisli[F, R, *], E] =
       Kleisli.catsDataMonadErrorForKleisli[F, R, E]

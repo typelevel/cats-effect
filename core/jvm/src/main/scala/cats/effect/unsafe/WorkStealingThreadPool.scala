@@ -64,6 +64,7 @@ private[effect] final class WorkStealingThreadPool[P](
     private[unsafe] val blockerThreadPrefix: String, // prefix for the name of worker threads currently in a blocking region
     private[unsafe] val runtimeBlockingExpiration: Duration,
     private[unsafe] val blockedThreadDetectionEnabled: Boolean,
+    shutdownTimeout: Duration,
     system: PollingSystem.WithPoller[P],
     reportFailure0: Throwable => Unit
 ) extends ExecutionContextExecutor
@@ -643,7 +644,9 @@ private[effect] final class WorkStealingThreadPool[P](
   /**
    * Tries to call the current worker's `sleep`, but falls back to `sleepExternal` if needed.
    */
-  def sleepInternal(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
+  def sleepInternal(
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread[_]]) {
       val worker = thread.asInstanceOf[WorkerThread[P]]
@@ -664,7 +667,7 @@ private[effect] final class WorkStealingThreadPool[P](
    */
   private[this] final def sleepExternal(
       delay: FiniteDuration,
-      callback: Right[Nothing, Unit] => Unit): Runnable = {
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
     val random = ThreadLocalRandom.current()
     val idx = random.nextInt(threadCount)
     val tsl = sleepers(idx)
@@ -689,27 +692,59 @@ private[effect] final class WorkStealingThreadPool[P](
   def shutdown(): Unit = {
     // Clear the interrupt flag.
     val interruptCalling = Thread.interrupted()
+    val currentThread = Thread.currentThread()
 
     // Execute the shutdown logic only once.
     if (done.compareAndSet(false, true)) {
-      // Send an interrupt signal to each of the worker threads.
-      workerThreadPublisher.get()
-
       // Note: while loops and mutable variables are used throughout this method
       // to avoid allocations of objects, since this method is expected to be
       // executed mostly in situations where the thread pool is shutting down in
       // the face of unhandled exceptions or as part of the whole JVM exiting.
+
+      workerThreadPublisher.get()
+
+      // Send an interrupt signal to each of the worker threads.
       var i = 0
       while (i < threadCount) {
-        workerThreads(i).interrupt()
-        system.closePoller(pollers(i))
+        val workerThread = workerThreads(i)
+        if (workerThread ne currentThread) {
+          workerThread.interrupt()
+        }
         i += 1
       }
 
-      system.close()
+      i = 0
+      var joinTimeout = shutdownTimeout match {
+        case Duration.Inf => Long.MaxValue
+        case d => d.toNanos
+      }
+      while (i < threadCount && joinTimeout > 0) {
+        val workerThread = workerThreads(i)
+        if (workerThread ne currentThread) {
+          val now = System.nanoTime()
+          workerThread.join(joinTimeout / 1000000, (joinTimeout % 1000000).toInt)
+          val elapsed = System.nanoTime() - now
+          joinTimeout -= elapsed
+        }
+        i += 1
+      }
 
-      // Clear the interrupt flag.
-      Thread.interrupted()
+      i = 0
+      var allClosed = true
+      while (i < threadCount) {
+        val workerThread = workerThreads(i)
+        // only close the poller if it is safe to do so, leak otherwise ...
+        if ((workerThread eq currentThread) || !workerThread.isAlive()) {
+          system.closePoller(pollers(i))
+        } else {
+          allClosed = false
+        }
+        i += 1
+      }
+
+      if (allClosed) {
+        system.close()
+      }
 
       var t: WorkerThread[P] = null
       while ({
@@ -717,11 +752,12 @@ private[effect] final class WorkStealingThreadPool[P](
         t ne null
       }) {
         t.interrupt()
+        // don't bother joining, cached threads are not doing anything interesting
       }
 
       // Drain the external queue.
       externalQueue.clear()
-      if (interruptCalling) Thread.currentThread().interrupt()
+      if (interruptCalling) currentThread.interrupt()
     }
   }
 

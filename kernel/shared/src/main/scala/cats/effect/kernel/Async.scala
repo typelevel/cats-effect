@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * {{{async(k)}}} is semantically blocked until the callback is invoked.
  *
- * `async_` is somewhat contrained however. We can't perform any `F[_]` effects in the process
+ * `async_` is somewhat constrained however. We can't perform any `F[_]` effects in the process
  * of registering the callback and we also can't register a finalizer to eg cancel the
  * asynchronous task in the event that the fiber running `async_` is canceled.
  *
@@ -406,7 +406,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: OptionT[F, Unique.Token] =
       delay(new Unique.Token())
@@ -477,7 +477,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: EitherT[F, E, Unique.Token] =
       delay(new Unique.Token())
@@ -549,7 +549,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: IorT[F, L, Unique.Token] =
       delay(new Unique.Token())
@@ -620,7 +620,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: WriterT[F, L, Unique.Token] =
       delay(new Unique.Token())
@@ -688,7 +688,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: Kleisli[F, R, Unique.Token] =
       delay(new Unique.Token())

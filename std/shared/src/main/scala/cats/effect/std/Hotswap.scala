@@ -113,7 +113,7 @@ object Hotswap {
 
       def finalize(state: Ref[F, State]): F[Unit] =
         state.getAndSet(Finalized).flatMap {
-          case Acquired(_, finalizer) => finalizer
+          case Acquired(_, finalizer) => exclusive.surround(finalizer)
           case Cleared => F.unit
           case Finalized => raise("Hotswap already finalized")
         }
@@ -131,12 +131,12 @@ object Hotswap {
         new Hotswap[F, R] {
 
           override def swap(next: Resource[F, R]): F[R] =
-            exclusive.surround {
-              F.uncancelable { poll =>
-                poll(next.allocated).flatMap {
-                  case (r, fin) =>
+            F.uncancelable { poll =>
+              poll(next.allocated).flatMap {
+                case (r, fin) =>
+                  exclusive.mapK(poll).onCancel(Resource.eval(fin)).surround {
                     swapFinalizer(Acquired(r, fin)).as(r)
-                }
+                  }
               }
             }
 
