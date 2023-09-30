@@ -20,52 +20,61 @@ package unsafe
 class IOLocalsSpec extends BaseSpec {
 
   "IOLocals" should {
-    "return a default value" in ticked { implicit ticker =>
-      IOLocal(42).flatMap(local => IO(IOLocals.get(local))) must completeAs(42)
+    "return a default value" in real {
+      IOLocal(42).flatMap(local => IO(IOLocals.get(local))).map(_ must beEqualTo(42))
     }
 
-    "return a set value" in ticked { implicit ticker =>
-      IOLocal(42).flatMap(local => local.set(24) *> IO(IOLocals.get(local))) must
-        completeAs(24)
+    "return a set value" in real {
+      IOLocal(42)
+        .flatMap(local => local.set(24) *> IO(IOLocals.get(local)))
+        .map(_ must beEqualTo(24))
     }
 
-    "unsafely set" in ticked { implicit ticker =>
-      IOLocal(42).flatMap(local => IO(IOLocals.set(local, 24)) *> local.get) must
-        completeAs(24)
+    "unsafely set" in real {
+      IOLocal(42).flatMap(local =>
+        IO(IOLocals.set(local, 24)) *> local.get.map(_ must beEqualTo(24)))
     }
 
-    "unsafely reset" in ticked { implicit ticker =>
-      IOLocal(42).flatMap(local => local.set(24) *> IO(IOLocals.reset(local)) *> local.get) must
-        completeAs(42)
+    "unsafely reset" in real {
+      IOLocal(42)
+        .flatMap(local => local.set(24) *> IO(IOLocals.reset(local)) *> local.get)
+        .map(_ must beEqualTo(42))
     }
 
-    "unsafely update" in ticked { implicit ticker =>
-      IOLocal(42).flatMap(local => IO(IOLocals.update(local)(_ * 2)) *> local.get) must
-        completeAs(84)
+    "unsafely update" in real {
+      IOLocal(42)
+        .flatMap(local => IO(IOLocals.update(local)(_ * 2)) *> local.get)
+        .map(_ must beEqualTo(84))
     }
 
-    "unsafely modify" in ticked { implicit ticker =>
-      IOLocal(42).flatMap { local =>
-        IO {
-          IOLocals.modify(local)(x => (x * 2, x.toString)) must be_==("42")
-        } *> local.get
-      } must completeAs(84)
+    "unsafely modify" in real {
+      IOLocal(42)
+        .flatMap { local =>
+          IO {
+            IOLocals.modify(local)(x => (x * 2, x.toString)) must beEqualTo("42")
+          } *> local.get
+        }
+        .map(_ must beEqualTo(84))
     }
 
-    "unsafely getAndSet" in ticked { implicit ticker =>
-      IOLocal(42).flatMap { local =>
-        IO {
-          IOLocals.getAndSet(local, 24) must be_==(42)
-        } *> local.get
-      } must completeAs(24)
+    "unsafely getAndSet" in real {
+      IOLocal(42)
+        .flatMap { local =>
+          IO {
+            IOLocals.getAndSet(local, 24) must beEqualTo(42)
+          } *> local.get
+        }
+        .map(_ must beEqualTo(24))
     }
 
-    "unsafely getAndReset" in ticked { implicit ticker =>
-      IOLocal(42).flatMap { local =>
-        local.set(24) *> IO {
-          IOLocals.getAndReset(local) must be_==(24)
-        } *> local.get
-      } must completeAs(42)
+    "unsafely getAndReset" in real {
+      IOLocal(42)
+        .flatMap { local =>
+          local.set(24) *> IO {
+            IOLocals.getAndReset(local) must beEqualTo(24)
+          } *> local.get
+        }
+        .map(_ must beEqualTo(42))
     }
   }
 
