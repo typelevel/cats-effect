@@ -32,7 +32,7 @@ package unsafe
 import scala.annotation.tailrec
 
 import java.util.Arrays
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * A specialized heap that serves as a priority queue for timers i.e. callbacks with trigger
@@ -45,12 +45,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Other threads may traverse the heap with the `steal` method during which they may `null` some
  * callbacks. This is entirely subject to data races.
  *
- * The only explicit synchronization is the `needsPack` atomic, which is used to track and
+ * The only explicit synchronization is the `canceledCounter` atomic, which is used to track and
  * publish "removals" from other threads. Because other threads cannot safely remove a node,
- * they only `null` the callback and toggle a boolean to indicate that the owner thread should
- * iterate the heap to properly remove these nodes.
+ * they only `null` the callback and increment the counter to indicate that the owner thread
+ * should iterate the heap to properly remove these nodes.
  */
-private final class TimerHeap extends AtomicBoolean { needsPack =>
+private final class TimerHeap extends AtomicInteger { canceledCounter =>
 
   // The index 0 is not used; the root is at index 1.
   // This is standard practice in binary heaps, to simplify arithmetics.
@@ -177,19 +177,26 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
   /**
    * only called by owner thread
    */
-  def packIfNeeded(): Unit =
-    if (needsPack.getAndSet(false)) { // we now see all external cancelations
-      val heap = this.heap // local copy
-      var i = 1
-      while (i <= size) {
-        if (heap(i).isDeleted()) {
-          removeAt(i)
-          // don't increment i, the new i may be deleted too
-        } else {
-          i += 1
-        }
+  def packIfNeeded(): Unit = {
+    val canceled = canceledCounter.getAndSet(0) // we now see all external cancelations
+    val heap = this.heap // local copy
+
+    // we track how many canceled nodes we found so we can try to exit the loop early
+    var i = 1
+    var c = 0
+    while (c < canceled && i <= size) {
+      // we are careful to consider only *canceled* nodes, which increment the canceledCounter
+      // a node may be deleted b/c it was stolen, but this does not increment the canceledCounter
+      // to avoid leaks we must attempt to find a canceled node for every increment
+      if (heap(i).isCanceled()) {
+        removeAt(i)
+        c += 1
+        // don't increment i, the new i may be canceled too
+      } else {
+        i += 1
       }
     }
+  }
 
   /**
    * only called by owner thread
@@ -363,6 +370,8 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
   ) extends Function0[Unit]
       with Runnable {
 
+    private[this] var canceled: Boolean = false
+
     def getAndClear(): Right[Nothing, Unit] => Unit = {
       val back = callback
       if (back ne null) // only clear if we read something
@@ -379,6 +388,9 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
       // we can always clear the callback, without explicitly publishing
       callback = null
 
+      // if this node is not removed immediately, this will be published by canceledCounter
+      canceled = true
+
       // if we're on the thread that owns this heap, we can remove ourselves immediately
       val thread = Thread.currentThread()
       if (thread.isInstanceOf[WorkerThread]) {
@@ -387,14 +399,24 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
         if (worker.ownsTimers(heap)) {
           // remove only if we are still in the heap
           if (index >= 0) heap.removeAt(index)
-        } else // otherwise this heap will need packing
-          needsPack.set(true)
-      } else needsPack.set(true)
+        } else { // otherwise this heap will need packing
+          // it is okay to increment more than once if invoked multiple times
+          // but it will undermine the packIfNeeded short-circuit optimization
+          // b/c it will keep looking for more canceled nodes
+          canceledCounter.getAndIncrement()
+          ()
+        }
+      } else {
+        canceledCounter.getAndIncrement()
+        ()
+      }
     }
 
     def run() = apply()
 
     def isDeleted(): Boolean = callback eq null
+
+    def isCanceled(): Boolean = canceled
 
     override def toString() = s"Node($triggerTime, $callback})"
 
