@@ -634,10 +634,7 @@ private[effect] final class WorkStealingThreadPool(
 
     val cancel = sleepInternal(delay, cb)
 
-    () => {
-      cb.set(true)
-      cancel.run()
-    }
+    () => if (cb.compareAndSet(false, true)) cancel.run() else ()
   }
 
   /**
