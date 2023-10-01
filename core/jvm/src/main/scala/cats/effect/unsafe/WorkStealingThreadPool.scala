@@ -758,8 +758,7 @@ private[effect] final class WorkStealingThreadPool(
 private object WorkStealingThreadPool {
 
   /**
-   * A wrapper for a cancelation callback that is created asynchronously. Best-effort: does not
-   * explicitly publish.
+   * A wrapper for a cancelation callback that is created asynchronously.
    */
   private final class ExternalSleepCancel
       extends AtomicReference[Function0[Unit]]
