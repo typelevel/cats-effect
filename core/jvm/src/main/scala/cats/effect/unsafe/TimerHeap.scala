@@ -323,7 +323,7 @@ private final class TimerHeap extends AtomicBoolean { needsPack =>
 
   /**
    * Computes the trigger time in an overflow-safe manner. The trigger time is essentially `now
-   * + delay`. However, we must constrain all trigger times in the skip list to be within
+   * + delay`. However, we must constrain all trigger times in the heap to be within
    * `Long.MaxValue` of each other (otherwise there will be overflow when comparing in `cpr`).
    * Thus, if `delay` is so big, we'll reduce it to the greatest allowable (in `overflowFree`).
    *

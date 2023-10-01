@@ -387,7 +387,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
         // we race a lot of "sleeps", it must not hang
         // (this includes inserting and cancelling
-        // a lot of callbacks into the skip list,
+        // a lot of callbacks into the heap,
         // thus hopefully stressing the data structure):
         List
           .fill(500) {
