@@ -46,11 +46,13 @@ import java.util.concurrent.atomic.AtomicInteger
  * callbacks. This is entirely subject to data races.
  *
  * The only explicit synchronization is the `canceledCounter` atomic, which is used to track and
- * publish "removals" from other threads. Because other threads cannot safely remove a node,
- * they only `null` the callback and increment the counter to indicate that the owner thread
- * should iterate the heap to properly remove these nodes.
+ * publish cancelations from other threads. Because other threads cannot safely remove a node,
+ * they `null` the callback, toggle the `canceled` flag, and increment the counter to indicate
+ * that the owner thread should iterate the heap to properly remove these nodes.
  */
-private final class TimerHeap extends AtomicInteger { canceledCounter =>
+private final class TimerHeap extends AtomicInteger {
+  // at most this many nodes are externally canceled and waiting to be removed from the heap
+  canceledCounter =>
 
   // The index 0 is not used; the root is at index 1.
   // This is standard practice in binary heaps, to simplify arithmetics.
