@@ -337,12 +337,13 @@ trait IOApp {
    * isn't the main process thread. This condition can happen when we are running inside of an
    * `sbt run` with `fork := false`
    */
+  def warnOnNonMainThreadDetected: Boolean =
+    Option(System.getProperty("cats.effect.warnOnNonMainThreadDetected"))
+      .map(_.equalsIgnoreCase("true"))
+      .getOrElse(true)
+
   private def onNonMainThreadDetected(): Unit = {
-    val shouldPrint =
-      Option(System.getProperty("cats.effect.warnOnNonMainThreadDetected"))
-        .map(_.equalsIgnoreCase("true"))
-        .getOrElse(true)
-    if (shouldPrint)
+    if (warnOnNonMainThreadDetected)
       System
         .err
         .println(
