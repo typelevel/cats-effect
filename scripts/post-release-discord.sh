@@ -4,7 +4,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 if [[ $# -ne 1 ]] || [[ "$1" == "--help" ]]; then
-  echo "usage: $0 new-version"
+  echo "usage: $0 new-tag"
   exit 1
 fi
 
