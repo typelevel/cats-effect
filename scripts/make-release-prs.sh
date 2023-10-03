@@ -20,7 +20,7 @@ minor_branch="release/$new_version-minor"
 major_branch="release/$new_version-major"
 
 cd "$(mktemp -d)"
-git clone git@github.com:typelevel/cats-effect.git
+gh repo clone typelevel/cats-effect
 cd 'cats-effect'
 
 git checkout -b $minor_branch origin/$minor_base

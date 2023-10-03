@@ -23,3 +23,4 @@ new_version="$2"
 # the quote reduce the false positive rate
 find . -type f -name '*.md' -exec perl -pi -e "s/\"$old_version\"/\"$new_version\"/g" {} \;
 find . -type f -name '*.md' -exec perl -pi -e "s/\\*\\*$old_version\\*\\*/\\*\\*$new_version\\*\\*/g" {} \;
+find . -type f -name '*.md' -exec perl -pi -e "s/:$old_version/:$new_version/g" {} \;

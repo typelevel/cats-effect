@@ -15,7 +15,7 @@ old_version="$1"
 new_version="$2"
 
 cd "$(mktemp -d)"
-git clone git@github.com:typelevel/cats-effect.git
+gh repo clone typelevel/cats-effect
 cd 'cats-effect'
 
 git checkout origin/docs
