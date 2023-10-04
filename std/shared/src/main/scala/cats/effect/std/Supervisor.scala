@@ -227,6 +227,10 @@ object Supervisor {
           }
 
           for {
+            isClosed <- doneR.get
+            _ <-
+              if (isClosed) F.raiseError(new IllegalStateException("supervisor already closed"))
+              else F.unit
             done <- F.ref(false)
             token <- F.unique
             cleanup = state.remove(token)

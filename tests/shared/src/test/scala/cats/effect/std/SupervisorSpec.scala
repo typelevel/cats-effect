@@ -64,6 +64,27 @@ class SupervisorSpec extends BaseSpec {
       test must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
+    "raise an error when fiber submits task to a closed supervisor" in real {
+      val test = constructor(false, None).use(supervisor =>
+        for {
+          p <- IO.deferred[Throwable]
+          _ <- (IO.sleep(1.second) *> supervisor
+            .supervise(IO.unit)
+            .onError(error => p.complete(error).void)).start
+          _ <- supervisor.supervise(IO.unit)
+        } yield p)
+
+      test.flatMap(_.get.map(_ must beAnInstanceOf[IllegalStateException]))
+    }
+
+    "raise an error when using a leaked supervisor" in real {
+      val test = constructor(false, None)
+        .use(supervisor => supervisor.supervise(IO.unit).as(supervisor))
+        .flatMap(supervisor => supervisor.supervise(IO.unit))
+
+      test.mustFailWith[IllegalStateException]
+    }
+
     "cancel active fibers when supervisor exits" in ticked { implicit ticker =>
       val test = for {
         fiber <- constructor(false, None).use { supervisor =>
