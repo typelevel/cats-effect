@@ -23,6 +23,7 @@ import cats.syntax.all._
 import scala.collection.mutable.ListBuffer
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A fiber-based supervisor that monitors the lifecycle of all fibers that are started via its
@@ -144,6 +145,7 @@ object Supervisor {
     // run all the finalizers
     val joinAll: F[Unit]
     val cancelAll: F[Unit]
+    val isClosed: F[Boolean]
   }
 
   private def supervisor[F[_]](
@@ -154,13 +156,9 @@ object Supervisor {
     // It would have preferable to use Scope here but explicit cancelation is
     // intertwined with resource management
     for {
-      doneR <- Resource.eval(F.ref(false))
       state <- Resource.makeCase(mkState) {
-        case (st, Resource.ExitCase.Succeeded) if await => doneR.set(true) >> st.joinAll
-        case (st, _) =>
-          doneR.set(true) >> { /*println("canceling all!");*/
-            st.cancelAll
-          }
+        case (st, Resource.ExitCase.Succeeded) if await => st.joinAll
+        case (st, _) => st.cancelAll
       }
     } yield new Supervisor[F] {
 
@@ -175,8 +173,8 @@ object Supervisor {
                       val started = F start {
                         fa guaranteeCase { oc =>
                           canceledR.get flatMap { canceled =>
-                            doneR.get flatMap { done =>
-                              if (!canceled && !done && restart(oc))
+                            state.isClosed flatMap { closed =>
+                              if (!canceled && !closed && restart(oc))
                                 action.void
                               else
                                 fin.guarantee(resultR.complete(oc).void)
@@ -185,18 +183,24 @@ object Supervisor {
                         }
                       }
 
-                      started flatMap { f =>
-                        lazy val loop: F[Unit] = currentR.tryGet flatMap {
-                          case Some(inner) =>
-                            inner.set(f)
+                      state
+                        .isClosed
+                        .ifM(
+                          F.raiseError(
+                            new IllegalStateException("supervisor already shutdown")),
+                          started flatMap { f =>
+                            lazy val loop: F[Unit] = currentR.tryGet flatMap {
+                              case Some(inner) =>
+                                inner.set(f)
 
-                          case None =>
-                            F.ref(f)
-                              .flatMap(inner => currentR.complete(inner).ifM(F.unit, loop))
-                        }
+                              case None =>
+                                F.ref(f)
+                                  .flatMap(inner => currentR.complete(inner).ifM(F.unit, loop))
+                            }
 
-                        loop
-                      }
+                            loop
+                          }
+                        )
                     }
 
                     action map { _ =>
@@ -223,7 +227,13 @@ object Supervisor {
               }
             }
 
-            case None => (fa, fin) => F.start(fa.guarantee(fin))
+            case None =>
+              (fa, fin) =>
+                state
+                  .isClosed
+                  .ifM(
+                    F.raiseError(new IllegalStateException("supervisor already shutdown")),
+                    F.start(fa.guarantee(fin)))
           }
 
           for {
@@ -232,7 +242,12 @@ object Supervisor {
             cleanup = state.remove(token)
             fiber <- monitor(fa, done.set(true) >> cleanup)
             _ <- state.add(token, fiber)
-            _ <- done.get.ifM(cleanup, F.unit)
+            _ <- F.flatMap2(done.get, state.isClosed)((isDone, isClosed) =>
+              if (isClosed)
+                cleanup >> F.raiseError[Unit](
+                  new IllegalStateException("supervisor already shutdown"))
+              else if (isDone) cleanup
+              else F.unit)
           } yield fiber
         }
     }
@@ -242,19 +257,25 @@ object Supervisor {
       await: Boolean,
       checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
-    val mkState = F.ref[Map[Unique.Token, Fiber[F, Throwable, _]]](Map.empty).map { stateRef =>
-      new State[F] {
-        def remove(token: Unique.Token): F[Unit] = stateRef.update(_ - token)
-        def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Unit] =
-          stateRef.update(_ + (token -> fiber))
+    val mkState = F
+      .ref(false)
+      .flatMap(done =>
+        F.ref[Map[Unique.Token, Fiber[F, Throwable, _]]](Map.empty).map { stateRef =>
+          new State[F] {
+            def remove(token: Unique.Token): F[Unit] = stateRef.update(_ - token)
+            def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Unit] =
+              stateRef.update(_ + (token -> fiber))
 
-        private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
-          stateRef.get.map(_.values.toList)
+            private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
+              stateRef.get.map(_.values.toList)
 
-        val joinAll: F[Unit] = allFibers.flatMap(_.traverse_(_.join.void))
-        val cancelAll: F[Unit] = allFibers.flatMap(_.parUnorderedTraverse(_.cancel).void)
-      }
-    }
+            val joinAll: F[Unit] = done.set(true) *> allFibers.flatMap(_.traverse_(_.join.void))
+            val cancelAll: F[Unit] =
+              done.set(true) *> allFibers.flatMap(_.parUnorderedTraverse(_.cancel).void)
+
+            val isClosed: F[Boolean] = done.get
+          }
+        })
 
     supervisor(mkState, await, checkRestart)
   }
@@ -264,13 +285,15 @@ object Supervisor {
       checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
       implicit F: Async[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.delay {
+      val done = new AtomicBoolean(false)
       val state = new ConcurrentHashMap[Unique.Token, Fiber[F, Throwable, _]]
       new State[F] {
-
         def remove(token: Unique.Token): F[Unit] = F.delay(state.remove(token)).void
 
         def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Unit] =
           F.delay(state.put(token, fiber)).void
+
+        private[this] def close = F.delay(done.set(true))
 
         private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
           F delay {
@@ -284,8 +307,10 @@ object Supervisor {
             fibersToCancel.result()
           }
 
-        val joinAll: F[Unit] = allFibers.flatMap(_.traverse_(_.join.void))
-        val cancelAll: F[Unit] = allFibers.flatMap(_.parUnorderedTraverse(_.cancel).void)
+        val joinAll: F[Unit] = close *> allFibers.flatMap(_.traverse_(_.join.void))
+        val cancelAll: F[Unit] =
+          close *> allFibers.flatMap(_.parUnorderedTraverse(_.cancel).void)
+        val isClosed: F[Boolean] = F.delay(done.get())
       }
     }
 
