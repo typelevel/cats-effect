@@ -259,7 +259,7 @@ object Supervisor {
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     val mkState = F
       .ref(false)
-      .flatMap(done =>
+      .flatMap(closed =>
         F.ref[Map[Unique.Token, Fiber[F, Throwable, _]]](Map.empty).map { stateRef =>
           new State[F] {
             def remove(token: Unique.Token): F[Unit] = stateRef.update(_ - token)
@@ -269,11 +269,11 @@ object Supervisor {
             private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
               stateRef.get.map(_.values.toList)
 
-            val joinAll: F[Unit] = done.set(true) *> allFibers.flatMap(_.traverse_(_.join.void))
+            val joinAll: F[Unit] = closed.set(true) *> allFibers.flatMap(_.traverse_(_.join.void))
             val cancelAll: F[Unit] =
-              done.set(true) *> allFibers.flatMap(_.parUnorderedTraverse(_.cancel).void)
+              closed.set(true) *> allFibers.flatMap(_.parUnorderedTraverse(_.cancel).void)
 
-            val isClosed: F[Boolean] = done.get
+            val isClosed: F[Boolean] = closed.get
           }
         })
 
@@ -285,7 +285,7 @@ object Supervisor {
       checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
       implicit F: Async[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.delay {
-      val done = new AtomicBoolean(false)
+      val closed = new AtomicBoolean(false)
       val state = new ConcurrentHashMap[Unique.Token, Fiber[F, Throwable, _]]
       new State[F] {
         def remove(token: Unique.Token): F[Unit] = F.delay(state.remove(token)).void
@@ -293,7 +293,7 @@ object Supervisor {
         def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Unit] =
           F.delay(state.put(token, fiber)).void
 
-        private[this] def close = F.delay(done.set(true))
+        private[this] def close = F.delay(closed.set(true))
 
         private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
           F delay {
@@ -310,7 +310,7 @@ object Supervisor {
         val joinAll: F[Unit] = close *> allFibers.flatMap(_.traverse_(_.join.void))
         val cancelAll: F[Unit] =
           close *> allFibers.flatMap(_.parUnorderedTraverse(_.cancel).void)
-        val isClosed: F[Boolean] = F.delay(done.get())
+        val isClosed: F[Boolean] = F.delay(closed.get())
       }
     }
 
