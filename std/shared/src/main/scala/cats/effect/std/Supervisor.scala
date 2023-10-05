@@ -269,7 +269,8 @@ object Supervisor {
             private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
               stateRef.get.map(_.values.toList)
 
-            val joinAll: F[Unit] = closed.set(true) *> allFibers.flatMap(_.traverse_(_.join.void))
+            val joinAll: F[Unit] =
+              closed.set(true) *> allFibers.flatMap(_.traverse_(_.join.void))
             val cancelAll: F[Unit] =
               closed.set(true) *> allFibers.flatMap(_.parUnorderedTraverse(_.cancel).void)
 
