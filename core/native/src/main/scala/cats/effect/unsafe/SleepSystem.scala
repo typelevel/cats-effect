@@ -24,7 +24,7 @@ object SleepSystem extends PollingSystem {
 
   def close(): Unit = ()
 
-  def makeApi(register: (Poller => Unit) => Unit): Api = this
+  def makeApi(access: (Poller => Unit) => Unit): Api = this
 
   def makePoller(): Poller = this
 

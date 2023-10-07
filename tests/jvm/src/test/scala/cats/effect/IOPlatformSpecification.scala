@@ -502,10 +502,10 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
             }
           }
 
-          def makeApi(register: (Poller => Unit) => Unit): DummySystem.Api =
+          def makeApi(access: (Poller => Unit) => Unit): DummySystem.Api =
             new DummyPoller {
               def poll = IO.async_[Unit] { cb =>
-                register { poller =>
+                access { poller =>
                   poller.getAndUpdate(cb :: _)
                   ()
                 }
