@@ -135,11 +135,17 @@ ThisBuild / githubWorkflowPublishPreamble +=
 val OldGuardJava = JavaSpec.temurin("8")
 val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
+val LoomJava = JavaSpec.temurin("21")
 val ScalaJSJava = OldGuardJava
 val ScalaNativeJava = OldGuardJava
 val GraalVM = JavaSpec.graalvm("17")
 
-ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
+ThisBuild / githubWorkflowJavaVersions := Seq(
+  OldGuardJava,
+  LTSJava,
+  LatestJava,
+  LoomJava,
+  GraalVM)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(

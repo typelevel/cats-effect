@@ -43,4 +43,6 @@ private object IOFiberConstants {
   final val CedeR = 6
   final val AutoCedeR = 7
   final val DoneR = 8
+
+  @inline def isVirtualThread(t: Thread): Boolean = false
 }

@@ -996,6 +996,20 @@ private final class IOFiber[A](
               } else {
                 blockingFallback(cur)
               }
+            } else if (isVirtualThread(Thread.currentThread())) {
+              var error: Throwable = null
+              val r =
+                try {
+                  cur.thunk()
+                } catch {
+                  case t if NonFatal(t) =>
+                    error = t
+                  case t: Throwable =>
+                    onFatalFailure(t)
+                }
+
+              val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
+              runLoop(next, nextCancelation, nextAutoCede)
             } else {
               blockingFallback(cur)
             }
