@@ -16,8 +16,6 @@
 
 package cats.effect
 
-import scala.annotation.nowarn
-
 // defined in Java for the JVM, Scala for ScalaJS (where object field access is faster)
 private object IOFiberConstants {
 
@@ -46,6 +44,8 @@ private object IOFiberConstants {
   final val AutoCedeR = 7
   final val DoneR = 8
 
-  @nowarn
-  @inline def isVirtualThread(t: Thread): Boolean = false
+  @inline def isVirtualThread(t: Thread): Boolean = {
+    val _ = t
+    false
+  }
 }
