@@ -32,7 +32,14 @@ import org.specs2.ScalaCheck
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CancellationException, CompletableFuture, CountDownLatch, ExecutorService, Executors, ThreadLocalRandom}
+import java.util.concurrent.{
+  CancellationException,
+  CompletableFuture,
+  CountDownLatch,
+  ExecutorService,
+  Executors,
+  ThreadLocalRandom
+}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, AtomicReference}
 
 trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with ScalaCheck =>
