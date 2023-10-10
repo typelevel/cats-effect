@@ -120,6 +120,7 @@ ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
+ThisBuild / javacOptions += "-Xlint:-options" // --release 8 is deprecated on 21
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 ThisBuild / tlCiReleaseTags := true
@@ -135,11 +136,17 @@ ThisBuild / githubWorkflowPublishPreamble +=
 val OldGuardJava = JavaSpec.temurin("8")
 val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
+val LoomJava = JavaSpec.oracle("21")
 val ScalaJSJava = OldGuardJava
 val ScalaNativeJava = OldGuardJava
 val GraalVM = JavaSpec.graalvm("17")
 
-ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
+ThisBuild / githubWorkflowJavaVersions := Seq(
+  OldGuardJava,
+  LTSJava,
+  LatestJava,
+  LoomJava,
+  GraalVM)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
