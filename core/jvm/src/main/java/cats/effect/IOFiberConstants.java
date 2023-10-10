@@ -65,7 +65,9 @@ final class IOFiberConstants {
     try {
       mh = lookup.findVirtual(Thread.class, "isVirtual", mt);
     } catch (Throwable t) {
-      mh = MethodHandles.dropArguments(MethodHandles.constant(boolean.class, false), 0, Thread.class);
+      mh =
+          MethodHandles.dropArguments(
+              MethodHandles.constant(boolean.class, false), 0, Thread.class);
     }
     THREAD_IS_VIRTUAL_HANDLE = mh;
   }
