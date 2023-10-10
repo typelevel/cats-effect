@@ -543,7 +543,10 @@ trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with Scala
           val loomEc = ExecutionContext.fromExecutor(loomExec)
 
           IO.blocking {
-            Thread.currentThread().asInstanceOf[{ def isVirtual(): Boolean }].isVirtual()
+            classOf[Thread]
+              .getDeclaredMethod("isVirtual")
+              .invoke(Thread.currentThread())
+              .asInstanceOf[Boolean]
           }.evalOn(loomEc)
         }
       else
