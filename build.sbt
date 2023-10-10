@@ -120,7 +120,7 @@ ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
-ThisBuild / javacOptions += "-Xlint:-options"
+ThisBuild / javacOptions += "-Xlint:-options" // --release 8 is deprecated on 21
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 ThisBuild / tlCiReleaseTags := true
