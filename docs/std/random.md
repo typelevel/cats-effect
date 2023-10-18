@@ -41,7 +41,7 @@ on the JVM:
 The following example shows the usage of `Random` in a way that is *referentially transparent*, meaning that you can know from the 'outside' what the result will be by knowing the inputs:
 ```scala mdoc:silent
 import cats.effect.std.Random
-import cats.implicits.*
+import cats.syntax.all
 import cats.Monad
 import cats.effect.unsafe.implicits.global
 
@@ -82,7 +82,7 @@ This is particularly useful when testing. In the following example, we need our 
 
 ```scala mdoc:silent
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.must.Matchers.*
+import org.scalatest.matchers.must.Matchers._
 
 class MagicSpec extends AnyFunSuite {
 
