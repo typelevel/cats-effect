@@ -311,11 +311,13 @@ object Dispatcher {
       }
     } yield {
       new Dispatcher[F] {
-        override def unsafeRunAndForget[A](fa: F[A]): Unit = {
-          unsafeToFuture(fa).onComplete {
-            case Failure(ex) => ec.reportFailure(ex)
-            case _ => ()
-          }(parasiticEC)
+        def unsafeRunAndForget[A](fa: F[A]): Unit = {
+          unsafeToFutureCancelable(fa)
+            ._1
+            .onComplete {
+              case Failure(ex) => ec.reportFailure(ex)
+              case _ => ()
+            }(parasiticEC)
         }
 
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
