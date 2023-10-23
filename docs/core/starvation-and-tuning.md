@@ -29,7 +29,10 @@ import cats.syntax.all._
 object StarveThyself extends IOApp.Simple {
   val run = 
     0.until(100).toList parTraverse_ { i =>
-      IO.println(s"running #$i") >> IO(Thread.sleep(10000))
+      IO {
+        println(s"running #$i")
+        Thread.sleep(10000)
+      }
     }
 }
 ```
