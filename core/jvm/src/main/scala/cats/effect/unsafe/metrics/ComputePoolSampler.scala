@@ -17,6 +17,8 @@
 package cats.effect.unsafe
 package metrics
 
+import java.util.concurrent.atomic.AtomicLong
+
 /**
  * An implementation of the [[ComputePoolSamplerMBean]] interface which simply delegates to the
  * corresponding methods of the [[cats.effect.unsafe.WorkStealingThreadPool]] being monitored.
@@ -32,4 +34,8 @@ private[unsafe] final class ComputePoolSampler(compute: WorkStealingThreadPool[_
   def getBlockedWorkerThreadCount(): Int = compute.getBlockedWorkerThreadCount()
   def getLocalQueueFiberCount(): Long = compute.getLocalQueueFiberCount()
   def getSuspendedFiberCount(): Long = compute.getSuspendedFiberCount()
+}
+
+private[unsafe] object ComputePoolSampler {
+  val counter: AtomicLong = new AtomicLong(0)
 }

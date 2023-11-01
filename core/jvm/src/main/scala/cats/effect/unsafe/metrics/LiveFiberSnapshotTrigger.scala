@@ -19,6 +19,8 @@ package metrics
 
 import scala.collection.mutable.ArrayBuffer
 
+import java.util.concurrent.atomic.AtomicLong
+
 /**
  * An implementation of the [[LiveFiberSnapshotTriggerMBean]] interface which simply delegates
  * to the corresponding method of the backing [[cats.effect.unsafe.FiberMonitor]].
@@ -33,4 +35,8 @@ private[unsafe] final class LiveFiberSnapshotTrigger(monitor: FiberMonitor)
     monitor.liveFiberSnapshot(buffer += _)
     buffer.toArray
   }
+}
+
+private[unsafe] object LiveFiberSnapshotTrigger {
+  val counter: AtomicLong = new AtomicLong(0)
 }
