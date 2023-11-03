@@ -72,7 +72,10 @@ without the blocking combinator.
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">StarveThyself</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span>.<span class="hljs-title">Simple</span> </span>{
   <span class="hljs-keyword">val</span> run = 
     <span class="hljs-number">0.</span>until(<span class="hljs-number">100</span>).toList parTraverse_ { i =&gt;
-      <span class="hljs-type">IO</span>.println(<span class="hljs-string">s"running #<span class="hljs-subst">$i</span>"</span>) &gt;&gt; <span class="hljs-type">IO</span>(<span class="hljs-type">Thread</span>.sleep(<span class="hljs-number">10000</span>))
+      <span class="hljs-type">IO</span> {
+        println(<span class="hljs-string">s"running #<span class="hljs-subst">$i</span>"</span>)
+        <span class="hljs-type">Thread</span>.sleep(<span class="hljs-number">10000</span>)
+      }
     }
 }
 </code></pre>
