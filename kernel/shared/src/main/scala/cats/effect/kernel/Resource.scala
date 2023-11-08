@@ -811,6 +811,24 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       }
   }
 
+  implicit final class IdSyntax[F[_], A](val self: Resource[F, A]) extends AnyVal {
+
+    /**
+     * A Resource where the acquire step is done lazily and memoized.
+     * This means that acquire happens only if and when the `F[A]` value is executed, instead of happening immediately upon `use()`.
+     * If the `F[A]` value is executed multiple times, acquire happens once only and the acquired resource is shared to all callers.
+     * The resource is released as normal at the end of `use` (whether normal termination, error, or cancelled), if it was acquired.
+     */
+    def memoizedAcquire(implicit F: Concurrent[F]): Resource[F, F[A]] =
+      // NB this uses syntax instead of an instance method because of variance on `A` within the class
+      Concurrent[Resource[F, *]].memoize[A](self).map {
+        case Resource.Eval(fa) => fa
+        case unexpected =>
+          throw new IllegalStateException(
+            s"Memoized Resource is not Resource.Eval: $unexpected")
+      }
+  }
+
   type Par[F[_], A] = ParallelF[Resource[F, *], A]
 
   implicit def parallelForResource[F[_]: Concurrent]: Parallel.Aux[Resource[F, *], Par[F, *]] =
