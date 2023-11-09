@@ -212,9 +212,9 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   [[fromFutureCancelable]] for a cancelable version
    */
   def fromFuture[A](fut: F[Future[A]]): F[A] =
-    flatMap(fut) { f =>
-      flatMap(executionContext) { implicit ec =>
-        async_[A](cb => f.onComplete(t => cb(t.toEither)))
+    async_[A] { cb =>
+      flatMap(fut) { f =>
+        map(executionContext) { implicit ec => f.onComplete(t => cb(t.toEither)) }
       }
     }
 
