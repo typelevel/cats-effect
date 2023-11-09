@@ -222,11 +222,13 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * Like [[fromFuture]], but is cancelable via the provided finalizer.
    */
   def fromFutureCancelable[A](futCancel: F[(Future[A], F[Unit])]): F[A] =
-    flatMap(futCancel) {
-      case (fut, fin) =>
-        flatMap(executionContext) { implicit ec =>
-          async[A](cb => as(delay(fut.onComplete(t => cb(t.toEither))), Some(fin)))
-        }
+    async[A] { cb =>
+      flatMap(futCancel) {
+        case (fut, fin) =>
+          flatMap(executionContext) { implicit ec =>
+            as(delay(fut.onComplete(t => cb(t.toEither))), Some(fin))
+          }
+      }
     }
 
   /**
