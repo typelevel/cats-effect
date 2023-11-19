@@ -669,7 +669,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     else
       flatMap(a => replicateA(n - 1).map(a :: _))
 
-  // TODO PR to cats
   def replicateA_(n: Int): IO[Unit] =
     if (n <= 0)
       IO.unit
