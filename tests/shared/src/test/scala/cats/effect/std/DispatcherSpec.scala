@@ -216,6 +216,18 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
       TestControl.executeEmbed(rec.use(_ => IO(canceled must beTrue)))
     }
+
+    // https://github.com/typelevel/cats-effect/issues/3898
+    "not hang when cancelling" in real {
+      dispatcher.use { dispatcher =>
+        IO.fromFuture {
+          IO {
+            val (_, cancel) = dispatcher.unsafeToFutureCancelable(IO.never)
+            cancel()
+          }
+        }.replicateA_(1000).as(ok)
+      }
+    }
   }
 
   private def common(dispatcher: Resource[IO, Dispatcher[IO]]) = {
