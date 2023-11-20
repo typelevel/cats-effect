@@ -278,7 +278,7 @@ object Dispatcher {
                       fork(action).flatMap(cancel => F.delay(prepareCancel(cancel)))
 
                     // Check for task cancelation before executing.
-                    F.delay(r.get()).ifM(supervise, F.unit)
+                    F.delay(r.get()).ifM(supervise, F.delay(prepareCancel(F.unit)))
                 }
               }
           } yield ()
