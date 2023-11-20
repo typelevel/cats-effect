@@ -225,7 +225,8 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
             val (_, cancel) = dispatcher.unsafeToFutureCancelable(IO.never)
             cancel()
           }
-        }.replicateA_(1000).as(ok)
+        }.replicateA_(1000)
+          .as(ok)
       }
     }
   }
