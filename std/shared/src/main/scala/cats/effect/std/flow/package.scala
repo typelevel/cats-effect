@@ -16,6 +16,11 @@
 
 package cats.effect.std
 
+import cats.effect.kernel.Async
+import cats.syntax.all._
+
+import java.util.concurrent.Flow.Subscriber
+
 /**
  * Implementation of the reactive-streams protocol for cats-effect; based on Java Flow.
  *
@@ -25,6 +30,7 @@ package cats.effect.std
  *   import std.flow.syntax._ scala>
  *   import java.util.concurrent.Flow.Publisher
  *   import cats.effect.unsafe.implicits.global
+ *
  *   val upstream: IO[Int] = IO.pure(1)
  *   val publisher: Resource[IO, Publisher[Int]] = upstream.toPublisher
  *   val downstream: IO[Int] = publisher.use(_.toEffect[IO])
@@ -35,4 +41,49 @@ package cats.effect.std
  * @see
  *   [[java.util.concurrent.Flow]]
  */
-package object flow {}
+package object flow {
+
+  /**
+   * Creates an effect from a `subscribe` function; analogous to a `Publisher`, but effectual.
+   *
+   * This function is useful when you actually need to provide a subscriber to a third-party.
+   *
+   * @example
+   *   {{{
+   *   import cats.effect.IO
+   *   import java.util.concurrent.Flow.{Publisher, Subscriber}
+   *
+   *   def thirdPartyLibrary(subscriber: Subscriber[Int]): Unit = {
+   *     val somePublisher: Publisher[Int] = ???
+   *     somePublisher.subscribe(subscriber)
+   *   }
+   *
+   *   // Interop with the third party library.
+   *   cats.effect.std.flow.fromPublisher[IO, Int] { subscriber =>
+   *     IO.println("Subscribing!") >>
+   *     IO.delay(thirdPartyLibrary(subscriber)) >>
+   *     IO.println("Subscribed!")
+   *   }
+   *   res0: IO[Int] = IO(..)
+   *   }}}
+   *
+   * @note
+   *   The subscribe function will not be executed until the effect is run.
+   *
+   * @see
+   *   the overload that only requires a [[Publisher]].
+   *
+   * @param subscribe
+   *   The effectual function that will be used to initiate the consumption process, it receives
+   *   a [[Subscriber]] that should be used to subscribe to a [[Publisher]]. The `subscribe`
+   *   operation must be called exactly once.
+   */
+  def fromPublisher[F[_], A](
+      subscribe: Subscriber[A] => F[Unit]
+  )(
+      implicit F: Async[F]
+  ): F[Option[A]] =
+    F.async { cb =>
+      F.delay(new AsyncSubscriber(cb)).flatMap { subscriber => subscribe(subscriber).as(None) }
+    }
+}
