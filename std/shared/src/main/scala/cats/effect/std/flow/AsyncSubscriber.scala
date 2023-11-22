@@ -46,7 +46,7 @@ private[flow] final class AsyncSubscriber[F[_], A] private (
   /**
    * Receives a subscription from the upstream reactive-streams system.
    */
-  override def onSubscribe(subscription: Subscription): Unit = {
+  override final def onSubscribe(subscription: Subscription): Unit = {
     requireNonNull(
       subscription,
       "The subscription provided to onSubscribe must not be null"
@@ -57,7 +57,7 @@ private[flow] final class AsyncSubscriber[F[_], A] private (
   /**
    * Receives the next record from the upstream reactive-streams system.
    */
-  override def onNext(a: A): Unit = {
+  override final def onNext(a: A): Unit = {
     requireNonNull(
       a,
       "The element provided to onNext must not be null"
@@ -68,7 +68,7 @@ private[flow] final class AsyncSubscriber[F[_], A] private (
   /**
    * Called by the upstream reactive-streams system when it fails.
    */
-  override def onError(ex: Throwable): Unit = {
+  override final def onError(ex: Throwable): Unit = {
     requireNonNull(
       ex,
       "The throwable provided to onError must not be null"
@@ -79,7 +79,7 @@ private[flow] final class AsyncSubscriber[F[_], A] private (
   /**
    * Called by the upstream reactive-streams system when it has finished sending records.
    */
-  override def onComplete(): Unit = {
+  override final def onComplete(): Unit = {
     nextState(input = Complete)
   }
 
@@ -240,7 +240,7 @@ private[flow] final class AsyncSubscriber[F[_], A] private (
   }
 }
 
-object AsyncSubscriber {
+private[flow] object AsyncSubscriber {
   def apply[F[_], A](
       cb: Either[Throwable, Option[A]] => Unit
   )(
