@@ -117,7 +117,7 @@ package object flow {
    *   }}}
    *
    * @note
-   *   The publisher will not receive a subscriber until the effect is run.
+   *   The [[Publisher]] will not receive a [[Subscriber]] until the effect is run.
    *
    * @see
    *   the `toEffect` extension method added to [[Publisher]].

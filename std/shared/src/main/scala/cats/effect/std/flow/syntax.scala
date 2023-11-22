@@ -21,6 +21,36 @@ import cats.effect.kernel.Async
 import java.util.concurrent.Flow.Publisher
 
 object syntax {
+  implicit final class PublisherOps[A](private val publisher: Publisher[A]) extends AnyVal {
+
+    /**
+     * Creates an effect from this [[Publisher]].
+     *
+     * This effect will request a single item from the [[Publisher]] and then cancel it. The
+     * return value is an [[Option]] because the [[Publisher]] may complete without providing a
+     * single value.
+     *
+     * @example
+     *   {{{
+     *   import cats.effect.IO
+     *   import java.util.concurrent.Flow.Publisher
+     *
+     *   def getThirdPartyPublisher(): Publisher[Int] = ???
+     *
+     *   // Interop with the third party library.
+     *   IO.delay(getThirdPartyPublisher()).flatMap { publisher =>
+     *     publisher.toEffect[IO]
+     *   }
+     *   res0: IO[Int] = IO(..)
+     *   }}}
+     *
+     * @note
+     *   The [[Publisher]] will not receive a [[Subscriber]] until the effect is run.
+     */
+    def toEffect[F[_]](implicit F: Async[F]): F[Option[A]] =
+      fromPublisher[F](publisher)
+  }
+
   final class FromPublisherPartiallyApplied[F[_]](private val dummy: Boolean) extends AnyVal {
     def apply[A](
         publisher: Publisher[A]
