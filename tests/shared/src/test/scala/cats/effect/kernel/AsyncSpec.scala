@@ -22,6 +22,8 @@ import cats.{Eq, Order, StackSafeMonad}
 import cats.arrow.FunctionK
 import cats.effect.laws.AsyncTests
 import cats.laws.discipline.arbitrary._
+import cats.effect.testkit.TestControl
+import cats.effect.unsafe.IORuntimeConfig
 
 import cats.effect.std.Random
 
@@ -29,7 +31,7 @@ import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -76,6 +78,33 @@ class AsyncSpec extends BaseSpec with Discipline {
 
       List.fill(100)(run).sequence
     }
+  }
+
+  "fromFuture" should {
+    "backpressure on cancelation" in real {
+      // a non-cancelable, never-completing Future
+      def mkf() = Promise[Unit]().future
+
+      def go = for {
+        started <- IO(new AtomicBoolean)
+        fiber <- IO.fromFuture {
+          IO {
+            started.set(true)
+            mkf()
+          }
+        }.start
+        _ <- IO.cede.whileM_(IO(!started.get))
+        _ <- fiber.cancel
+      } yield ()
+
+      TestControl
+        .executeEmbed(go, IORuntimeConfig(1, 2))
+        .as(false)
+        .recover { case _: TestControl.NonTerminationException => true }
+        .replicateA(1000)
+        .map(_.forall(identity(_)))
+    }
+
   }
 
   final class AsyncIO[A](val io: IO[A])
