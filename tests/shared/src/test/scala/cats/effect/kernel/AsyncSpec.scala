@@ -17,17 +17,21 @@
 package cats.effect
 package kernel
 
+import cats.syntax.all._
 import cats.{Eq, Order, StackSafeMonad}
 import cats.arrow.FunctionK
 import cats.effect.laws.AsyncTests
 import cats.laws.discipline.arbitrary._
 
+import cats.effect.std.Random
+
 import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import java.util.concurrent.atomic.AtomicBoolean
 
 class AsyncSpec extends BaseSpec with Discipline {
 
@@ -41,6 +45,37 @@ class AsyncSpec extends BaseSpec with Discipline {
       "AsyncIO",
       AsyncTests[AsyncIO].async[Int, Int, Int](10.millis)
     ) /*(Parameters(seed = Some(Seed.fromBase64("ZxDXpm7_3Pdkl-Fvt8M90Cxfam9wKuzcifQ1QsIJxND=").get)))*/
+  }
+
+  "fromFuture" should {
+    "not leak the future on cancelation" in real {
+      import scala.concurrent.ExecutionContext.Implicits.global
+
+      implicit val rand: Random[IO] = Random.javaUtilConcurrentThreadLocalRandom[IO]
+
+      val jitter = Random[IO].betweenInt(1, 5).flatMap(n => IO.sleep(n.micros))
+
+      val run = IO(new AtomicBoolean(false) -> new AtomicBoolean(false)).flatMap {
+        case (started, finished) =>
+          val future = IO {
+            Future {
+              started.set(true)
+              Thread.sleep(20)
+              finished.set(true)
+            }
+          }
+
+          (jitter >> IO.fromFuture(future)).race(jitter).map { _ =>
+            val wasStarted = started.get
+            val wasFinished = finished.get
+
+            wasStarted mustEqual wasFinished
+          }
+
+      }
+
+      List.fill(100)(run).sequence
+    }
   }
 
   final class AsyncIO[A](val io: IO[A])
