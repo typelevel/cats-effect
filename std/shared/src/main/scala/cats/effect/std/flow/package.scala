@@ -84,6 +84,10 @@ package object flow {
       implicit F: Async[F]
   ): F[Option[A]] =
     F.async { cb =>
-      F.delay(new AsyncSubscriber(cb)).flatMap { subscriber => subscribe(subscriber).as(None) }
+      AsyncSubscriber(cb).flatMap { subscriber =>
+        subscribe(subscriber).as(
+          Some(subscriber.cancel)
+        )
+      }
     }
 }
