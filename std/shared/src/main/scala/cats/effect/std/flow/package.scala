@@ -46,6 +46,10 @@ package object flow {
   /**
    * Creates an effect from a `subscribe` function; analogous to a `Publisher`, but effectual.
    *
+   * This effect will request a single item from the [[Publisher]] and then cancel it. The
+   * return value is an [[Option]] because the [[Publisher]] may complete without providing a
+   * single value.
+   *
    * This function is useful when you actually need to provide a subscriber to a third-party.
    *
    * @example
@@ -90,4 +94,37 @@ package object flow {
         )
       }
     }
+
+  /**
+   * Creates an effect from a [[Publisher]].
+   *
+   * This effect will request a single item from the [[Publisher]] and then cancel it. The
+   * return value is an [[Option]] because the [[Publisher]] may complete without providing a
+   * single value.
+   *
+   * @example
+   *   {{{
+   *   import cats.effect.IO
+   *   import java.util.concurrent.Flow.Publisher
+   *
+   *   def getThirdPartyPublisher(): Publisher[Int] = ???
+   *
+   *   // Interop with the third party library.
+   *   IO.delay(getThirdPartyPublisher()).flatMap { publisher =>
+   *     cats.effect.std.flow.fromPublisher[IO](publisher)
+   *   }
+   *   res0: IO[Int] = IO(..)
+   *   }}}
+   *
+   * @note
+   *   The publisher will not receive a subscriber until the effect is run.
+   *
+   * @see
+   *   the `toEffect` extension method added to [[Publisher]].
+   *
+   * @param publisher
+   *   The [[Publisher]] to consume.
+   */
+  def fromPublisher[F[_]]: syntax.FromPublisherPartiallyApplied[F] =
+    new syntax.FromPublisherPartiallyApplied(dummy = true)
 }
