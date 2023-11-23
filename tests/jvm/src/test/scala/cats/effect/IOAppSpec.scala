@@ -187,6 +187,34 @@ class IOAppSpec extends Specification {
           h.stderr() must contain("Boom!")
         }
 
+        "exit on raising a fatal error with attempt" in {
+          val h = platform(RaiseFatalErrorAttempt, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+          h.stdout() must not(contain("sadness"))
+        }
+
+        "exit on raising a fatal error with handleError" in {
+          val h = platform(RaiseFatalErrorHandle, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+          h.stdout() must not(contain("sadness"))
+        }
+
+        "exit on raising a fatal error inside a map" in {
+          val h = platform(RaiseFatalErrorMap, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+          h.stdout() must not(contain("sadness"))
+        }
+
+        "exit on raising a fatal error inside a flatMap" in {
+          val h = platform(RaiseFatalErrorFlatMap, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+          h.stdout() must not(contain("sadness"))
+        }
+
         "warn on global runtime collision" in {
           val h = platform(GlobalRacingInit, List.empty)
           h.awaitStatus() mustEqual 0
