@@ -36,12 +36,13 @@ import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
   CountDownLatch,
+  ExecutorService,
   Executors,
   ThreadLocalRandom
 }
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, AtomicReference}
 
-trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
+trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with ScalaCheck =>
 
   def platformSpecs = {
     "platform" should {
@@ -531,6 +532,25 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
           runtime.shutdown()
         }
       }
+
+      if (javaMajorVersion >= 21)
+        "block in-place on virtual threads" in real {
+          val loomExec = classOf[Executors]
+            .getDeclaredMethod("newVirtualThreadPerTaskExecutor")
+            .invoke(null)
+            .asInstanceOf[ExecutorService]
+
+          val loomEc = ExecutionContext.fromExecutor(loomExec)
+
+          IO.blocking {
+            classOf[Thread]
+              .getDeclaredMethod("isVirtual")
+              .invoke(Thread.currentThread())
+              .asInstanceOf[Boolean]
+          }.evalOn(loomEc)
+        }
+      else
+        "block in-place on virtual threads" in skipped("virtual threads not supported")
     }
   }
 }
