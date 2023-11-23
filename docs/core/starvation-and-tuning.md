@@ -354,7 +354,7 @@ One cause of "not enough threads" can be that the application is running inside 
 
 This guide on [containerizing java applications for kubernetes](https://learn.microsoft.com/en-us/azure/developer/java/containers/kubernetes#understand-jvm-available-processors) goes into more detail on the mechanism involved.
 
-**All cats-effect applications running in kubernetes should have either a cpu_quota configured or use the jvm `-XX:ActiveProcessorCount` argument to explicitly tell the jvm how many cores to use.**
+**All Cats Effect applications running in kubernetes should have either a `cpu_quota` configured or use the jvm `-XX:ActiveProcessorCount` argument to explicitly tell the jvm how many cores to use.**
 
 ### Too Many Threads
 
