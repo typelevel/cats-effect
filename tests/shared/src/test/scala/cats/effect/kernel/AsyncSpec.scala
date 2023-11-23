@@ -23,7 +23,6 @@ import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestControl
 import cats.effect.unsafe.IORuntimeConfig
 import cats.laws.discipline.arbitrary._
-import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
