@@ -81,7 +81,7 @@ class AsyncSpec extends BaseSpec with Discipline {
       val smallDelay: IO[Unit] = IO.sleep(10.millis)
       def mkf() = Promise[Unit]().future
 
-      val run = for {
+      val go = for {
         canceled <- IO(new AtomicBoolean)
         fiber <- IO.fromFutureCancelable {
           IO(mkf()).map(f => f -> IO(canceled.set(true)))
@@ -91,7 +91,7 @@ class AsyncSpec extends BaseSpec with Discipline {
         res <- IO(canceled.get() mustEqual true)
       } yield res
 
-      List.fill(100)(run).sequence
+      TestControl.executeEmbed(go, IORuntimeConfig(1, 2)).replicateA(1000)
 
     }
 
