@@ -16,52 +16,84 @@
 
 package cats.effect.interop.flow
 
+import cats.effect.IO
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
+import cats.effect.unsafe.IORuntime
 
 import java.util.Objects.requireNonNull
 import java.util.concurrent.Flow.{Publisher, Subscriber, Subscription}
+import java.util.concurrent.RejectedExecutionException
 import scala.util.control.NoStackTrace
 
-private[flow] final class AsyncPublisher[F[_], A] private (
-    fa: F[A],
-    startDispatcher: Dispatcher[F]
+private[flow] sealed abstract class AsyncPublisher[F[_], A] private (
+    fa: F[A]
 )(
     implicit F: Async[F]
 ) extends Publisher[A] {
+  protected def runSubscription(subscribe: F[Unit]): Unit
+
   override final def subscribe(subscriber: Subscriber[_ >: A]): Unit = {
     requireNonNull(
       subscriber,
       "The subscriber provided to subscribe must not be null"
     )
     try
-      startDispatcher.unsafeRunAndForget(
+      runSubscription(
         AsyncSubscription.subscribe(fa, subscriber)
       )
     catch {
-      case _: IllegalStateException =>
+      case _: IllegalStateException | _: RejectedExecutionException =>
         subscriber.onSubscribe(new Subscription {
           override def cancel(): Unit = ()
           override def request(x$1: Long): Unit = ()
         })
-        subscriber.onError(AsyncPublisher.CanceledStreamPublisherException)
+        subscriber.onError(AsyncPublisher.CanceledAsyncPublisherException)
     }
   }
 }
 
 private[flow] object AsyncPublisher {
+  private final class DispatcherAsyncPublisher[F[_], A](
+      fa: F[A],
+      startDispatcher: Dispatcher[F]
+  )(
+      implicit F: Async[F]
+  ) extends AsyncPublisher[F, A](fa) {
+    override protected final def runSubscription(subscribe: F[Unit]): Unit = {
+      startDispatcher.unsafeRunAndForget(subscribe)
+    }
+  }
+
+  private final class IORuntimeAsyncPublisher[A](
+      ioa: IO[A]
+  )(
+      implicit runtime: IORuntime
+  ) extends AsyncPublisher[IO, A](ioa) {
+    override protected final def runSubscription(subscribe: IO[Unit]): Unit = {
+      subscribe.unsafeRunAndForget()
+    }
+  }
+
   def apply[F[_], A](
       fa: F[A]
   )(
       implicit F: Async[F]
   ): Resource[F, AsyncPublisher[F, A]] =
     Dispatcher.parallel[F](await = false).map { startDispatcher =>
-      new AsyncPublisher(fa, startDispatcher)
+      new DispatcherAsyncPublisher(fa, startDispatcher)
     }
 
-  private object CanceledStreamPublisherException
+  def unsafe[A](
+      fa: IO[A]
+  )(
+      implicit runtime: IORuntime
+  ): AsyncPublisher[IO, A] =
+    new IORuntimeAsyncPublisher(fa)
+
+  private object CanceledAsyncPublisherException
       extends IllegalStateException(
-        "This StreamPublisher is not longer accepting subscribers"
+        "This AsyncPublisher is not longer accepting subscribers"
       )
       with NoStackTrace
 }
