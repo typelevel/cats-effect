@@ -456,7 +456,7 @@ As a very concrete example of this, if you have a cluster of 16 host instances i
 
 #### Kubernetes CPU Pinning
 
-Even if you have followed the above advice and avoided over-provisioning, the linux kernel scheduler is unfortunately not aware of the Cats Effect scheduler and will likely actively work against the Cats Effect scheduler by moving Cats Effect worker threads between different CPUs, thereby destroying CPU cache-locality. In certain environments we can prevent this by configuring Kubernetes to pin an application to a gviven set of CPUs:
+Even if you have followed the above advice and avoided over-provisioning, the Linux kernel scheduler is unfortunately not aware of the Cats Effect scheduler and will likely actively work against the Cats Effect scheduler by moving Cats Effect worker threads between different CPUs, thereby destroying CPU cache-locality. In certain environments we can prevent this by configuring Kubernetes to pin an application to a gviven set of CPUs:
 1. Set the [CPU Manager Policy to static](https://kubernetes.io/docs/tasks/administer-cluster/cpu-management-policies/#static-policy)
 2. Ensure that your pod is in the [Guaranteed QoS class](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/#guaranteed)
 3. Request an integral number of CPUs for your Cats Effect application
