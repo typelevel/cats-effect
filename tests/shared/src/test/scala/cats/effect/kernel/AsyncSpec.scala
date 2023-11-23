@@ -17,6 +17,7 @@
 package cats.effect
 package kernel
 
+import cats.syntax.all._
 import cats.{Eq, Order, StackSafeMonad}
 import cats.arrow.FunctionK
 import cats.effect.laws.AsyncTests
@@ -77,22 +78,20 @@ class AsyncSpec extends BaseSpec with Discipline {
   "fromFutureCancelable" should {
 
     "cancel on fiber cancelation" in real {
-      val smallDelay: IO[Unit] = IO.sleep(1.second)
+      val smallDelay: IO[Unit] = IO.sleep(10.millis)
       def mkf() = Promise[Unit]().future
-      val canceled = new AtomicBoolean(false)
 
-      for {
-        started <- IO(new AtomicBoolean)
+      val run = for {
+        canceled <- IO(new AtomicBoolean)
         fiber <- IO.fromFutureCancelable {
-          IO {
-            started.set(true)
-            mkf()
-          }.map(f => f -> IO(canceled.set(true)))
+          IO(mkf()).map(f => f -> IO(canceled.set(true)))
         }.start
         _ <- smallDelay
         _ <- fiber.cancel
         res <- IO(canceled.get() mustEqual true)
       } yield res
+
+      List.fill(100)(run).sequence
 
     }
 
