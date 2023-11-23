@@ -226,7 +226,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
       uncancelable { poll =>
         flatMap(poll(futCancel)) {
           case (fut, fin) =>
-            async[A](cb => as(delay(fut.onComplete(t => cb(t.toEither))), Some(fin)))
+            poll(async[A](cb => as(delay(fut.onComplete(t => cb(t.toEither))), Some(fin))))
         }
       }
     }

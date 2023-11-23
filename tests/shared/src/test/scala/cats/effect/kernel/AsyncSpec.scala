@@ -75,11 +75,32 @@ class AsyncSpec extends BaseSpec with Discipline {
   }
 
   "fromFutureCancelable" should {
+
+    "cancel on fiber cancelation" in real {
+      val smallDelay: IO[Unit] = IO.sleep(1.second)
+      def mkf() = Promise[Unit]().future
+      val canceled = new AtomicBoolean(false)
+
+      for {
+        started <- IO(new AtomicBoolean)
+        fiber <- IO.fromFutureCancelable {
+          IO {
+            started.set(true)
+            mkf()
+          }.map(f => f -> IO(canceled.set(true)))
+        }.start
+        _ <- smallDelay
+        _ <- fiber.cancel
+        res <- IO(canceled.get() mustEqual true)
+      } yield res
+
+    }
+
     "backpressure on cancelation" in real {
       // a non-cancelable, never-completing Future
       def mkf() = Promise[Unit]().future
 
-      def go = for {
+      val go = for {
         started <- IO(new AtomicBoolean)
         fiber <- IO.fromFutureCancelable {
           IO {
