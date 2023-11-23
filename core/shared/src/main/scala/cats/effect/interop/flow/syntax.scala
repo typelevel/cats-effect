@@ -17,7 +17,9 @@
 package cats.effect.interop
 package flow
 
+import cats.effect.IO
 import cats.effect.kernel.{Async, Resource}
+import cats.effect.unsafe.IORuntime
 
 import java.util.concurrent.Flow.{Publisher, Subscriber}
 
@@ -87,6 +89,24 @@ object syntax {
         implicit F: Async[F]
     ): F[Unit] =
       flow.subscribeEffect(fa, subscriber)
+  }
+
+  implicit final class IOOps[A](private val ioa: IO[A]) extends AnyVal {
+
+    /**
+     * Creates a [[Publisher]] from this [[IO]].
+     *
+     * The [[IO]] is only ran when elements are requested.
+     *
+     * @note
+     *   The [[Publisher]] can be reused for multiple [[Subscribers]], each [[Subscription]]
+     *   will re-run the [[IO]].
+     *
+     * @see
+     *   [[toPublisher]] for a safe version that returns a [[Resource]].
+     */
+    def unsafeToPublisher()(implicit runtime: IORuntime): Publisher[A] =
+      flow.unsafeToPublisher(ioa)
   }
 
   final class FromPublisherPartiallyApplied[F[_]](private val dummy: Boolean) extends AnyVal {

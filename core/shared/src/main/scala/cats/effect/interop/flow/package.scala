@@ -158,19 +158,19 @@ package object flow {
     AsyncPublisher(fa)
 
   /**
-   * Creates a [[Publisher]] from an effect.
+   * Creates a [[Publisher]] from an [[IO]].
    *
-   * The effect is only ran when elements are requested.
+   * The [[IO]] is only ran when elements are requested.
    *
    * @note
    *   This [[Publisher]] can be reused for multiple [[Subscribers]], each [[Subscription]] will
-   *   re-run the effect.
+   *   re-run the [[IO]].
    *
    * @see
    *   [[toPublisher]] for a safe version that returns a [[Resource]].
    *
-   * @param fa
-   *   The effect to transform.
+   * @param ioa
+   *   The [[IO]] to transform.
    */
   def unsafeToPublisher[A](
       ioa: IO[A]
