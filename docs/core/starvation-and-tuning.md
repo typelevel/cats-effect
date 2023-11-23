@@ -350,7 +350,7 @@ Of course, it's never as simple as doubling the number of vCPUs and halving the 
 
 #### Not Enough Threads - Running in Kubernetes
 
-One cause of "not enough threads" can be that the application is running inside kubernetes with a cpu_quota not configured. When the cpu limit is not configured, the jvm detects the number of available processors as 1, which will severely restrict what the runtime is able to do.
+One cause of "not enough threads" can be that the application is running inside kubernetes with a `cpu_quota` not configured. When the cpu limit is not configured, the JVM detects the number of available processors as 1, which will severely restrict what the runtime is able to do.
 
 This guide on [containerizing java applications for kubernetes](https://learn.microsoft.com/en-us/azure/developer/java/containers/kubernetes#understand-jvm-available-processors) goes into more detail on the mechanism involved.
 
