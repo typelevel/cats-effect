@@ -16,10 +16,10 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all._
 
-import java.util.concurrent.Flow.Subscriber
+import java.util.concurrent.Flow.{Publisher, Subscriber}
 
 /**
  * Implementation of the reactive-streams protocol for cats-effect; based on Java Flow.
@@ -127,4 +127,48 @@ package object flow {
    */
   def fromPublisher[F[_]]: syntax.FromPublisherPartiallyApplied[F] =
     new syntax.FromPublisherPartiallyApplied(dummy = true)
+
+  /**
+   * Creates a [[Publisher]] from an effect.
+   *
+   * The effect is only ran when elements are requested. Closing the [[Resource]] means
+   * gracefully shutting down all active subscriptions. Thus, no more elements will be
+   * published.
+   *
+   * @note
+   *   This [[Publisher]] can be reused for multiple [[Subscribers]], each [[Subscription]] will
+   *   re-run the effect.
+   *
+   * @see
+   *   [[subscribeEffect]] for a simpler version that only requires a [[Subscriber]].
+   *
+   * @param fa
+   *   The effect to transform.
+   */
+  def toPublisher[F[_], A](
+      fa: F[A]
+  )(
+      implicit F: Async[F]
+  ): Resource[F, Publisher[A]] =
+    AsyncPublisher(fa)
+
+  /**
+   * Allows subscribing a [[Subscriber]] to an effect.
+   *
+   * The returned program will run the passed effect, then send the result to the
+   * [[Subscriber]], and finally complete the subscription. Cancelling this program will
+   * gracefully cancel the subscription.
+   *
+   * @param fa
+   *   the effect that will be consumed by the subscriber.
+   * @param subscriber
+   *   the [[Subscriber]] that will receive the result of the effect.
+   */
+  def subscribeEffect[F[_], A](
+      fa: F[A],
+      subscriber: Subscriber[_ >: A]
+  )(
+      implicit F: Async[F]
+  ): F[Unit] =
+    AsyncSubscription.subscribe(fa, subscriber)
 }
