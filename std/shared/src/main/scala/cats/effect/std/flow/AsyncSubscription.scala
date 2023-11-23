@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 private[flow] final class AsyncSubscription[F[_], A] private (
     fa: F[A],
-    subscriber: Subscriber[A],
+    subscriber: Subscriber[_ >: A],
     start: AtomicReference[() => Unit],
     canceled: AtomicReference[() => Unit]
 )(
@@ -111,7 +111,7 @@ private[flow] object AsyncSubscription {
   // Mostly for testing purposes.
   def apply[F[_], A](
       fa: F[A],
-      subscriber: Subscriber[A]
+      subscriber: Subscriber[_ >: A]
   )(
       implicit F: Async[F]
   ): F[AsyncSubscription[F, A]] =
@@ -129,7 +129,7 @@ private[flow] object AsyncSubscription {
 
   def subscribe[F[_], A](
       fa: F[A],
-      subscriber: Subscriber[A]
+      subscriber: Subscriber[_ >: A]
   )(
       implicit F: Async[F]
   ): F[Unit] =
