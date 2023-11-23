@@ -85,11 +85,11 @@ private[flow] object AsyncPublisher {
     }
 
   def unsafe[A](
-      fa: IO[A]
+      ioa: IO[A]
   )(
       implicit runtime: IORuntime
   ): AsyncPublisher[IO, A] =
-    new IORuntimeAsyncPublisher(fa)
+    new IORuntimeAsyncPublisher(ioa)
 
   private object CanceledAsyncPublisherException
       extends IllegalStateException(

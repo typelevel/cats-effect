@@ -16,7 +16,9 @@
 
 package cats.effect.interop
 
+import cats.effect.IO
 import cats.effect.kernel.{Async, Resource}
+import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import java.util.concurrent.Flow.{Publisher, Subscriber}
@@ -140,6 +142,9 @@ package object flow {
    *   re-run the effect.
    *
    * @see
+   *   [[unsafeToPublisher]] for an unsafe version that returns a plain [[Publisher]].
+   *
+   * @see
    *   [[subscribeEffect]] for a simpler version that only requires a [[Subscriber]].
    *
    * @param fa
@@ -151,6 +156,28 @@ package object flow {
       implicit F: Async[F]
   ): Resource[F, Publisher[A]] =
     AsyncPublisher(fa)
+
+  /**
+   * Creates a [[Publisher]] from an effect.
+   *
+   * The effect is only ran when elements are requested.
+   *
+   * @note
+   *   This [[Publisher]] can be reused for multiple [[Subscribers]], each [[Subscription]] will
+   *   re-run the effect.
+   *
+   * @see
+   *   [[toPublisher]] for a safe version that returns a [[Resource]].
+   *
+   * @param fa
+   *   The effect to transform.
+   */
+  def unsafeToPublisher[A](
+      ioa: IO[A]
+  )(
+      implicit runtime: IORuntime
+  ): Publisher[A] =
+    AsyncPublisher.unsafe(ioa)
 
   /**
    * Allows subscribing a [[Subscriber]] to an effect.
