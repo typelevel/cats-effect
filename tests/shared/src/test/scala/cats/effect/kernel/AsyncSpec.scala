@@ -50,37 +50,6 @@ class AsyncSpec extends BaseSpec with Discipline {
   }
 
   "fromFuture" should {
-    "not leak the future on cancelation" in real {
-      import scala.concurrent.ExecutionContext.Implicits.global
-
-      implicit val rand: Random[IO] = Random.javaUtilConcurrentThreadLocalRandom[IO]
-
-      val jitter = Random[IO].betweenInt(1, 5).flatMap(n => IO.sleep(n.micros))
-
-      val run = IO(new AtomicBoolean(false) -> new AtomicBoolean(false)).flatMap {
-        case (started, finished) =>
-          val future = IO {
-            Future {
-              started.set(true)
-              Thread.sleep(20)
-              finished.set(true)
-            }
-          }
-
-          (jitter >> IO.fromFuture(future)).race(jitter).map { _ =>
-            val wasStarted = started.get
-            val wasFinished = finished.get
-
-            wasStarted mustEqual wasFinished
-          }
-
-      }
-
-      List.fill(100)(run).sequence
-    }
-  }
-
-  "fromFuture" should {
     "backpressure on cancelation" in real {
       // a non-cancelable, never-completing Future
       def mkf() = Promise[Unit]().future
@@ -92,6 +61,33 @@ class AsyncSpec extends BaseSpec with Discipline {
             started.set(true)
             mkf()
           }
+        }.start
+        _ <- IO.cede.whileM_(IO(!started.get))
+        _ <- fiber.cancel
+      } yield ()
+
+      TestControl
+        .executeEmbed(go, IORuntimeConfig(1, 2))
+        .as(false)
+        .recover { case _: TestControl.NonTerminationException => true }
+        .replicateA(1000)
+        .map(_.forall(identity(_)))
+    }
+
+  }
+
+  "fromFutureCancelable" should {
+    "backpressure on cancelation" in real {
+      // a non-cancelable, never-completing Future
+      def mkf() = Promise[Unit]().future
+
+      def go = for {
+        started <- IO(new AtomicBoolean)
+        fiber <- IO.fromFutureCancelable {
+          IO {
+            started.set(true)
+            mkf()
+          }.map(f => f -> IO.never)
         }.start
         _ <- IO.cede.whileM_(IO(!started.get))
         _ <- fiber.cancel
