@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect.interop
 package flow
 
 import cats.effect.kernel.{Async, Resource}

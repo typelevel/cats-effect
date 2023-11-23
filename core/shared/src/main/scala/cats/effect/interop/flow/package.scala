@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect.interop
 
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all._

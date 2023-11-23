@@ -1,4 +1,4 @@
-package cats.effect.std.flow
+package cats.effect.interop.flow
 
 import cats.effect.kernel.{Async, Outcome}
 import cats.effect.kernel.syntax.all._

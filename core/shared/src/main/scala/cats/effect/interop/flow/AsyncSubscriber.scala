@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.std.flow
+package cats.effect.interop.flow
 
 import cats.effect.kernel.Sync
 
