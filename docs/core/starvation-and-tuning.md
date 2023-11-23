@@ -442,7 +442,7 @@ If this is not possible, the next-best approach is to rely on a circular buffer.
 
 > This scenario is specific to Kubernetes, Amazon ECS, and similar resource-controlled containerized deployments.
 
-In many Docker clusters, it is relatively standard practice to over-provision CPU credits by some factor (even 100% over-provisioning is quite common). What this effectively means is that the container environment will promise (or at least *allow*) *m* applications access to *n* vCPUs each, despite only *(m* n) / (1 + k)*CPUs being physically present across the underlying hardware cluster. In this equation, *k* is the over-provisioning factor, often referred to as "burst credits".
+In many Docker clusters, it is relatively standard practice to over-provision CPU credits by some factor (even 100% over-provisioning is quite common). What this effectively means is that the container environment will promise (or at least *allow*) *m* applications access to *n* vCPUs each, despite only *(m * n) / (1 + k)* CPUs being physically present across the underlying hardware cluster. In this equation, *k* is the over-provisioning factor, often referred to as "burst credits".
 
 This is a standard strategy because many applications are written in a fashion which is only loosely coupled to the underlying CPU count, to a large degree because many applications are simply not optimized to that extent. Cats Effect *is* optimized to take advantage of the precise number of underlying CPUs, and well-written Cats Effect applications inherit this optimization, meaning that they are inherently much more sensitive to this hardware factor than many other applications.
 
