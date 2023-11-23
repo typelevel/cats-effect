@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.std.flow
+package cats.effect.std
+package flow
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Resource}
 
-import java.util.concurrent.Flow.Publisher
+import java.util.concurrent.Flow.{Publisher, Subscriber}
 
 object syntax {
   implicit final class PublisherOps[A](private val publisher: Publisher[A]) extends AnyVal {
@@ -49,6 +50,43 @@ object syntax {
      */
     def toEffect[F[_]](implicit F: Async[F]): F[Option[A]] =
       fromPublisher[F](publisher)
+  }
+
+  implicit final class FOps[F[_], A](private val fa: F[A]) extends AnyVal {
+
+    /**
+     * Creates a [[Publisher]] from this effect.
+     *
+     * The effect is only ran when elements are requested. Closing the [[Resource]] means
+     * gracefully shutting down all active subscriptions. Thus, no more elements will be
+     * published.
+     *
+     * @note
+     *   The [[Publisher]] can be reused for multiple [[Subscribers]], each [[Subscription]]
+     *   will re-run the effect.
+     *
+     * @see
+     *   [[subscribe]] for a simpler version that only requires a [[Subscriber]].
+     */
+    def toPublisher(implicit F: Async[F]): Resource[F, Publisher[A]] =
+      flow.toPublisher(fa)
+
+    /**
+     * Allows subscribing a [[Subscriber]] to this effect.
+     *
+     * The returned program will run this effect, then send the result to the [[Subscriber]],
+     * and finally complete the subscription. Cancelling this program will gracefully cancel the
+     * subscription.
+     *
+     * @param subscriber
+     *   the [[Subscriber]] that will receive the result of this effect.
+     */
+    def subscribeEffect(
+        subscriber: Subscriber[_ >: A]
+    )(
+        implicit F: Async[F]
+    ): F[Unit] =
+      flow.subscribeEffect(fa, subscriber)
   }
 
   final class FromPublisherPartiallyApplied[F[_]](private val dummy: Boolean) extends AnyVal {
