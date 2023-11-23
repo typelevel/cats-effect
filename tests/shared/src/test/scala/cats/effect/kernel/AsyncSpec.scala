@@ -17,22 +17,20 @@
 package cats.effect
 package kernel
 
-import cats.syntax.all._
 import cats.{Eq, Order, StackSafeMonad}
 import cats.arrow.FunctionK
 import cats.effect.laws.AsyncTests
-import cats.laws.discipline.arbitrary._
 import cats.effect.testkit.TestControl
 import cats.effect.unsafe.IORuntimeConfig
-
-import cats.effect.std.Random
+import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Promise}
 import scala.concurrent.duration._
+
 import java.util.concurrent.atomic.AtomicBoolean
 
 class AsyncSpec extends BaseSpec with Discipline {
