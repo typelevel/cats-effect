@@ -133,9 +133,10 @@ package object flow {
   /**
    * Creates a [[Publisher]] from an effect.
    *
-   * The effect is only ran when elements are requested. Closing the [[Resource]] means
-   * gracefully shutting down all active subscriptions. Thus, no more elements will be
-   * published.
+   * The effect is only ran when elements are requested. Closing the [[Resource]] means not
+   * accepting new subscriptions, but waiting for all active ones to finish consuming. Canceling
+   * the [[Resource.use]] means gracefully shutting down all active subscriptions. Thus, no more
+   * elements will be published.
    *
    * @note
    *   This [[Publisher]] can be reused for multiple [[Subscribers]], each [[Subscription]] will

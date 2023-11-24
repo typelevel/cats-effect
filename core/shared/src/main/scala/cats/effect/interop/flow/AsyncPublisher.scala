@@ -80,7 +80,7 @@ private[flow] object AsyncPublisher {
   )(
       implicit F: Async[F]
   ): Resource[F, AsyncPublisher[F, A]] =
-    Dispatcher.parallel[F](await = false).map { startDispatcher =>
+    Dispatcher.parallel[F](await = true).map { startDispatcher =>
       new DispatcherAsyncPublisher(fa, startDispatcher)
     }
 
