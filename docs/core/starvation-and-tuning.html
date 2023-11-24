@@ -55,9 +55,9 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Starvation and Tuning</h1></header><article><div><span><p>All Cats Effect applications constructed via <code>IOApp</code> have an automatic mechanism which periodically checks to see if the application runtime is starving for compute resources. If you ever see warnings which look like the following, they are the result of this mechanism automatically detecting that the responsiveness of your application runtime is below the configured threshold. Note that the timestamp is the time when the starvation was detected, which is not precisely the time when starvation (or the task that is responsible) began.</p>
-<pre><code class="hljs">2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous 
+<pre><code class="hljs">2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous
 event (such as a new connection, an upstream response, or a timer) was in excess
-of 40 milliseconds. Your CPU is probably starving. Consider increasing the 
+of 40 milliseconds. Your CPU is probably starving. Consider increasing the
 granularity of your delays or adding more cedes. This may also be a sign that you
 are unintentionally running blocking I/O operations (such as File or InetAddress)
 without the blocking combinator.
@@ -70,7 +70,7 @@ without the blocking combinator.
 <span class="hljs-keyword">import</span> cats.syntax.all._
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">StarveThyself</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span>.<span class="hljs-title">Simple</span> </span>{
-  <span class="hljs-keyword">val</span> run = 
+  <span class="hljs-keyword">val</span> run =
     <span class="hljs-number">0.</span>until(<span class="hljs-number">100</span>).toList parTraverse_ { i =&gt;
       <span class="hljs-type">IO</span> {
         println(<span class="hljs-string">s"running #<span class="hljs-subst">$i</span>"</span>)
@@ -136,7 +136,7 @@ without the blocking combinator.
 <span class="hljs-keyword">import</span> cats.syntax.all._
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">StarveThyselfAgain</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span>.<span class="hljs-title">Simple</span> </span>{
-  <span class="hljs-keyword">val</span> run = 
+  <span class="hljs-keyword">val</span> run =
     <span class="hljs-number">0.</span>until(<span class="hljs-number">100</span>).toList parTraverse_ { i =&gt;
       <span class="hljs-type">IO</span>.println(<span class="hljs-string">s"running #<span class="hljs-subst">$i</span>"</span>) &gt;&gt; <span class="hljs-type">IO</span>(<span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) {})
     }
@@ -192,9 +192,9 @@ without the blocking combinator.
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> expensiveThing: <span class="hljs-type">IO</span>[<span class="hljs-type">A</span>] = ???
 
 <span class="hljs-type">IO</span>.unit.timed flatMap {
-  <span class="hljs-keyword">case</span> (baseline, _) =&gt; 
+  <span class="hljs-keyword">case</span> (baseline, _) =&gt;
     <span class="hljs-type">IO</span>.println(<span class="hljs-string">s"baseline stage cost is <span class="hljs-subst">$baseline</span>"</span>) &gt;&gt; expensiveThing.timed flatMap {
-      <span class="hljs-keyword">case</span> (cost, result) =&gt; 
+      <span class="hljs-keyword">case</span> (cost, result) =&gt;
         <span class="hljs-keyword">if</span> (cost / baseline &gt; <span class="hljs-number">1024</span>)
           <span class="hljs-type">IO</span>.println(<span class="hljs-string">"expensiveThing is very expensive"</span>).as(result)
         <span class="hljs-keyword">else</span>
@@ -317,6 +317,10 @@ without the blocking combinator.
 <p>Backing up to first principles, this actually <em>makes sense</em>. The whole point of Cats Effect is to provide a userspace scheduling mechanism for application work, precisely because userspace schedulers are able to be more aggressively optimize for application workloads (and <em>particularly</em> asynchronous I/O). For a high-level discussion of why this is the case, both at the hardware and at the kernel level, please see <a href="https://www.youtube.com/watch?v=PLApcas04V0">the following presentation by Daniel Spiewak</a>.</p>
 <p>The problem with &quot;going wide&quot; is it restricts the resources available within userspace (preventing a userspace scheduler from having meaningful impact) while delegating the overall scheduling problem to the kernel (which is much less efficient). This type of strategy makes a lot of sense when the userspace scheduler is very limited in nature and perhaps not as well optimized as the kernel scheduler, but it is simply counterproductive when the userspace scheduler is <em>more</em> optimized than the one that is in the kernel. This is the case with Cats Effect.</p>
 <p>Of course, it's never as simple as doubling the number of vCPUs and halving the number of instances. Scaling is complicated, and you'll likely need to adjust other resources such as memory, connection limits, file handle counts, autoscaling signals, and such. Overall though, a good rule of thumb is to consider 8 vCPUs to be the minimum that should be available to a Cats Effect application at scale. 16 or even 32 vCPUs is likely to improve performance even further, and it is very much worth experimenting with these types of tuning parameters.</p>
+<h4><a class="anchor" aria-hidden="true" id="not-enough-threads---running-in-kubernetes"></a><a href="#not-enough-threads---running-in-kubernetes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Not Enough Threads - Running in Kubernetes</h4>
+<p>One cause of &quot;not enough threads&quot; can be that the application is running inside kubernetes with a <code>cpu_quota</code> not configured. When the cpu limit is not configured, the JVM detects the number of available processors as 1, which will severely restrict what the runtime is able to do.</p>
+<p>This guide on <a href="https://learn.microsoft.com/en-us/azure/developer/java/containers/kubernetes#understand-jvm-available-processors">containerizing java applications for kubernetes</a> goes into more detail on the mechanism involved.</p>
+<p><strong>All Cats Effect applications running in kubernetes should have either a <code>cpu_quota</code> configured or use the jvm <code>-XX:ActiveProcessorCount</code> argument to explicitly tell the jvm how many cores to use.</strong></p>
 <h3><a class="anchor" aria-hidden="true" id="too-many-threads"></a><a href="#too-many-threads" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Too Many Threads</h3>
 <p>In a sense, this scenario is like the correlated inverse of the &quot;Not Enough CPUs&quot; option, and it happens surprisingly frequently in conventional JVM applications. Consider the thread list from the previous section (assuming 8 CPUs):</p>
 <ul>
@@ -382,6 +386,14 @@ without the blocking combinator.
 <p><strong>In high-scale replicated backend servers, symmetric burst patterns are the <em>common</em> case.</strong> In other words, in most high-scale applications, either everyone shows up for their flight, or no one does, but it is very rare to go half-and-half. For this reason, burst credits are a pretty bad idea <em>in general</em>, but they're particularly bad for runtimes like Cats Effect which aggressively take full advantage of the underlying hardware.</p>
 <p>The solution is to eliminate this over-provisioning. If a scheduled container is promised <em>n</em> vCPUs, then those physical CPUs should be reserved for that container as long as it is active, no more and no less. This cluster tuning advice interacts particularly well with some advice from earlier in this document: Cats Effect applications benefit a lot from going <em>taller</em> rather than <em>wider</em>.</p>
 <p>As a very concrete example of this, if you have a cluster of 16 host instances in your cluster, each of which having 64 CPUs, that gives you a total of 1024 vCPUs to work with. If you configure each application container to use 4 vCPUs, you can support up to 256 application instances simultaneously (without resizing the cluster). Over-provisioning by a factor of 100% would suggest that you can support up to 512 application instances. <strong>Do not do this.</strong> Instead, resize the application instances to use either 8 or 16 vCPUs each. If you take the latter approach, your cluster will support up to 64 application instances simultaneously. This <em>seems</em> like a downgrade, but these taller instances should (absent other constraints) support more than 4x more traffic than the smaller instances, meaning that the overall cluster is much more efficient.</p>
+<h4><a class="anchor" aria-hidden="true" id="kubernetes-cpu-pinning"></a><a href="#kubernetes-cpu-pinning" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kubernetes CPU Pinning</h4>
+<p>Even if you have followed the above advice and avoided over-provisioning, the Linux kernel scheduler is unfortunately not aware of the Cats Effect scheduler and will likely actively work against the Cats Effect scheduler by moving Cats Effect worker threads between different CPUs, thereby destroying CPU cache-locality. In certain environments we can prevent this by configuring Kubernetes to pin an application to a gviven set of CPUs:</p>
+<ol>
+<li>Set the <a href="https://kubernetes.io/docs/tasks/administer-cluster/cpu-management-policies/#static-policy">CPU Manager Policy to static</a></li>
+<li>Ensure that your pod is in the <a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/#guaranteed">Guaranteed QoS class</a></li>
+<li>Request an integral number of CPUs for your Cats Effect application</li>
+</ol>
+<p>You should be able to see the CPU assignment updates reflected in the kubelet logs.</p>
 <h3><a class="anchor" aria-hidden="true" id="process-contention"></a><a href="#process-contention" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Process Contention</h3>
 <p>All of the advice in this page is targeted towards the (very common) scenario in which your Cats Effect application <code>java</code> process is the only meaningfully active process on a given instance. In other words, there are no additional applications on the same server, no databases, nothing. If this is <em>not</em> the case, then a lot of the advice about having too many threads applies, but <em>worse</em>.</p>
 <p>The worst possible scenario here is when your application server and one of its upstreams (such as a database) are on the same instance. When this happens, both the application and the database will be assuming full access to the underlying system CPU resources, and the result will be a lot of contention between each other. This will cause performance to degrade <em>quadratically</em>, since the contention penalties will be felt both on the application <em>and</em> on the upstream database. This is… bad.</p>
@@ -406,7 +418,7 @@ without the blocking combinator.
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MyMain</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
 
   <span class="hljs-comment">// fully disable the checker</span>
-  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">runtimeConfig</span> </span>= 
+  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">runtimeConfig</span> </span>=
     <span class="hljs-keyword">super</span>.runtimeConfig.copy(cpuStarvationCheckInitialDelay = <span class="hljs-type">Duration</span>.<span class="hljs-type">Inf</span>)
 
   <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]) = ???
@@ -422,7 +434,7 @@ without the blocking combinator.
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MyOtherMain</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
 
   <span class="hljs-comment">// relax threshold to 500 milliseconds</span>
-  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">runtimeConfig</span> </span>= 
+  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">runtimeConfig</span> </span>=
     <span class="hljs-keyword">super</span>.runtimeConfig.copy(cpuStarvationCheckInterval = <span class="hljs-number">5.</span>seconds)
 
   <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]) = ???
