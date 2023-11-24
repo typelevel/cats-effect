@@ -776,7 +776,7 @@ private final class WorkerThread(
   }
 
   /**
-   * A mechanism for executing support code before executing a blocking action.
+   * Support code that must be run before executing a blocking action on this thread.
    *
    * The current thread creates a replacement worker thread (or reuses a cached one) that will
    * take its place in the pool and does a complete transfer of ownership of the data structures
@@ -797,7 +797,7 @@ private final class WorkerThread(
    *   There is no reason to enclose any code in a `try/catch` block because the only way this
    *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
-  override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+  def prepareBlocking(): Unit = {
     val rnd = random
 
     pool.notifyParked(rnd)
@@ -806,7 +806,6 @@ private final class WorkerThread(
       // This `WorkerThread` is already inside an enclosing blocking region.
       // There is no need to spawn another `WorkerThread`. Instead, directly
       // execute the blocking action.
-      thunk
     } else {
       // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
@@ -853,9 +852,15 @@ private final class WorkerThread(
         pool.blockedWorkerThreadCounter.incrementAndGet()
         clone.start()
       }
-
-      thunk
     }
+  }
+
+  /**
+   * A mechanism for executing support code before executing a blocking action.
+   */
+  override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+    prepareBlocking()
+    thunk
   }
 
   private[this] def init(newIdx: Int): Unit = {

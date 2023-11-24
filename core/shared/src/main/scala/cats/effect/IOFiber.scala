@@ -994,7 +994,7 @@ private final class IOFiber[A](
                 var error: Throwable = null
                 val r =
                   try {
-                    scala.concurrent.blocking(cur.thunk())
+                    cur.thunk()
                   } catch {
                     case t if NonFatal(t) =>
                       error = t
