@@ -54,7 +54,9 @@ private[flow] final class AsyncSubscription[F[_], A] private (
     subscriber.onComplete()
   }
 
-  val run: F[Unit] = {
+  // This is a def rather than a val, because it is only used once.
+  // And having fields increase the instantiation cost and delay garbage collection.
+  def run: F[Unit] = {
     val cancellation = F.asyncCheckAttempt[Unit] { cb =>
       F.delay {
         // Check if we were already cancelled before calling run.
