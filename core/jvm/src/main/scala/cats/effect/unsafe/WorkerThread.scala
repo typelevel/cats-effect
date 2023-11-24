@@ -803,7 +803,7 @@ private final class WorkerThread(
     pool.notifyParked(rnd)
 
     if (blocking) {
-      // This `WorkerThread` is already inside an enclosing blocking region.
+      // This `WorkerThread` has already been prepared for blocking.
       // There is no need to spawn another `WorkerThread`.
     } else {
       // Spawn a new `WorkerThread` to take the place of this thread, as the
@@ -817,7 +817,7 @@ private final class WorkerThread(
         cedeBypass = null
       }
 
-      // Logically enter the blocking region.
+      // Logically become a blocking thread
       blocking = true
 
       val prefix = pool.blockerThreadPrefix
