@@ -804,8 +804,7 @@ private final class WorkerThread(
 
     if (blocking) {
       // This `WorkerThread` is already inside an enclosing blocking region.
-      // There is no need to spawn another `WorkerThread`. Instead, directly
-      // execute the blocking action.
+      // There is no need to spawn another `WorkerThread`.
     } else {
       // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
