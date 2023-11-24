@@ -492,12 +492,12 @@ private[effect] final class WorkStealingThreadPool(
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
-      if (worker.canExecuteBlockingCodeOn(this))
+      if (worker.canExecuteBlockingCodeOn(this)) {
         worker.prepareBlocking()
-      true
-    } else {
-      false
+        return true
+      }
     }
+    false
   }
 
   /**
