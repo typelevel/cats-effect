@@ -817,7 +817,7 @@ private final class WorkerThread(
         cedeBypass = null
       }
 
-      // Logically become a blocking thread
+      // Logically become a blocking thread.
       blocking = true
 
       val prefix = pool.blockerThreadPrefix
