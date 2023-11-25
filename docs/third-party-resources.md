@@ -26,7 +26,7 @@ This page outlines known third-party learning and training material (free and pa
 ## Videos
 
 These are some selected videos on various topics in Cats Effect:
-
+* [The Case For Effect Systems](https://www.youtube.com/watch?v=qgfCmQ-2tW0), Daniel Spiewak
 * [Cats Effect 3](https://www.youtube.com/watch?v=KZtVBtOrP50&t=1s&ab_channel=ScalaintheCity), Daniel Spiewak
 * [Concurrency with Cats Effect](https://www.youtube.com/watch?v=Gig-f_HXvLI&ab_channel=FunctionalTV), Michael Pilquist
 * [How do Fibers work?](https://www.youtube.com/watch?v=x5_MmZVLiSM&ab_channel=ScalaWorld), Fabio Labella
