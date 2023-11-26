@@ -16,16 +16,15 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Outcome, Resource}
+import cats.Applicative
+import cats.effect.kernel.{Async, Concurrent, MonadCancel, Outcome, Resource, Sync}
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
 
-import scala.annotation.tailrec
-import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success}
+import scala.util.Failure
 
-import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.{LinkedBlockingQueue /*, ThreadLocalRandom*/}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
@@ -71,9 +70,12 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
    */
   def unsafeRunAndForget[A](fa: F[A]): Unit =
     unsafeToFuture(fa).onComplete {
-      case Failure(ex) => ex.printStackTrace()
+      case Failure(ex) => reportFailure(ex)
       case _ => ()
     }(parasiticEC)
+
+  protected def reportFailure(t: Throwable): Unit =
+    t.printStackTrace()
 
   // package-private because it's just an internal utility which supports specific implementations
   // anyone who needs this type of thing should use unsafeToFuture and then onComplete
@@ -89,12 +91,7 @@ object Dispatcher {
     def reportFailure(t: Throwable) = t.printStackTrace()
   }
 
-  private[this] val Cpus: Int = Runtime.getRuntime().availableProcessors()
-
-  private[this] val Noop: () => Unit = () => ()
-  private[this] val Open: () => Unit = () => ()
-
-  private[this] val Completed: Either[Throwable, Unit] = Right(())
+  // private[this] val Cpus: Int = Runtime.getRuntime().availableProcessors()
 
   @deprecated(
     message =
@@ -107,16 +104,14 @@ object Dispatcher {
    * exits, all active effects will be canceled, and attempts to submit new effects will throw
    * an exception.
    */
-  def parallel[F[_]: Async]: Resource[F, Dispatcher[F]] =
-    parallel[F](await = false)
+  def parallel[F[_]: Async]: Resource[F, Dispatcher[F]] = parallel(false)
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
    * exits, all active effects will be canceled, and attempts to submit new effects will throw
    * an exception.
    */
-  def sequential[F[_]: Async]: Resource[F, Dispatcher[F]] =
-    sequential[F](await = false)
+  def sequential[F[_]: Async]: Resource[F, Dispatcher[F]] = sequential(false)
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
@@ -153,8 +148,7 @@ object Dispatcher {
    *   - true - wait for the completion of the active fibers
    *   - false - cancel the active fibers
    */
-  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
-    apply(Mode.Parallel, await)
+  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] = sequential[F](await)
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
@@ -190,240 +184,179 @@ object Dispatcher {
    *   - false - cancel the active fiber
    */
   def sequential[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
-    apply(Mode.Sequential, await)
+    Supervisor[F](
+      await = await,
+      checkRestart = Some((_: Outcome[F, Throwable, _]) => true)) flatMap { supervisor =>
+      // we only need this flag to raise the IllegalStateException after closure (Supervisor can't do it for us)
+      Resource.make(Sync[F].delay(new AtomicBoolean(false)))(doneR =>
+        Sync[F].delay(doneR.set(true))) evalMap { doneR =>
+        // we sequentialize on worker spawning, so we don't need to use Deferred here
+        Concurrent[F].ref(Applicative[F].unit) flatMap { cancelR =>
+          // in sequential spawning, the only cancelation cancels and restarts the worker itself
+          def spawn(fu: F[Unit])(setupCancelation: F[Unit] => F[Unit]): F[Unit] =
+            cancelR.get.flatMap(setupCancelation) *> fu
 
-  private[this] def apply[F[_]](mode: Mode, await: Boolean)(
-      implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
-    final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
-        extends AtomicBoolean(true)
+          Worker[F](supervisor)(spawn) flatMap { worker =>
+            Async[F].executionContext flatMap { ec =>
+              supervisor
+                .supervise(worker.run)
+                .flatMap(f => cancelR.set(f.cancel))
+                .as(new Dispatcher[F] {
+                  def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit]) = {
+                    def inner[E](fe: F[E], forceParallel: Boolean)
+                        : (Future[E], () => Future[Unit]) = {
+                      if (doneR.get()) {
+                        throw new IllegalStateException("Dispatcher already closed")
+                      }
 
-    sealed trait CancelState
-    case object CancelInit extends CancelState
-    final case class CanceledNoToken(promise: Promise[Unit]) extends CancelState
-    final case class CancelToken(cancelToken: () => Future[Unit]) extends CancelState
+                      val p = Promise[E]()
 
-    val (workers, makeFork) =
-      mode match {
-        case Mode.Parallel =>
-          (Cpus, Supervisor[F](await).map(s => s.supervise(_: F[Unit]).map(_.cancel)))
+                      // forward atomicity guarantees onto promise completion
+                      val fu = MonadCancel[F] uncancelable { poll =>
+                        poll(fe).redeemWith(
+                          e => Sync[F].delay(p.failure(e)),
+                          a => Sync[F].delay(p.success(a)))
+                      }
 
-        case Mode.Sequential =>
-          (
-            1,
-            Resource
-              .pure[F, F[Unit] => F[F[Unit]]]((_: F[Unit]).as(F.unit).handleError(_ => F.unit)))
-      }
+                      val reg =
+                        new Registration(fu.void, new AtomicReference[F[Unit]](), forceParallel)
+                      worker.queue.unsafeOffer(reg)
 
-    for {
-      fork <- makeFork
+                      def cancel(): Future[Unit] = {
+                        reg.action = null.asInstanceOf[F[Unit]]
 
-      latches <- Resource.eval(F delay {
-        val latches = new Array[AtomicReference[() => Unit]](workers)
-        var i = 0
-        while (i < workers) {
-          latches(i) = new AtomicReference(Noop)
-          i += 1
-        }
-        latches
-      })
-      states <- Resource.eval(F delay {
-        val states = Array.ofDim[AtomicReference[List[Registration]]](workers, workers)
-        var i = 0
-        while (i < workers) {
-          var j = 0
-          while (j < workers) {
-            states(i)(j) = new AtomicReference(Nil)
-            j += 1
-          }
-          i += 1
-        }
-        states
-      })
-      ec <- Resource.eval(F.executionContext)
+                        // publishes action write
+                        // TODO this provides incorrect semantics for multiple cancel() call sites
+                        val cancelF = reg
+                          .cancelR
+                          .getAndSet(Applicative[F].unit) // anything that isn't null, really
+                        if (cancelF != null)
+                          inner(
+                            cancelF,
+                            true)._1 // this looping is fine, since we drop the cancel
+                        else
+                          Future.successful(())
+                      }
 
-      // supervisor for the main loop, which needs to always restart unless the Supervisor itself is canceled
-      // critically, inner actions can be canceled without impacting the loop itself
-      supervisor <- Supervisor[F](await, Some((_: Outcome[F, Throwable, _]) => true))
+                      (p.future, cancel _)
+                    }
 
-      _ <- {
-        def step(
-            state: Array[AtomicReference[List[Registration]]],
-            await: F[Unit],
-            doneR: AtomicBoolean): F[Unit] =
-          for {
-            done <- F.delay(doneR.get())
-            regs <- F delay {
-              val buffer = mutable.ListBuffer.empty[Registration]
-              var i = 0
-              while (i < workers) {
-                val st = state(i)
-                if (st.get() ne null) {
-                  val list = if (done) st.getAndSet(null) else st.getAndSet(Nil)
-                  if ((list ne null) && (list ne Nil)) {
-                    buffer ++= list.reverse // FIFO order here is a form of fairness
+                    inner(fa, false)
                   }
-                }
-                i += 1
-              }
-              buffer.toList
-            }
 
-            _ <-
-              if (regs.isEmpty) {
-                await
-              } else {
-                regs traverse_ {
-                  case r @ Registration(action, prepareCancel) =>
-                    val supervise: F[Unit] =
-                      fork(action).flatMap(cancel => F.delay(prepareCancel(cancel)))
-
-                    // Check for task cancelation before executing.
-                    F.delay(r.get()).ifM(supervise, F.delay(prepareCancel(F.unit)))
-                }
-              }
-          } yield ()
-
-        def dispatcher(
-            doneR: AtomicBoolean,
-            latch: AtomicReference[() => Unit],
-            state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
-
-          val await =
-            F.async_[Unit] { cb =>
-              if (!latch.compareAndSet(Noop, () => cb(Completed))) {
-                // state was changed between when we last set the latch and now; complete the callback immediately
-                cb(Completed)
-              }
-            }
-
-          F.delay(latch.set(Noop)) *> // reset latch
-            // if we're marked as done, yield immediately to give other fibers a chance to shut us down
-            // we might loop on this a few times since we're marked as done before the supervisor is canceled
-            F.delay(doneR.get()).ifM(F.cede, step(state, await, doneR))
-        }
-
-        0.until(workers).toList traverse_ { n =>
-          Resource.eval(F.delay(new AtomicBoolean(false))) flatMap { doneR =>
-            val latch = latches(n)
-            val worker = dispatcher(doneR, latch, states(n))
-            val release = F.delay(latch.getAndSet(Open)())
-            Resource.make(supervisor.supervise(worker)) { _ =>
-              F.delay(doneR.set(true)) *> step(states(n), F.unit, doneR) *> release
+                  override def reportFailure(t: Throwable): Unit =
+                    ec.reportFailure(t)
+                })
             }
           }
-        }
-      }
-    } yield {
-      new Dispatcher[F] {
-        override def unsafeRunAndForget[A](fa: F[A]): Unit = {
-          unsafeToFutureCancelable(fa)
-            ._1
-            .onComplete {
-              case Failure(ex) => ec.reportFailure(ex)
-              case _ => ()
-            }(parasiticEC)
-        }
-
-        def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
-          val promise = Promise[E]()
-
-          val action = fe
-            .flatMap(e => F.delay(promise.success(e)))
-            .handleErrorWith(t => F.delay(promise.failure(t)))
-            .void
-
-          val cancelState = new AtomicReference[CancelState](CancelInit)
-
-          def registerCancel(token: F[Unit]): Unit = {
-            val cancelToken = () => unsafeToFuture(token)
-
-            @tailrec
-            def loop(): Unit = {
-              val state = cancelState.get()
-              state match {
-                case CancelInit =>
-                  if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
-                    loop()
-                  }
-                case CanceledNoToken(promise) =>
-                  if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
-                    loop()
-                  } else {
-                    cancelToken().onComplete {
-                      case Success(_) => promise.success(())
-                      case Failure(ex) => promise.failure(ex)
-                    }(ec)
-                  }
-                case _ => ()
-              }
-            }
-
-            loop()
-          }
-
-          @tailrec
-          def enqueue(state: AtomicReference[List[Registration]], reg: Registration): Unit = {
-            val curr = state.get()
-            if (curr eq null) {
-              throw new IllegalStateException("dispatcher already shutdown")
-            } else {
-              val next = reg :: curr
-              if (!state.compareAndSet(curr, next)) enqueue(state, reg)
-            }
-          }
-
-          val (state, lt) = if (workers > 1) {
-            val rand = ThreadLocalRandom.current()
-            val dispatcher = rand.nextInt(workers)
-            val inner = rand.nextInt(workers)
-
-            (states(dispatcher)(inner), latches(dispatcher))
-          } else {
-            (states(0)(0), latches(0))
-          }
-
-          val reg = Registration(action, registerCancel _)
-          enqueue(state, reg)
-
-          if (lt.get() ne Open) {
-            val f = lt.getAndSet(Open)
-            f()
-          }
-
-          val cancel = { () =>
-            reg.lazySet(false)
-
-            @tailrec
-            def loop(): Future[Unit] = {
-              val state = cancelState.get()
-              state match {
-                case CancelInit =>
-                  val promise = Promise[Unit]()
-                  if (!cancelState.compareAndSet(state, CanceledNoToken(promise))) {
-                    loop()
-                  } else {
-                    promise.future
-                  }
-                case CanceledNoToken(promise) =>
-                  promise.future
-                case CancelToken(cancelToken) =>
-                  cancelToken()
-              }
-            }
-
-            loop()
-          }
-
-          (promise.future, cancel)
         }
       }
     }
+
+  private final class Registration[F[_]](
+      var action: F[Unit],
+      val cancelR: AtomicReference[F[Unit]],
+      val forceParallel: Boolean)
+
+  // the signal is just a skolem for the atomic references; we never actually run it
+  private final class Worker[F[_]: Sync](
+      val queue: UnsafeAsyncQueue[F, Registration[F]],
+      supervisor: Supervisor[F])( // only needed for cancelation spawning
+      spawn: F[Unit] => (F[Unit] => F[Unit]) => F[Unit]) {
+
+    val run: F[Unit] = {
+      val go = queue.take flatMap { reg =>
+        // println("got registration")
+
+        Sync[F].delay(reg.cancelR.get()) flatMap { sig =>
+          val action = reg.action
+
+          // double null check catches overly-aggressive memory fencing
+          if (sig == null && action != null) {
+            // println("...it wasn't canceled")
+
+            if (reg.forceParallel) {
+              // this branch is only used for cancelation
+              supervisor.supervise(action).void
+            } else {
+              // this is the main branch
+              spawn(action) { cancelF =>
+                // println("...spawned")
+
+                Sync[F].delay(
+                  reg.cancelR.compareAndSet(null.asInstanceOf[F[Unit]], cancelF)) flatMap {
+                  check =>
+                    // we need to double-check that we didn't lose the race
+                    if (check)
+                      // don't cancel, already spawned
+                      Applicative[F].unit
+                    else
+                      // cancel spawn (we lost the race)
+                      cancelF
+                }
+              }
+            }
+          } else {
+            // don't spawn, already canceled
+            Applicative[F].unit
+          }
+        }
+      }
+
+      go.foreverM
+    }
   }
 
-  private sealed trait Mode extends Product with Serializable
+  private object Worker {
+    def apply[F[_]: Async](supervisor: Supervisor[F])(
+        spawn: F[Unit] => (F[Unit] => F[Unit]) => F[Unit]): F[Worker[F]] =
+      Sync[F].delay(
+        new Worker[F](new UnsafeAsyncQueue[F, Registration[F]](), supervisor)(spawn))
+  }
 
-  private object Mode {
-    case object Parallel extends Mode
-    case object Sequential extends Mode
+  private val Signal: Either[Any, Unit] => Unit = _ => ()
+  private val RightUnit: Right[Nothing, Unit] = Right(())
+
+  // MPSC assumption
+  private final class UnsafeAsyncQueue[F[_]: Async, A] {
+    private[this] val buffer = new LinkedBlockingQueue[A]()
+    private[this] val latchR = new AtomicReference[Either[Throwable, Unit] => Unit](null)
+
+    def unsafeOffer(a: A): Unit = {
+      buffer.offer(a)
+
+      val f = latchR.get()
+      if (latchR.compareAndSet(f, Signal)) {
+        if (f != null) {
+          f(RightUnit)
+        }
+        // if f == null, take will loop back around and discover the Signal
+      }
+    }
+
+    def take: F[A] = {
+      val latchF = Async[F].asyncCheckAttempt[Unit] { k =>
+        Sync[F] delay {
+          if (latchR.compareAndSet(null, k)) {
+            Left(Some(Applicative[F].unit)) // all cleanup is elsewhere
+          } else {
+            val result = latchR.compareAndSet(Signal, null)
+            require(
+              result
+            ) // since this is a single consumer queue, we should never have multiple callbacks
+            Right(())
+          }
+        }
+      }
+
+      MonadCancel[F] uncancelable { poll =>
+        Sync[F].delay(buffer.poll()) flatMap { a =>
+          if (a == null)
+            poll(latchF >> take)
+          else
+            Applicative[F].pure(a)
+        }
+      }
+    }
   }
 }
