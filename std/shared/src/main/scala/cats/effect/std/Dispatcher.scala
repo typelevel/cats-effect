@@ -17,14 +17,14 @@
 package cats.effect.std
 
 import cats.Applicative
-import cats.effect.kernel.{Async, Concurrent, MonadCancel, Outcome, Resource, Sync}
+import cats.effect.kernel.{Async, Concurrent, MonadCancel, Outcome, Resource, Spawn, Sync}
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Failure
 
-import java.util.concurrent.{LinkedBlockingQueue /*, ThreadLocalRandom*/}
+import java.util.concurrent.{LinkedBlockingQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
@@ -91,7 +91,7 @@ object Dispatcher {
     def reportFailure(t: Throwable) = t.printStackTrace()
   }
 
-  // private[this] val Cpus: Int = Runtime.getRuntime().availableProcessors()
+  private[this] val Cpus: Int = Runtime.getRuntime().availableProcessors()
 
   @deprecated(
     message =
@@ -148,7 +148,7 @@ object Dispatcher {
    *   - true - wait for the completion of the active fibers
    *   - false - cancel the active fibers
    */
-  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] = sequential[F](await)
+  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] = impl[F](true, await)
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
@@ -184,26 +184,53 @@ object Dispatcher {
    *   - false - cancel the active fiber
    */
   def sequential[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
+    impl[F](false, await)
+
+  private[this] def impl[F[_]: Async](
+      parallel: Boolean,
+      await: Boolean): Resource[F, Dispatcher[F]] =
+    // the outer supervisor is for the worker fibers
+    // the inner supervisor is for tasks (if parallel) and finalizers
     Supervisor[F](
       await = await,
-      checkRestart = Some((_: Outcome[F, Throwable, _]) => true)) flatMap { supervisor =>
-      // we only need this flag to raise the IllegalStateException after closure (Supervisor can't do it for us)
-      val termination = Resource.make(Sync[F].delay(new AtomicBoolean(false)))(doneR =>
-        Sync[F].delay(doneR.set(true)))
+      checkRestart = Some((_: Outcome[F, Throwable, _]) => true)) flatMap { workervisor =>
+      Supervisor[F](await = await) flatMap { supervisor =>
+        // we only need this flag to raise the IllegalStateException after closure (Supervisor can't do it for us)
+        val termination = Resource.make(Sync[F].delay(new AtomicBoolean(false)))(doneR =>
+          Sync[F].delay(doneR.set(true)))
 
-      termination flatMap { doneR =>
-        // we sequentialize on worker spawning, so we don't need to use Deferred here
-        Resource.eval(Concurrent[F].ref(Applicative[F].unit)) flatMap { cancelR =>
-          // in sequential spawning, the only cancelation cancels and restarts the worker itself
-          def spawn(fu: F[Unit])(setupCancelation: F[Unit] => F[Unit]): F[Unit] =
-            cancelR.get.flatMap(setupCancelation) *> fu
+        termination flatMap { doneR =>
+          // we sequentialize on worker spawning, so we don't need to use Deferred here
+          Resource.eval(Concurrent[F].ref(Applicative[F].unit)) flatMap { cancelR =>
+            def spawn(fu: F[Unit])(setupCancelation: F[Unit] => F[Unit]): F[Unit] = {
+              // TODO move this out
+              if (parallel)
+                // in parallel spawning, we have a real fiber which we need to kill off
+                supervisor.supervise(fu).flatMap(f => setupCancelation(f.cancel))
+              else
+                // in sequential spawning, the only cancelation cancels and restarts the worker itself
+                cancelR.get.flatMap(setupCancelation) *> fu
+            }
 
-          Worker[F](supervisor)(spawn) evalMap { worker =>
-            Async[F].executionContext flatMap { ec =>
-              supervisor
-                .supervise(worker.run)
-                .flatMap(f => cancelR.set(f.cancel))
-                .as(new Dispatcher[F] {
+            val workerF = Worker[F](supervisor)(spawn)
+            val workersF =
+              if (parallel)
+                workerF.replicateA(Cpus).map(_.toArray)
+              else
+                workerF.map(w => Array(w))
+
+            workersF evalMap { workers =>
+              Async[F].executionContext flatMap { ec =>
+                val launchAll = 0.until(workers.length).toList traverse_ { i =>
+                  val launch = workervisor.supervise(workers(i).run)
+
+                  if (parallel)
+                    launch.void
+                  else
+                    launch.flatMap(f => cancelR.set(f.cancel))
+                }
+
+                launchAll.as(new Dispatcher[F] {
                   def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit]) = {
                     def inner[E](fe: F[E], isFinalizer: Boolean)
                         : (Future[E], () => Future[Unit]) = {
@@ -214,20 +241,28 @@ object Dispatcher {
                       val p = Promise[E]()
 
                       // forward atomicity guarantees onto promise completion
-                      val fu = MonadCancel[F] uncancelable { poll =>
+                      val promisory = MonadCancel[F] uncancelable { poll =>
                         poll(fe).redeemWith(
                           e => Sync[F].delay(p.failure(e)),
                           a => Sync[F].delay(p.success(a)))
                       }
 
+                      val worker =
+                        if (parallel)
+                          workers(ThreadLocalRandom.current().nextInt(Cpus))
+                        else
+                          workers(0)
+
                       if (isFinalizer) {
-                        worker.queue.unsafeOffer(Registration.Finalizer(fu.void))
+                        worker.queue.unsafeOffer(Registration.Finalizer(promisory.void))
 
                         // cannot cancel a cancel
                         (p.future, () => Future.failed(new UnsupportedOperationException))
                       } else {
                         val reg =
-                          new Registration.Primary(fu.void, new AtomicReference[F[Unit]]())
+                          new Registration.Primary(
+                            promisory.void,
+                            new AtomicReference[F[Unit]]())
                         worker.queue.unsafeOffer(reg)
 
                         def cancel(): Future[Unit] = {
@@ -255,6 +290,7 @@ object Dispatcher {
                   override def reportFailure(t: Throwable): Unit =
                     ec.reportFailure(t)
                 })
+              }
             }
           }
         }
@@ -273,7 +309,7 @@ object Dispatcher {
   }
 
   // the signal is just a skolem for the atomic references; we never actually run it
-  private final class Worker[F[_]: Sync](
+  private final class Worker[F[_]: Async](
       val queue: UnsafeAsyncQueue[F, Registration[F]],
       supervisor: Supervisor[F])( // only needed for cancelation spawning
       spawn: F[Unit] => (F[Unit] => F[Unit]) => F[Unit]) {
@@ -320,7 +356,7 @@ object Dispatcher {
           Sync[F].delay(doneR.set(true))
       }
 
-      Sync[F].delay(doneR.get()).ifM(Applicative[F].unit, step >> run)
+      Sync[F].delay(doneR.get()).ifM(Spawn[F].cede, step >> run)
     }
   }
 
