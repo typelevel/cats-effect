@@ -136,7 +136,7 @@ jobs:
       - name: Setup Java (temurin@8)
         id: setup-java-temurin-8
         if: matrix.java == 'temurin@8'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 8
@@ -150,7 +150,7 @@ jobs:
       - name: Setup Java (temurin@11)
         id: setup-java-temurin-11
         if: matrix.java == 'temurin@11'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 11
@@ -164,7 +164,7 @@ jobs:
       - name: Setup Java (temurin@17)
         id: setup-java-temurin-17
         if: matrix.java == 'temurin@17'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
@@ -178,7 +178,7 @@ jobs:
       - name: Setup Java (temurin@21)
         id: setup-java-temurin-21
         if: matrix.java == 'temurin@21'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
@@ -319,7 +319,7 @@ jobs:
       - name: Setup Java (temurin@8)
         id: setup-java-temurin-8
         if: matrix.java == 'temurin@8'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 8
@@ -332,7 +332,7 @@ jobs:
       - name: Setup Java (temurin@11)
         id: setup-java-temurin-11
         if: matrix.java == 'temurin@11'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 11
@@ -345,7 +345,7 @@ jobs:
       - name: Setup Java (temurin@17)
         id: setup-java-temurin-17
         if: matrix.java == 'temurin@17'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
@@ -358,7 +358,7 @@ jobs:
       - name: Setup Java (temurin@21)
         id: setup-java-temurin-21
         if: matrix.java == 'temurin@21'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
@@ -539,7 +539,7 @@ jobs:
       - name: Setup Java (temurin@8)
         id: setup-java-temurin-8
         if: matrix.java == 'temurin@8'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 8
@@ -552,7 +552,7 @@ jobs:
       - name: Setup Java (temurin@11)
         id: setup-java-temurin-11
         if: matrix.java == 'temurin@11'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 11
@@ -565,7 +565,7 @@ jobs:
       - name: Setup Java (temurin@17)
         id: setup-java-temurin-17
         if: matrix.java == 'temurin@17'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
@@ -578,7 +578,7 @@ jobs:
       - name: Setup Java (temurin@21)
         id: setup-java-temurin-21
         if: matrix.java == 'temurin@21'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
