@@ -916,8 +916,8 @@ case class State[F[_], A](queue: Queue[A], capacity: Int, takers: Queue[Deferred
 ```
 
 Of course both consumer and producer have to be modified to handle this new
-queue `offerers`. A consumer can find four escenarios, depending on if `queue`
-and `offerers` are each one empty or not. For each escenario a consumer shall:
+queue `offerers`. A consumer can find four scenarios, depending on if `queue`
+and `offerers` are each one empty or not. For each scenario a consumer shall:
 1. If `queue` is not empty:
     1. If `offerers` is empty then it will extract and return `queue`'s head.
     2. If `offerers` is not empty (there is some producer waiting) then things
