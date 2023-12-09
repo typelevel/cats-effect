@@ -117,6 +117,28 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
         test.void must completeAs(())
     }
+
+    "invalidate cancelation action of task when complete" in real {
+      IO.ref(false) flatMap { resultR =>
+        val test = dispatcher use { runner =>
+          for {
+            latch1 <- IO.deferred[Unit]
+            latch2 <- IO.deferred[Unit]
+
+            (_, cancel) <- IO(runner.unsafeToFutureCancelable(IO.unit))
+            _ <- IO(
+              runner.unsafeRunAndForget(latch1.complete(()) *> latch2.get *> resultR.set(true)))
+
+            _ <- latch1.get
+            _ <- IO.fromFuture(IO(cancel()))
+            _ <- latch2.complete(())
+          } yield ok
+        }
+
+        // if it was canceled, it will be false
+        (test *> resultR.get).flatMap(b => IO(b must beTrue))
+      }
+    }
   }
 
   "parallel dispatcher" should {
@@ -244,12 +266,12 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       }
     }
 
-    /*"fail to terminate when running one's own release in all modes" in ticked { implicit ticker =>
+    /*"fail to terminate when running one's own release in all modes" in real {
       val test = dispatcher.allocated flatMap {
         case (runner, release) => IO(runner.unsafeRunAndForget(release))
       }
 
-      test must nonTerminate
+      TestControl.executeEmbed(test).attempt.flatMap(e => IO(e must beLeft))
     }*/
   }
 

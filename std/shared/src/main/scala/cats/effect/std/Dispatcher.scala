@@ -20,6 +20,7 @@ import cats.Applicative
 import cats.effect.kernel.{Async, Concurrent, MonadCancel, Outcome, Resource, Spawn, Sync}
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
+import cats.effect.kernel.syntax.all._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Failure
@@ -239,10 +240,15 @@ object Dispatcher {
                       }
 
                       val p = Promise[E]()
+                      val cancelR = new AtomicReference[F[Unit]]()
+
+                      val invalidateCancel =
+                        Sync[F].delay(cancelR.set(null.asInstanceOf[F[Unit]]))
 
                       // forward atomicity guarantees onto promise completion
                       val promisory = MonadCancel[F] uncancelable { poll =>
-                        poll(fe).redeemWith(
+                        // invalidate the cancel action when we're done
+                        poll(fe.guarantee(invalidateCancel)).redeemWith(
                           e => Sync[F].delay(p.failure(e)),
                           a => Sync[F].delay(p.success(a)))
                       }
@@ -254,15 +260,18 @@ object Dispatcher {
                           workers(0)
 
                       if (isFinalizer) {
-                        worker.queue.unsafeOffer(Registration.Finalizer(promisory.void))
+                        // bypass over-eager warning
+                        val abortResult: Any = ()
+                        val abort = Sync[F].delay(p.success(abortResult.asInstanceOf[E])).void
+
+                        worker
+                          .queue
+                          .unsafeOffer(Registration.Finalizer(promisory.void, cancelR, abort))
 
                         // cannot cancel a cancel
                         (p.future, () => Future.failed(new UnsupportedOperationException))
                       } else {
-                        val reg =
-                          new Registration.Primary(
-                            promisory.void,
-                            new AtomicReference[F[Unit]]())
+                        val reg = new Registration.Primary(promisory.void, cancelR)
                         worker.queue.unsafeOffer(reg)
 
                         def cancel(): Future[Unit] = {
@@ -270,9 +279,9 @@ object Dispatcher {
 
                           // publishes action write
                           // TODO this provides incorrect semantics for multiple cancel() call sites
-                          val cancelF = reg
-                            .cancelR
-                            .getAndSet(Applicative[F].unit) // anything that isn't null, really
+                          val cancelF = cancelR.getAndSet(
+                            Applicative[F].unit
+                          ) // anything that isn't null, really
                           if (cancelF != null)
                             // this looping is fine, since we drop the cancel
                             inner(cancelF, true)._1
@@ -303,7 +312,15 @@ object Dispatcher {
     final class Primary[F[_]](var action: F[Unit], val cancelR: AtomicReference[F[Unit]])
         extends Registration[F]
 
-    final case class Finalizer[F[_]](action: F[Unit]) extends Registration[F]
+    // the only reason for cancelR here is to double check the cancelation invalidation when the
+    // action is *observed* by the worker fiber, which only matters in sequential mode
+    // this captures the race condition where the cancel action is invoked exactly as the main
+    // action completes and avoids the pathological case where we accidentally cancel the worker
+    final case class Finalizer[F[_]](
+        action: F[Unit],
+        cancelR: AtomicReference[F[Unit]],
+        abort: F[Unit])
+        extends Registration[F]
 
     final case class PoisonPill[F[_]]() extends Registration[F]
   }
@@ -349,8 +366,13 @@ object Dispatcher {
             }
           }
 
-        case Registration.Finalizer(action) =>
-          supervisor.supervise(action).void
+        case Registration.Finalizer(action, cancelR, abort) =>
+          // here's the double-check for late finalization
+          // if == null then the task is complete and we ignore
+          if (cancelR.get() != null)
+            supervisor.supervise(action).void
+          else
+            abort
 
         case Registration.PoisonPill() =>
           Sync[F].delay(doneR.set(true))
