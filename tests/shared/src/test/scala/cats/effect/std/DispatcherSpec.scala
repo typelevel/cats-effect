@@ -24,6 +24,8 @@ import cats.syntax.all._
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.concurrent.duration._
 
+import java.util.concurrent.atomic.AtomicInteger
+
 class DispatcherSpec extends BaseSpec with DetectPlatform {
 
   override def executionTimeout = 30.seconds
@@ -102,6 +104,18 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       }
 
       TestControl.executeEmbed(rec.use(_ => IO(canceled must beFalse)))
+    }
+
+    "reject new tasks after release action is submitted as a task" in ticked {
+      implicit ticker =>
+        val test = dispatcher.allocated.flatMap {
+          case (runner, release) =>
+            IO(runner.unsafeRunAndForget(release)) *>
+              IO.sleep(100.millis) *>
+              IO(runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException])
+        }
+
+        test.void must completeAs(())
     }
   }
 
@@ -229,6 +243,14 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           .as(ok)
       }
     }
+
+    /*"fail to terminate when running one's own release in all modes" in ticked { implicit ticker =>
+      val test = dispatcher.allocated flatMap {
+        case (runner, release) => IO(runner.unsafeRunAndForget(release))
+      }
+
+      test must nonTerminate
+    }*/
   }
 
   private def common(dispatcher: Resource[IO, Dispatcher[IO]]) = {
@@ -250,9 +272,8 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     }
 
     "run several IOs back to back" in real {
-      @volatile
-      var counter = 0
-      val increment = IO(counter += 1)
+      val counter = new AtomicInteger(0)
+      val increment = IO(counter.getAndIncrement()).void
 
       val num = 10
 
@@ -260,7 +281,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
       }
 
-      rec.use(_ => IO(counter mustEqual num))
+      rec.use(_ => IO(counter.get() mustEqual num))
     }
 
     "raise an error on leaked runner" in real {
@@ -367,18 +388,6 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
             }
         }
         .replicateA(5)
-    }
-
-    "issue 3501: reject new tasks after release action is submitted as a task" in ticked {
-      implicit ticker =>
-        val test = dispatcher.allocated.flatMap {
-          case (runner, release) =>
-            IO(runner.unsafeRunAndForget(release)) *>
-              IO.sleep(100.millis) *>
-              IO(runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException])
-        }
-
-        test.void must completeAs(())
     }
 
     "cancel inner awaits when canceled" in ticked { implicit ticker =>
