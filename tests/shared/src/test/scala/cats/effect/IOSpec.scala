@@ -1556,6 +1556,34 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
     }
 
+    "parTraverseN_" should {
+
+      "throw when n < 1" in real {
+        IO.defer {
+          List.empty[Int].parTraverseN_(0)(_.pure[IO])
+        }.mustFailWith[IllegalArgumentException]
+      }
+
+      "propagate errors" in real {
+        List(1, 2, 3)
+          .parTraverseN_(2) { (n: Int) =>
+            if (n == 2) IO.raiseError(new RuntimeException) else n.pure[IO]
+          }
+          .mustFailWith[RuntimeException]
+      }
+
+      "be cancelable" in ticked { implicit ticker =>
+        val p = for {
+          f <- List(1, 2, 3).parTraverseN_(2)(_ => IO.never).start
+          _ <- IO.sleep(100.millis)
+          _ <- f.cancel
+        } yield true
+
+        p must completeAs(true)
+      }
+
+    }
+
     "parallel" should {
       "run parallel actually in parallel" in real {
         val x = IO.sleep(2.seconds) >> IO.pure(1)
