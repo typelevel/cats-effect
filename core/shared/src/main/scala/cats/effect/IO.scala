@@ -22,6 +22,7 @@ import cats.{
   Applicative,
   CommutativeApplicative,
   Eval,
+  Foldable,
   Functor,
   Id,
   Monad,
@@ -1419,6 +1420,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    */
   def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => IO[B]): IO[T[B]] =
     _asyncForIO.parTraverseN(n)(ta)(f)
+
+  /**
+   * Like `Parallel.parTraverse_`, but limits the degree of parallelism.
+   */
+  def parTraverseN_[T[_]: Foldable, A, B](n: Int)(ta: T[A])(f: A => IO[B]): IO[Unit] =
+    _asyncForIO.parTraverseN_(n)(ta)(f)
+
+  /**
+   * Like `Parallel.parSequence_`, but limits the degree of parallelism.
+   */
+  def parSequenceN_[T[_]: Foldable, A](n: Int)(tma: T[IO[A]]): IO[Unit] =
+    _asyncForIO.parSequenceN_(n)(tma)
 
   /**
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
