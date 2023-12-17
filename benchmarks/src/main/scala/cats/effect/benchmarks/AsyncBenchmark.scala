@@ -47,7 +47,7 @@ class AsyncBenchmark {
   var size: Int = _
 
   def evalAsync(n: Int): IO[Int] =
-    IO.async_(_(Right(n)))
+    IO.async_ { cb => cb(Right(n)); () }
 
   def evalCancelable(n: Int): IO[Int] =
     IO.async[Int] { cb =>

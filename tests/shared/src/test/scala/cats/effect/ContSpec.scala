@@ -63,10 +63,9 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(rt.scheduler.sleep(10.millis, () => resume(Right(42))))) >>
+          lift(IO(rt.scheduler.sleep(10.millis, () => { resume(Right(42)); () }))) >>
             get.map(_.toString)
         }
-
       }
     }
 
@@ -118,7 +117,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
           cont {
             new Cont[IO, Unit, Unit] {
               def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                lift(IO(rt.scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
+                lift(IO(rt.scheduler.sleep(2.seconds, () => { resume(().asRight); () }))) >>
                   get.onCancel {
                     lift(start.set(true)) >> get >> lift(end.set(true))
                   }
@@ -139,7 +138,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
           cont {
             new Cont[IO, Unit, Unit] {
               def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                lift(IO(rt.scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
+                lift(IO(rt.scheduler.sleep(2.seconds, () => { resume(().asRight); () }))) >>
                   get.onCancel {
                     lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
                   }
@@ -155,7 +154,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val test = cont {
       new Cont[IO, Unit, Unit] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(rt.scheduler.sleep(1.second, () => resume(().asRight)))) >>
+          lift(IO(rt.scheduler.sleep(1.second, () => { resume(().asRight); () }))) >>
             lift(IO.never).onCancel(get)
         }
       }
@@ -182,10 +181,9 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(rt.scheduler.sleep(10.millis, () => resume(Right(42))))) >> get >>
+          lift(IO(rt.scheduler.sleep(10.millis, () => { resume(Right(42)); () }))) >> get >>
             get.map(_.toString)
         }
-
       }
     }
 

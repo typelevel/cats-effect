@@ -20,7 +20,7 @@ class CallbackStackSpec extends BaseSpec with DetectPlatform {
 
   "CallbackStack" should {
     "correctly report the number removed" in {
-      val stack = CallbackStack.of[Unit](null)
+      val stack = CallbackStack.of[Unit, Unit](null)
       val handle = stack.push(_ => ())
       stack.push(_ => ())
       val removed = stack.clearHandle(handle)
@@ -32,7 +32,7 @@ class CallbackStackSpec extends BaseSpec with DetectPlatform {
 
     "handle race conditions in pack" in real {
 
-      IO(CallbackStack.of[Unit](null)).flatMap { stack =>
+      IO(CallbackStack.of[Unit, Unit](null)).flatMap { stack =>
         val pushClearPack = for {
           handle <- IO(stack.push(_ => ()))
           removed <- IO(stack.clearHandle(handle))
@@ -49,7 +49,5 @@ class CallbackStackSpec extends BaseSpec with DetectPlatform {
           .as(ok)
       }
     }
-
   }
-
 }

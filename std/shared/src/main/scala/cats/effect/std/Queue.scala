@@ -547,8 +547,8 @@ object Queue {
 
     private[this] val buffer = new UnsafeBounded[A](capacity)
 
-    private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
-    private[this] val offerers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+    private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Boolean]()
+    private[this] val offerers = new UnsafeUnbounded[Either[Throwable, Unit] => Boolean]()
 
     private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
@@ -770,7 +770,7 @@ object Queue {
     // TODO could optimize notifications by checking if buffer is completely empty on put
     @tailrec
     private[this] def notifyOne(
-        waiters: UnsafeUnbounded[Either[Throwable, Unit] => Unit]): Unit = {
+        waiters: UnsafeUnbounded[Either[Throwable, Unit] => Boolean]): Unit = {
       // capture whether or not we should loop (structured in this way to avoid nested try/catch, which has a performance cost)
       val retry =
         try {
@@ -804,7 +804,7 @@ object Queue {
 
   private final class UnboundedAsyncQueue[F[_], A]()(implicit F: Async[F]) extends Queue[F, A] {
     private[this] val buffer = new UnsafeUnbounded[A]()
-    private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+    private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Boolean]()
     private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
     def offer(a: A): F[Unit] = F delay {

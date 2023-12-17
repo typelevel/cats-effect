@@ -87,7 +87,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
-  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack.of(cb)
+  private[this] val callbacks: CallbackStack[OutcomeIO[A], Unit] = CallbackStack.of(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
   private[this] val runtime: IORuntime = rt
@@ -165,7 +165,7 @@ private final class IOFiber[A](
   private[this] var _join: IO[OutcomeIO[A]] = IO.asyncCheckAttempt { cb =>
     IO {
       if (outcome == null) {
-        val handle = callbacks.push(oc => cb(Right(oc)))
+        val handle = callbacks.push { oc => cb(Right(oc)); () }
 
         /* double-check */
         if (outcome != null) {
@@ -627,7 +627,7 @@ private final class IOFiber[A](
            */
           val state = new ContState(finalizing)
 
-          val cb: Either[Throwable, Any] => Unit = { e =>
+          val cb: Either[Throwable, Any] => Boolean = { e =>
             // if someone called `cb` with `null`,
             // we'll pretend it's an NPE:
             val result = if (e eq null) {
@@ -647,7 +647,7 @@ private final class IOFiber[A](
              * to run the finalizers.
              */
             @tailrec
-            def loop(): Unit = {
+            def loop(): Boolean = {
               // println(s"cb loop sees suspended ${suspended.get} on fiber $name")
               /* try to take ownership of the runloop */
               if (resume()) {
@@ -659,7 +659,7 @@ private final class IOFiber[A](
                   }
 
                   val ec = currentCtx
-                  if (!shouldFinalize()) {
+                  val continued = if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
                     result match {
                       case Left(t) =>
@@ -669,20 +669,24 @@ private final class IOFiber[A](
                         resumeTag = AsyncContinueSuccessfulR
                         objectState.push(a.asInstanceOf[AnyRef])
                     }
+                    true
                   } else {
                     /*
                      * we were canceled, but since we have won the race on `suspended`
                      * via `resume`, `cancel` cannot run the finalisers, and we have to.
                      */
                     resumeTag = AsyncContinueCanceledR
+                    false
                   }
                   scheduleFiber(ec, this)
+                  continued
                 } else {
                   /*
                    * we were canceled while suspended, then our finalizer suspended,
                    * then we hit this line, so we shouldn't own the runloop at all
                    */
                   suspend()
+                  false
                 }
               } else if (finalizing == state.wasFinalizing && !shouldFinalize() && outcome == null) {
                 /*
@@ -692,13 +696,14 @@ private final class IOFiber[A](
                  * ownership of the runloop.
                  */
                 loop()
+              } else {
+                /*
+                 * If we are canceled or completed or in the process of finalizing
+                 * when we previously weren't, just die off and let `cancel` or `get`
+                 * win the race to `resume` and run the finalisers.
+                 */
+                false
               }
-
-              /*
-               * If we are canceled or completed or in hte process of finalizing
-               * when we previously weren't, just die off and let `cancel` or `get`
-               * win the race to `resume` and run the finalisers.
-               */
             }
 
             val waiting = state.waiting
@@ -720,7 +725,7 @@ private final class IOFiber[A](
              * (guards from double calls).
              */
             @tailrec
-            def stateLoop(): Unit = {
+            def stateLoop(): Boolean = {
               val tag = state.get()
               if ((tag eq null) || (tag eq waiting)) {
                 if (!state.compareAndSet(tag, result)) {
@@ -732,8 +737,13 @@ private final class IOFiber[A](
                      * reacquire runloop to continue
                      */
                     loop()
+                  } else {
+                    true // FIXME: did we actually woke up the fiber?
                   }
                 }
+              } else {
+                // someone else already completed the callback
+                false
               }
             }
 
@@ -917,8 +927,8 @@ private final class IOFiber[A](
                     rt
                   )
 
-                  fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
-                  fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
+                  fiberA.setCallback { oc => cb(Right(Left((oc, fiberB)))); () }
+                  fiberB.setCallback { oc => cb(Right(Right((fiberA, oc)))); () }
 
                   scheduleFiber(ec, fiberA)
                   scheduleFiber(ec, fiberB)
@@ -955,7 +965,7 @@ private final class IOFiber[A](
                           .sleepInternal(delay, cb)
                       IO.Delay(cancel, null)
                     } else {
-                      val cancel = scheduler.sleep(delay, () => cb(RightUnit))
+                      val cancel = scheduler.sleep(delay, () => { cb(RightUnit); () })
                       IO(cancel.run())
                     }
 

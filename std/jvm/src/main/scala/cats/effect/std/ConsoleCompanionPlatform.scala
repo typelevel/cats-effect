@@ -49,7 +49,7 @@ private[std] trait ConsoleCompanionPlatform extends ConsoleCompanionCrossPlatfor
 
     private final class ReadLineRequest(
         val charset: Charset,
-        @volatile var callback: Either[Throwable, String] => Unit
+        @volatile var callback: Either[Throwable, String] => Boolean
     ) extends Runnable {
       def run() = callback = null
     }
@@ -58,7 +58,7 @@ private[std] trait ConsoleCompanionPlatform extends ConsoleCompanionCrossPlatfor
 
     def readLineWithCharset(
         charset: Charset,
-        cb: Either[Throwable, String] => Unit): Runnable = {
+        cb: Either[Throwable, String] => Boolean): Runnable = {
       val request = new ReadLineRequest(charset, cb)
       requests.offer(request)
       request
@@ -75,7 +75,7 @@ private[std] trait ConsoleCompanionPlatform extends ConsoleCompanionCrossPlatfor
 
       while (true) {
         // wait for a non-canceled request. store callback b/c it is volatile read
-        var callback: Either[Throwable, String] => Unit = null
+        var callback: Either[Throwable, String] => Boolean = null
         while ((request eq null) || { callback = request.callback; callback eq null })
           request = requests.take()
 

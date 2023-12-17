@@ -628,7 +628,7 @@ private[effect] final class WorkStealingThreadPool[P](
    */
   def sleepInternal(
       delay: FiniteDuration,
-      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+      callback: Right[Nothing, Unit] => Boolean): Function0[Unit] with Runnable = {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread[_]]) {
       val worker = thread.asInstanceOf[WorkerThread[P]]
@@ -649,7 +649,7 @@ private[effect] final class WorkStealingThreadPool[P](
    */
   private[this] final def sleepExternal(
       delay: FiniteDuration,
-      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+      callback: Right[Nothing, Unit] => Boolean): Function0[Unit] with Runnable = {
     val scheduledAt = monotonicNanos()
     val cancel = new ExternalSleepCancel
 
@@ -662,14 +662,18 @@ private[effect] final class WorkStealingThreadPool[P](
   }
 
   override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-    val cb = new AtomicBoolean with (Right[Nothing, Unit] => Unit) { // run at most once
+    val cb = new AtomicBoolean with (Right[Nothing, Unit] => Boolean) { // run at most once
       def apply(ru: Right[Nothing, Unit]) = if (compareAndSet(false, true)) {
         try {
           task.run()
+          true
         } catch {
           case ex if NonFatal(ex) =>
             reportFailure(ex)
+            true // FIXME
         }
+      } else {
+        false
       }
     }
 
