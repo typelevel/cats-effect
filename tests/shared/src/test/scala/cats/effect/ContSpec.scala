@@ -45,16 +45,38 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
 
   type Cancelable[F[_]] = MonadCancel[F, Throwable]
 
-  "get resumes" in real {
-    val io = cont {
+  "register resumes" in real {
+    def io(ref: Ref[IO, Boolean]) = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(resume(Right(42)))) >> get.map(_.toString)
+          lift(IO(resume(Right(42))).flatMap(ref.set)) >> get.map(_.toString)
         }
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual "42"))
+    val test = IO.ref(false).flatMap { ref =>
+      io(ref).flatMap(r => IO(r mustEqual "42")) >> ref.get.flatMap { flag =>
+        IO(flag mustEqual true)
+      }
+    }
+
+    execute(test, iterations)
+  }
+
+  "register resumes, but no get" in real {
+    def io(ref: Ref[IO, Boolean]) = cont {
+      new Cont[IO, Int, String] {
+        def apply[F[_]: Cancelable] = { (resume, _, lift) =>
+          lift(IO(resume(Right(42))).flatMap(ref.set)) >> lift(IO.pure("foo"))
+        }
+      }
+    }
+
+    val test = IO.ref(false).flatMap { ref =>
+      io(ref).flatMap(r => IO(r mustEqual "foo")) >> ref.get.flatMap { flag =>
+        IO(flag mustEqual true) // FIXME: but why?
+      }
+    }
 
     execute(test, iterations)
   }
