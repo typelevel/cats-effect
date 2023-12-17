@@ -42,18 +42,21 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
     new Cont[F, A, A] {
       def apply[G[_]](
           implicit
-          G: MonadCancelThrow[G]): (Either[Throwable, A] => Unit, G[A], F ~> G) => G[A] = {
+          G: MonadCancelThrow[G]): (Either[Throwable, A] => Boolean, G[A], F ~> G) => G[A] = {
         (resume, get, lift) =>
           G.uncancelable { poll =>
             G.flatMap(poll(lift(fut))) { cf =>
               val go = delay {
                 cf.handle[Unit] {
-                  case (a, null) => resume(Right(a))
+                  case (a, null) =>
+                    resume(Right(a))
+                    ()
                   case (_, t) =>
                     resume(Left(t match {
                       case e: CompletionException if e.getCause ne null => e.getCause
                       case _ => t
                     }))
+                    ()
                 }
               }
 

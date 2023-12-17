@@ -20,17 +20,17 @@ import scala.scalajs.js
 
 import CallbackStack.Handle
 
-private trait CallbackStack[A] extends js.Object
+private trait CallbackStack[A, B] extends js.Object
 
-private final class CallbackStackOps[A](private val callbacks: js.Array[A => Unit])
+private final class CallbackStackOps[A, B](private val callbacks: js.Array[A => B])
     extends AnyVal {
 
-  @inline def push(next: A => Unit): Handle[A] = {
+  @inline def push(next: A => B): Handle[A] = {
     callbacks.push(next)
     callbacks.length - 1
   }
 
-  @inline def unsafeSetCallback(cb: A => Unit): Unit = {
+  @inline def unsafeSetCallback(cb: A => B): Unit = {
     callbacks(callbacks.length - 1) = cb
   }
 
@@ -42,7 +42,7 @@ private final class CallbackStackOps[A](private val callbacks: js.Array[A => Uni
     callbacks
       .asInstanceOf[js.Dynamic]
       .reduceRight( // skips deleted indices, but there can still be nulls
-        (acc: Boolean, cb: A => Unit) =>
+        (acc: Boolean, cb: A => B) =>
           if (cb ne null) { cb(oc); true }
           else acc,
         false)
@@ -66,11 +66,12 @@ private final class CallbackStackOps[A](private val callbacks: js.Array[A => Uni
 }
 
 private object CallbackStack {
-  @inline def of[A](cb: A => Unit): CallbackStack[A] =
-    js.Array(cb).asInstanceOf[CallbackStack[A]]
 
-  @inline implicit def ops[A](stack: CallbackStack[A]): CallbackStackOps[A] =
-    new CallbackStackOps(stack.asInstanceOf[js.Array[A => Unit]])
+  @inline def of[A, B](cb: A => B): CallbackStack[A, B] =
+    js.Array(cb).asInstanceOf[CallbackStack[A, B]]
+
+  @inline implicit def ops[A, B](stack: CallbackStack[A, B]): CallbackStackOps[A, B] =
+    new CallbackStackOps(stack.asInstanceOf[js.Array[A => B]])
 
   type Handle[A] = Int
 }

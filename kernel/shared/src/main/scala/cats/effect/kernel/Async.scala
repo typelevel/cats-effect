@@ -67,7 +67,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * The given function `k` will be invoked during evaluation of `F` to:
    *   - check if result is already available;
    *   - "schedule" the asynchronous callback, where the callback of type `Either[Throwable, A]
-   *     \=> Unit` is the parameter passed to that function. Only the ''first'' invocation of
+   *     \=> Boolean` is the parameter passed to that function. Only the ''first'' invocation of
    *     the callback will be effective! All subsequent invocations will be silently dropped.
    *
    * The process of registering the callback itself is suspended in `F` (the outer `F` of
@@ -87,7 +87,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   [[async_]] for a simplified variant without an option for immediate result or finalizer
    */
   def asyncCheckAttempt[A](
-      k: (Either[Throwable, A] => Unit) => F[Either[Option[F[Unit]], A]]): F[A] = {
+      k: (Either[Throwable, A] => Boolean) => F[Either[Option[F[Unit]], A]]): F[A] = {
     val body = new Cont[F, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
         G.uncancelable { poll =>
@@ -107,7 +107,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * Suspends an asynchronous side effect in `F`.
    *
    * The given function `k` will be invoked during evaluation of the `F` to "schedule" the
-   * asynchronous callback, where the callback of type `Either[Throwable, A] => Unit` is the
+   * asynchronous callback, where the callback of type `Either[Throwable, A] => Boolean` is the
    * parameter passed to that function. Only the ''first'' invocation of the callback will be
    * effective! All subsequent invocations will be silently dropped.
    *
@@ -125,7 +125,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   [[asyncCheckAttempt]] for more generic version with option of providing immediate result
    *   of computation
    */
-  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
+  def async[A](k: (Either[Throwable, A] => Boolean) => F[Option[F[Unit]]]): F[A] =
     asyncCheckAttempt[A](cb => map(k(cb))(Left(_)))
 
   /**
@@ -147,7 +147,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   [[asyncCheckAttempt]] for more generic version with option of providing immediate result
    *   of computation and finalizer
    */
-  def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
+  def async_[A](k: (Either[Throwable, A] => Boolean) => Unit): F[A] =
     async[A](cb => as(delay(k(cb)), None))
 
   /**
@@ -311,7 +311,7 @@ object Async {
     sealed trait State
     case class Initial() extends State
     case class Value(v: Either[Throwable, K]) extends State
-    case class Waiting(cb: Either[Throwable, K] => Unit) extends State
+    case class Waiting(cb: Either[Throwable, K] => Boolean) extends State
 
     F.delay(new AtomicReference[State](Initial())).flatMap { state =>
       def get: F[K] =
@@ -328,8 +328,11 @@ object Async {
                     case s @ Initial() =>
                       state.compareAndSet(s, waiting)
                       loop()
-                    case Waiting(_) => ()
-                    case Value(v) => cb(v)
+                    case Waiting(_) =>
+                      ()
+                    case Value(v) =>
+                      cb(v)
+                      ()
                   }
 
                 def onCancel = F.delay(state.compareAndSet(waiting, Initial())).void
@@ -349,14 +352,14 @@ object Async {
           }
         }
 
-      def resume(v: Either[Throwable, K]): Unit = {
+      def resume(v: Either[Throwable, K]): Boolean = {
         @tailrec
-        def loop(): Unit =
+        def loop(): Boolean =
           state.get match {
-            case Value(_) => () /* idempotent, double calls are forbidden */
+            case Value(_) => false /* idempotent, double calls are forbidden */
             case s @ Initial() =>
               if (!state.compareAndSet(s, Value(v))) loop()
-              else ()
+              else true // FIXME: did we actually woke up the fiber?
             case s @ Waiting(cb) =>
               if (state.compareAndSet(s, Value(v))) cb(v)
               else loop()
@@ -429,7 +432,7 @@ object Async {
           new Cont[F, K, Option[R]] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[Option[R]] =
+                : (Either[Throwable, K] => Boolean, G[K], F ~> G) => G[Option[R]] =
               (cb, ga, nat) => {
                 val natT: OptionT[F, *] ~> OptionT[G, *] =
                   new ~>[OptionT[F, *], OptionT[G, *]] {
@@ -500,7 +503,7 @@ object Async {
           new Cont[F, K, Either[E, R]] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[Either[E, R]] =
+                : (Either[Throwable, K] => Boolean, G[K], F ~> G) => G[Either[E, R]] =
               (cb, ga, nat) => {
                 val natT: EitherT[F, E, *] ~> EitherT[G, E, *] =
                   new ~>[EitherT[F, E, *], EitherT[G, E, *]] {
@@ -572,7 +575,7 @@ object Async {
           new Cont[F, K, Ior[L, R]] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[Ior[L, R]] =
+                : (Either[Throwable, K] => Boolean, G[K], F ~> G) => G[Ior[L, R]] =
               (cb, ga, nat) => {
                 val natT: IorT[F, L, *] ~> IorT[G, L, *] =
                   new ~>[IorT[F, L, *], IorT[G, L, *]] {
@@ -639,7 +642,7 @@ object Async {
           new Cont[F, K, (L, R)] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[(L, R)] =
+                : (Either[Throwable, K] => Boolean, G[K], F ~> G) => G[(L, R)] =
               (cb, ga, nat) => {
                 val natT: WriterT[F, L, *] ~> WriterT[G, L, *] =
                   new ~>[WriterT[F, L, *], WriterT[G, L, *]] {
@@ -707,7 +710,7 @@ object Async {
           new Cont[F, K, R2] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[R2] =
+                : (Either[Throwable, K] => Boolean, G[K], F ~> G) => G[R2] =
               (cb, ga, nat) => {
                 val natT: Kleisli[F, R, *] ~> Kleisli[G, R, *] =
                   new ~>[Kleisli[F, R, *], Kleisli[G, R, *]] {

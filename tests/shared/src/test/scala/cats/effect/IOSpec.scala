@@ -526,7 +526,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "ignore asyncCheckAttempt callback" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 =>
           IO { cb = cb0 } *> IO.pure(Right(42))
@@ -548,7 +548,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "ignore asyncCheckAttempt callback real" in real {
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val test = for {
           latch1 <- Deferred[IO, Unit]
@@ -570,7 +570,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "repeated asyncCheckAttempt callback" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 =>
           IO { cb = cb0 } *> IO.pure(Left(None))
@@ -594,7 +594,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "repeated asyncCheckAttempt callback real" in real {
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val test = for {
           latch1 <- Deferred[IO, Unit]
@@ -622,7 +622,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           val inner = IO.asyncCheckAttempt[Int] { cb2 =>
             IO(cb1(Right(1))) *>
               IO.executionContext
-                .flatMap(ec => IO(ec.execute(() => cb2(Right(2)))))
+                .flatMap(ec => IO(ec.execute(() => { cb2(Right(2)); () })))
                 .as(Left(None))
           }
 
@@ -672,7 +672,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "repeated async callback" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val async = IO.async_[Int] { cb0 => cb = cb0 }
 
@@ -694,7 +694,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "repeated async callback real" in real {
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val test = for {
           latch1 <- Deferred[IO, Unit]
@@ -726,7 +726,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "calling async callback with null after registration (ticked)" in ticked {
         implicit ticker =>
           val test = for {
-            cbp <- Deferred[IO, Either[Throwable, Int] => Unit]
+            cbp <- Deferred[IO, Either[Throwable, Int] => Boolean]
             fib <- IO.async[Int] { cb => cbp.complete(cb).as(None) }.start
             _ <- IO(ticker.ctx.tickAll())
             cb <- cbp.get
@@ -748,7 +748,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "calling async callback with null after registration (real)" in real {
         for {
-          cbp <- Deferred[IO, Either[Throwable, Int] => Unit]
+          cbp <- Deferred[IO, Either[Throwable, Int] => Boolean]
           latch <- Deferred[IO, Unit]
           fib <- IO.async[Int] { cb => cbp.complete(cb) *> latch.get.as(None) }.start
           cb <- cbp.get
@@ -1052,7 +1052,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         val outer = IO.async[Int] { cb1 =>
           val inner = IO.async[Int] { cb2 =>
             IO(cb1(Right(1))) *>
-              IO.executionContext.flatMap(ec => IO(ec.execute(() => cb2(Right(2))))).as(None)
+              IO.executionContext.flatMap(ec => IO(ec.execute { () => cb2(Right(2)); () })).as(None)
           }
 
           inner.flatMap(i => IO { innerR = i }).as(None)
@@ -1363,10 +1363,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "catch exceptions in cont" in ticked { implicit ticker =>
         IO.cont[Unit, Unit](new Cont[IO, Unit, Unit] {
-          override def apply[F[_]](implicit F: MonadCancel[F, Throwable])
-              : (Either[Throwable, Unit] => Unit, F[Unit], cats.effect.IO ~> F) => F[Unit] = {
-            (_, _, _) => throw new Exception
-          }
+          override def apply[F[_]](implicit F: MonadCancel[F, Throwable]): (
+              Either[Throwable, Unit] => Boolean,
+              F[Unit],
+              cats.effect.IO ~> F) => F[Unit] = { (_, _, _) => throw new Exception }
         }).voidError must completeAs(())
       }
     }
@@ -1443,7 +1443,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "ensure async callback is suppressed during suspension of async finalizers" in ticked {
         implicit ticker =>
-          var cb: Either[Throwable, Unit] => Unit = null
+          var cb: Either[Throwable, Unit] => Boolean = null
 
           val subject = IO.async[Unit] { cb0 =>
             IO {
@@ -1469,7 +1469,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         var success = false
 
         val target = IO.async[Unit] { _ =>
-          val fin = IO.async_[Unit] { cb => ticker.ctx.execute(() => cb(Right(()))) } *> IO {
+          val fin = IO.async_[Unit] { cb => ticker.ctx.execute { () => cb(Right(())); () } } *> IO {
             success = true
           }
 
@@ -1974,6 +1974,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               IO.async_[Unit] { cb =>
                 inAsync = true
                 cb(Right(()))
+                ()
               }
             }
             .flatMap { _ =>

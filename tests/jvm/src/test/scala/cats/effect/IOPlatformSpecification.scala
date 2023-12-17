@@ -297,7 +297,7 @@ trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with Scala
             IO defer {
               val ai = new AtomicInteger(0)
 
-              sched.sleepInternal(500.millis, { _ => ai.getAndIncrement(); () })
+              sched.sleepInternal(500.millis, { _ => ai.getAndIncrement(); true })
 
               // if we aren't careful, this conversion can duplicate the timer
               scala.concurrent.blocking {
@@ -492,11 +492,11 @@ trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with Scala
 
         object DummySystem extends PollingSystem {
           type Api = DummyPoller
-          type Poller = AtomicReference[List[Either[Throwable, Unit] => Unit]]
+          type Poller = AtomicReference[List[Either[Throwable, Unit] => Boolean]]
 
           def close() = ()
 
-          def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Unit])
+          def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Boolean])
           def needsPoll(poller: Poller) = poller.get.nonEmpty
           def closePoller(poller: Poller) = ()
 
