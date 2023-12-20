@@ -233,7 +233,7 @@ object Dispatcher {
 
                 launchAll.as(new Dispatcher[F] {
                   def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit]) = {
-                    def inner[E](fe: F[E], isFinalizer: Boolean)
+                    def inner[E](fe: F[E], checker: Option[F[Boolean]])
                         : (Future[E], () => Future[Unit]) = {
                       if (doneR.get()) {
                         throw new IllegalStateException("Dispatcher already closed")
@@ -241,9 +241,7 @@ object Dispatcher {
 
                       val p = Promise[E]()
                       val cancelR = new AtomicReference[F[Unit]]()
-
-                      val invalidateCancel =
-                        Sync[F].delay(cancelR.set(null.asInstanceOf[F[Unit]]))
+                      val invalidateCancel = Sync[F].delay(cancelR.set(null.asInstanceOf[F[Unit]]))
 
                       // forward atomicity guarantees onto promise completion
                       val promisory = MonadCancel[F] uncancelable { poll =>
@@ -259,41 +257,53 @@ object Dispatcher {
                         else
                           workers(0)
 
-                      if (isFinalizer) {
-                        // bypass over-eager warning
-                        val abortResult: Any = ()
-                        val abort = Sync[F].delay(p.success(abortResult.asInstanceOf[E])).void
+                      checker match {
+                        // fe is a finalizer
+                        case Some(check) =>
+                          println("we found the loop")
 
-                        worker
-                          .queue
-                          .unsafeOffer(Registration.Finalizer(promisory.void, cancelR, abort))
+                          // bypass over-eager warning
+                          // can get rid of this if we GADT encode `inner`'s parameters
+                          val abortResult: Any = ()
+                          val abort = Sync[F].delay(p.success(abortResult.asInstanceOf[E])).void
 
-                        // cannot cancel a cancel
-                        (p.future, () => Future.failed(new UnsupportedOperationException))
-                      } else {
-                        val reg = new Registration.Primary(promisory.void, cancelR)
-                        worker.queue.unsafeOffer(reg)
+                          worker
+                            .queue
+                            .unsafeOffer(Registration.Finalizer(promisory.void, check, abort))
 
-                        def cancel(): Future[Unit] = {
-                          reg.action = null.asInstanceOf[F[Unit]]
+                          // cannot cancel a cancel
+                          (p.future, () => Future.failed(new UnsupportedOperationException))
 
-                          // publishes action write
-                          // TODO this provides incorrect semantics for multiple cancel() call sites
-                          val cancelF = cancelR.getAndSet(
-                            Applicative[F].unit
-                          ) // anything that isn't null, really
-                          if (cancelF != null)
-                            // this looping is fine, since we drop the cancel
-                            inner(cancelF, true)._1
-                          else
-                            Future.successful(())
-                        }
+                        case None =>
+                          val reg = new Registration.Primary(promisory.void, cancelR)
+                          worker.queue.unsafeOffer(reg)
 
-                        (p.future, cancel _)
+                          def cancel(): Future[Unit] = {
+                            println("starting to cancel")
+                            reg.action = null.asInstanceOf[F[Unit]]
+
+                            val cancelF = cancelR.get()
+                            if (cancelF != null) {
+                              println("cancel token is still valid")
+                              // cannot use null here
+                              if (cancelR.compareAndSet(cancelF, Applicative[F].unit)) {
+                                println("looping on cancel action")
+                                // this looping is fine, since we drop the cancel
+                                // note that action is published here since the CAS passed
+                                inner(cancelF, Some(Sync[F].delay(cancelR.get() != null)))._1
+                              } else {
+                                Future.successful(())
+                              }
+                            } else {
+                              Future.successful(())
+                            }
+                          }
+
+                          (p.future, cancel _)
                       }
                     }
 
-                    inner(fa, false)
+                    inner(fa, None)
                   }
 
                   override def reportFailure(t: Throwable): Unit =
@@ -316,10 +326,7 @@ object Dispatcher {
     // action is *observed* by the worker fiber, which only matters in sequential mode
     // this captures the race condition where the cancel action is invoked exactly as the main
     // action completes and avoids the pathological case where we accidentally cancel the worker
-    final case class Finalizer[F[_]](
-        action: F[Unit],
-        cancelR: AtomicReference[F[Unit]],
-        abort: F[Unit])
+    final case class Finalizer[F[_]](action: F[Unit], check: F[Boolean], abort: F[Unit])
         extends Registration[F]
 
     final case class PoisonPill[F[_]]() extends Registration[F]
@@ -366,13 +373,10 @@ object Dispatcher {
             }
           }
 
-        case Registration.Finalizer(action, cancelR, abort) =>
+        case Registration.Finalizer(action, check, abort) =>
+          println("we got the registration")
           // here's the double-check for late finalization
-          // if == null then the task is complete and we ignore
-          if (cancelR.get() != null)
-            supervisor.supervise(action).void
-          else
-            abort
+          check.ifM({println("check was true"); supervisor.supervise(action).void}, {println("check was false"); abort})
 
         case Registration.PoisonPill() =>
           Sync[F].delay(doneR.set(true))
