@@ -7,12 +7,12 @@ cd "$(dirname $0)/.."
 primary_base="$(pwd)"
 
 if [[ $# -ne 2 ]] || [[ "$1" == "--help" ]]; then
-  echo "usage: $0 old-version new-version"
+  echo "usage: $0 old-tag new-tag"
   exit 1
 fi
 
-old_version="$1"
-new_version="$2"
+old_version="${1#v}"
+new_version="${2#v}"
 
 minor_base=series/$(echo $new_version | sed -E 's/([0-9]+).([0-9]+).[0-9]+/\1.\2.x/')
 major_base=series/$(echo $new_version | sed -E 's/([0-9]+).[0-9]+.[0-9]+/\1.x/')
@@ -20,7 +20,7 @@ minor_branch="release/$new_version-minor"
 major_branch="release/$new_version-major"
 
 cd "$(mktemp -d)"
-git clone git@github.com:typelevel/cats-effect.git
+gh repo clone typelevel/cats-effect
 cd 'cats-effect'
 
 git checkout -b $minor_branch origin/$minor_base
