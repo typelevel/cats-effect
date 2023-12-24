@@ -241,7 +241,11 @@ private final class IOFiber[A](
 
         case 1 =>
           val cur = cur0.asInstanceOf[Error]
-          runLoop(failed(cur.t, 0), nextCancelation, nextAutoCede)
+          val ex = cur.t
+          if (!NonFatal(ex))
+            onFatalFailure(ex)
+
+          runLoop(failed(ex, 0), nextCancelation, nextAutoCede)
 
         case 2 =>
           val cur = cur0.asInstanceOf[Delay[Any]]
@@ -315,7 +319,11 @@ private final class IOFiber[A](
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextCancelation - 1, nextAutoCede)
+              val ex = error.t
+              if (!NonFatal(ex))
+                onFatalFailure(ex)
+
+              runLoop(failed(ex, 0), nextCancelation - 1, nextAutoCede)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
@@ -382,7 +390,11 @@ private final class IOFiber[A](
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextCancelation - 1, nextAutoCede)
+              val ex = error.t
+              if (!NonFatal(ex))
+                onFatalFailure(ex)
+
+              runLoop(failed(ex, 0), nextCancelation - 1, nextAutoCede)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
@@ -434,6 +446,8 @@ private final class IOFiber[A](
             case 1 =>
               val error = ioa.asInstanceOf[Error]
               val t = error.t
+              if (!NonFatal(t))
+                onFatalFailure(t)
               // We need to augment the exception here because it doesn't get
               // forwarded to the `failed` path.
               Tracing.augmentThrowable(runtime.enhancedExceptions, t, tracingEvents)

@@ -58,6 +58,44 @@ package examples {
     }
   }
 
+  object RaiseFatalErrorAttempt extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .attempt
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
+  object RaiseFatalErrorHandle extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .handleError(_ => ())
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
+  object RaiseFatalErrorMap extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .map(_ => ())
+        .handleError(_ => ())
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
+  object RaiseFatalErrorFlatMap extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .flatMap(_ => IO(()))
+        .handleError(_ => ())
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
   object Canceled extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
       IO.canceled.as(ExitCode.Success)

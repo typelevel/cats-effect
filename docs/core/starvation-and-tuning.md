@@ -6,9 +6,9 @@ title: Starvation and Tuning
 All Cats Effect applications constructed via `IOApp` have an automatic mechanism which periodically checks to see if the application runtime is starving for compute resources. If you ever see warnings which look like the following, they are the result of this mechanism automatically detecting that the responsiveness of your application runtime is below the configured threshold. Note that the timestamp is the time when the starvation was detected, which is not precisely the time when starvation (or the task that is responsible) began.
 
 ```
-2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous 
+2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous
 event (such as a new connection, an upstream response, or a timer) was in excess
-of 40 milliseconds. Your CPU is probably starving. Consider increasing the 
+of 40 milliseconds. Your CPU is probably starving. Consider increasing the
 granularity of your delays or adding more cedes. This may also be a sign that you
 are unintentionally running blocking I/O operations (such as File or InetAddress)
 without the blocking combinator.
@@ -27,9 +27,12 @@ import cats.effect._
 import cats.syntax.all._
 
 object StarveThyself extends IOApp.Simple {
-  val run = 
+  val run =
     0.until(100).toList parTraverse_ { i =>
-      IO.println(s"running #$i") >> IO(Thread.sleep(10000))
+      IO {
+        println(s"running #$i")
+        Thread.sleep(10000)
+      }
     }
 }
 ```
@@ -114,7 +117,7 @@ import cats.effect._
 import cats.syntax.all._
 
 object StarveThyselfAgain extends IOApp.Simple {
-  val run = 
+  val run =
     0.until(100).toList parTraverse_ { i =>
       IO.println(s"running #$i") >> IO(while (true) {})
     }
@@ -193,9 +196,9 @@ A quick-and-dirty experimental way that this can be established for your specifi
 val expensiveThing: IO[A] = ???
 
 IO.unit.timed flatMap {
-  case (baseline, _) => 
+  case (baseline, _) =>
     IO.println(s"baseline stage cost is $baseline") >> expensiveThing.timed flatMap {
-      case (cost, result) => 
+      case (cost, result) =>
         if (cost / baseline > 1024)
           IO.println("expensiveThing is very expensive").as(result)
         else
@@ -348,6 +351,14 @@ The problem with "going wide" is it restricts the resources available within use
 
 Of course, it's never as simple as doubling the number of vCPUs and halving the number of instances. Scaling is complicated, and you'll likely need to adjust other resources such as memory, connection limits, file handle counts, autoscaling signals, and such. Overall though, a good rule of thumb is to consider 8 vCPUs to be the minimum that should be available to a Cats Effect application at scale. 16 or even 32 vCPUs is likely to improve performance even further, and it is very much worth experimenting with these types of tuning parameters.
 
+#### Not Enough Threads - Running in Kubernetes
+
+One cause of "not enough threads" can be that the application is running inside kubernetes with a `cpu_quota` not configured. When the cpu limit is not configured, the JVM detects the number of available processors as 1, which will severely restrict what the runtime is able to do.
+
+This guide on [containerizing java applications for kubernetes](https://learn.microsoft.com/en-us/azure/developer/java/containers/kubernetes#understand-jvm-available-processors) goes into more detail on the mechanism involved.
+
+**All Cats Effect applications running in kubernetes should have either a `cpu_quota` configured or use the jvm `-XX:ActiveProcessorCount` argument to explicitly tell the jvm how many cores to use.**
+
 ### Too Many Threads
 
 In a sense, this scenario is like the correlated inverse of the "Not Enough CPUs" option, and it happens surprisingly frequently in conventional JVM applications. Consider the thread list from the previous section (assuming 8 CPUs):
@@ -397,7 +408,7 @@ This can be accomplished in some cases by using `IO.executionContext` or `IO.exe
 
 - The source of the rogue threads (e.g. another library) must have some initialization mechanism which accepts an `ExecutionContext` or `Executor`
 - The source of the rogue threads must not ever *block* on its rogue threads: they must only be used for compute
-  + The exception to this is if the library in question is a well-behaved Scala library, often from the Akka ecosystem, which wraps its blocking in `scala.concurrent.blocking(...)`. In this case, it is safe to use the Cats Effect compute pool, and the results will be similar to what happens with `IO.blocking`
+  - The exception to this is if the library in question is a well-behaved Scala library, often from the Akka ecosystem, which wraps its blocking in `scala.concurrent.blocking(...)`. In this case, it is safe to use the Cats Effect compute pool, and the results will be similar to what happens with `IO.blocking`
 
 Determining both of these factors often takes some investigation, usually of the "thread dumps and async profiler" variety, trying to catch the rogue threads in a blocked state. Alternatively, you can just read the library source code, though this can be very time consuming and error prone.
 
@@ -446,6 +457,16 @@ The solution is to eliminate this over-provisioning. If a scheduled container is
 
 As a very concrete example of this, if you have a cluster of 16 host instances in your cluster, each of which having 64 CPUs, that gives you a total of 1024 vCPUs to work with. If you configure each application container to use 4 vCPUs, you can support up to 256 application instances simultaneously (without resizing the cluster). Over-provisioning by a factor of 100% would suggest that you can support up to 512 application instances. **Do not do this.** Instead, resize the application instances to use either 8 or 16 vCPUs each. If you take the latter approach, your cluster will support up to 64 application instances simultaneously. This *seems* like a downgrade, but these taller instances should (absent other constraints) support more than 4x more traffic than the smaller instances, meaning that the overall cluster is much more efficient.
 
+#### Kubernetes CPU Pinning
+
+Even if you have followed the above advice and avoided over-provisioning, the Linux kernel scheduler is unfortunately not aware of the Cats Effect scheduler and will likely actively work against the Cats Effect scheduler by moving Cats Effect worker threads between different CPUs, thereby destroying CPU cache-locality. In certain environments we can prevent this by configuring Kubernetes to pin an application to a gviven set of CPUs:
+1. Set the [CPU Manager Policy to static](https://kubernetes.io/docs/tasks/administer-cluster/cpu-management-policies/#static-policy)
+2. Ensure that your pod is in the [Guaranteed QoS class](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/#guaranteed)
+3. Request an integral number of CPUs for your Cats Effect application
+
+You should be able to see the CPU assignment updates reflected in the kubelet logs.
+
+
 ### Process Contention
 
 All of the advice in this page is targeted towards the (very common) scenario in which your Cats Effect application `java` process is the only meaningfully active process on a given instance. In other words, there are no additional applications on the same server, no databases, nothing. If this is *not* the case, then a lot of the advice about having too many threads applies, but *worse*.
@@ -487,7 +508,7 @@ To entirely disable the checker (**not** recommended in most cases!), adjust you
 object MyMain extends IOApp {
 
   // fully disable the checker
-  override def runtimeConfig = 
+  override def runtimeConfig =
     super.runtimeConfig.copy(cpuStarvationCheckInitialDelay = Duration.Inf)
 
   override def run(args: List[String]) = ???
@@ -506,7 +527,7 @@ import scala.concurrent.duration._
 object MyOtherMain extends IOApp {
 
   // relax threshold to 500 milliseconds
-  override def runtimeConfig = 
+  override def runtimeConfig =
     super.runtimeConfig.copy(cpuStarvationCheckInterval = 5.seconds)
 
   override def run(args: List[String]) = ???
