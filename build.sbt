@@ -190,7 +190,7 @@ ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
   WorkflowStep.Sbt(
     List("docs/mdoc"),
     cond = Some(
-      s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.ci == 'ciJVM' && matrix.java == '${LatestJava.render}")
+      s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.ci == 'ciJVM' && matrix.java == '${LatestJava.render}'")
   ),
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
