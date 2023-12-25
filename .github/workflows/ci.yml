@@ -249,7 +249,7 @@ jobs:
       - shell: bash
         run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.12' || matrix.scala == '3.3.1') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.12' || matrix.scala == '3.3.1') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' docs/mdoc
 
