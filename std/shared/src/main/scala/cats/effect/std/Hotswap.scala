@@ -121,7 +121,15 @@ object Hotswap {
       def raise(message: String): F[Unit] =
         F.raiseError[Unit](new RuntimeException(message))
 
-      def shared: Resource[F, Unit] = semaphore.permit
+      def shared(state: Ref[F, State]): Resource[F, Unit] =
+        Resource.makeFull[F, Unit] { poll =>
+          poll(
+            state.get.flatMap {
+              case Acquired(_, _) => semaphore.acquire
+              case _ => F.unit
+            }
+          )
+        } { _ => semaphore.release }
 
       def exclusive: Resource[F, Unit] =
         Resource.makeFull[F, Unit](poll => poll(semaphore.acquireN(Long.MaxValue)))(_ =>
@@ -141,7 +149,7 @@ object Hotswap {
             }
 
           override def get: Resource[F, Option[R]] =
-            shared.evalMap { _ =>
+            shared(state).evalMap { _ =>
               state.get.map {
                 case Acquired(r, _) => Some(r)
                 case _ => None
