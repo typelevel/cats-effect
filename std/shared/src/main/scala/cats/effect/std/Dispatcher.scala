@@ -17,10 +17,10 @@
 package cats.effect.std
 
 import cats.Applicative
-import cats.effect.kernel.{Async, Concurrent, MonadCancel, Outcome, Resource, Spawn, Sync}
+import cats.effect.kernel.{Async, Concurrent, Deferred, MonadCancel, Outcome, Ref, Resource, Spawn, Sync}
+import cats.effect.kernel.syntax.all._
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
-import cats.effect.kernel.syntax.all._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Failure
@@ -187,6 +187,46 @@ object Dispatcher {
   def sequential[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
     impl[F](false, await)
 
+  /*
+   * There are two fundamental modes here: sequential and parallel. There is very little overlap
+   * in semantics between the two apart from the submission side. The whole thing is split up into
+   * a submission queue with impure enqueue and cancel functions which is drained by the `Worker` and an
+   * internal execution protocol which also involves a queue. The `Worker` encapsulates all of the
+   * race conditions and negotiations with impure code, while the `Executor` manages running the
+   * tasks with appropriate semantics. In parallel mode, we shard the `Worker`s according to the
+   * number of CPUs and select a random queue (in impure code) as a target. This reduces contention
+   * at the cost of ordering, which is not guaranteed in parallel mode. With sequential mode, there
+   * is only a single worker.
+   *
+   * On the impure side, the queue bit is the easy part: it's just a `LinkedBlockingQueue` which
+   * accepts Registration(s). It's easiest to think of this a bit like an actor model, where the
+   * `Worker` is the actor and the enqueue is the send. Whenever we send a unit of work, that
+   * message has an `AtomicReference` which allows us to back-propagate a cancelation action. That
+   * cancelation action can be used in impure code by sending it back to us using the Finalizer
+   * message. There are certain race conditions involved in canceling work on the queue and work
+   * which is in the process of being taken off the queue, and those race conditions are negotiated
+   * between the impure code and the `Worker`.
+   *
+   * On the pure side, the two different `Executor`s are very distinct. In parallel mode, it's easy:
+   * we have a separate `Supervisor` which doesn't respawn actions, and we use that supervisor to
+   * spawn a new fiber for each task unit. Cancelation in this mode is easy: we just cancel the fiber.
+   * For sequential mode, we spawn a *single* executor fiber on the main supervisor (which respawns).
+   * This fiber is paired with a pure unbounded queue and a shutoff latch. New work is placed on the
+   * queue, which the fiber takes from in order and executes in-place. If the work self-cancels or
+   * errors, the executor will be restarted. In the case of external cancelation, we shut off the
+   * latch (to hold new work), drain the entire work queue into a scratch space, then cancel the
+   * executor fiber in-place so long as we're sure it's actively working on the target task. Once
+   * that cancelation completes (which will ultimately restart the executor fiber), we re-fill the
+   * queue and unlock the latch to allow new work (from the `Worker`).
+   *
+   * Note that a third mode is possible but not implemented: sequential *without* cancelation. In
+   * this mode, we execute each task directly on the worker fiber as it comes in, without the
+   * added indirection of the executor queue. This reduces overhead considerably, but the price is
+   * we can no longer support external (impure) cancelation. This is because the worker fiber is
+   * *also* responsible for dequeueing from the impure queue, which is where the cancelation tasks
+   * come in. The worker can't observe a cancelation action while it's executing another action, so
+   * cancelation cannot then preempt and is effectively worthless.
+   */
   private[this] def impl[F[_]: Async](
       parallel: Boolean,
       await: Boolean): Resource[F, Dispatcher[F]] =
@@ -194,26 +234,21 @@ object Dispatcher {
     // the inner supervisor is for tasks (if parallel) and finalizers
     Supervisor[F](
       await = await,
-      checkRestart = Some((_: Outcome[F, Throwable, _]) => true)) flatMap { workervisor =>
-      Supervisor[F](await = await) flatMap { supervisor =>
+      checkRestart = Some((_: Outcome[F, Throwable, _]) => true)) flatMap { supervisor =>
         // we only need this flag to raise the IllegalStateException after closure (Supervisor can't do it for us)
         val termination = Resource.make(Sync[F].delay(new AtomicBoolean(false)))(doneR =>
           Sync[F].delay(doneR.set(true)))
 
         termination flatMap { doneR =>
-          // we sequentialize on worker spawning, so we don't need to use Deferred here
-          Resource.eval(Concurrent[F].ref(Applicative[F].unit)) flatMap { cancelR =>
-            def spawn(fu: F[Unit])(setupCancelation: F[Unit] => F[Unit]): F[Unit] = {
-              // TODO move this out
-              if (parallel)
-                // in parallel spawning, we have a real fiber which we need to kill off
-                supervisor.supervise(fu).flatMap(f => setupCancelation(f.cancel))
-              else
-                // in sequential spawning, the only cancelation cancels and restarts the worker itself
-                cancelR.get.flatMap(setupCancelation) *> fu
-            }
+          val executorF: Resource[F, Executor[F]] = if (parallel)
+            Executor.parallel[F](await)
+          else
+            Resource.pure(Executor.inplace[F])
 
-            val workerF = Worker[F](supervisor)(spawn)
+          // note this scopes the executors *outside* the workers, meaning the workers shut down first
+          // I think this is what we want, since it avoids enqueue race conditions
+          executorF flatMap { executor =>
+            val workerF = Worker[F](executor)
             val workersF =
               if (parallel)
                 workerF.replicateA(Cpus).map(_.toArray)
@@ -223,12 +258,7 @@ object Dispatcher {
             workersF evalMap { workers =>
               Async[F].executionContext flatMap { ec =>
                 val launchAll = 0.until(workers.length).toList traverse_ { i =>
-                  val launch = workervisor.supervise(workers(i).run)
-
-                  if (parallel)
-                    launch.void
-                  else
-                    launch.flatMap(f => cancelR.set(f.cancel))
+                  supervisor.supervise(workers(i).run).void
                 }
 
                 launchAll.as(new Dispatcher[F] {
@@ -260,8 +290,6 @@ object Dispatcher {
                       checker match {
                         // fe is a finalizer
                         case Some(check) =>
-                          println("we found the loop")
-
                           // bypass over-eager warning
                           // can get rid of this if we GADT encode `inner`'s parameters
                           val abortResult: Any = ()
@@ -279,15 +307,12 @@ object Dispatcher {
                           worker.queue.unsafeOffer(reg)
 
                           def cancel(): Future[Unit] = {
-                            println("starting to cancel")
                             reg.action = null.asInstanceOf[F[Unit]]
 
                             val cancelF = cancelR.get()
                             if (cancelF != null) {
-                              println("cancel token is still valid")
                               // cannot use null here
                               if (cancelR.compareAndSet(cancelF, Applicative[F].unit)) {
-                                println("looping on cancel action")
                                 // this looping is fine, since we drop the cancel
                                 // note that action is published here since the CAS passed
                                 inner(cancelF, Some(Sync[F].delay(cancelR.get() != null)))._1
@@ -313,7 +338,6 @@ object Dispatcher {
             }
           }
         }
-      }
     }
 
   private sealed abstract class Registration[F[_]]
@@ -322,10 +346,8 @@ object Dispatcher {
     final class Primary[F[_]](var action: F[Unit], val cancelR: AtomicReference[F[Unit]])
         extends Registration[F]
 
-    // the only reason for cancelR here is to double check the cancelation invalidation when the
-    // action is *observed* by the worker fiber, which only matters in sequential mode
-    // this captures the race condition where the cancel action is invoked exactly as the main
-    // action completes and avoids the pathological case where we accidentally cancel the worker
+    // the check action verifies that we haven't completed in the interim (as determined by the promise)
+    // the abort action runs in the event that we fail that check and need to complete the cancel promise
     final case class Finalizer[F[_]](action: F[Unit], check: F[Boolean], abort: F[Unit])
         extends Registration[F]
 
@@ -335,36 +357,28 @@ object Dispatcher {
   // the signal is just a skolem for the atomic references; we never actually run it
   private final class Worker[F[_]: Async](
       val queue: UnsafeAsyncQueue[F, Registration[F]],
-      supervisor: Supervisor[F])( // only needed for cancelation spawning
-      spawn: F[Unit] => (F[Unit] => F[Unit]) => F[Unit]) {
+      executor: Executor[F]) {
 
     private[this] val doneR = new AtomicBoolean(false)
 
     def run: F[Unit] = {
       val step = queue.take flatMap {
         case reg: Registration.Primary[F] =>
-          // println("got registration")
-
           Sync[F].delay(reg.cancelR.get()) flatMap { sig =>
             val action = reg.action
 
             // double null check catches overly-aggressive memory fencing
             if (sig == null && action != null) {
-              // println("...it wasn't canceled")
+              executor(action) { cancelF =>
+                // we need to double-check that we weren't canceled while spawning
+                Sync[F].delay(reg.cancelR.compareAndSet(null.asInstanceOf[F[Unit]], cancelF)) flatMap {
+                  case true =>
+                    // we weren't canceled!
+                    Applicative[F].unit
 
-              spawn(action) { cancelF =>
-                // println("...spawned")
-
-                Sync[F].delay(
-                  reg.cancelR.compareAndSet(null.asInstanceOf[F[Unit]], cancelF)) flatMap {
-                  check =>
-                    // we need to double-check that we didn't lose the race
-                    if (check)
-                      // don't cancel, already spawned
-                      Applicative[F].unit
-                    else
-                      // cancel spawn (we lost the race)
-                      cancelF
+                  case false =>
+                    // we were canceled while spawning, so forward that on to the cancelation action
+                    cancelF
                 }
               }
             } else {
@@ -374,9 +388,8 @@ object Dispatcher {
           }
 
         case Registration.Finalizer(action, check, abort) =>
-          println("we got the registration")
           // here's the double-check for late finalization
-          check.ifM({println("check was true"); supervisor.supervise(action).void}, {println("check was false"); abort})
+          check.ifM(action, abort)
 
         case Registration.PoisonPill() =>
           Sync[F].delay(doneR.set(true))
@@ -388,14 +401,105 @@ object Dispatcher {
 
   private object Worker {
 
-    def apply[F[_]: Async](supervisor: Supervisor[F])(
-        spawn: F[Unit] => (F[Unit] => F[Unit]) => F[Unit]): Resource[F, Worker[F]] = {
-
+    def apply[F[_]: Async](executor: Executor[F]): Resource[F, Worker[F]] = {
       val initF = Sync[F].delay(
-        new Worker[F](new UnsafeAsyncQueue[F, Registration[F]](), supervisor)(spawn))
+        new Worker[F](new UnsafeAsyncQueue[F, Registration[F]](), executor))
 
       Resource.make(initF)(w => Sync[F].delay(w.queue.unsafeOffer(Registration.PoisonPill())))
     }
+  }
+
+  private abstract class Executor[F[_]] {
+    def apply(task: F[Unit])(registerCancel: F[Unit] => F[Unit]): F[Unit]
+  }
+
+  private object Executor {
+
+    def inplace[F[_]]: Executor[F] =
+      new Executor[F] {
+        def apply(task: F[Unit])(registerCancel: F[Unit] => F[Unit]): F[Unit] = task
+      }
+
+    // sequential executor which respects cancelation (at the cost of additional overhead); not used
+    def sequential[F[_]: Concurrent](supervisor: Supervisor[F]): Resource[F, Executor[F]] = {
+      sealed trait TaskSignal extends Product with Serializable
+
+      object TaskSignal {
+        final case class Ready(task: F[Unit]) extends TaskSignal
+        case object Executing extends TaskSignal
+        case object Void extends TaskSignal
+      }
+
+      Resource.eval(Queue.unbounded[F, Ref[F, TaskSignal]]) flatMap { tasks =>
+        // knock it out of the task taking
+        val evict = Concurrent[F].ref[TaskSignal](TaskSignal.Void).flatMap(tasks.offer(_))
+
+        Resource.make(Concurrent[F].ref(false))(r => r.set(true) >> evict) evalMap { doneR =>
+          Concurrent[F].ref[Option[Deferred[F, Unit]]](None) flatMap { shutoff =>
+            val step = tasks.take flatMap { taskR =>
+              taskR.getAndSet(TaskSignal.Executing) flatMap {
+                case TaskSignal.Ready(task) => task.guarantee(taskR.set(TaskSignal.Void))
+                // Executing should be impossible
+                case TaskSignal.Executing | TaskSignal.Void => Applicative[F].unit
+              }
+            }
+
+            lazy val loop: F[Unit] = doneR.get.ifM(Applicative[F].unit, step >> loop)
+            val spawnExecutor = supervisor.supervise(loop)
+
+            spawnExecutor flatMap { fiber =>
+              Concurrent[F].ref(fiber) map { fiberR =>
+                new Executor[F] {
+                  def apply(task: F[Unit])(registerCancel: F[Unit] => F[Unit]): F[Unit] = {
+                    Concurrent[F].ref[TaskSignal](TaskSignal.Ready(task)) flatMap { taskR =>
+                      val cancelF = taskR.getAndSet(TaskSignal.Void) flatMap {
+                        case TaskSignal.Ready(_) | TaskSignal.Void =>
+                          Applicative[F].unit
+
+                        case TaskSignal.Executing =>
+                          Concurrent[F].deferred[Unit] flatMap { latch =>
+                            // TODO if someone else is already canceling, this will create a deadlock
+                            // to fix this deadlock, we need a fourth TaskSignal state and a double-check on that and the shutoff
+
+                            // Step 1: Turn off everything
+                            shutoff.set(Some(latch)) >> {
+                              // Step 2: Drain the queue
+                              tasks.tryTakeN(None) flatMap { scratch =>
+                                // Step 3: Cancel the executor, put it all back, and restart executor
+                                fiberR.get.flatMap(_.cancel) >>
+                                  scratch.traverse_(tasks.offer(_)) >>
+                                  spawnExecutor.flatMap(fiberR.set(_)) >>
+                                  latch.complete(()) >>
+                                  shutoff.set(None)
+                              }
+                            }
+                          }
+                      }
+
+                      // in rare cases, this can create mutual ordering issues with quickly enqueued tasks
+                      val optBlock = shutoff.get flatMap {
+                        case Some(latch) => latch.get
+                        case None => Applicative[F].unit
+                      }
+
+                      optBlock >> tasks.offer(taskR) >> registerCancel(cancelF)
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    def parallel[F[_]: Concurrent](await: Boolean): Resource[F, Executor[F]] =
+      Supervisor[F](await = await) map { supervisor =>
+        new Executor[F] {
+          def apply(task: F[Unit])(registerCancel: F[Unit] => F[Unit]): F[Unit] =
+            supervisor.supervise(task).flatMap(fiber => registerCancel(fiber.cancel))
+        }
+      }
   }
 
   private val Signal: Either[Any, Unit] => Unit = _ => ()

@@ -45,7 +45,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       }
     }
 
-    /*"await = false" >> {
+    "await = false" >> {
       val D = Dispatcher.sequential[IO](await = false)
 
       sequential(D)
@@ -61,7 +61,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
         TestControl.executeEmbed(action *> IO(canceled must beTrue))
       }
-    }*/
+    }
   }
 
   private def sequential(dispatcher: Resource[IO, Dispatcher[IO]]) = {
@@ -133,7 +133,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           _ <- IO.fromFuture(IO(cancel()))
           _ <- latch2.complete(())
 
-          _ <- latch3.get   // this will hang if the test is failing
+          _ <- latch3.get // this will hang if the test is failing
         } yield ok
       }
 
@@ -167,7 +167,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     }
   }
 
-  /*"parallel dispatcher" should {
+  "parallel dispatcher" should {
     "await = true" >> {
       val D = Dispatcher.parallel[IO](await = true)
 
@@ -215,7 +215,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         } yield ok
       }
     }
-  }*/
+  }
 
   private def parallel(dispatcher: Resource[IO, Dispatcher[IO]]) = {
 
@@ -283,6 +283,20 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
       TestControl.executeEmbed(test).attempt.flatMap(e => IO(e must beLeft))
     }*/
+
+    "forward cancelation onto the inner action" in real {
+      val test = dispatcher use { runner =>
+        IO.ref(false) flatMap { resultsR =>
+          val action = IO.never.onCancel(resultsR.set(true))
+          IO(runner.unsafeToFutureCancelable(action)) flatMap {
+            case (_, cancel) =>
+              IO.sleep(500.millis) *> IO.fromFuture(IO(cancel())) *> resultsR.get
+          }
+        }
+      }
+
+      TestControl.executeEmbed(test).flatMap(b => IO(b must beTrue))
+    }
   }
 
   private def common(dispatcher: Resource[IO, Dispatcher[IO]]) = {
@@ -392,34 +406,24 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     }
 
     "reject new tasks while shutting down" in real {
-      (IO.ref(false), IO.ref(false))
-        .flatMapN { (resultR, rogueResultR) =>
-          dispatcher
-            .allocated
-            .flatMap {
-              case (runner, release) =>
-                IO(runner.unsafeRunAndForget(
-                  IO.sleep(1.second).uncancelable.guarantee(resultR.set(true)))) *>
-                  IO.sleep(100.millis) *>
-                  release.both(
-                    IO.sleep(500.nanos) *>
-                      IO(runner.unsafeRunAndForget(rogueResultR.set(true))).attempt
-                  )
-            }
-            .flatMap {
-              case (_, rogueSubmitResult) =>
-                for {
-                  result <- resultR.get
-                  rogueResult <- rogueResultR.get
-                  _ <- IO(result must beTrue)
-                  _ <- IO(if (rogueResult == false) {
-                    // if the rogue task is not completed then we must have failed to submit it
-                    rogueSubmitResult must beLeft
-                  })
-                } yield ok
-            }
+      val test = (IO.deferred[Unit], IO.deferred[Unit]) flatMapN { (latch1, latch2) =>
+        dispatcher.allocated flatMap {
+          case (runner, release) =>
+            for {
+              _ <- IO(
+                runner.unsafeRunAndForget(IO.unit.guarantee(latch1.complete(()) >> latch2.get)))
+              _ <- latch1.get
+
+              challenge = IO(runner.unsafeRunAndForget(IO.unit))
+                .delayBy(500.millis) // gross sleep to make sure we're actually in the release
+                .guarantee(latch2.complete(()).void)
+
+              _ <- release &> challenge
+            } yield ko
         }
-        .replicateA(5)
+      }
+
+      test.attempt.flatMap(r => IO(r must beLeft)).parReplicateA_(50).as(ok)
     }
 
     "cancel inner awaits when canceled" in ticked { implicit ticker =>
@@ -427,20 +431,6 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       val test = work.background.use(_ => IO.sleep(100.millis))
 
       test must completeAs(())
-    }
-
-    "forward cancelation onto the inner action" in real {
-      val test = dispatcher use { runner =>
-        IO.ref(false) flatMap { resultsR =>
-          val action = IO.never.onCancel(resultsR.set(true))
-          IO(runner.unsafeToFutureCancelable(action)) flatMap {
-            case (_, cancel) =>
-              IO.sleep(500.millis) *> IO.fromFuture(IO(cancel())) *> resultsR.get
-          }
-        }
-      }
-
-      TestControl.executeEmbed(test).flatMap(b => IO(b must beTrue))
     }
   }
 
