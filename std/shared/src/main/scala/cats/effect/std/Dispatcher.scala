@@ -149,7 +149,7 @@ object Dispatcher {
    *   - true - wait for the completion of the active fibers
    *   - false - cancel the active fibers
    */
-  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] = impl[F](true, await)
+  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] = impl[F](true, await, true)
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
@@ -184,8 +184,8 @@ object Dispatcher {
    *   - true - wait for the completion of the active fiber
    *   - false - cancel the active fiber
    */
-  def sequential[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
-    impl[F](false, await)
+  def sequential[F[_]: Async](await: Boolean, cancelable: Boolean = false): Resource[F, Dispatcher[F]] =
+    impl[F](false, await, cancelable)
 
   /*
    * There are two fundamental modes here: sequential and parallel. There is very little overlap
@@ -229,116 +229,123 @@ object Dispatcher {
    */
   private[this] def impl[F[_]: Async](
       parallel: Boolean,
-      await: Boolean): Resource[F, Dispatcher[F]] =
+      await: Boolean,
+      cancelable: Boolean): Resource[F, Dispatcher[F]] = {
+    val always = Some((_: Outcome[F, Throwable, _]) => true)
+
     // the outer supervisor is for the worker fibers
     // the inner supervisor is for tasks (if parallel) and finalizers
-    Supervisor[F](
-      await = await,
-      checkRestart = Some((_: Outcome[F, Throwable, _]) => true)) flatMap { supervisor =>
-        // we only need this flag to raise the IllegalStateException after closure (Supervisor can't do it for us)
-        val termination = Resource.make(Sync[F].delay(new AtomicBoolean(false)))(doneR =>
-          Sync[F].delay(doneR.set(true)))
+    Supervisor[F](await = await, checkRestart = always) flatMap { supervisor =>
+      // we only need this flag to raise the IllegalStateException after closure (Supervisor can't do it for us)
 
-        termination flatMap { doneR =>
-          val executorF: Resource[F, Executor[F]] = if (parallel)
-            Executor.parallel[F](await)
-          else
-            Resource.pure(Executor.inplace[F])
+      val termination = Resource.make(Sync[F].delay(new AtomicBoolean(false)))(doneR =>
+        Sync[F].delay(doneR.set(true)))
 
-          // note this scopes the executors *outside* the workers, meaning the workers shut down first
-          // I think this is what we want, since it avoids enqueue race conditions
-          executorF flatMap { executor =>
-            val workerF = Worker[F](executor)
-            val workersF =
-              if (parallel)
-                workerF.replicateA(Cpus).map(_.toArray)
-              else
-                workerF.map(w => Array(w))
+      val awaitTermination = Resource.make(Concurrent[F].deferred[Unit])(_.complete(()).void)
 
-            workersF evalMap { workers =>
-              Async[F].executionContext flatMap { ec =>
-                val launchAll = 0.until(workers.length).toList traverse_ { i =>
-                  supervisor.supervise(workers(i).run).void
-                }
+      (awaitTermination, termination) flatMapN { (terminationLatch, doneR) =>
+        val executorF = if (parallel)
+          Executor.parallel[F](await)
+        else if (cancelable)
+          Executor.sequential(supervisor)
+        else
+          Resource.pure[F, Executor[F]](Executor.inplace[F])
 
-                launchAll.as(new Dispatcher[F] {
-                  def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit]) = {
-                    def inner[E](fe: F[E], checker: Option[F[Boolean]])
-                        : (Future[E], () => Future[Unit]) = {
-                      if (doneR.get()) {
-                        throw new IllegalStateException("Dispatcher already closed")
-                      }
+        // note this scopes the executors *outside* the workers, meaning the workers shut down first
+        // I think this is what we want, since it avoids enqueue race conditions
+        executorF flatMap { executor =>
+          val workerF = Worker[F](executor, terminationLatch)
+          val workersF =
+            if (parallel)
+              workerF.replicateA(Cpus).map(_.toArray)
+            else
+              workerF.map(w => Array(w))
 
-                      val p = Promise[E]()
-                      val cancelR = new AtomicReference[F[Unit]]()
-                      val invalidateCancel = Sync[F].delay(cancelR.set(null.asInstanceOf[F[Unit]]))
+          workersF evalMap { workers =>
+            Async[F].executionContext flatMap { ec =>
+              val launchAll = 0.until(workers.length).toList traverse_ { i =>
+                supervisor.supervise(workers(i).run).void
+              }
 
-                      // forward atomicity guarantees onto promise completion
-                      val promisory = MonadCancel[F] uncancelable { poll =>
-                        // invalidate the cancel action when we're done
-                        poll(fe.guarantee(invalidateCancel)).redeemWith(
-                          e => Sync[F].delay(p.failure(e)),
-                          a => Sync[F].delay(p.success(a)))
-                      }
+              launchAll.as(new Dispatcher[F] {
+                def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit]) = {
+                  def inner[E](fe: F[E], checker: Option[F[Boolean]])
+                      : (Future[E], () => Future[Unit]) = {
+                    if (doneR.get()) {
+                      throw new IllegalStateException("Dispatcher already closed")
+                    }
 
-                      val worker =
-                        if (parallel)
-                          workers(ThreadLocalRandom.current().nextInt(Cpus))
-                        else
-                          workers(0)
+                    val p = Promise[E]()
+                    val cancelR = new AtomicReference[F[Unit]]()
+                    val invalidateCancel = Sync[F].delay(cancelR.set(null.asInstanceOf[F[Unit]]))
 
-                      checker match {
-                        // fe is a finalizer
-                        case Some(check) =>
-                          // bypass over-eager warning
-                          // can get rid of this if we GADT encode `inner`'s parameters
-                          val abortResult: Any = ()
-                          val abort = Sync[F].delay(p.success(abortResult.asInstanceOf[E])).void
+                    // forward atomicity guarantees onto promise completion
+                    val promisory = MonadCancel[F] uncancelable { poll =>
+                      // invalidate the cancel action when we're done
+                      poll(fe.guarantee(invalidateCancel)).redeemWith(
+                        e => Sync[F].delay(p.failure(e)),
+                        a => Sync[F].delay(p.success(a)))
+                    }
 
-                          worker
-                            .queue
-                            .unsafeOffer(Registration.Finalizer(promisory.void, check, abort))
+                    val worker =
+                      if (parallel)
+                        workers(ThreadLocalRandom.current().nextInt(Cpus))
+                      else
+                        workers(0)
 
-                          // cannot cancel a cancel
-                          (p.future, () => Future.failed(new UnsupportedOperationException))
+                    checker match {
+                      // fe is a finalizer
+                      case Some(check) =>
+                        // bypass over-eager warning
+                        // can get rid of this if we GADT encode `inner`'s parameters
+                        val abortResult: Any = ()
+                        val abort = Sync[F].delay(p.success(abortResult.asInstanceOf[E])).void
 
-                        case None =>
-                          val reg = new Registration.Primary(promisory.void, cancelR)
-                          worker.queue.unsafeOffer(reg)
+                        worker
+                          .queue
+                          .unsafeOffer(Registration.Finalizer(promisory.void, check, abort))
 
-                          def cancel(): Future[Unit] = {
-                            reg.action = null.asInstanceOf[F[Unit]]
+                        // cannot cancel a cancel
+                        (p.future, () => Future.failed(new UnsupportedOperationException))
 
-                            val cancelF = cancelR.get()
-                            if (cancelF != null) {
-                              // cannot use null here
-                              if (cancelR.compareAndSet(cancelF, Applicative[F].unit)) {
-                                // this looping is fine, since we drop the cancel
-                                // note that action is published here since the CAS passed
-                                inner(cancelF, Some(Sync[F].delay(cancelR.get() != null)))._1
-                              } else {
-                                Future.successful(())
-                              }
+                      case None =>
+                        val reg = new Registration.Primary(promisory.void, cancelR)
+                        worker.queue.unsafeOffer(reg)
+
+                        def cancel(): Future[Unit] = {
+                          reg.action = null.asInstanceOf[F[Unit]]
+
+                          val cancelF = cancelR.get()
+                          if (cancelF != null) {
+                            // cannot use null here
+                            if (cancelR.compareAndSet(cancelF, Applicative[F].unit)) {
+                              // this looping is fine, since we drop the cancel
+                              // note that action is published here since the CAS passed
+                              inner(cancelF, Some(Sync[F].delay(cancelR.get() != null)))._1
                             } else {
                               Future.successful(())
                             }
+                          } else {
+                            Future.successful(())
                           }
+                        }
 
-                          (p.future, cancel _)
-                      }
+                        (p.future, cancel _)
                     }
-
-                    inner(fa, None)
                   }
 
-                  override def reportFailure(t: Throwable): Unit =
-                    ec.reportFailure(t)
-                })
-              }
+                  inner(fa, None)
+                }
+
+                override def reportFailure(t: Throwable): Unit =
+                  ec.reportFailure(t)
+              })
             }
           }
         }
+      }
     }
+  }
 
   private sealed abstract class Registration[F[_]]
 
@@ -357,7 +364,8 @@ object Dispatcher {
   // the signal is just a skolem for the atomic references; we never actually run it
   private final class Worker[F[_]: Async](
       val queue: UnsafeAsyncQueue[F, Registration[F]],
-      executor: Executor[F]) {
+      executor: Executor[F],
+      terminationLatch: Deferred[F, Unit]) {
 
     private[this] val doneR = new AtomicBoolean(false)
 
@@ -395,15 +403,19 @@ object Dispatcher {
           Sync[F].delay(doneR.set(true))
       }
 
-      Sync[F].delay(doneR.get()).ifM(Spawn[F].cede, step >> run)
+      // we're poisoned *first* but our supervisor is killed *last*
+      // when this happens, we just block on the termination latch to
+      // avoid weirdness. there's still a small gap even then, so we
+      // toss in a cede to avoid starvation pathologies
+      Sync[F].delay(doneR.get()).ifM(terminationLatch.get >> Spawn[F].cede, step >> run)
     }
   }
 
   private object Worker {
 
-    def apply[F[_]: Async](executor: Executor[F]): Resource[F, Worker[F]] = {
+    def apply[F[_]: Async](executor: Executor[F], terminationLatch: Deferred[F, Unit]): Resource[F, Worker[F]] = {
       val initF = Sync[F].delay(
-        new Worker[F](new UnsafeAsyncQueue[F, Registration[F]](), executor))
+        new Worker[F](new UnsafeAsyncQueue[F, Registration[F]](), executor, terminationLatch))
 
       Resource.make(initF)(w => Sync[F].delay(w.queue.unsafeOffer(Registration.PoisonPill())))
     }

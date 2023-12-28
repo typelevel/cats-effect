@@ -30,11 +30,11 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
   override def executionTimeout = 30.seconds
 
-  "sequential dispatcher" should {
+  "sequential dispatcher (cancelable = false)" should {
     "await = true" >> {
       val D = Dispatcher.sequential[IO](await = true)
 
-      sequential(D)
+      sequential(D, false)
 
       awaitTermination(D)
 
@@ -48,7 +48,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     "await = false" >> {
       val D = Dispatcher.sequential[IO](await = false)
 
-      sequential(D)
+      sequential(D, false)
 
       "cancel all inner effects when canceled" in real {
         var canceled = false
@@ -64,9 +64,43 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     }
   }
 
-  private def sequential(dispatcher: Resource[IO, Dispatcher[IO]]) = {
+  "sequential dispatcher (cancelable = true)" should {
+    "await = true" >> {
+      val D = Dispatcher.sequential[IO](await = true, cancelable = true)
 
-    common(dispatcher)
+      sequential(D, true)
+
+      awaitTermination(D)
+
+      "not hang" in real {
+        D.use(dispatcher => IO(dispatcher.unsafeRunAndForget(IO.unit)))
+          .replicateA(if (isJS || isNative) 1 else 10000)
+          .as(true)
+      }
+    }
+
+    "await = false" >> {
+      val D = Dispatcher.sequential[IO](await = false, cancelable = true)
+
+      sequential(D, true)
+
+      "cancel all inner effects when canceled" in real {
+        var canceled = false
+
+        val body = D use { runner =>
+          IO(runner.unsafeRunAndForget(IO.never.onCancel(IO { canceled = true }))) *> IO.never
+        }
+
+        val action = body.start.flatMap(f => IO.sleep(500.millis) *> f.cancel)
+
+        TestControl.executeEmbed(action *> IO(canceled must beTrue))
+      }
+    }
+  }
+
+  private def sequential(dispatcher: Resource[IO, Dispatcher[IO]], cancelable: Boolean) = {
+
+    common(dispatcher, cancelable)
 
     "strictly sequentialize multiple IOs" in real {
       val length = 1000
@@ -86,24 +120,6 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         vec <- results.get
         _ <- IO(vec mustEqual 0.until(length).toVector)
       } yield ok
-    }
-
-    "ignore action cancelation" in real {
-      var canceled = false
-
-      val rec = dispatcher flatMap { runner =>
-        val run = IO {
-          runner
-            .unsafeToFutureCancelable(IO.sleep(500.millis).onCancel(IO { canceled = true }))
-            ._2
-        }
-
-        Resource eval {
-          run.flatMap(ct => IO.sleep(200.millis) >> IO.fromFuture(IO(ct())))
-        }
-      }
-
-      TestControl.executeEmbed(rec.use(_ => IO(canceled must beFalse)))
     }
 
     "reject new tasks after release action is submitted as a task" in ticked {
@@ -219,7 +235,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
   private def parallel(dispatcher: Resource[IO, Dispatcher[IO]]) = {
 
-    common(dispatcher)
+    common(dispatcher, true)
 
     "run multiple IOs in parallel" in real {
       val num = 10
@@ -283,23 +299,9 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
       TestControl.executeEmbed(test).attempt.flatMap(e => IO(e must beLeft))
     }*/
-
-    "forward cancelation onto the inner action" in real {
-      val test = dispatcher use { runner =>
-        IO.ref(false) flatMap { resultsR =>
-          val action = IO.never.onCancel(resultsR.set(true))
-          IO(runner.unsafeToFutureCancelable(action)) flatMap {
-            case (_, cancel) =>
-              IO.sleep(500.millis) *> IO.fromFuture(IO(cancel())) *> resultsR.get
-          }
-        }
-      }
-
-      TestControl.executeEmbed(test).flatMap(b => IO(b must beTrue))
-    }
   }
 
-  private def common(dispatcher: Resource[IO, Dispatcher[IO]]) = {
+  private def common(dispatcher: Resource[IO, Dispatcher[IO]], cancelable: Boolean) = {
 
     "run a synchronous IO" in real {
       val ioa = IO(1).map(_ + 2)
@@ -432,6 +434,40 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
       test must completeAs(())
     }
+
+    if (!cancelable) {
+      "ignore action cancelation" in real {
+        var canceled = false
+
+        val rec = dispatcher flatMap { runner =>
+          val run = IO {
+            runner
+              .unsafeToFutureCancelable(IO.sleep(500.millis).onCancel(IO { canceled = true }))
+              ._2
+          }
+
+          Resource eval {
+            run.flatMap(ct => IO.sleep(200.millis) >> IO.fromFuture(IO(ct())))
+          }
+        }
+
+        TestControl.executeEmbed(rec.use(_ => IO(canceled must beFalse)))
+      }
+    } else {
+      "forward cancelation onto the inner action" in real {
+        val test = dispatcher use { runner =>
+          IO.ref(false) flatMap { resultsR =>
+            val action = IO.never.onCancel(resultsR.set(true))
+            IO(runner.unsafeToFutureCancelable(action)) flatMap {
+              case (_, cancel) =>
+                IO.sleep(500.millis) *> IO.fromFuture(IO(cancel())) *> resultsR.get
+            }
+          }
+        }
+
+        TestControl.executeEmbed(test).flatMap(b => IO(b must beTrue))
+      }
+    }
   }
 
   private def awaitTermination(dispatcher: Resource[IO, Dispatcher[IO]]) = {
@@ -466,11 +502,13 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
     "issue #3506: await unsafeRunAndForget" in ticked { implicit ticker =>
       val result = for {
-        resultR <- IO.ref(false)
-        _ <- dispatcher.use { runner => IO(runner.unsafeRunAndForget(resultR.set(true))) }
-        result <- resultR.get
-      } yield result
-      result must completeAs(true)
+        latch <- IO.deferred[Unit]
+
+        repro = (latch.complete(()) >> IO.never).uncancelable
+        _ <- dispatcher.use(runner => IO(runner.unsafeRunAndForget(repro)) >> latch.get)
+      } yield ()
+
+      result must nonTerminate
     }
 
     "cancel active fibers when an error is produced" in real {
