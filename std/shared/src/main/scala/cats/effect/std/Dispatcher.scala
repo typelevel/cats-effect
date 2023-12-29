@@ -274,12 +274,12 @@ object Dispatcher {
                       throw new IllegalStateException("Dispatcher already closed")
                     }
 
-                    val stateR = new AtomicReference[TaskState[F]](TaskState.Unstarted)
+                    val stateR = new AtomicReference[RegState[F]](RegState.Unstarted)
 
                     // forward atomicity guarantees onto promise completion
                     val promisory = MonadCancel[F] uncancelable { poll =>
                       // invalidate the cancel action when we're done
-                      poll(fe.guarantee(Sync[F].delay(stateR.set(TaskState.Completed)))).redeemWith(
+                      poll(fe.guarantee(Sync[F].delay(stateR.set(RegState.Completed)))).redeemWith(
                         e => Sync[F].delay(result.failure(e)),
                         a => Sync[F].delay(result.success(a)))
                     }
@@ -303,21 +303,21 @@ object Dispatcher {
                         reg.action = null.asInstanceOf[F[Unit]]
 
                         stateR.get() match {
-                          case TaskState.Unstarted =>
+                          case RegState.Unstarted =>
                             val latch = Promise[Unit]()
 
-                            if (stateR.compareAndSet(TaskState.Unstarted, TaskState.CancelRequested(latch)))
+                            if (stateR.compareAndSet(RegState.Unstarted, RegState.CancelRequested(latch)))
                               latch.future
                             else
                               cancel()
 
-                          case TaskState.Running(cancel) =>
+                          case RegState.Running(cancel) =>
                             val latch = Promise[Unit]()
                             val _ = inner(cancel, latch, true)
                             latch.future
 
-                          case TaskState.CancelRequested(latch) => latch.future
-                          case TaskState.Completed => Future.successful(())
+                          case RegState.CancelRequested(latch) => latch.future
+                          case RegState.Completed => Future.successful(())
                         }
                       }
 
@@ -339,19 +339,19 @@ object Dispatcher {
     }
   }
 
-  private sealed abstract class TaskState[+F[_]] extends Product with Serializable
+  private sealed abstract class RegState[+F[_]] extends Product with Serializable
 
-  private object TaskState {
-    case object Unstarted extends TaskState[Nothing]
-    final case class Running[F[_]](cancel: F[Unit]) extends TaskState[F]
-    final case class CancelRequested[F[_]](latch: Promise[Unit]) extends TaskState[F]
-    case object Completed extends TaskState[Nothing]
+  private object RegState {
+    case object Unstarted extends RegState[Nothing]
+    final case class Running[F[_]](cancel: F[Unit]) extends RegState[F]
+    final case class CancelRequested[F[_]](latch: Promise[Unit]) extends RegState[F]
+    case object Completed extends RegState[Nothing]
   }
 
   private sealed abstract class Registration[F[_]]
 
   private object Registration {
-    final class Primary[F[_]](var action: F[Unit], val stateR: AtomicReference[TaskState[F]])
+    final class Primary[F[_]](var action: F[Unit], val stateR: AtomicReference[RegState[F]])
         extends Registration[F]
 
     final case class Finalizer[F[_]](action: F[Unit]) extends Registration[F]
@@ -372,15 +372,15 @@ object Dispatcher {
         case reg: Registration.Primary[F] =>
           Sync[F] defer {
             reg.stateR.get() match {
-              case TaskState.Unstarted =>
+              case RegState.Unstarted =>
                 val action = reg.action
 
                 if (action == null) {
                   // this corresponds to a memory race where we see action's write before stateR's
                   val check = Spawn[F].cede *> Sync[F].delay(reg.stateR.get())
-                  check.iterateWhile(_ == TaskState.Unstarted) *> Sync[F].delay {
+                  check.iterateWhile(_ == RegState.Unstarted) *> Sync[F].delay {
                     reg.stateR.get() match {
-                      case TaskState.CancelRequested(latch) =>
+                      case RegState.CancelRequested(latch) =>
                         latch.success(())
                         ()
 
@@ -388,13 +388,13 @@ object Dispatcher {
                     }
                   }
                 } else {
-                  executor(action.guarantee(Sync[F].delay(reg.stateR.set(TaskState.Completed)))) { cancelF =>
+                  executor(action.guarantee(Sync[F].delay(reg.stateR.set(RegState.Completed)))) { cancelF =>
                     Sync[F] defer {
-                      if (reg.stateR.compareAndSet(TaskState.Unstarted, TaskState.Running(cancelF))) {
+                      if (reg.stateR.compareAndSet(RegState.Unstarted, RegState.Running(cancelF))) {
                         Applicative[F].unit
                       } else {
                         reg.stateR.get() match {
-                          case TaskState.CancelRequested(latch) =>
+                          case RegState.CancelRequested(latch) =>
                             cancelF.guarantee(Sync[F].delay(latch.success(())).void)
 
                           case _ =>
@@ -405,9 +405,9 @@ object Dispatcher {
                   }
                 }
 
-              case TaskState.Running(_) | TaskState.Completed => throw new AssertionError
+              case RegState.Running(_) | RegState.Completed => throw new AssertionError
 
-              case TaskState.CancelRequested(latch) => Sync[F].delay(latch.success(())).void
+              case RegState.CancelRequested(latch) => Sync[F].delay(latch.success(())).void
             }
           }
 
@@ -453,25 +453,25 @@ object Dispatcher {
 
     // sequential executor which respects cancelation (at the cost of additional overhead); not used
     def sequential[F[_]: Concurrent](supervisor: Supervisor[F]): Resource[F, Executor[F]] = {
-      sealed trait TaskSignal extends Product with Serializable
+      sealed trait TaskState extends Product with Serializable
 
-      object TaskSignal {
-        final case class Ready(task: F[Unit]) extends TaskSignal
-        case object Executing extends TaskSignal
-        case object Void extends TaskSignal
+      object TaskState {
+        final case class Ready(task: F[Unit]) extends TaskState
+        case object Executing extends TaskState
+        case object Void extends TaskState
       }
 
-      Resource.eval(Queue.unbounded[F, Ref[F, TaskSignal]]) flatMap { tasks =>
+      Resource.eval(Queue.unbounded[F, Ref[F, TaskState]]) flatMap { tasks =>
         // knock it out of the task taking
-        val evict = Concurrent[F].ref[TaskSignal](TaskSignal.Void).flatMap(tasks.offer(_))
+        val evict = Concurrent[F].ref[TaskState](TaskState.Void).flatMap(tasks.offer(_))
 
         Resource.make(Concurrent[F].ref(false))(r => r.set(true) >> evict) evalMap { doneR =>
           Concurrent[F].ref[Option[Deferred[F, Unit]]](None) flatMap { shutoff =>
             val step = tasks.take flatMap { taskR =>
-              taskR.getAndSet(TaskSignal.Executing) flatMap {
-                case TaskSignal.Ready(task) => task.guarantee(taskR.set(TaskSignal.Void))
+              taskR.getAndSet(TaskState.Executing) flatMap {
+                case TaskState.Ready(task) => task.guarantee(taskR.set(TaskState.Void))
                 // Executing should be impossible
-                case TaskSignal.Executing | TaskSignal.Void => Applicative[F].unit
+                case TaskState.Executing | TaskState.Void => Applicative[F].unit
               }
             }
 
@@ -482,15 +482,15 @@ object Dispatcher {
               Concurrent[F].ref(fiber) map { fiberR =>
                 new Executor[F] {
                   def apply(task: F[Unit])(registerCancel: F[Unit] => F[Unit]): F[Unit] = {
-                    Concurrent[F].ref[TaskSignal](TaskSignal.Ready(task)) flatMap { taskR =>
-                      val cancelF = taskR.getAndSet(TaskSignal.Void) flatMap {
-                        case TaskSignal.Ready(_) | TaskSignal.Void =>
+                    Concurrent[F].ref[TaskState](TaskState.Ready(task)) flatMap { taskR =>
+                      val cancelF = taskR.getAndSet(TaskState.Void) flatMap {
+                        case TaskState.Ready(_) | TaskState.Void =>
                           Applicative[F].unit
 
-                        case TaskSignal.Executing =>
+                        case TaskState.Executing =>
                           Concurrent[F].deferred[Unit] flatMap { latch =>
                             // TODO if someone else is already canceling, this will create a deadlock
-                            // to fix this deadlock, we need a fourth TaskSignal state and a double-check on that and the shutoff
+                            // to fix this deadlock, we need a fourth TaskState state and a double-check on that and the shutoff
 
                             // Step 1: Turn off everything
                             shutoff.set(Some(latch)) >> {

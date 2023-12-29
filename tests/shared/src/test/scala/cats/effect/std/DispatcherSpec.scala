@@ -467,6 +467,35 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
         TestControl.executeEmbed(test).flatMap(b => IO(b must beTrue))
       }
+
+      "support multiple concurrent cancelations" in real {
+        dispatcher use { runner =>
+          for {
+            latch0 <- IO.deferred[Unit]
+            latch1 <- IO.deferred[Unit]
+            latch2 <- IO.deferred[Unit]
+
+            countR <- IO.ref(0)
+
+            action = (latch0.complete(()) *> IO.never).onCancel(latch1.complete(()) *> latch2.get)
+
+            (_, cancel) <- IO(runner.unsafeToFutureCancelable(action))
+
+            _ <- latch0.get
+            cancelAction = IO.fromFuture(IO(cancel())) *> countR.update(_ + 1)
+            _ <- IO(runner.unsafeRunAndForget(cancelAction))
+            _ <- IO(runner.unsafeRunAndForget(cancelAction))
+            _ <- IO(runner.unsafeRunAndForget(cancelAction))
+
+            _ <- latch1.get
+            _ <- IO.sleep(100.millis)
+            count <- countR.get
+            _ <- IO(count mustEqual 0)
+
+            _ <- latch2.complete(())
+          } yield ok
+        }
+      }
     }
   }
 
