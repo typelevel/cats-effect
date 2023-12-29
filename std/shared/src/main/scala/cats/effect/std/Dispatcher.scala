@@ -269,22 +269,19 @@ object Dispatcher {
 
               launchAll.as(new Dispatcher[F] {
                 def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit]) = {
-                  def inner[E](fe: F[E], checker: Option[F[Boolean]])
-                      : (Future[E], () => Future[Unit]) = {
+                  def inner[E](fe: F[E], result: Promise[E], finalizer: Boolean): () => Future[Unit] = {
                     if (doneR.get()) {
                       throw new IllegalStateException("Dispatcher already closed")
                     }
 
-                    val p = Promise[E]()
-                    val cancelR = new AtomicReference[F[Unit]]()
-                    val invalidateCancel = Sync[F].delay(cancelR.set(null.asInstanceOf[F[Unit]]))
+                    val stateR = new AtomicReference[TaskState[F]](TaskState.Unstarted)
 
                     // forward atomicity guarantees onto promise completion
                     val promisory = MonadCancel[F] uncancelable { poll =>
                       // invalidate the cancel action when we're done
-                      poll(fe.guarantee(invalidateCancel)).redeemWith(
-                        e => Sync[F].delay(p.failure(e)),
-                        a => Sync[F].delay(p.success(a)))
+                      poll(fe.guarantee(Sync[F].delay(stateR.set(TaskState.Completed)))).redeemWith(
+                        e => Sync[F].delay(result.failure(e)),
+                        a => Sync[F].delay(result.success(a)))
                     }
 
                     val worker =
@@ -293,48 +290,43 @@ object Dispatcher {
                       else
                         workers(0)
 
-                    checker match {
-                      // fe is a finalizer
-                      case Some(check) =>
-                        // bypass over-eager warning
-                        // can get rid of this if we GADT encode `inner`'s parameters
-                        val abortResult: Any = ()
-                        val abort = Sync[F].delay(p.success(abortResult.asInstanceOf[E])).void
+                    if (finalizer) {
+                      worker.queue.unsafeOffer(Registration.Finalizer(promisory.void))
 
-                        worker
-                          .queue
-                          .unsafeOffer(Registration.Finalizer(promisory.void, check, abort))
+                      // cannot cancel a cancel
+                      () => Future.failed(new UnsupportedOperationException)
+                    } else {
+                      val reg = new Registration.Primary(promisory.void, stateR)
+                      worker.queue.unsafeOffer(reg)
 
-                        // cannot cancel a cancel
-                        (p.future, () => Future.failed(new UnsupportedOperationException))
+                      def cancel(): Future[Unit] = {
+                        reg.action = null.asInstanceOf[F[Unit]]
 
-                      case None =>
-                        val reg = new Registration.Primary(promisory.void, cancelR)
-                        worker.queue.unsafeOffer(reg)
+                        stateR.get() match {
+                          case TaskState.Unstarted =>
+                            val latch = Promise[Unit]()
 
-                        def cancel(): Future[Unit] = {
-                          reg.action = null.asInstanceOf[F[Unit]]
+                            if (stateR.compareAndSet(TaskState.Unstarted, TaskState.CancelRequested(latch)))
+                              latch.future
+                            else
+                              cancel()
 
-                          val cancelF = cancelR.get()
-                          if (cancelF != null) {
-                            // cannot use null here
-                            if (cancelR.compareAndSet(cancelF, Applicative[F].unit)) {
-                              // this looping is fine, since we drop the cancel
-                              // note that action is published here since the CAS passed
-                              inner(cancelF, Some(Sync[F].delay(cancelR.get() != null)))._1
-                            } else {
-                              Future.successful(())
-                            }
-                          } else {
-                            Future.successful(())
-                          }
+                          case TaskState.Running(cancel) =>
+                            val latch = Promise[Unit]()
+                            val _ = inner(cancel, latch, true)
+                            latch.future
+
+                          case TaskState.CancelRequested(latch) => latch.future
+                          case TaskState.Completed => Future.successful(())
                         }
+                      }
 
-                        (p.future, cancel _)
+                      cancel _
                     }
                   }
 
-                  inner(fa, None)
+                  val result = Promise[A]()
+                  (result.future, inner(fa, result, false))
                 }
 
                 override def reportFailure(t: Throwable): Unit =
@@ -347,16 +339,22 @@ object Dispatcher {
     }
   }
 
+  private sealed abstract class TaskState[+F[_]] extends Product with Serializable
+
+  private object TaskState {
+    case object Unstarted extends TaskState[Nothing]
+    final case class Running[F[_]](cancel: F[Unit]) extends TaskState[F]
+    final case class CancelRequested[F[_]](latch: Promise[Unit]) extends TaskState[F]
+    case object Completed extends TaskState[Nothing]
+  }
+
   private sealed abstract class Registration[F[_]]
 
   private object Registration {
-    final class Primary[F[_]](var action: F[Unit], val cancelR: AtomicReference[F[Unit]])
+    final class Primary[F[_]](var action: F[Unit], val stateR: AtomicReference[TaskState[F]])
         extends Registration[F]
 
-    // the check action verifies that we haven't completed in the interim (as determined by the promise)
-    // the abort action runs in the event that we fail that check and need to complete the cancel promise
-    final case class Finalizer[F[_]](action: F[Unit], check: F[Boolean], abort: F[Unit])
-        extends Registration[F]
+    final case class Finalizer[F[_]](action: F[Unit]) extends Registration[F]
 
     final case class PoisonPill[F[_]]() extends Registration[F]
   }
@@ -372,32 +370,48 @@ object Dispatcher {
     def run: F[Unit] = {
       val step = queue.take flatMap {
         case reg: Registration.Primary[F] =>
-          Sync[F].delay(reg.cancelR.get()) flatMap { sig =>
-            val action = reg.action
+          Sync[F] defer {
+            reg.stateR.get() match {
+              case TaskState.Unstarted =>
+                val action = reg.action
 
-            // double null check catches overly-aggressive memory fencing
-            if (sig == null && action != null) {
-              executor(action) { cancelF =>
-                // we need to double-check that we weren't canceled while spawning
-                Sync[F].delay(reg.cancelR.compareAndSet(null.asInstanceOf[F[Unit]], cancelF)) flatMap {
-                  case true =>
-                    // we weren't canceled!
-                    Applicative[F].unit
+                if (action == null) {
+                  // this corresponds to a memory race where we see action's write before stateR's
+                  val check = Spawn[F].cede *> Sync[F].delay(reg.stateR.get())
+                  check.iterateWhile(_ == TaskState.Unstarted) *> Sync[F].delay {
+                    reg.stateR.get() match {
+                      case TaskState.CancelRequested(latch) =>
+                        latch.success(())
+                        ()
 
-                  case false =>
-                    // we were canceled while spawning, so forward that on to the cancelation action
-                    cancelF
+                      case _ => throw new AssertionError
+                    }
+                  }
+                } else {
+                  executor(action.guarantee(Sync[F].delay(reg.stateR.set(TaskState.Completed)))) { cancelF =>
+                    Sync[F] defer {
+                      if (reg.stateR.compareAndSet(TaskState.Unstarted, TaskState.Running(cancelF))) {
+                        Applicative[F].unit
+                      } else {
+                        reg.stateR.get() match {
+                          case TaskState.CancelRequested(latch) =>
+                            cancelF.guarantee(Sync[F].delay(latch.success(())).void)
+
+                          case _ =>
+                            throw new AssertionError    // invalid state
+                        }
+                      }
+                    }
+                  }
                 }
-              }
-            } else {
-              // don't spawn, already canceled
-              Applicative[F].unit
+
+              case TaskState.Running(_) | TaskState.Completed => throw new AssertionError
+
+              case TaskState.CancelRequested(latch) => Sync[F].delay(latch.success(())).void
             }
           }
 
-        case Registration.Finalizer(action, check, abort) =>
-          // here's the double-check for late finalization
-          check.ifM(action, abort)
+        case Registration.Finalizer(action) => action
 
         case Registration.PoisonPill() =>
           Sync[F].delay(doneR.set(true))
@@ -427,9 +441,14 @@ object Dispatcher {
 
   private object Executor {
 
-    def inplace[F[_]]: Executor[F] =
+    // default sequential executor (ignores cancelation)
+    def inplace[F[_]: Applicative]: Executor[F] =
       new Executor[F] {
-        def apply(task: F[Unit])(registerCancel: F[Unit] => F[Unit]): F[Unit] = task
+        def apply(task: F[Unit])(registerCancel: F[Unit] => F[Unit]): F[Unit] = {
+          // we can use unit as a cancel action here since it must always sequence *after* the task
+          // thus, the task must complete before the cancel action will be picked up
+          registerCancel(Applicative[F].unit) *> task
+        }
       }
 
     // sequential executor which respects cancelation (at the cost of additional overhead); not used
