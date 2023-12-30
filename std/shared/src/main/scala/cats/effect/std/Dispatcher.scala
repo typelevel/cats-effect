@@ -384,7 +384,7 @@ object Dispatcher {
                         latch.success(())
                         ()
 
-                      case _ => throw new AssertionError
+                      case s => throw new AssertionError(s"a => $s")
                     }
                   }
                 } else {
@@ -397,21 +397,24 @@ object Dispatcher {
                           case RegState.CancelRequested(latch) =>
                             cancelF.guarantee(Sync[F].delay(latch.success(())).void)
 
-                          case _ =>
-                            throw new AssertionError    // invalid state
+                          case RegState.Completed =>
+                            Applicative[F].unit
+
+                          case s => throw new AssertionError(s"b => $s")
                         }
                       }
                     }
                   }
                 }
 
-              case RegState.Running(_) | RegState.Completed => throw new AssertionError
+              case s @ (RegState.Running(_) | RegState.Completed) => throw new AssertionError(s"c => $s")
 
               case RegState.CancelRequested(latch) => Sync[F].delay(latch.success(())).void
             }
           }
 
-        case Registration.Finalizer(action) => action
+        case Registration.Finalizer(action) =>
+          action
 
         case Registration.PoisonPill() =>
           Sync[F].delay(doneR.set(true))
@@ -458,20 +461,29 @@ object Dispatcher {
       object TaskState {
         final case class Ready(task: F[Unit]) extends TaskState
         case object Executing extends TaskState
-        case object Void extends TaskState
+        final case class Canceling(latch: Deferred[F, Unit]) extends TaskState
+        case object Dead extends TaskState
       }
 
       Resource.eval(Queue.unbounded[F, Ref[F, TaskState]]) flatMap { tasks =>
         // knock it out of the task taking
-        val evict = Concurrent[F].ref[TaskState](TaskState.Void).flatMap(tasks.offer(_))
+        val evict = Concurrent[F].ref[TaskState](TaskState.Dead).flatMap(tasks.offer(_))
 
         Resource.make(Concurrent[F].ref(false))(r => r.set(true) >> evict) evalMap { doneR =>
           Concurrent[F].ref[Option[Deferred[F, Unit]]](None) flatMap { shutoff =>
             val step = tasks.take flatMap { taskR =>
               taskR.getAndSet(TaskState.Executing) flatMap {
-                case TaskState.Ready(task) => task.guarantee(taskR.set(TaskState.Void))
+                case TaskState.Ready(task) =>
+                  task guarantee {
+                    taskR.getAndSet(TaskState.Dead) flatMap {
+                      // if we finished during cancelation, we need to catch it before it kills us
+                      case TaskState.Canceling(latch) => latch.complete(()).void
+                      case _ => Applicative[F].unit
+                    }
+                  }
+
                 // Executing should be impossible
-                case TaskState.Executing | TaskState.Void => Applicative[F].unit
+                case TaskState.Executing | TaskState.Canceling(_) | TaskState.Dead => Applicative[F].unit
               }
             }
 
@@ -483,29 +495,53 @@ object Dispatcher {
                 new Executor[F] {
                   def apply(task: F[Unit])(registerCancel: F[Unit] => F[Unit]): F[Unit] = {
                     Concurrent[F].ref[TaskState](TaskState.Ready(task)) flatMap { taskR =>
-                      val cancelF = taskR.getAndSet(TaskState.Void) flatMap {
-                        case TaskState.Ready(_) | TaskState.Void =>
-                          Applicative[F].unit
+                      val cancelF =
+                        Concurrent[F].deferred[Unit] flatMap { cancelLatch =>
+                          taskR flatModify {
+                            case TaskState.Ready(_) | TaskState.Dead =>
+                              (TaskState.Dead, Applicative[F].unit)
 
-                        case TaskState.Executing =>
-                          Concurrent[F].deferred[Unit] flatMap { latch =>
-                            // TODO if someone else is already canceling, this will create a deadlock
-                            // to fix this deadlock, we need a fourth TaskState state and a double-check on that and the shutoff
+                            case TaskState.Canceling(cancelLatch) =>
+                              (TaskState.Canceling(cancelLatch), cancelLatch.get)
 
-                            // Step 1: Turn off everything
-                            shutoff.set(Some(latch)) >> {
-                              // Step 2: Drain the queue
-                              tasks.tryTakeN(None) flatMap { scratch =>
-                                // Step 3: Cancel the executor, put it all back, and restart executor
-                                fiberR.get.flatMap(_.cancel) >>
-                                  scratch.traverse_(tasks.offer(_)) >>
-                                  spawnExecutor.flatMap(fiberR.set(_)) >>
-                                  latch.complete(()) >>
-                                  shutoff.set(None)
-                              }
-                            }
+                            case TaskState.Executing =>
+                              // we won the race for cancelation and it's already executing
+                              val eff = for {
+                                // lock the door
+                                latch <- Concurrent[F].deferred[Unit]
+                                _ <- shutoff.set(Some(latch))
+
+                                // drain the task queue
+                                scratch <- tasks.tryTakeN(None)
+
+                                // double check that execution didn't finish while we drained
+                                _ <- cancelLatch.tryGet flatMap {
+                                  case Some(_) =>
+                                    Applicative[F].unit
+
+                                  case None =>
+                                    for {
+                                      // kill the current executor
+                                      _ <- fiberR.get.flatMap(_.cancel)
+
+                                      // restore all of the tasks
+                                      _ <- scratch.traverse_(tasks.offer(_))
+
+                                      // start a new fiber
+                                      _ <- spawnExecutor.flatMap(fiberR.set(_))
+
+                                      // allow everyone else back in
+                                      _ <- latch.complete(())
+                                      _ <- shutoff.set(None)
+                                    } yield ()
+                                }
+
+                                _ <- cancelLatch.complete(())
+                              } yield ()
+
+                              (TaskState.Canceling(cancelLatch), eff)
                           }
-                      }
+                        }
 
                       // in rare cases, this can create mutual ordering issues with quickly enqueued tasks
                       val optBlock = shutoff.get flatMap {
