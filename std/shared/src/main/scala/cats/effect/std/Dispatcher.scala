@@ -329,12 +329,14 @@ object Dispatcher {
                             else
                               cancel()
 
-                          case RegState.Running(cancel) =>
+                          case r: RegState.Running[_] =>
+                            val cancel = r.cancel // indirection needed for Scala 2.12
+
                             val latch = Promise[Unit]()
                             val _ = inner(cancel, latch, true)
                             latch.future
 
-                          case RegState.CancelRequested(latch) => latch.future
+                          case r: RegState.CancelRequested[_] => r.latch.future
                           case RegState.Completed => Future.successful(())
                         }
                       }

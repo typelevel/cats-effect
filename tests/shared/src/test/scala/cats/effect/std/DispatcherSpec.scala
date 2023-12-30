@@ -141,7 +141,9 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           latch2 <- IO.deferred[Unit]
           latch3 <- IO.deferred[Unit]
 
-          (_, cancel) <- IO(runner.unsafeToFutureCancelable(IO.unit))
+          pair <- IO(runner.unsafeToFutureCancelable(IO.unit))
+          (_, cancel) = pair
+
           _ <- IO(
             runner.unsafeRunAndForget(latch1.complete(()) *> latch2.get *> latch3.complete(())))
 
@@ -163,7 +165,8 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
             latch1 <- IO.deferred[Unit]
             latch2 <- IO.deferred[Unit]
 
-            (_, cancel) <- IO(runner.unsafeToFutureCancelable(latch1.get))
+            pair <- IO(runner.unsafeToFutureCancelable(latch1.get))
+            (_, cancel) = pair
 
             _ <- latch1.complete(())
             // the particularly scary case is where the cancel action gets in queue before the next action
@@ -475,7 +478,8 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
             action = (latch0.complete(()) *> IO.never)
               .onCancel(latch1.complete(()) *> latch2.get)
 
-            (_, cancel) <- IO(runner.unsafeToFutureCancelable(action))
+            pair <- IO(runner.unsafeToFutureCancelable(action))
+            (_, cancel) = pair
 
             _ <- latch0.get
 
