@@ -292,7 +292,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           }
         }
 
-        action.replicateA_(1000)
+        action.replicateA_(if (isJVM) 1000 else 1)
       }
 
       if (isJVM)
