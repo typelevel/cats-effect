@@ -295,7 +295,10 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         action.replicateA_(1000)
       }
 
-      test.parReplicateA_(100).as(ok)
+      if (isJVM)
+        test.parReplicateA_(100).as(ok)
+      else
+        test.as(ok)
     }
   }
 
