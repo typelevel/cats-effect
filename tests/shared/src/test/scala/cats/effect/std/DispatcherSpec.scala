@@ -66,7 +66,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
   "sequential dispatcher (cancelable = true)" should {
     "await = true" >> {
-      val D = Dispatcher.sequential[IO](await = true, cancelable = true)
+      val D = Dispatcher.sequentialCancelable[IO](await = true)
 
       sequential(D, true)
 
@@ -80,7 +80,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     }
 
     "await = false" >> {
-      val D = Dispatcher.sequential[IO](await = false, cancelable = true)
+      val D = Dispatcher.sequentialCancelable[IO](await = false)
 
       sequential(D, true)
 

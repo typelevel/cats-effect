@@ -184,18 +184,22 @@ object Dispatcher {
    *   - true - wait for the completion of the active fiber
    *   - false - cancel the active fiber
    */
-  def sequential[F[_]: Async](await: Boolean, cancelable: Boolean = false): Resource[F, Dispatcher[F]] =
-    impl[F](false, await, cancelable)
+  def sequential[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
+    impl[F](false, await, false)
+
+  // TODO decide if we want other people to use this
+  private[std] def sequentialCancelable[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
+    impl[F](false, await, true)
 
   /*
-   * There are two fundamental modes here: sequential and parallel. There is very little overlap
-   * in semantics between the two apart from the submission side. The whole thing is split up into
+   * There are three fundamental modes here: sequential, parallel, and sequential-cancelable. There
+   * is very little overlap in semantics between the three apart from the submission side. The whole thing is split up into
    * a submission queue with impure enqueue and cancel functions which is drained by the `Worker` and an
    * internal execution protocol which also involves a queue. The `Worker` encapsulates all of the
    * race conditions and negotiations with impure code, while the `Executor` manages running the
    * tasks with appropriate semantics. In parallel mode, we shard the `Worker`s according to the
    * number of CPUs and select a random queue (in impure code) as a target. This reduces contention
-   * at the cost of ordering, which is not guaranteed in parallel mode. With sequential mode, there
+   * at the cost of ordering, which is not guaranteed in parallel mode. With the sequential modes, there
    * is only a single worker.
    *
    * On the impure side, the queue bit is the easy part: it's just a `LinkedBlockingQueue` which
@@ -207,10 +211,15 @@ object Dispatcher {
    * which is in the process of being taken off the queue, and those race conditions are negotiated
    * between the impure code and the `Worker`.
    *
-   * On the pure side, the two different `Executor`s are very distinct. In parallel mode, it's easy:
+   * On the pure side, the three different `Executor`s are very distinct. In parallel mode, it's easy:
    * we have a separate `Supervisor` which doesn't respawn actions, and we use that supervisor to
    * spawn a new fiber for each task unit. Cancelation in this mode is easy: we just cancel the fiber.
-   * For sequential mode, we spawn a *single* executor fiber on the main supervisor (which respawns).
+   *
+   * Sequential mode is the simplest of all: all work is executed in-place and cannot be canceled.
+   * The cancelation action in all cases is simply `unit` because the impure submission will not be
+   * seen until after the work is completed *anyway*, so there's no point in being fancy.
+   *
+   * For sequential-cancelable mode, we spawn a *single* executor fiber on the main supervisor (which respawns).
    * This fiber is paired with a pure unbounded queue and a shutoff latch. New work is placed on the
    * queue, which the fiber takes from in order and executes in-place. If the work self-cancels or
    * errors, the executor will be restarted. In the case of external cancelation, we shut off the
@@ -218,14 +227,6 @@ object Dispatcher {
    * executor fiber in-place so long as we're sure it's actively working on the target task. Once
    * that cancelation completes (which will ultimately restart the executor fiber), we re-fill the
    * queue and unlock the latch to allow new work (from the `Worker`).
-   *
-   * Note that a third mode is possible but not implemented: sequential *without* cancelation. In
-   * this mode, we execute each task directly on the worker fiber as it comes in, without the
-   * added indirection of the executor queue. This reduces overhead considerably, but the price is
-   * we can no longer support external (impure) cancelation. This is because the worker fiber is
-   * *also* responsible for dequeueing from the impure queue, which is where the cancelation tasks
-   * come in. The worker can't observe a cancelation action while it's executing another action, so
-   * cancelation cannot then preempt and is effectively worthless.
    */
   private[this] def impl[F[_]: Async](
       parallel: Boolean,
