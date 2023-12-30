@@ -25,7 +25,7 @@ import cats.syntax.all._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Failure
 
-import java.util.concurrent.{LinkedBlockingQueue, ThreadLocalRandom}
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
@@ -575,11 +575,11 @@ object Dispatcher {
 
   // MPSC assumption
   private final class UnsafeAsyncQueue[F[_]: Async, A] {
-    private[this] val buffer = new LinkedBlockingQueue[A]()
+    private[this] val buffer = new UnsafeUnbounded[A]()
     private[this] val latchR = new AtomicReference[Either[Throwable, Unit] => Unit](null)
 
     def unsafeOffer(a: A): Unit = {
-      buffer.offer(a)
+      val _ = buffer.put(a)
 
       val f = latchR.get()
       if (latchR.compareAndSet(f, Signal)) {
@@ -596,22 +596,16 @@ object Dispatcher {
           if (latchR.compareAndSet(null, k)) {
             Left(Some(Applicative[F].unit)) // all cleanup is elsewhere
           } else {
-            val result = latchR.compareAndSet(Signal, null)
-            require(
-              result
-            ) // since this is a single consumer queue, we should never have multiple callbacks
+            // since this is a single consumer queue, we should never have multiple callbacks
+            latchR.set(null)
             Right(())
           }
         }
       }
 
       MonadCancel[F] uncancelable { poll =>
-        Sync[F].delay(buffer.poll()) flatMap { a =>
-          if (a == null)
-            poll(latchF >> take)
-          else
-            Applicative[F].pure(a)
-        }
+        // emptiness is reported as a FailureSignal error
+        Sync[F].delay(buffer.take()).handleErrorWith(_ => poll(latchF *> take))
       }
     }
   }
