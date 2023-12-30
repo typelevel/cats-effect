@@ -975,7 +975,13 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.std.Queue$UnsafeUnbounded$Cell"),
         // introduced by #3480
         // adds method to sealed Hotswap
-        ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get")
+        ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get"),
+        // introduced by #3923
+        // Rewrote Dispatcher
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode$"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode$Parallel$"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode$Sequential$")
       )
   )
   .jsSettings(
