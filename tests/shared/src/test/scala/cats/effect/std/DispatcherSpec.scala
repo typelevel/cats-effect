@@ -294,14 +294,6 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
       test.parReplicateA_(100).as(ok)
     }
-
-    /*"fail to terminate when running one's own release in all modes" in real {
-      val test = dispatcher.allocated flatMap {
-        case (runner, release) => IO(runner.unsafeRunAndForget(release))
-      }
-
-      TestControl.executeEmbed(test).attempt.flatMap(e => IO(e must beLeft))
-    }*/
   }
 
   private def common(dispatcher: Resource[IO, Dispatcher[IO]], cancelable: Boolean) = {
