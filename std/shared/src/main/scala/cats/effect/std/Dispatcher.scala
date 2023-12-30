@@ -17,7 +17,17 @@
 package cats.effect.std
 
 import cats.Applicative
-import cats.effect.kernel.{Async, Concurrent, Deferred, MonadCancel, Outcome, Ref, Resource, Spawn, Sync}
+import cats.effect.kernel.{
+  Async,
+  Concurrent,
+  Deferred,
+  MonadCancel,
+  Outcome,
+  Ref,
+  Resource,
+  Spawn,
+  Sync
+}
 import cats.effect.kernel.syntax.all._
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
@@ -149,7 +159,8 @@ object Dispatcher {
    *   - true - wait for the completion of the active fibers
    *   - false - cancel the active fibers
    */
-  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] = impl[F](true, await, true)
+  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
+    impl[F](true, await, true)
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
@@ -188,7 +199,8 @@ object Dispatcher {
     impl[F](false, await, false)
 
   // TODO decide if we want other people to use this
-  private[std] def sequentialCancelable[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
+  private[std] def sequentialCancelable[F[_]: Async](
+      await: Boolean): Resource[F, Dispatcher[F]] =
     impl[F](false, await, true)
 
   /*
@@ -245,12 +257,13 @@ object Dispatcher {
       val awaitTermination = Resource.make(Concurrent[F].deferred[Unit])(_.complete(()).void)
 
       (awaitTermination, termination) flatMapN { (terminationLatch, doneR) =>
-        val executorF = if (parallel)
-          Executor.parallel[F](await)
-        else if (cancelable)
-          Executor.sequential(supervisor)
-        else
-          Resource.pure[F, Executor[F]](Executor.inplace[F])
+        val executorF =
+          if (parallel)
+            Executor.parallel[F](await)
+          else if (cancelable)
+            Executor.sequential(supervisor)
+          else
+            Resource.pure[F, Executor[F]](Executor.inplace[F])
 
         // note this scopes the executors *outside* the workers, meaning the workers shut down first
         // I think this is what we want, since it avoids enqueue race conditions
@@ -270,7 +283,8 @@ object Dispatcher {
 
               launchAll.as(new Dispatcher[F] {
                 def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit]) = {
-                  def inner[E](fe: F[E], result: Promise[E], finalizer: Boolean): () => Future[Unit] = {
+                  def inner[E](fe: F[E], result: Promise[E], finalizer: Boolean)
+                      : () => Future[Unit] = {
                     if (doneR.get()) {
                       throw new IllegalStateException("Dispatcher already closed")
                     }
@@ -280,9 +294,10 @@ object Dispatcher {
                     // forward atomicity guarantees onto promise completion
                     val promisory = MonadCancel[F] uncancelable { poll =>
                       // invalidate the cancel action when we're done
-                      poll(fe.guarantee(Sync[F].delay(stateR.set(RegState.Completed)))).redeemWith(
-                        e => Sync[F].delay(result.failure(e)),
-                        a => Sync[F].delay(result.success(a)))
+                      poll(fe.guarantee(Sync[F].delay(stateR.set(RegState.Completed))))
+                        .redeemWith(
+                          e => Sync[F].delay(result.failure(e)),
+                          a => Sync[F].delay(result.success(a)))
                     }
 
                     val worker =
@@ -307,7 +322,9 @@ object Dispatcher {
 
                             reg.action = null.asInstanceOf[F[Unit]]
 
-                            if (stateR.compareAndSet(RegState.Unstarted, RegState.CancelRequested(latch)))
+                            if (stateR.compareAndSet(
+                                RegState.Unstarted,
+                                RegState.CancelRequested(latch)))
                               latch.future
                             else
                               cancel()
@@ -389,26 +406,31 @@ object Dispatcher {
                     }
                   }
                 } else {
-                  executor(action.guarantee(Sync[F].delay(reg.stateR.set(RegState.Completed)))) { cancelF =>
-                    Sync[F] defer {
-                      if (reg.stateR.compareAndSet(RegState.Unstarted, RegState.Running(cancelF))) {
-                        Applicative[F].unit
-                      } else {
-                        reg.stateR.get() match {
-                          case RegState.CancelRequested(latch) =>
-                            cancelF.guarantee(Sync[F].delay(latch.success(())).void)
+                  executor(
+                    action.guarantee(Sync[F].delay(reg.stateR.set(RegState.Completed)))) {
+                    cancelF =>
+                      Sync[F] defer {
+                        if (reg
+                            .stateR
+                            .compareAndSet(RegState.Unstarted, RegState.Running(cancelF))) {
+                          Applicative[F].unit
+                        } else {
+                          reg.stateR.get() match {
+                            case RegState.CancelRequested(latch) =>
+                              cancelF.guarantee(Sync[F].delay(latch.success(())).void)
 
-                          case RegState.Completed =>
-                            Applicative[F].unit
+                            case RegState.Completed =>
+                              Applicative[F].unit
 
-                          case s => throw new AssertionError(s"b => $s")
+                            case s => throw new AssertionError(s"b => $s")
+                          }
                         }
                       }
-                    }
                   }
                 }
 
-              case s @ (RegState.Running(_) | RegState.Completed) => throw new AssertionError(s"c => $s")
+              case s @ (RegState.Running(_) | RegState.Completed) =>
+                throw new AssertionError(s"c => $s")
 
               case RegState.CancelRequested(latch) => Sync[F].delay(latch.success(())).void
             }
@@ -431,7 +453,9 @@ object Dispatcher {
 
   private object Worker {
 
-    def apply[F[_]: Async](executor: Executor[F], terminationLatch: Deferred[F, Unit]): Resource[F, Worker[F]] = {
+    def apply[F[_]: Async](
+        executor: Executor[F],
+        terminationLatch: Deferred[F, Unit]): Resource[F, Worker[F]] = {
       val initF = Sync[F].delay(
         new Worker[F](new UnsafeAsyncQueue[F, Registration[F]](), executor, terminationLatch))
 
@@ -484,7 +508,8 @@ object Dispatcher {
                   }
 
                 // Executing should be impossible
-                case TaskState.Executing | TaskState.Canceling(_) | TaskState.Dead => Applicative[F].unit
+                case TaskState.Executing | TaskState.Canceling(_) | TaskState.Dead =>
+                  Applicative[F].unit
               }
             }
 
