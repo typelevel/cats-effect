@@ -281,15 +281,18 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
 
     // https://github.com/typelevel/cats-effect/issues/3898
     "not hang when cancelling" in real {
-      dispatcher.use { dispatcher =>
-        IO.fromFuture {
+      val test = dispatcher.use { dispatcher =>
+        val action = IO.fromFuture {
           IO {
             val (_, cancel) = dispatcher.unsafeToFutureCancelable(IO.never)
             cancel()
           }
-        }.replicateA_(1000)
-          .as(ok)
+        }
+
+        action.replicateA_(1000)
       }
+
+      test.parReplicateA_(100).as(ok)
     }
 
     /*"fail to terminate when running one's own release in all modes" in real {

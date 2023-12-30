@@ -300,11 +300,11 @@ object Dispatcher {
                       worker.queue.unsafeOffer(reg)
 
                       def cancel(): Future[Unit] = {
-                        reg.action = null.asInstanceOf[F[Unit]]
-
                         stateR.get() match {
                           case RegState.Unstarted =>
                             val latch = Promise[Unit]()
+
+                            reg.action = null.asInstanceOf[F[Unit]]
 
                             if (stateR.compareAndSet(RegState.Unstarted, RegState.CancelRequested(latch)))
                               latch.future
