@@ -123,10 +123,11 @@ object Hotswap {
 
       def shared(state: Ref[F, State]): Resource[F, Boolean] =
         Resource.makeFull[F, Boolean] { poll =>
-          state.get.flatMap {
-            case Acquired(_, _) => poll(semaphore.acquire.as(true))
-            case _ => F.pure(false)
-          }
+          poll(semaphore.acquire).flatMap(_ =>
+            state.get.flatMap {
+              case Acquired(_, _) => F.pure(true)
+              case _ => semaphore.release.as(false)
+            })
         } { r => if (r) semaphore.release else F.unit }
 
       def exclusive: Resource[F, Unit] =
