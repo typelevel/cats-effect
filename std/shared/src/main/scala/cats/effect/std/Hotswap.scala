@@ -73,8 +73,9 @@ sealed trait Hotswap[F[_], R] {
   def swap(next: Resource[F, R]): F[R]
 
   /**
-   * Gets the current resource, if it exists. The returned resource is guaranteed to be
-   * available for the duration of the returned resource.
+   * Acquires a shared lock to retrieve the current resource, if it exists. The returned
+   * resource is guaranteed to be available for its duration. The lock is released if the
+   * current resource does not exist.
    */
   def get: Resource[F, Option[R]]
 
@@ -121,15 +122,6 @@ object Hotswap {
       def raise(message: String): F[Unit] =
         F.raiseError[Unit](new RuntimeException(message))
 
-      def shared(state: Ref[F, State]): Resource[F, Boolean] =
-        Resource.makeFull[F, Boolean] { poll =>
-          poll(semaphore.acquire).flatMap(_ =>
-            state.get.flatMap {
-              case Acquired(_, _) => F.pure(true)
-              case _ => semaphore.release.as(false)
-            })
-        } { r => if (r) semaphore.release else F.unit }
-
       def exclusive: Resource[F, Unit] =
         Resource.makeFull[F, Unit](poll => poll(semaphore.acquireN(Long.MaxValue)))(_ =>
           semaphore.releaseN(Long.MaxValue))
@@ -148,14 +140,13 @@ object Hotswap {
             }
 
           override def get: Resource[F, Option[R]] =
-            shared(state).evalMap { r =>
-              if (r)
-                state.get.map {
-                  case Acquired(r, _) => Some(r)
-                  case _ => None
+            Resource.makeFull[F, Option[R]] { poll =>
+              poll(semaphore.acquire) *>
+                state.get.flatMap {
+                  case Acquired(r, _) => F.pure(Some(r))
+                  case _ => semaphore.release.as(None)
                 }
-              else F.pure[Option[R]](None)
-            }
+            } { r => if (r.isDefined) semaphore.release else F.unit }
 
           override def clear: F[Unit] =
             exclusive.surround(swapFinalizer(Cleared).uncancelable)
