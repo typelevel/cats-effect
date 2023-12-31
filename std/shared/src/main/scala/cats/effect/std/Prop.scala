@@ -69,12 +69,18 @@ trait Prop[F[_]] { self =>
         (newA, newA)
       })
 
+  /**
+   * Removes the property.
+   */
+  def unset(key: String): F[Unit]
+
   def mapK[G[_]](f: F ~> G): Prop[G] = new Prop[G] {
     def get(key: String): G[Option[String]] = f(self.get(key))
     def modify(key: String, fn: String => (String, String)): G[Option[String]] = f(
       self.modify(key, fn))
     def set(key: String, value: String): G[Unit] = f(self.set(key, value))
     def update(key: String, fn: String => String): G[Unit] = f(self.update(key, fn))
+    def unset(key: String) = f(self.unset(key))
   }
 }
 
@@ -166,5 +172,7 @@ object Prop {
     def update(key: String, f: String => String): F[Unit] = F.void(
       F.delay(Option(System.getProperty(key)).map(value => System.setProperty(key, f(value))))
     )
+
+    def unset(key: String): F[Unit] = F.void(F.delay(System.clearProperty(key)))
   }
 }
