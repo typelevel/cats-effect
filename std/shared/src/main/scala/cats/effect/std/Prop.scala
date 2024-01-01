@@ -42,6 +42,7 @@ trait Prop[F[_]] { self =>
 
   /**
    * Modifies the value for the specified key only if a previous value for the same key exists.
+   * `f` returns the new value to be set and the return value of `modify`.
    */
   def modify(key: String, f: String => (String, String)): F[Option[String]]
 

@@ -21,40 +21,51 @@ class PropSpec extends BaseSpec {
 
   "Prop" should {
     "retrieve a property just set" in real {
-      Prop[IO]
-        .set("foo", "bar") *> Prop[IO].get("foo").flatMap(x => IO(x mustEqual Some("bar")))
+      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
+        Prop[IO].set(key, "bar") *> Prop[IO].get(key).flatMap(x => IO(x mustEqual Some("bar")))
+      }
     }
     "return none for a non-existent property" in real {
       Prop[IO].get("MADE_THIS_UP").flatMap(x => IO(x must beNone))
     }
     "getAndSet" in real {
-      for {
-        _ <- Prop[IO].set("foo", "bar")
-        getAndSetResult <- Prop[IO].getAndSet("foo", "baz")
-        getResult <- Prop[IO].get("foo")
-      } yield {
-        getAndSetResult mustEqual Some("bar")
-        getResult mustEqual Some("baz")
+      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
+        for {
+          _ <- Prop[IO].set(key, "bar")
+          getAndSetResult <- Prop[IO].getAndSet(key, "baz")
+          getResult <- Prop[IO].get(key)
+        } yield {
+          getAndSetResult mustEqual Some("bar")
+          getResult mustEqual Some("baz")
+        }
       }
     }
     "getAndUpdate" in real {
-      for {
-        _ <- Prop[IO].set("foo", "bar")
-        getAndSetResult <- Prop[IO].getAndUpdate("foo", v => v + "baz")
-        getResult <- Prop[IO].get("foo")
-      } yield {
-        getAndSetResult mustEqual Some("bar")
-        getResult mustEqual Some("barbaz")
+      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
+        for {
+          _ <- Prop[IO].set(key, "bar")
+          getAndSetResult <- Prop[IO].getAndUpdate(key, v => v + "baz")
+          getResult <- Prop[IO].get(key)
+        } yield {
+          getAndSetResult mustEqual Some("bar")
+          getResult mustEqual Some("barbaz")
+        }
       }
     }
     "unset" in real {
-      Prop[IO].set("foo", "bar") *> Prop[IO]
-        .unset("foo") *> Prop[IO].get("foo").flatMap(x => IO(x must beNone))
+      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
+        Prop[IO].set(key, "bar") *> Prop[IO]
+          .unset(key) *> Prop[IO].get(key).flatMap(x => IO(x must beNone))
+      }
     }
-    "not modify anythng if a value for the key does not exist" in real {
-      Prop[IO].unset("foo") *> Prop[IO].get("foo").flatMap(x => IO(x must beNone)) *> Prop[IO]
-        .modify("foo", _ => ("new value", "output"))
-        .flatMap(x => IO(x must beNone))
+    "not modify anything if a value for the key does not exist" in real {
+      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
+        for {
+          _ <- Prop[IO].get(key).flatMap(x => IO(x must beNone))
+          x <- Prop[IO].modify(key, _ => ("new value", "output"))
+          assertion <- IO(x must beNone)
+        } yield assertion
+      }
     }
   }
 }
