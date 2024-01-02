@@ -141,7 +141,7 @@ object Hotswap {
 
           override def get: Resource[F, Option[R]] =
             Resource.makeFull[F, Option[R]] { poll =>
-              poll(semaphore.acquire) *>
+              poll(semaphore.acquire) *> // acquire shared lock
                 state.get.flatMap {
                   case Acquired(r, _) => F.pure(Some(r))
                   case _ => semaphore.release.as(None)
