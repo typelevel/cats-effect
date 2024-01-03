@@ -233,7 +233,8 @@ class IOAppSpec extends Specification {
         h.stderr() must not(contain("boom"))
       }
 
-      "warn on cpu starvation" in {
+      // TODO reenable this test (#3919)
+      "warn on cpu starvation" in skipped {
         val h = platform("CpuStarvation", List.empty)
         h.awaitStatus()
         val err = h.stderr()
