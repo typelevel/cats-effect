@@ -214,7 +214,7 @@ object PQueue {
     else ()
 }
 
-trait PQueueSource[F[_], A] {
+trait PQueueSource[F[_], A] extends QueueSource[F, A] {
 
   /**
    * Dequeues the least element from the PQueue, possibly fiber blocking until an element
@@ -260,7 +260,7 @@ trait PQueueSource[F[_], A] {
    * Note: If there are multiple elements with least priority, the order in which they are
    * dequeued is undefined.
    */
-  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] = {
+  override def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] = {
     PQueueSource.assertMaxNPositive(maxN)
 
     def loop(i: Int, limit: Int, acc: List[A]): F[List[A]] =
@@ -302,7 +302,7 @@ object PQueueSource {
     }
 }
 
-trait PQueueSink[F[_], A] {
+trait PQueueSink[F[_], A] extends QueueSink[F, A] {
 
   /**
    * Enqueues the given element, possibly fiber blocking until sufficient capacity becomes
@@ -339,7 +339,7 @@ trait PQueueSink[F[_], A] {
    * @return
    *   an effect that contains the remaining valus that could not be offered.
    */
-  def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] = list match {
+  override def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] = list match {
     case Nil => F.pure(list)
     case h :: t =>
       tryOffer(h).ifM(
