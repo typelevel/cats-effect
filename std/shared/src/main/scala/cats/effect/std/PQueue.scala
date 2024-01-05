@@ -214,9 +214,48 @@ object PQueue {
     else ()
 }
 
-trait PQueueSource[F[_], A] extends QueueSource[F, A]
+trait PQueueSource[F[_], A] extends QueueSource[F, A] {
+
+  /**
+   * Attempts to dequeue elements from the PQueue, if they are available without semantically
+   * blocking. This is a convenience method that recursively runs `tryTake`. It does not provide
+   * any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that contains the dequeued elements from the PQueue
+   *
+   * Note: If there are multiple elements with least priority, the order in which they are
+   * dequeued is undefined.
+   */
+  override def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] = {
+    PQueueSource.assertMaxNPositive(maxN)
+
+    def loop(i: Int, limit: Int, acc: List[A]): F[List[A]] =
+      if (i >= limit)
+        F.pure(acc.reverse)
+      else
+        tryTake flatMap {
+          case Some(a) => loop(i + 1, limit, a :: acc)
+          case None => F.pure(acc.reverse)
+        }
+
+    maxN match {
+      case Some(limit) => loop(0, limit, Nil)
+      case None => loop(0, Int.MaxValue, Nil)
+    }
+  }
+
+}
 
 object PQueueSource {
+  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
+    case Some(n) if n <= 0 =>
+      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
+    case _ => ()
+  }
 
   implicit def catsFunctorForPQueueSource[F[_]: Functor]: Functor[PQueueSource[F, *]] =
     new Functor[PQueueSource[F, *]] {
@@ -232,7 +271,18 @@ object PQueueSource {
     }
 }
 
-trait PQueueSink[F[_], A] extends QueueSink[F, A]
+trait PQueueSink[F[_], A] extends QueueSink[F, A] {
+
+  override def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] = list match {
+    case Nil => F.pure(list)
+    case h :: t =>
+      tryOffer(h).ifM(
+        tryOfferN(t),
+        F.pure(list)
+      )
+  }
+
+}
 
 object PQueueSink {
   implicit def catsContravariantForPQueueSink[F[_]]: Contravariant[PQueueSink[F, *]] =
