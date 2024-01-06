@@ -231,7 +231,7 @@ trait PQueueSource[F[_], A] extends QueueSource[F, A] {
    * dequeued is undefined.
    */
   override def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] =
-    super.tryTakeN(maxN)
+    QueueSource.tryTakeN[F, A](maxN, tryTake)
 
 }
 
@@ -265,7 +265,7 @@ trait PQueueSink[F[_], A] extends QueueSink[F, A] {
    *   an effect that contains the remaining valus that could not be offered.
    */
   override def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] =
-    super.tryOfferN(list)
+    QueueSink.tryOfferN(list, tryOffer)
 
 }
 
