@@ -21,6 +21,8 @@ import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, W
 import cats.effect.kernel.Sync
 import cats.kernel.Monoid
 
+import java.util.Properties
+
 trait Prop[F[_]] { self =>
 
   /**
@@ -29,59 +31,23 @@ trait Prop[F[_]] { self =>
   def get(key: String): F[Option[String]]
 
   /**
-   * Replaces the value for the specified key with `value`, returning the previous value.
-   */
-  def getAndSet(key: String, value: String): F[Option[String]] = getAndUpdate(key, _ => value)
-
-  /**
-   * Updates the value for the specified key using `f` if a previous value for the same key
-   * exists and returns the previous value.
-   */
-  def getAndUpdate(key: String, f: String => String): F[Option[String]] =
-    modify(key, a => (f(a), a))
-
-  /**
-   * Modifies the value for the specified key only if a previous value for the same key exists.
-   * `f` returns the new value to be set and the return value of `modify`.
-   */
-  def modify(key: String, f: String => (String, String)): F[Option[String]]
-
-  /**
    * Sets the value for the specified key to `value` disregarding any previous value for the
    * same key.
    */
   def set(key: String, value: String): F[Unit]
 
   /**
-   * Satisfies: `prop.update(key, f) == prop.modify(key, x => (f(x), a)).void` and
-   * `prop.update(_ => a) == prop.set(a)`
-   */
-  def update(key: String, f: String => String): F[Unit]
-
-  /**
-   * Updates the value for the specified key using `f` if a previous value for the same key
-   * exists and returns the updated value.
-   */
-  def updateAndGet(key: String, f: String => String): F[Option[String]] =
-    modify(
-      key,
-      a => {
-        val newA = f(a)
-        (newA, newA)
-      })
-
-  /**
    * Removes the property.
    */
   def unset(key: String): F[Unit]
 
+  def entries: F[Properties]
+
   def mapK[G[_]](f: F ~> G): Prop[G] = new Prop[G] {
     def get(key: String): G[Option[String]] = f(self.get(key))
-    def modify(key: String, fn: String => (String, String)): G[Option[String]] = f(
-      self.modify(key, fn))
     def set(key: String, value: String): G[Unit] = f(self.set(key, value))
-    def update(key: String, fn: String => String): G[Unit] = f(self.update(key, fn))
     def unset(key: String) = f(self.unset(key))
+    def entries: G[Properties] = f(self.entries)
   }
 }
 
@@ -159,21 +125,11 @@ object Prop {
     def get(key: String): F[Option[String]] =
       F.delay(Option(System.getProperty(key))) // thread-safe
 
-    def modify(key: String, f: String => (String, String)): F[Option[String]] = F.delay {
-      Option(System.getProperty(key)).map { value =>
-        val (newValue, output) = f(value)
-        System.setProperty(key, newValue)
-        output
-      }
-    }
-
     def set(key: String, value: String): F[Unit] =
       F.void(F.delay(System.setProperty(key, value)))
 
-    def update(key: String, f: String => String): F[Unit] = F.void(
-      F.delay(Option(System.getProperty(key)).map(value => System.setProperty(key, f(value))))
-    )
-
     def unset(key: String): F[Unit] = F.void(F.delay(System.clearProperty(key)))
+
+    def entries: F[Properties] = F.delay(System.getProperties())
   }
 }

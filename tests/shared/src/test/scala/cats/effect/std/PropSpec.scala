@@ -28,44 +28,18 @@ class PropSpec extends BaseSpec {
     "return none for a non-existent property" in real {
       Prop[IO].get("MADE_THIS_UP").flatMap(x => IO(x must beNone))
     }
-    "getAndSet" in real {
-      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
-        for {
-          _ <- Prop[IO].set(key, "bar")
-          getAndSetResult <- Prop[IO].getAndSet(key, "baz")
-          getResult <- Prop[IO].get(key)
-        } yield {
-          getAndSetResult mustEqual Some("bar")
-          getResult mustEqual Some("baz")
-        }
-      }
-    }
-    "getAndUpdate" in real {
-      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
-        for {
-          _ <- Prop[IO].set(key, "bar")
-          getAndSetResult <- Prop[IO].getAndUpdate(key, v => v + "baz")
-          getResult <- Prop[IO].get(key)
-        } yield {
-          getAndSetResult mustEqual Some("bar")
-          getResult mustEqual Some("barbaz")
-        }
-      }
-    }
     "unset" in real {
       Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
         Prop[IO].set(key, "bar") *> Prop[IO]
           .unset(key) *> Prop[IO].get(key).flatMap(x => IO(x must beNone))
       }
     }
-    "not modify anything if a value for the key does not exist" in real {
-      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
-        for {
-          _ <- Prop[IO].get(key).flatMap(x => IO(x must beNone))
-          x <- Prop[IO].modify(key, _ => ("new value", "output"))
-          assertion <- IO(x must beNone)
-        } yield assertion
-      }
+    "retrieve the system properties" in real {
+      for {
+        _ <- Prop[IO].set("some property", "the value")
+        props <- Prop[IO].entries
+        assertion <- IO(props mustEqual System.getProperties())
+      } yield assertion
     }
   }
 }
