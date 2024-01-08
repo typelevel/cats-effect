@@ -22,7 +22,7 @@ import org.typelevel.scalaccompat.annotation._
 
 import scala.collection.mutable.ArrayBuffer
 
-private[effect] final class Tracing private ()
+private[effect] final class Tracing
 
 private[effect] object Tracing extends TracingPlatform {
 

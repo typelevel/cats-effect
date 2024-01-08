@@ -98,7 +98,7 @@ private final class IOFiber[A](
    * Ideally these would be on the stack, but they can't because we sometimes need to
    * relocate our runloop to another fiber.
    */
-  private[this] var conts: ByteStack = _
+  private[this] var conts: ByteStack.T = _
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0

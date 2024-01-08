@@ -18,7 +18,7 @@ package cats.effect
 
 import org.typelevel.scalaccompat.annotation._
 
-private final class ByteStack private ()
+private[effect] final class ByteStack
 
 private object ByteStack {
 
