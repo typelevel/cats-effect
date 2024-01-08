@@ -991,10 +991,12 @@ private final class IOFiber[A](
             if (ec.isInstanceOf[WorkStealingThreadPool]) {
               val wstp = ec.asInstanceOf[WorkStealingThreadPool]
               if (wstp.canExecuteBlockingCode()) {
+                wstp.prepareForBlocking()
+
                 var error: Throwable = null
                 val r =
                   try {
-                    scala.concurrent.blocking(cur.thunk())
+                    cur.thunk()
                   } catch {
                     case t if NonFatal(t) =>
                       error = t

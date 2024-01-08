@@ -499,6 +499,16 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * Prepares the current thread for running blocking code. This should be called only if
+   * [[canExecuteBlockingCode]] returns `true`.
+   */
+  private[effect] def prepareForBlocking(): Unit = {
+    val thread = Thread.currentThread()
+    val worker = thread.asInstanceOf[WorkerThread]
+    worker.prepareForBlocking()
+  }
+
+  /**
    * Schedules a fiber for execution on this thread pool originating from an external thread (a
    * thread which is not owned by this thread pool).
    *
