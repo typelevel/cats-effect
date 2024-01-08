@@ -16,6 +16,8 @@
 
 package cats.effect.tracing
 
+import org.typelevel.scalaccompat.annotation._
+
 private[effect] final class RingBuffer private (logSize: Int) {
 
   private[this] val length = 1 << logSize
@@ -59,6 +61,6 @@ private[effect] final class RingBuffer private (logSize: Int) {
 }
 
 private[effect] object RingBuffer {
-  def empty(logSize: Int): RingBuffer =
+  @static3 def empty(logSize: Int): RingBuffer =
     new RingBuffer(logSize)
 }

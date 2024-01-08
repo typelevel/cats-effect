@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import org.typelevel.scalaccompat.annotation._
+
 private final class ArrayStack[A <: AnyRef](
     private[this] var buffer: Array[AnyRef],
     private[this] var index: Int) {
@@ -78,8 +80,8 @@ private final class ArrayStack[A <: AnyRef](
 
 private object ArrayStack {
 
-  def apply[A <: AnyRef](): ArrayStack[A] = new ArrayStack()
+  @static3 def apply[A <: AnyRef](): ArrayStack[A] = new ArrayStack()
 
-  def apply[A <: AnyRef](size: Int): ArrayStack[A] = new ArrayStack(size)
+  @static3 def apply[A <: AnyRef](size: Int): ArrayStack[A] = new ArrayStack(size)
 
 }

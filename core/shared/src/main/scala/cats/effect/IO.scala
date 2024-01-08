@@ -44,6 +44,8 @@ import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
+import org.typelevel.scalaccompat.annotation._
+
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{
   CancellationException,
@@ -1109,6 +1111,9 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
+  @static3 private[this] val _alignForIO = new IOAlign
+  @static3 private[this] val _asyncForIO: kernel.Async[IO] = new IOAsync
+
   /**
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing
    * parallel processing in `ap` and `map2`, needed for implementing `cats.Parallel`.
@@ -1787,7 +1792,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit def alignForIO: Align[IO] = _alignForIO
 
-  private[this] val _alignForIO = new Align[IO] {
+  private[this] final class IOAlign extends Align[IO] {
     def align[A, B](fa: IO[A], fb: IO[B]): IO[Ior[A, B]] =
       alignWith(fa, fb)(identity)
 
@@ -1800,8 +1805,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def functor: Functor[IO] = Functor[IO]
   }
 
-  private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]
-    with StackSafeMonad[IO] {
+  private[this] final class IOAsync extends kernel.Async[IO] with StackSafeMonad[IO] {
 
     override def asyncCheckAttempt[A](
         k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
