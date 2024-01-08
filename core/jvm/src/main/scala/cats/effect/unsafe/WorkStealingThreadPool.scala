@@ -485,8 +485,8 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Checks if the blocking code can be executed in the current context and, if so, prepares it
-   * for blocking. Only returns true for worker threads that belong to this execution context.
+   * Checks if the blocking code can be executed in the current context (only returns true for
+   * worker threads that belong to this execution context).
    */
   private[effect] def canExecuteBlockingCode(): Boolean = {
     val thread = Thread.currentThread()
