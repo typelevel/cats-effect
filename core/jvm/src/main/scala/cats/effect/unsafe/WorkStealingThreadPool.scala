@@ -492,12 +492,20 @@ private[effect] final class WorkStealingThreadPool(
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
-      if (worker.canExecuteBlockingCodeOn(this)) {
-        worker.prepareBlocking()
-        return true
-      }
+      worker.canExecuteBlockingCodeOn(this)
+    } else {
+      false
     }
-    false
+  }
+
+  /**
+   * Prepares the current thread for running blocking code. This should be called only if
+   * [[canExecuteBlockingCode]] returns `true`.
+   */
+  private[effect] def prepareBlocking(): Unit = {
+    val thread = Thread.currentThread()
+    val worker = thread.asInstanceOf[WorkerThread]
+    worker.prepareBlocking()
   }
 
   /**

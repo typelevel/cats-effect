@@ -36,6 +36,7 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
       task: Runnable,
       fallback: Scheduler): Runnable
   private[effect] def canExecuteBlockingCode(): Boolean
+  private[effect] def prepareBlocking(): Unit
   private[unsafe] def liveTraces(): (
       Map[Runnable, Trace],
       Map[WorkerThread, (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
