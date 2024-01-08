@@ -792,10 +792,6 @@ private final class WorkerThread(
    * continue, it will be cached for a period of time instead. Finally, the `blocking` flag is
    * useful when entering nested blocking regions. In this case, there is no need to spawn a
    * replacement worker thread.
-   *
-   * @note
-   *   There is no reason to enclose any code in a `try/catch` block because the only way this
-   *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   def prepareForBlocking(): Unit = {
     val rnd = random
@@ -856,6 +852,10 @@ private final class WorkerThread(
 
   /**
    * A mechanism for executing support code before executing a blocking action.
+   *
+   * @note
+   *   There is no reason to enclose any code in a `try/catch` block because the only way this
+   *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
     prepareForBlocking()
