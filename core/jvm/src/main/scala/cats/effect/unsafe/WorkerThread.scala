@@ -797,7 +797,7 @@ private final class WorkerThread(
    *   There is no reason to enclose any code in a `try/catch` block because the only way this
    *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
-  def prepareBlocking(): Unit = {
+  def prepareForBlocking(): Unit = {
     val rnd = random
 
     pool.notifyParked(rnd)
@@ -858,7 +858,7 @@ private final class WorkerThread(
    * A mechanism for executing support code before executing a blocking action.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-    prepareBlocking()
+    prepareForBlocking()
     thunk
   }
 

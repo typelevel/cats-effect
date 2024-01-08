@@ -502,10 +502,10 @@ private[effect] final class WorkStealingThreadPool(
    * Prepares the current thread for running blocking code. This should be called only if
    * [[canExecuteBlockingCode]] returns `true`.
    */
-  private[effect] def prepareBlocking(): Unit = {
+  private[effect] def prepareForBlocking(): Unit = {
     val thread = Thread.currentThread()
     val worker = thread.asInstanceOf[WorkerThread]
-    worker.prepareBlocking()
+    worker.prepareForBlocking()
   }
 
   /**

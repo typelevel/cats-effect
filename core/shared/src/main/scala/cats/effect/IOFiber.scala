@@ -991,7 +991,7 @@ private final class IOFiber[A](
             if (ec.isInstanceOf[WorkStealingThreadPool]) {
               val wstp = ec.asInstanceOf[WorkStealingThreadPool]
               if (wstp.canExecuteBlockingCode()) {
-                wstp.prepareBlocking()
+                wstp.prepareForBlocking()
 
                 var error: Throwable = null
                 val r =
