@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import org.typelevel.scalaccompat.annotation._
+
 import scala.annotation.tailrec
 
 import java.util.concurrent.atomic.AtomicReference
@@ -149,5 +151,8 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
 }
 
 private object CallbackStack {
+  @static3 def of[A](cb: A => Unit): CallbackStack[A] =
+    new CallbackStack(cb)
+
   type Handle = Byte
 }
