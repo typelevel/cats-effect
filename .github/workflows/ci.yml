@@ -292,7 +292,7 @@ jobs:
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.ci }}
           path: targets.tar
@@ -382,7 +382,7 @@ jobs:
         run: sbt +update
 
       - name: Download target directories (3.3.1, ciJVM)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.1-ciJVM
 
@@ -392,7 +392,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (3.3.1, ciNative)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.1-ciNative
 
@@ -402,7 +402,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (3.3.1, ciJS)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.1-ciJS
 
@@ -412,7 +412,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (2.12.18, ciJVM)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciJVM
 
@@ -422,7 +422,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (2.12.18, ciNative)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciNative
 
@@ -432,7 +432,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (2.12.18, ciJS)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciJS
 
@@ -442,7 +442,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (2.13.12, ciJVM)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciJVM
 
@@ -452,7 +452,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (2.13.12, ciNative)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciNative
 
@@ -462,7 +462,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (2.13.12, ciJS)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciJS
 
@@ -472,7 +472,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (2.13.12, ciFirefox)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciFirefox
 
@@ -482,7 +482,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (2.13.12, ciChrome)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciChrome
 
