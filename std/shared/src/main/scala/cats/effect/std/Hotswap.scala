@@ -73,9 +73,8 @@ sealed trait Hotswap[F[_], R] {
   def swap(next: Resource[F, R]): F[R]
 
   /**
-   * Acquires a shared lock to retrieve the current resource, if it exists. The returned
-   * resource is guaranteed to be available for its duration. The lock is released if the
-   * current resource does not exist.
+   * Gets the current resource, if it exists. The returned resource is guaranteed to be
+   * available for the duration of the returned resource.
    */
   def get: Resource[F, Option[R]]
 

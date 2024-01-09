@@ -170,9 +170,8 @@ class HotswapSpec extends BaseSpec { outer =>
       implicit ticker =>
         val go = Hotswap.create[IO, Unit].use { hs =>
           hs.get.useForever.start *>
-            hs.swap(IO.sleep(1.second).toResource) *>
             IO.sleep(2.seconds) *>
-            hs.get.use_.timeout(1.second).void
+            hs.swap(Resource.unit)
         }
         go must completeAs(())
     }
