@@ -127,7 +127,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
       } else {
         if (child == null) {
           // bottomed out
-          removed
+          removed + 1
         } else {
           // note this can cause the bound to go negative, which is fine
           child.packInternal(bound - 1, removed + 1, parent)
