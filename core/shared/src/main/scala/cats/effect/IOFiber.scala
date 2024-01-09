@@ -1005,7 +1005,8 @@ private final class IOFiber[A](
                   }
 
                 val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
-                runLoop(next, nextCancelation, nextAutoCede)
+                // reset auto-cede counter
+                runLoop(next, nextCancelation, runtime.autoYieldThreshold)
               } else {
                 blockingFallback(cur)
               }
