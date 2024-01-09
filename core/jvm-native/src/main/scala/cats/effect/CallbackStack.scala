@@ -18,17 +18,94 @@ package cats.effect
 
 import scala.annotation.tailrec
 
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+
+import CallbackStack.Node
+
+private final class CallbackStack[A](private[this] var callback: A => Unit)
+    extends AtomicReference[Node[A]] {
+  head =>
+
+  private[this] val allowedToPack = new AtomicBoolean(true)
+
+  def push(cb: A => Unit): Node[A] = {
+    val newHead = new Node(cb)
+
+    @tailrec
+    def loop(): CallbackStack[A] = {
+      val currentHead = head.get()
+      newHead.next = currentHead
+
+      if (!head.compareAndSet(currentHead, newHead))
+        loop()
+      else
+        newHead
+    }
+
+    loop()
+  }
+
+  def unsafeSetCallback(cb: A => Unit): Unit = {
+    callback = cb
+  }
+
+  /**
+   * Invokes *all* non-null callbacks in the queue, starting with the current one. Returns true
+   * iff *any* callbacks were invoked.
+   */
+  def apply(a: A): Boolean = {
+    while (!allowedToPack.compareAndSet(true, false)) {
+      // spinloop
+    }
+
+    val cb = callback
+    var invoked = if (cb != null) {
+      cb(a)
+      true
+    } else {
+      false
+    }
+    var currentNode = head.get()
+
+    while (currentNode ne null) {
+      val cb = currentNode.getCallback()
+      if (cb != null) {
+        cb(a)
+        invoked = true
+      }
+      currentNode = currentNode.next
+    }
+
+    invoked
+  }
+}
+
+private object CallbackStack {
+  private[CallbackStack] final class Node[A](
+      private[this] var callback: A => Unit,
+  ) {
+    var next: Node[A] = _
+
+    def getCallback(): A => Unit = callback
+
+    def clear(): Unit = {
+      callback = null
+    }
+  }
+}
 
 private final class CallbackStack[A](private[this] var callback: A => Unit)
     extends AtomicReference[CallbackStack[A]] {
+
+  val allowedToPack = new AtomicBoolean(true)
 
   def push(next: A => Unit): CallbackStack[A] = {
     val attempt = new CallbackStack(next)
 
     @tailrec
     def loop(): CallbackStack[A] = {
-      val cur = get()
+      val cur = head.get()
       attempt.lazySet(cur)
 
       if (!compareAndSet(cur, attempt))
@@ -106,14 +183,20 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
    * (amortized). This still biases the optimizations towards the head of the list, but ensures
    * that packing will still inevitably reach all of the garbage cells.
    */
-  def pack(bound: Int): Int = {
-    // the first cell is always retained
-    val got = get()
-    if (got ne null)
-      got.packInternal(bound, 0, this)
-    else
+  def pack(bound: Int): Int =
+    if (allowedToPack.compareAndSet(true, false)) {
+      // the first cell is always retained
+      val got = get()
+      val rtn =
+        if (got ne null)
+          got.packInternal(bound, 0, this)
+        else
+          0
+      allowedToPack.set(true)
+      rtn
+    } else {
       0
-  }
+    }
 
   @tailrec
   private def packInternal(bound: Int, removed: Int, parent: CallbackStack[A]): Int = {
