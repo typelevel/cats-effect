@@ -254,13 +254,13 @@ object PQueueSource {
 trait PQueueSink[F[_], A] extends QueueSink[F, A] {
 
   /**
-   * Attempts to enqueue the given elements at the back of the queue without semantically
-   * blocking. If an item in the list cannot be enqueued, the remaining elements will be
-   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
-   * any additional performance benefits.
+   * Attempts to enqueue the given elements without semantically blocking. If an item in the
+   * list cannot be enqueued, the remaining elements will be returned. This is a convenience
+   * method that recursively runs `tryOffer` and does not offer any additional performance
+   * benefits.
    *
    * @param list
-   *   the elements to be put at the back of the queue
+   *   the elements to be put in the PQueue
    * @return
    *   an effect that contains the remaining valus that could not be offered.
    */
