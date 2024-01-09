@@ -26,6 +26,31 @@ class CallbackStackSpec extends BaseSpec {
       pushed.clearCurrent(handle)
       stack.pack(1) must beEqualTo(1)
     }
+
+    "handle race conditions in pack" in real {
+      IO {
+        val stack = CallbackStack[Unit](null)
+        locally {
+          val pushed = stack.push(_ => ())
+          val handle = pushed.currentHandle()
+          pushed.clearCurrent(handle)
+        }
+        val clear = {
+          val pushed = stack.push(_ => ())
+          val handle = pushed.currentHandle()
+          IO(pushed.clearCurrent(handle))
+        }
+        (stack, clear)
+      }.flatMap {
+        case (stack, clear) =>
+          val pack = IO(stack.pack(1))
+          pack.both(clear *> pack).map {
+            case (x, y) =>
+              (x + y) must beEqualTo(2)
+          }
+      }.replicateA_(1000)
+        .as(ok)
+    }
   }
 
 }
