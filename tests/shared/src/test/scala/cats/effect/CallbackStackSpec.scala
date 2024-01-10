@@ -16,14 +16,15 @@
 
 package cats.effect
 
+import cats.syntax.all._
+
 class CallbackStackSpec extends BaseSpec {
 
   "CallbackStack" should {
     "correctly report the number removed" in {
       val stack = CallbackStack[Unit](null)
-      val pushed = stack.push(_ => ())
-      val handle = pushed.currentHandle()
-      pushed.clearCurrent(handle)
+      val handle = stack.push(_ => ())
+      stack.clearHandle(handle)
       stack.pack(1) must beEqualTo(1)
     }
 
@@ -31,22 +32,22 @@ class CallbackStackSpec extends BaseSpec {
       IO {
         val stack = CallbackStack[Unit](null)
         locally {
-          val pushed = stack.push(_ => ())
-          val handle = pushed.currentHandle()
-          pushed.clearCurrent(handle)
+          val handle = stack.push(_ => ())
+          stack.clearHandle(handle)
         }
         val clear = {
-          val pushed = stack.push(_ => ())
-          val handle = pushed.currentHandle()
-          IO(pushed.clearCurrent(handle))
+          val handle = stack.push(_ => ())
+          IO(stack.clearHandle(handle))
         }
         (stack, clear)
       }.flatMap {
         case (stack, clear) =>
           val pack = IO(stack.pack(1))
-          pack.both(clear *> pack).map {
-            case (x, y) =>
-              (x + y) must beEqualTo(2)
+          (pack.both(clear *> pack), pack).mapN {
+            case ((x, y), z) =>
+              if ((x + y + z) != 2)
+                println((x, y, z))
+              (x + y + z) must beEqualTo(2)
           }
       }.replicateA_(1000)
         .as(ok)

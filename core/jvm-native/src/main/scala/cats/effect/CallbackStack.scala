@@ -131,7 +131,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
       val got = head.get()
       val rtn =
         if (got ne null)
-          got.packHead(bound, this)
+          got.packHead(bound, 0, this)
         else
           0
       allowedToPack.set(true)
@@ -162,20 +162,20 @@ private object CallbackStack {
     }
 
     @tailrec
-    def packHead(bound: Int, root: CallbackStack[A]): Int = {
+    def packHead(bound: Int, removed: Int, root: CallbackStack[A]): Int = {
       val next = this.next // local copy
 
       if (callback == null) {
         if (root.compareAndSet(this, next)) {
           if (next == null) {
             // bottomed out
-            1
+            removed + 1
           } else {
             // note this can cause the bound to go negative, which is fine
-            next.packTail(bound - 1, 1, this)
+            root.get().packHead(bound - 1, removed + 1, root)
           }
         } else { // get the new top of the stack and start over
-          root.get().packHead(bound, root)
+          root.get().packHead(bound, removed, root)
         }
       } else {
         if (next == null) {
