@@ -18,8 +18,7 @@ package cats.effect
 
 import scala.annotation.tailrec
 
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import CallbackStack.Handle
 import CallbackStack.Node
