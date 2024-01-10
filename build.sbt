@@ -660,7 +660,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$"),
       // #3943, refactored internal private CallbackStack data structure
-      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.CallbackStack.push")
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.CallbackStack.push"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.CallbackStack.currentHandle")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
