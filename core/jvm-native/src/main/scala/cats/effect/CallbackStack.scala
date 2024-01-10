@@ -39,7 +39,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
     @tailrec
     def loop(): Handle[A] = {
       val currentHead = head.get()
-      newHead.next = currentHead
+      newHead.setNext(currentHead)
 
       if (!head.compareAndSet(currentHead, newHead))
         loop()
@@ -76,7 +76,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
         cb(a)
         invoked = true
       }
-      currentNode = currentNode.next
+      currentNode = currentNode.getNext()
     }
 
     invoked
@@ -156,9 +156,15 @@ private object CallbackStack {
   private[CallbackStack] final class Node[A](
       private[this] var callback: A => Unit
   ) extends Handle[A] {
-    var next: Node[A] = _
+    private[this] var next: Node[A] = _
 
     def getCallback(): A => Unit = callback
+
+    def getNext(): Node[A] = next
+
+    def setNext(next: Node[A]): Unit = {
+      this.next = next
+    }
 
     def clear(): Unit = {
       callback = null
@@ -182,7 +188,7 @@ private object CallbackStack {
           }
         } else {
           val prev = root.get()
-          if (prev.next eq this) { // prev is our new parent, we are its tail
+          if (prev.getNext() eq this) { // prev is our new parent, we are its tail
             this.packTail(bound, removed, prev)
           } else if (next != null) { // we were unable to remove ourselves, but we can still pack our tail
             next.packTail(bound - 1, removed, this)
@@ -213,8 +219,8 @@ private object CallbackStack {
       if (callback == null) {
         // We own the pack lock, so it is safe to write `next`. It will be published to subsequent packs via the lock.
         // Concurrent readers ie `CallbackStack#apply` may read a stale value for `next` still pointing to this node.
-        //   This is okay b/c the new `next` (the tail) is still reachable via the old `next` (this node).
-        prev.next = next
+        // This is okay b/c the new `next` (this node's tail) is still reachable via the old `next` (this node).
+        prev.setNext(next)
         if (next == null) {
           // bottomed out
           removed + 1
