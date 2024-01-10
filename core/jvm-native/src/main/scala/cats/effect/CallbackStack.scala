@@ -161,6 +161,9 @@ private object CallbackStack {
       callback = null
     }
 
+    /**
+     * Packs this head node
+     */
     @tailrec
     def packHead(bound: Int, removed: Int, root: CallbackStack[A]): Int = {
       val next = this.next // local copy
@@ -174,8 +177,13 @@ private object CallbackStack {
             // note this can cause the bound to go negative, which is fine
             next.packHead(bound - 1, removed + 1, root)
           }
-        } else { // we were unable to remove ourselves, but we can still pack our tail
-          packTail(bound - 1, removed, this)
+        } else {
+          val prev = root.get()
+          if (prev.next eq this) { // prev is our new parent, we are its tail
+            this.packTail(bound, removed, prev)
+          } else { // we were unable to remove ourselves, but we can still pack our tail
+            next.packTail(bound - 1, removed, this)
+          }
         }
       } else {
         if (next == null) {
@@ -190,6 +198,9 @@ private object CallbackStack {
       }
     }
 
+    /**
+     * Packs this non-head node
+     */
     @tailrec
     private def packTail(bound: Int, removed: Int, prev: Node[A]): Int = {
       val next = this.next // local copy
