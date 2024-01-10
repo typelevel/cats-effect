@@ -658,7 +658,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.unsafe.WorkerThread.sleep"),
       // #3787, internal utility that was no longer needed
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$"),
+      // #3943, refactored internal private CallbackStack data structure
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.CallbackStack.push")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
