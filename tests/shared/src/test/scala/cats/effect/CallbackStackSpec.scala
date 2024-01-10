@@ -16,39 +16,35 @@
 
 package cats.effect
 
-import cats.syntax.all._
-
 class CallbackStackSpec extends BaseSpec {
 
   "CallbackStack" should {
     "correctly report the number removed" in {
       val stack = CallbackStack[Unit](null)
       val handle = stack.push(_ => ())
-      stack.clearHandle(handle)
+      stack.push(_ => ())
+      stack.clearHandle(handle) must beFalse
       stack.pack(1) must beEqualTo(1)
     }
 
     "handle race conditions in pack" in real {
-      IO {
-        val stack = CallbackStack[Unit](null)
-        locally {
-          val handle = stack.push(_ => ())
-          stack.clearHandle(handle)
-        }
-        val clear = {
-          val handle = stack.push(_ => ())
-          IO(stack.clearHandle(handle))
-        }
-        (stack, clear)
-      }.flatMap {
-        case (stack, clear) =>
-          val pack = IO(stack.pack(1))
-          (pack.both(clear *> pack), pack).mapN {
-            case ((x, y), z) =>
-              (x + y + z) must beEqualTo(2)
-          }
-      }.replicateA_(1000)
-        .as(ok)
+
+      IO(CallbackStack[Unit](null)).flatMap { stack =>
+        val pushClearPack = for {
+          handle <- IO(stack.push(_ => ()))
+          removed <- IO(stack.clearHandle(handle))
+          packed <- IO(stack.pack(1))
+        } yield (if (removed) 1 else 0) + packed
+
+        pushClearPack
+          .both(pushClearPack)
+          .productL(IO(stack.toString).flatMap(IO.println))
+          .product(IO(stack.pack(1)))
+          .debug()
+          .flatMap { case ((x, y), z) => IO((x + y + z) must beEqualTo(2)) }
+          .replicateA_(1000)
+          .as(ok)
+      }
     }
   }
 

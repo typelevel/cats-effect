@@ -84,10 +84,12 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
   }
 
   /**
-   * Removes the callback referenced by a handle.
+   * Removes the callback referenced by a handle. Returns `true` if the data structure was
+   * cleaned up immediately, `false` if a subsequent call to [[pack]] is required.
    */
-  def clearHandle(handle: CallbackStack.Handle[A]): Unit = {
+  def clearHandle(handle: CallbackStack.Handle[A]): Boolean = {
     handle.clear()
+    false
   }
 
   /**
@@ -139,6 +141,8 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
     } else {
       0
     }
+
+  override def toString(): String = s"CallbackStack($callback, ${get()})"
 
 }
 
@@ -231,5 +235,7 @@ private object CallbackStack {
         }
       }
     }
+
+    override def toString(): String = s"Node($callback, $next)"
   }
 }

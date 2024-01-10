@@ -49,16 +49,19 @@ private final class CallbackStackOps[A](private val callbacks: js.Array[A => Uni
       .asInstanceOf[Boolean]
 
   /**
-   * Removes the current callback from the queue.
+   * Removes the callback referenced by a handle. Returns `true` if the data structure was
+   * cleaned up immediately, `false` if a subsequent call to [[pack]] is required.
    */
-  @inline def clearHandle(handle: Handle[A]): Unit =
+  @inline def clearHandle(handle: Handle[A]): Boolean = {
     // deleting an index from a js.Array makes it sparse (aka "holey"), so no memory leak
     js.special.delete(callbacks, handle)
+    true
+  }
 
   @inline def clear(): Unit =
     callbacks.length = 0 // javascript is crazy!
 
-  @inline def pack(bound: Int): Int = bound
+  @inline def pack(bound: Int): Int = 0
 }
 
 private object CallbackStack {

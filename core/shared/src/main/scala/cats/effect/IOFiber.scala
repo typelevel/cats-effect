@@ -170,7 +170,7 @@ private final class IOFiber[A](
           callbacks.clearHandle(handle)
           Right(outcome)
         } else {
-          Left(Some(IO(callbacks.clearHandle(handle))))
+          Left(Some(IO { callbacks.clearHandle(handle); () }))
         }
       } else {
         Right(outcome)
