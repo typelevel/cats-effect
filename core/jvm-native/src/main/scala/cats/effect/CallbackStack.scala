@@ -21,6 +21,7 @@ import scala.annotation.tailrec
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
+import CallbackStack.Handle
 import CallbackStack.Node
 
 private final class CallbackStack[A](private[this] var callback: A => Unit)
@@ -29,11 +30,15 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
 
   private[this] val allowedToPack = new AtomicBoolean(true)
 
-  def push(cb: A => Unit): Node[A] = {
+  /**
+   * Pushes a callback to the top of the stack. Returns a handle that can be used with
+   * [[clearHandle]] to clear the callback.
+   */
+  def push(cb: A => Unit): Handle[A] = {
     val newHead = new Node(cb)
 
     @tailrec
-    def loop(): CallbackStack[A] = {
+    def loop(): Handle[A] = {
       val currentHead = head.get()
       newHead.next = currentHead
 
@@ -55,9 +60,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
    * iff *any* callbacks were invoked.
    */
   def apply(a: A): Boolean = {
-    while (!allowedToPack.compareAndSet(true, false)) {
-      // spinloop
-    }
+    // TODO should we read allowedToPack for memory effect?
 
     val cb = callback
     var invoked = if (cb != null) {
@@ -79,81 +82,21 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
 
     invoked
   }
-}
 
-private object CallbackStack {
-  private[CallbackStack] final class Node[A](
-      private[this] var callback: A => Unit,
-  ) {
-    var next: Node[A] = _
-
-    def getCallback(): A => Unit = callback
-
-    def clear(): Unit = {
-      callback = null
-    }
-  }
-}
-
-private final class CallbackStack[A](private[this] var callback: A => Unit)
-    extends AtomicReference[CallbackStack[A]] {
-
-  val allowedToPack = new AtomicBoolean(true)
-
-  def push(next: A => Unit): CallbackStack[A] = {
-    val attempt = new CallbackStack(next)
-
-    @tailrec
-    def loop(): CallbackStack[A] = {
-      val cur = head.get()
-      attempt.lazySet(cur)
-
-      if (!compareAndSet(cur, attempt))
-        loop()
-      else
-        attempt
-    }
-
-    loop()
-  }
-
-  def unsafeSetCallback(cb: A => Unit): Unit = {
-    callback = cb
+  /**
+   * Removes the callback referenced by a handle.
+   */
+  def clearHandle(handle: CallbackStack.Handle[A]): Unit = {
+    handle.clear()
   }
 
   /**
-   * Invokes *all* non-null callbacks in the queue, starting with the current one. Returns true
-   * iff *any* callbacks were invoked.
+   * Nulls all references in this callback stack.
    */
-  @tailrec
-  def apply(oc: A, invoked: Boolean): Boolean = {
-    val cb = callback
-
-    val invoked2 = if (cb != null) {
-      cb(oc)
-      true
-    } else {
-      invoked
-    }
-
-    val next = get()
-    if (next != null)
-      next(oc, invoked2)
-    else
-      invoked2
-  }
-
-  /**
-   * Removes the current callback from the queue.
-   */
-  def clearCurrent(handle: CallbackStack.Handle): Unit = {
-    val _ = handle
+  def clear(): Unit = {
     callback = null
+    head.lazySet(null)
   }
-
-  def currentHandle(): CallbackStack.Handle = 0
-
-  def clear(): Unit = lazySet(null)
 
   /**
    * It is intended that `bound` be tracked externally and incremented on each clear(). Whenever
@@ -185,11 +128,10 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
    */
   def pack(bound: Int): Int =
     if (allowedToPack.compareAndSet(true, false)) {
-      // the first cell is always retained
-      val got = get()
+      val got = head.get()
       val rtn =
         if (got ne null)
-          got.packInternal(bound, 0, this)
+          got.packHead(bound, this)
         else
           0
       allowedToPack.set(true)
@@ -198,42 +140,83 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
       0
     }
 
-  @tailrec
-  private def packInternal(bound: Int, removed: Int, parent: CallbackStack[A]): Int = {
-    if (callback == null) {
-      val child = get()
+}
 
-      // doing this cas here ultimately deoptimizes contiguous empty chunks
-      if (!parent.compareAndSet(this, child)) {
-        // if we're contending with another pack(), just bail and let them continue
-        removed
+private object CallbackStack {
+  def apply[A](callback: A => Unit): CallbackStack[A] =
+    new CallbackStack(callback)
+
+  sealed abstract class Handle[A] {
+    private[CallbackStack] def clear(): Unit
+  }
+
+  private[CallbackStack] final class Node[A](
+      private[this] var callback: A => Unit
+  ) extends Handle[A] {
+    var next: Node[A] = _
+
+    def getCallback(): A => Unit = callback
+
+    def clear(): Unit = {
+      callback = null
+    }
+
+    @tailrec
+    def packHead(bound: Int, root: CallbackStack[A]): Int = {
+      val next = this.next // local copy
+
+      if (callback == null) {
+        if (root.compareAndSet(this, next)) {
+          if (next == null) {
+            // bottomed out
+            1
+          } else {
+            // note this can cause the bound to go negative, which is fine
+            next.packTail(bound - 1, 1, this)
+          }
+        } else { // get the new top of the stack and start over
+          root.get().packHead(bound, root)
+        }
       } else {
-        if (child == null) {
+        if (next == null) {
+          // bottomed out
+          0
+        } else {
+          if (bound > 0)
+            next.packTail(bound - 1, 0, this)
+          else
+            0
+        }
+      }
+    }
+
+    @tailrec
+    private def packTail(bound: Int, removed: Int, prev: Node[A]): Int = {
+      val next = this.next // local copy
+
+      if (callback == null) {
+        // We own the pack lock, so it is safe to write `next`. It will be published to subsequent packs via the lock.
+        // Concurrent readers ie `CallbackStack#apply` may read a stale value for `next` still pointing to this node.
+        //   This is okay b/c the new `next` (the tail) is still reachable via the old `next` (this node).
+        prev.next = next
+        if (next == null) {
           // bottomed out
           removed + 1
         } else {
           // note this can cause the bound to go negative, which is fine
-          child.packInternal(bound - 1, removed + 1, parent)
+          next.packTail(bound - 1, removed + 1, prev)
         }
-      }
-    } else {
-      val child = get()
-      if (child == null) {
-        // bottomed out
-        removed
       } else {
-        if (bound > 0)
-          child.packInternal(bound - 1, removed, this)
-        else
+        if (next == null) {
+          // bottomed out
           removed
+        } else {
+          if (bound > 0)
+            next.packTail(bound - 1, removed, this)
+          else
+            removed
+        }
       }
     }
   }
-}
-
-private object CallbackStack {
-  def apply[A](cb: A => Unit): CallbackStack[A] =
-    new CallbackStack(cb)
-
-  type Handle = Byte
 }

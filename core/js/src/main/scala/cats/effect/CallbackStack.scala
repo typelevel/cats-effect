@@ -18,14 +18,16 @@ package cats.effect
 
 import scala.scalajs.js
 
+import CallbackStack.Handle
+
 private trait CallbackStack[A] extends js.Object
 
 private final class CallbackStackOps[A](private val callbacks: js.Array[A => Unit])
     extends AnyVal {
 
-  @inline def push(next: A => Unit): CallbackStack[A] = {
+  @inline def push(next: A => Unit): Handle[A] = {
     callbacks.push(next)
-    callbacks.asInstanceOf[CallbackStack[A]]
+    callbacks.length - 1
   }
 
   @inline def unsafeSetCallback(cb: A => Unit): Unit = {
@@ -36,24 +38,22 @@ private final class CallbackStackOps[A](private val callbacks: js.Array[A => Uni
    * Invokes *all* non-null callbacks in the queue, starting with the current one. Returns true
    * iff *any* callbacks were invoked.
    */
-  @inline def apply(oc: A, invoked: Boolean): Boolean =
+  @inline def apply(oc: A): Boolean =
     callbacks
       .asInstanceOf[js.Dynamic]
       .reduceRight( // skips deleted indices, but there can still be nulls
         (acc: Boolean, cb: A => Unit) =>
           if (cb ne null) { cb(oc); true }
           else acc,
-        invoked)
+        false)
       .asInstanceOf[Boolean]
 
   /**
    * Removes the current callback from the queue.
    */
-  @inline def clearCurrent(handle: Int): Unit =
+  @inline def clearHandle(handle: Handle[A]): Unit =
     // deleting an index from a js.Array makes it sparse (aka "holey"), so no memory leak
     js.special.delete(callbacks, handle)
-
-  @inline def currentHandle(): CallbackStack.Handle = callbacks.length - 1
 
   @inline def clear(): Unit =
     callbacks.length = 0 // javascript is crazy!
@@ -68,5 +68,5 @@ private object CallbackStack {
   @inline implicit def ops[A](stack: CallbackStack[A]): CallbackStackOps[A] =
     new CallbackStackOps(stack.asInstanceOf[js.Array[A => Unit]])
 
-  type Handle = Int
+  type Handle[A] = Int
 }
