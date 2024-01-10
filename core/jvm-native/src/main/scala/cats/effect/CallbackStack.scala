@@ -172,10 +172,10 @@ private object CallbackStack {
             removed + 1
           } else {
             // note this can cause the bound to go negative, which is fine
-            root.get().packHead(bound - 1, removed + 1, root)
+            next.packHead(bound - 1, removed + 1, root)
           }
-        } else { // get the new top of the stack and start over
-          root.get().packHead(bound, removed, root)
+        } else { // we were unable to remove ourselves, but we can still pack our tail
+          packTail(bound - 1, removed, this)
         }
       } else {
         if (next == null) {

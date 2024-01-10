@@ -45,8 +45,6 @@ class CallbackStackSpec extends BaseSpec {
           val pack = IO(stack.pack(1))
           (pack.both(clear *> pack), pack).mapN {
             case ((x, y), z) =>
-              if ((x + y + z) != 2)
-                println((x, y, z))
               (x + y + z) must beEqualTo(2)
           }
       }.replicateA_(1000)
