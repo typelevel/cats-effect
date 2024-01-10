@@ -21,7 +21,7 @@ import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, W
 import cats.effect.kernel.Sync
 import cats.kernel.Monoid
 
-import java.util.Properties
+import scala.jdk.CollectionConverters.PropertiesHasAsScala
 
 trait Prop[F[_]] { self =>
 
@@ -41,13 +41,13 @@ trait Prop[F[_]] { self =>
    */
   def unset(key: String): F[Unit]
 
-  def entries: F[Properties]
+  def entries: F[Map[String, String]]
 
   def mapK[G[_]](f: F ~> G): Prop[G] = new Prop[G] {
     def get(key: String): G[Option[String]] = f(self.get(key))
     def set(key: String, value: String): G[Unit] = f(self.set(key, value))
     def unset(key: String) = f(self.unset(key))
-    def entries: G[Properties] = f(self.entries)
+    def entries: G[Map[String, String]] = f(self.entries)
   }
 }
 
@@ -130,6 +130,6 @@ object Prop {
 
     def unset(key: String): F[Unit] = F.void(F.delay(System.clearProperty(key)))
 
-    def entries: F[Properties] = F.delay(System.getProperties())
+    def entries: F[Map[String, String]] = F.delay(Map.from(System.getProperties().asScala))
   }
 }
