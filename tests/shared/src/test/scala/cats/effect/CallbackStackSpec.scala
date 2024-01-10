@@ -23,30 +23,26 @@ class CallbackStackSpec extends BaseSpec {
       val stack = CallbackStack[Unit](null)
       val handle = stack.push(_ => ())
       stack.push(_ => ())
-      stack.clearHandle(handle)
-      stack.pack(1) must beEqualTo(1)
+      val removed = stack.clearHandle(handle)
+      if (removed)
+        stack.pack(1) must beEqualTo(0)
+      else
+        stack.pack(1) must beEqualTo(1)
     }
 
     "handle race conditions in pack" in real {
 
       IO(CallbackStack[Unit](null)).flatMap { stack =>
-        def pushClearPack(handle: CallbackStack.Handle[Unit]) = for {
+        val pushClearPack = for {
+          handle <- IO(stack.push(_ => ()))
           removed <- IO(stack.clearHandle(handle))
           packed <- IO(stack.pack(1))
         } yield (if (removed) 1 else 0) + packed
 
-        IO(stack.push(_ => ()))
-          .product(IO(stack.push(_ => ())))
-          .flatMap {
-            case (handle1, handle2) =>
-              // IO(stack.clearHandle(handle1)) *>
-              pushClearPack(handle1)
-                .both(pushClearPack(handle2))
-                .productL(IO(stack.toString).flatMap(IO.println))
-                .product(IO(stack.pack(1)))
-                .debug()
-                .flatMap { case ((x, y), z) => IO((x + y + z) must beEqualTo(2)) }
-          }
+        pushClearPack
+          .both(pushClearPack)
+          .product(IO(stack.pack(1)))
+          .flatMap { case ((x, y), z) => IO((x + y + z) must beEqualTo(2)) }
           .replicateA_(1000)
           .as(ok)
       }
