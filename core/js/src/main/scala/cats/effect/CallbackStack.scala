@@ -61,7 +61,10 @@ private final class CallbackStackOps[A](private val callbacks: js.Array[A => Uni
   @inline def clear(): Unit =
     callbacks.length = 0 // javascript is crazy!
 
-  @inline def pack(bound: Int): Int = 0
+  @inline def pack(bound: Int): Int = {
+    val _ = bound
+    0
+  }
 }
 
 private object CallbackStack {
