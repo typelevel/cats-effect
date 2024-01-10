@@ -188,7 +188,8 @@ private object CallbackStack {
           }
         } else {
           val prev = root.get()
-          if (prev.getNext() eq this) { // prev is our new parent, we are its tail
+          if ((prev != null) && (prev.getNext() eq this)) {
+            // prev is our new parent, we are its tail
             this.packTail(bound, removed, prev)
           } else if (next != null) { // we were unable to remove ourselves, but we can still pack our tail
             next.packTail(bound - 1, removed, this)

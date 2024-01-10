@@ -47,6 +47,15 @@ class CallbackStackSpec extends BaseSpec {
           .as(ok)
       }
     }
+
+    "pack runs concurrently with clear" in real {
+      IO {
+        val stack = CallbackStack[Unit](null)
+        val handle = stack.push(_ => ())
+        stack.clearHandle(handle)
+        stack
+      }.flatMap(stack => IO(stack.pack(1)).both(IO(stack.clear()))).replicateA_(1000).as(ok)
+    }
   }
 
 }
