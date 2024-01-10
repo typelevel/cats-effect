@@ -194,12 +194,12 @@ private object CallbackStack {
       } else {
         if (next == null) {
           // bottomed out
-          0
+          removed
         } else {
           if (bound > 0)
             next.packTail(bound - 1, removed, this)
           else
-            0
+            removed
         }
       }
     }
