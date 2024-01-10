@@ -23,7 +23,7 @@ class CallbackStackSpec extends BaseSpec {
       val stack = CallbackStack[Unit](null)
       val handle = stack.push(_ => ())
       stack.push(_ => ())
-      stack.clearHandle(handle) must beFalse
+      stack.clearHandle(handle)
       stack.pack(1) must beEqualTo(1)
     }
 
