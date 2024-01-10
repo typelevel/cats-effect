@@ -197,7 +197,7 @@ private object CallbackStack {
           0
         } else {
           if (bound > 0)
-            next.packTail(bound - 1, 0, this)
+            next.packTail(bound - 1, removed, this)
           else
             0
         }
