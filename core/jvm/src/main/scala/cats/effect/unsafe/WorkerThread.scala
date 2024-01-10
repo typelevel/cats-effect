@@ -794,10 +794,6 @@ private final class WorkerThread(
    * replacement worker thread.
    */
   def prepareForBlocking(): Unit = {
-    val rnd = random
-
-    pool.notifyParked(rnd)
-
     if (blocking) {
       // This `WorkerThread` has already been prepared for blocking.
       // There is no need to spawn another `WorkerThread`.
