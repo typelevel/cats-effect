@@ -17,8 +17,24 @@
 package cats.effect
 package example
 
+import cats.effect.std._
+
+import scala.concurrent.duration._
+
+import java.util.concurrent.atomic.AtomicReference
+
 object Example extends IOApp.Simple {
 
-  def run: IO[Unit] =
-    (IO(println("started")) >> IO.never).onCancel(IO(println("canceled")))
+  def run: IO[Unit] = {
+    val x = new AtomicReference("")
+    Dispatcher.sequential[IO].use { dispatcher =>
+      IO(
+        (1 to 25).toList.foreach { i =>
+          dispatcher.unsafeRunAndForget(IO {
+            x.accumulateAndGet(s", ${i.toString}", _ + _)
+          })
+        }
+      )
+    } >> IO.sleep(10.millis) >> IO.println(x)
+  }
 }
