@@ -819,7 +819,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack"),
         // introduced by #3642, which optimized the BatchingMacrotaskExecutor
         ProblemFilters.exclude[MissingClassProblem](
-          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$")
+          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$"),
+        // #3943, refactored internal private CallbackStack data structure
+        ProblemFilters.exclude[Problem]("cats.effect.CallbackStackOps.*")
       )
     },
     mimaBinaryIssueFilters ++= {
