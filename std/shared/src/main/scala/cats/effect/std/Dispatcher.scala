@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Outcome, Deferred, Resource}
+import cats.effect.kernel.{Async, Outcome, Resource}
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
 
@@ -97,9 +97,9 @@ object Dispatcher {
   private[this] val Completed: Either[Throwable, Unit] = Right(())
 
   private[this] sealed trait WorkerState
-  private[this] case object Running extends WorkerState
-  private[this] case object Draining extends WorkerState
-  private[this] case object Done extends WorkerState
+  private[this] final case object Running extends WorkerState
+  private[this] final case object Draining extends WorkerState
+  private[this] final case object Done extends WorkerState
 
   @deprecated(
     message =
@@ -244,13 +244,26 @@ object Dispatcher {
         }
         states
       })
+      workerStates <- Resource.eval(F.delay {
+        val workerStates = new Array[AtomicReference[WorkerState]](workers)
+        var i = 0
+        while (i < workers) {
+          workerStates(i) = new AtomicReference(Running)
+          i += 1
+        }
+        workerStates
+      })
       ec <- Resource.eval(F.executionContext)
 
       // supervisor for the main loop, which needs to always restart unless the Supervisor itself is canceled
       // critically, inner actions can be canceled without impacting the loop itself
-      supervisor <- Supervisor[F](await, Some((_: Outcome[F, Throwable, _]) => true))
-
-      acceptingWork <- Resource.eval(F.delay(new AtomicReference[Boolean](true)))
+      supervisor <- Supervisor[F](await, Some(
+        (_: Outcome[F, Throwable, _]) match {
+          case Outcome.Succeeded(_) => true
+          case Outcome.Errored(_) => false
+          case Outcome.Canceled() => false
+        }
+      ))
 
       _ <- {
         def step(
@@ -265,8 +278,7 @@ object Dispatcher {
               while (i < workers) {
                 val st = state(i)
                 if (st.get() ne null) {
-                  val list =
-                    if (workerState == Running) st.getAndSet(Nil) else st.getAndSet(null)
+                  val list = if (workerState != Running) st.getAndSet(null) else st.getAndSet(Nil)
                   if ((list ne null) && (list ne Nil)) {
                     buffer ++= list.reverse // FIFO order here is a form of fairness
                   }
@@ -294,9 +306,7 @@ object Dispatcher {
         def dispatcher(
             workerStateR: AtomicReference[WorkerState],
             latch: AtomicReference[() => Unit],
-            state: Array[AtomicReference[List[Registration]]],
-            gate: Deferred[F, Unit]
-        ): F[Unit] = {
+            state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
 
           val await =
             F.async_[Unit] { cb =>
@@ -309,34 +319,19 @@ object Dispatcher {
           F.delay(latch.set(Noop)) *> // reset latch
             // if we're marked as done, yield immediately to give other fibers a chance to shut us down
             // we might loop on this a few times since we're marked as done before the supervisor is canceled
-            F.delay(workerStateR.get()).flatMap {
-              case Running | Draining => step(state, await, workerStateR)
-              case Done => gate.complete(()).void
-            }
+            F.delay(workerStateR.get() == Done).ifM(F.cede, step(state, await, workerStateR))
         }
 
         0.until(workers).toList traverse_ { n =>
-          Resource.eval(F.delay(new AtomicReference[WorkerState](Running))) flatMap {
-            workerStateR =>
-              val latch = latches(n)
-              Resource.eval(Deferred[F, Unit]).flatMap { gate =>
-                val worker = dispatcher(workerStateR, latch, states(n), gate)
-                val release = F.delay(latch.getAndSet(Open)())
-                Resource.makeCase(supervisor.supervise(worker)) {
-                  case (_, Resource.ExitCase.Succeeded) =>
-                    F.delay(acceptingWork.set(false)) *>
-                      F.delay(workerStateR.set(Draining)) *>
-                      release *>
-                      gate.get
-                  case (fiber, Resource.ExitCase.Errored(_)) =>
-                    F.delay(acceptingWork.set(false)) *>
-                      fiber.cancel *>
-                      release
-                  case (_, Resource.ExitCase.Canceled) =>
-                    F.delay(acceptingWork.set(false)) *>
-                      release
-                }
-              }
+          val latch = latches(n)
+          val workerState = workerStates(n)
+          val worker = dispatcher(workerState, latch, states(n))
+          val release = F.delay(latch.getAndSet(Open)())
+          Resource.makeCase(supervisor.supervise(worker)) { (fiber, exitCase) =>
+            // F.delay(println(s"Worker $n exiting with $exitCase on fiber ${fiber.##}")) *>
+            F.delay(workerState.set(Draining)) *>
+            // step(states(n), F.unit, workerStateR) *>
+            release
           }
         }
       }
@@ -389,28 +384,28 @@ object Dispatcher {
           }
 
           @tailrec
-          def enqueue(state: AtomicReference[List[Registration]], reg: Registration): Unit = {
+          def enqueue(state: AtomicReference[List[Registration]], reg: Registration, workerState: AtomicReference[WorkerState]): Unit = {
             val curr = state.get()
-            if ((curr eq null) || !acceptingWork.get()) {
+            if (workerState.get() != Running) {
               throw new IllegalStateException("dispatcher already shutdown")
             } else {
               val next = reg :: curr
-              if (!state.compareAndSet(curr, next)) enqueue(state, reg)
+              if (!state.compareAndSet(curr, next)) enqueue(state, reg, workerState)
             }
           }
 
-          val (state, lt) = if (workers > 1) {
+          val (state, lt, workerState) = if (workers > 1) {
             val rand = ThreadLocalRandom.current()
             val dispatcher = rand.nextInt(workers)
             val inner = rand.nextInt(workers)
 
-            (states(dispatcher)(inner), latches(dispatcher))
+            (states(dispatcher)(inner), latches(dispatcher), workerStates(dispatcher))
           } else {
-            (states(0)(0), latches(0))
+            (states(0)(0), latches(0), workerStates(0))
           }
 
           val reg = Registration(action, registerCancel _)
-          enqueue(state, reg)
+          enqueue(state, reg, workerState)
 
           if (lt.get() ne Open) {
             val f = lt.getAndSet(Open)
