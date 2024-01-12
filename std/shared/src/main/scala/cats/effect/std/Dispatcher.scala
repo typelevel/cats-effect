@@ -214,7 +214,7 @@ object Dispatcher {
    * at the cost of ordering, which is not guaranteed in parallel mode. With the sequential modes, there
    * is only a single worker.
    *
-   * On the impure side, the queue bit is the easy part: it's just a `LinkedBlockingQueue` which
+   * On the impure side, the queue bit is the easy part: it's just a `UnsafeUnbounded` (queue) which
    * accepts Registration(s). It's easiest to think of this a bit like an actor model, where the
    * `Worker` is the actor and the enqueue is the send. Whenever we send a unit of work, that
    * message has an `AtomicReference` which allows us to back-propagate a cancelation action. That
