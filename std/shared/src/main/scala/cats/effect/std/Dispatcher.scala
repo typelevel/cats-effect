@@ -265,22 +265,14 @@ object Dispatcher {
             await: F[Unit],
             workerStateR: AtomicReference[WorkerState]): F[Unit] =
           for {
-            workerState <- F.delay(workerStateR.get())
             regs <- F delay {
               val buffer = mutable.ListBuffer.empty[Registration]
               var i = 0
               while (i < workers) {
                 val st = state(i)
-                if (st.get() ne null) {
-                  val list =
-                    st.getAndSet(
-                      workerState match {
-                        case Running => Nil
-                        case Draining => null
-                        case Done => null
-                      }
-                    )
-                  if ((list ne null) && (list ne Nil)) {
+                if (st.get() ne Nil) {
+                  val list = st.getAndSet(Nil)
+                  if (list ne Nil) {
                     buffer ++= list.reverse // FIFO order here is a form of fairness
                   }
                 }
