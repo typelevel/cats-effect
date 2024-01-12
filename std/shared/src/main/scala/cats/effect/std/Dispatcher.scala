@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Outcome, Resource}
+import cats.effect.kernel.{Async, Deferred, Outcome, Resource}
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
 
@@ -307,7 +307,9 @@ object Dispatcher {
         def dispatcher(
             workerStateR: AtomicReference[WorkerState],
             latch: AtomicReference[() => Unit],
-            state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
+            state: Array[AtomicReference[List[Registration]]],
+            gate: Deferred[F, Unit]
+        ): F[Unit] = {
 
           val await =
             F.async_[Unit] { cb =>
@@ -320,16 +322,19 @@ object Dispatcher {
           F.delay(latch.set(Noop)) *> // reset latch
             // if we're marked as done, yield immediately to give other fibers a chance to shut us down
             // we might loop on this a few times since we're marked as done before the supervisor is canceled
-            F.delay(workerStateR.get() == Done).ifM(F.cede, step(state, await, workerStateR))
+            F.delay(workerStateR.get() == Done)
+              .ifM(gate.complete(()).void *> F.cede, step(state, await, workerStateR))
         }
 
         0.until(workers).toList traverse_ { n =>
           val latch = latches(n)
           val workerState = workerStates(n)
-          val worker = dispatcher(workerState, latch, states(n))
-          val release = F.delay(latch.getAndSet(Open)())
-          Resource.make(supervisor.supervise(worker)) { _=>
-            F.delay(workerState.set(Draining)) *> release
+          Resource.eval(Deferred[F, Unit]).flatMap { gate =>
+            val worker = dispatcher(workerState, latch, states(n), gate)
+            val release = F.delay(latch.getAndSet(Open)())
+            Resource.make(supervisor.supervise(worker)) { _ =>
+              F.delay(workerState.set(Draining)) *> release *> gate.get
+            }
           }
         }
       }
