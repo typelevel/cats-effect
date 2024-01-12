@@ -332,8 +332,18 @@ object Dispatcher {
           Resource.eval(Deferred[F, Unit]).flatMap { gate =>
             val worker = dispatcher(workerState, latch, states(n), gate)
             val release = F.delay(latch.getAndSet(Open)())
-            Resource.make(supervisor.supervise(worker)) { _ =>
-              F.delay(workerState.set(Draining)) *> release *> gate.get
+            Resource.makeCase(supervisor.supervise(worker)) {
+              case (_, Resource.ExitCase.Succeeded) =>
+                F.delay(workerState.set(Draining)) *>
+                release *>
+                gate.get
+              case (fiber, Resource.ExitCase.Errored(_)) =>
+                F.delay(workerState.set(Draining)) *>
+                fiber.cancel *>
+                release
+              case (_, Resource.ExitCase.Canceled) =>
+                F.delay(workerState.set(Draining)) *>
+                release
             }
           }
         }
