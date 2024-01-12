@@ -257,13 +257,15 @@ object Dispatcher {
 
       // supervisor for the main loop, which needs to always restart unless the Supervisor itself is canceled
       // critically, inner actions can be canceled without impacting the loop itself
-      supervisor <- Supervisor[F](await, Some(
-        (_: Outcome[F, Throwable, _]) match {
-          case Outcome.Succeeded(_) => true
-          case Outcome.Errored(_) => false
-          case Outcome.Canceled() => false
-        }
-      ))
+      supervisor <- Supervisor[F](
+        await,
+        Some(
+          (_: Outcome[F, Throwable, _]) match {
+            case Outcome.Succeeded(_) => true
+            case Outcome.Errored(_) => false
+            case Outcome.Canceled() => false
+          }
+        ))
 
       _ <- {
         def step(
@@ -278,7 +280,8 @@ object Dispatcher {
               while (i < workers) {
                 val st = state(i)
                 if (st.get() ne null) {
-                  val list = if (workerState != Running) st.getAndSet(null) else st.getAndSet(Nil)
+                  val list =
+                    if (workerState != Running) st.getAndSet(null) else st.getAndSet(Nil)
                   if ((list ne null) && (list ne Nil)) {
                     buffer ++= list.reverse // FIFO order here is a form of fairness
                   }
@@ -330,8 +333,8 @@ object Dispatcher {
           Resource.makeCase(supervisor.supervise(worker)) { (fiber, exitCase) =>
             // F.delay(println(s"Worker $n exiting with $exitCase on fiber ${fiber.##}")) *>
             F.delay(workerState.set(Draining)) *>
-            // step(states(n), F.unit, workerStateR) *>
-            release
+              // step(states(n), F.unit, workerStateR) *>
+              release
           }
         }
       }
@@ -384,7 +387,10 @@ object Dispatcher {
           }
 
           @tailrec
-          def enqueue(state: AtomicReference[List[Registration]], reg: Registration, workerState: AtomicReference[WorkerState]): Unit = {
+          def enqueue(
+              state: AtomicReference[List[Registration]],
+              reg: Registration,
+              workerState: AtomicReference[WorkerState]): Unit = {
             val curr = state.get()
             if (workerState.get() != Running) {
               throw new IllegalStateException("dispatcher already shutdown")
