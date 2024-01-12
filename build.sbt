@@ -980,8 +980,10 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         // Rewrote Dispatcher
         ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode"),
         ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode$"),
-        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode$Parallel$"),
-        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode$Sequential$")
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.std.Dispatcher$Mode$Parallel$"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.std.Dispatcher$Mode$Sequential$")
       )
   )
   .jsSettings(
