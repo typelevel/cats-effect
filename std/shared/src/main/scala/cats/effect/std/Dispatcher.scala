@@ -339,7 +339,10 @@ object Dispatcher {
                 gate.get
               case (fiber, Resource.ExitCase.Errored(_)) =>
                 F.delay(workerState.set(Draining)) *>
-                fiber.cancel *>
+                (mode match {
+                  case Mode.Parallel => F.unit
+                  case Mode.Sequential => fiber.cancel
+                }) *>
                 release
               case (_, Resource.ExitCase.Canceled) =>
                 F.delay(workerState.set(Draining)) *>
