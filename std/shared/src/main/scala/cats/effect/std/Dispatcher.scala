@@ -257,15 +257,7 @@ object Dispatcher {
 
       // supervisor for the main loop, which needs to always restart unless the Supervisor itself is canceled
       // critically, inner actions can be canceled without impacting the loop itself
-      supervisor <- Supervisor[F](
-        await,
-        Some(
-          (_: Outcome[F, Throwable, _]) match {
-            case Outcome.Succeeded(_) => true
-            case Outcome.Errored(_) => false
-            case Outcome.Canceled() => false
-          }
-        ))
+      supervisor <- Supervisor[F](await, Some(Function.const(true) _))
 
       _ <- {
         def step(
