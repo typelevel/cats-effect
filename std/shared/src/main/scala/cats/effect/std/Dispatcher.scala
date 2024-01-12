@@ -336,11 +336,8 @@ object Dispatcher {
           val workerState = workerStates(n)
           val worker = dispatcher(workerState, latch, states(n))
           val release = F.delay(latch.getAndSet(Open)())
-          Resource.makeCase(supervisor.supervise(worker)) { (fiber, exitCase) =>
-            // F.delay(println(s"Worker $n exiting with $exitCase on fiber ${fiber.##}")) *>
-            F.delay(workerState.set(Draining)) *>
-              // step(states(n), F.unit, workerStateR) *>
-              release
+          Resource.make(supervisor.supervise(worker)) { _=>
+            F.delay(workerState.set(Draining)) *> release
           }
         }
       }
