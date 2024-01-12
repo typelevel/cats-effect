@@ -281,7 +281,13 @@ object Dispatcher {
                 val st = state(i)
                 if (st.get() ne null) {
                   val list =
-                    if (workerState != Running) st.getAndSet(null) else st.getAndSet(Nil)
+                    st.getAndSet(
+                      workerState match {
+                        case Running => Nil
+                        case Draining => null
+                        case Done => null
+                      }
+                    )
                   if ((list ne null) && (list ne Nil)) {
                     buffer ++= list.reverse // FIFO order here is a form of fairness
                   }
@@ -391,12 +397,13 @@ object Dispatcher {
               state: AtomicReference[List[Registration]],
               reg: Registration,
               workerState: AtomicReference[WorkerState]): Unit = {
-            val curr = state.get()
-            if (workerState.get() != Running) {
-              throw new IllegalStateException("dispatcher already shutdown")
-            } else {
-              val next = reg :: curr
-              if (!state.compareAndSet(curr, next)) enqueue(state, reg, workerState)
+            workerState.get() match {
+              case Running =>
+                val curr = state.get()
+                val next = reg :: curr
+                if (!state.compareAndSet(curr, next)) enqueue(state, reg, workerState)
+              case Draining | Done =>
+                throw new IllegalStateException("dispatcher already shutdown")
             }
           }
 
