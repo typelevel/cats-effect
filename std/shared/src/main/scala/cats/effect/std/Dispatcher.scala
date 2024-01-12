@@ -335,18 +335,18 @@ object Dispatcher {
             Resource.makeCase(supervisor.supervise(worker)) {
               case (_, Resource.ExitCase.Succeeded) =>
                 F.delay(workerState.set(Draining)) *>
-                release *>
-                gate.get
+                  release *>
+                  gate.get
               case (fiber, Resource.ExitCase.Errored(_)) =>
                 F.delay(workerState.set(Draining)) *>
-                (mode match {
-                  case Mode.Parallel => F.unit
-                  case Mode.Sequential => fiber.cancel
-                }) *>
-                release
+                  (mode match {
+                    case Mode.Parallel => F.unit
+                    case Mode.Sequential => fiber.cancel
+                  }) *>
+                  release
               case (_, Resource.ExitCase.Canceled) =>
                 F.delay(workerState.set(Draining)) *>
-                release
+                  release
             }
           }
         }
