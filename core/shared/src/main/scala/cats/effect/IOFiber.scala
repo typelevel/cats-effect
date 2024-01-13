@@ -87,7 +87,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
-  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
+  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack.of(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
   private[this] val runtime: IORuntime = rt
