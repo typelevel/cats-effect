@@ -22,7 +22,7 @@ import scala.annotation.tailrec
 
 import java.util.concurrent.atomic.AtomicReference
 
-private final class CallbackStack[A](private[this] var callback: A => Unit)
+private final class CallbackStack[A] private (private[this] var callback: A => Unit)
     extends AtomicReference[CallbackStack[A]] {
 
   def push(next: A => Unit): CallbackStack[A] = {
@@ -151,7 +151,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
 }
 
 private object CallbackStack {
-  @static3 def of[A](cb: A => Unit): CallbackStack[A] =
+  @static3 def apply[A](cb: A => Unit): CallbackStack[A] =
     new CallbackStack(cb)
 
   type Handle = Byte
