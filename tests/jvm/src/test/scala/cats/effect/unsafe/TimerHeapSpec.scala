@@ -89,9 +89,8 @@ class TimerHeapSpec extends Specification {
       m.peekFirstQuiescent() mustEqual cb0
       m.peekFirstTriggerTime() mustEqual 1L
       r0.run()
-      m.packIfNeeded()
-      m.peekFirstQuiescent() mustEqual cb1
       m.peekFirstTriggerTime() mustEqual 2L
+      m.peekFirstQuiescent() mustEqual cb1
       m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb1
       m.peekFirstQuiescent() mustEqual cb2
       m.peekFirstTriggerTime() mustEqual 3L

@@ -48,11 +48,20 @@ import java.util.concurrent.atomic.AtomicInteger
  * The only explicit synchronization is the `canceledCounter` atomic, which is used to track and
  * publish cancelations from other threads. Because other threads cannot safely remove a node,
  * they `null` the callback, toggle the `canceled` flag, and increment the counter to indicate
- * that the owner thread should iterate the heap to properly remove these nodes.
+ * that the owner thread should iterate the heap to remove these nodes a.k.a. "packing".
+ *
+ * To amortize the cost of packing, we only do so if canceled nodes make up at least half of the
+ * heap. In an ideal world, cancelation from external threads is relatively rare and those nodes
+ * are removed naturally as they surface to the top of the heap, such that we never exceed the
+ * packing threshold.
  */
 private final class TimerHeap extends AtomicInteger {
-  // at most this many nodes are externally canceled and waiting to be removed from the heap
+  // At most this many nodes are externally canceled and waiting to be removed from the heap.
   canceledCounter =>
+
+  // And this is how many of those externally canceled nodes were already removed.
+  // We track this separately so we can increment on owner thread without overhead of the atomic.
+  private[this] var removedCanceledCounter = 0
 
   // The index 0 is not used; the root is at index 1.
   // This is standard practice in binary heaps, to simplify arithmetics.
@@ -64,20 +73,37 @@ private final class TimerHeap extends AtomicInteger {
   /**
    * only called by owner thread
    */
+  @tailrec
   def peekFirstTriggerTime(): Long =
     if (size > 0) {
-      val tt = heap(1).triggerTime
-      if (tt != Long.MinValue) {
-        tt
-      } else {
-        // in the VERY unlikely case when
-        // the trigger time is exactly our
-        // sentinel, we just cheat a little
-        // (this could cause threads to wake
-        // up 1 ns too early):
-        Long.MaxValue
+      val root = heap(1)
+
+      if (root.isDeleted()) { // DOA. Remove it and loop.
+
+        removeAt(1)
+        if (root.isCanceled())
+          removedCanceledCounter += 1
+
+        peekFirstTriggerTime() // loop
+
+      } else { // We got a live one!
+
+        val tt = root.triggerTime
+        if (tt != Long.MinValue) { // tt != sentinel
+          tt
+        } else {
+          // in the VERY unlikely case when
+          // the trigger time is exactly our
+          // sentinel, we just cheat a little
+          // (this could cause threads to wake
+          // up 1 ns too early):
+          Long.MaxValue
+        }
+
       }
-    } else Long.MinValue
+    } else { // size == 0
+      Long.MinValue // sentinel
+    }
 
   /**
    * for testing
@@ -106,6 +132,9 @@ private final class TimerHeap extends AtomicInteger {
         }
         heap(size) = null
         size -= 1
+
+        if (root.isCanceled())
+          removedCanceledCounter += 1
 
         val back = root.getAndClear()
         if (rootExpired && (back ne null)) back else loop()
@@ -156,6 +185,7 @@ private final class TimerHeap extends AtomicInteger {
     val rootExpired = !rootDeleted && isExpired(root, now)
     if (rootDeleted || rootExpired) { // see if we can just replace the root
       root.index = -1
+      if (root.isCanceled()) removedCanceledCounter += 1
       if (rootExpired) out(0) = root.getAndClear()
       val node = new Node(triggerTime, callback, 1)
       heap(1) = node
@@ -179,21 +209,50 @@ private final class TimerHeap extends AtomicInteger {
   /**
    * only called by owner thread
    */
+  @tailrec
   def packIfNeeded(): Unit = {
-    val canceled = canceledCounter.getAndSet(0) // we now see all external cancelations
+
+    val back = canceledCounter.get()
+
+    // Account for canceled nodes that were already removed.
+    val canceledCount = back - removedCanceledCounter
+
+    if (canceledCount >= size / 2) { // We have exceeded the packing threshold.
+
+      // We will attempt to remove this many nodes.
+      val removeCount = // First try to use our current value but get latest if it is stale.
+        if (canceledCounter.compareAndSet(back, 0)) canceledCount
+        else canceledCounter.getAndSet(0) - removedCanceledCounter
+
+      removedCanceledCounter = 0 // Reset, these have now been accounted for.
+
+      // All external cancelations are now visible (published via canceledCounter).
+      pack(removeCount)
+
+    } else { // canceledCounter will eventually overflow if we do not subtract removedCanceledCounter.
+
+      if (canceledCounter.compareAndSet(back, canceledCount)) {
+        removedCanceledCounter = 0 // Reset, these have now been accounted for.
+      } else {
+        packIfNeeded() // canceledCounter was externally incremented, loop.
+      }
+    }
+  }
+
+  private[this] def pack(removeCount: Int): Unit = {
     val heap = this.heap // local copy
 
-    // we track how many canceled nodes we found so we can try to exit the loop early
+    // We track how many canceled nodes we removed so we can try to exit the loop early.
     var i = 1
-    var c = 0
-    while (c < canceled && i <= size) {
-      // we are careful to consider only *canceled* nodes, which increment the canceledCounter
-      // a node may be deleted b/c it was stolen, but this does not increment the canceledCounter
-      // to avoid leaks we must attempt to find a canceled node for every increment
+    var r = 0
+    while (r < removeCount && i <= size) {
+      // We are careful to consider only *canceled* nodes, which increment the canceledCounter.
+      // A node may be deleted b/c it was stolen, but this does not increment the canceledCounter.
+      // To avoid leaks we must attempt to find a canceled node for every increment.
       if (heap(i).isCanceled()) {
         removeAt(i)
-        c += 1
-        // don't increment i, the new i may be canceled too
+        r += 1
+        // Don't increment i, the new i may be canceled too.
       } else {
         i += 1
       }
