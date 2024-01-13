@@ -32,6 +32,7 @@ import cats.effect.kernel.syntax.all._
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
 
+import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Failure
 
@@ -324,10 +325,11 @@ object Dispatcher {
 
                             if (stateR.compareAndSet(
                                 RegState.Unstarted,
-                                RegState.CancelRequested(latch)))
+                                RegState.CancelRequested(latch))) {
                               latch.future
-                            else
+                            } else {
                               cancel()
+                            }
 
                           case r: RegState.Running[_] =>
                             val cancel = r.cancel // indirection needed for Scala 2.12
@@ -336,8 +338,11 @@ object Dispatcher {
                             val _ = inner(cancel, latch, true)
                             latch.future
 
-                          case r: RegState.CancelRequested[_] => r.latch.future
-                          case RegState.Completed => Future.successful(())
+                          case r: RegState.CancelRequested[_] =>
+                            r.latch.future
+
+                          case RegState.Completed =>
+                            Future.successful(())
                         }
                       }
 
@@ -404,37 +409,40 @@ object Dispatcher {
                         latch.success(())
                         ()
 
-                      case s => throw new AssertionError(s"a => $s")
+                      case s =>
+                        throw new AssertionError(s"a => $s")
                     }
                   }
                 } else {
-                  executor(
-                    action.guarantee(Sync[F].delay(reg.stateR.set(RegState.Completed)))) {
-                    cancelF =>
-                      Sync[F] defer {
-                        if (reg
-                            .stateR
-                            .compareAndSet(RegState.Unstarted, RegState.Running(cancelF))) {
-                          Applicative[F].unit
-                        } else {
-                          reg.stateR.get() match {
-                            case RegState.CancelRequested(latch) =>
-                              cancelF.guarantee(Sync[F].delay(latch.success(())).void)
+                  val withCompletion =
+                    action.guarantee(Sync[F].delay(reg.stateR.set(RegState.Completed)))
 
-                            case RegState.Completed =>
-                              Applicative[F].unit
+                  executor(withCompletion) { cancelF =>
+                    Sync[F] defer {
+                      if (reg
+                          .stateR
+                          .compareAndSet(RegState.Unstarted, RegState.Running(cancelF))) {
+                        Applicative[F].unit
+                      } else {
+                        reg.stateR.get() match {
+                          case RegState.CancelRequested(latch) =>
+                            cancelF.guarantee(Sync[F].delay(latch.success(())).void)
 
-                            case s => throw new AssertionError(s"b => $s")
-                          }
+                          case RegState.Completed =>
+                            Applicative[F].unit
+
+                          case s => throw new AssertionError(s"b => $s")
                         }
                       }
+                    }
                   }
                 }
 
               case s @ (RegState.Running(_) | RegState.Completed) =>
                 throw new AssertionError(s"c => $s")
 
-              case RegState.CancelRequested(latch) => Sync[F].delay(latch.success(())).void
+              case RegState.CancelRequested(latch) =>
+                Sync[F].delay(latch.success(())).void
             }
           }
 
@@ -603,18 +611,40 @@ object Dispatcher {
   // MPSC assumption
   private final class UnsafeAsyncQueue[F[_]: Async, A] {
     private[this] val buffer = new UnsafeUnbounded[A]()
+
+    /*
+     * State machine:
+     *
+     * - null => no taker, buffer state undefined
+     * - Signal => no (unnotified) taker, buffer state likely non-empty
+     * - other => taker, buffer state empty
+     */
     private[this] val latchR = new AtomicReference[Either[Throwable, Unit] => Unit](null)
 
     def unsafeOffer(a: A): Unit = {
       val _ = buffer.put(a)
 
-      val f = latchR.get()
-      if (latchR.compareAndSet(f, Signal)) {
-        if (f != null) {
-          f(RightUnit)
+      @tailrec
+      def notify(): Unit = {
+        latchR.get() match {
+          case null =>
+            if (!latchR.compareAndSet(null, Signal)) {
+              // someone suspended while we were looking, retry notification
+              notify()
+            }
+
+          // in this case, someone else already awakened the taker, so we're good
+          case Signal => ()
+
+          case f =>
+            // failed cas is fine, since it means some other producer woke up the consumer
+            if (latchR.compareAndSet(f, Signal)) {
+              f(RightUnit)
+            }
         }
-        // if f == null, take will loop back around and discover the Signal
       }
+
+      notify()
     }
 
     def take: F[A] = {
@@ -624,6 +654,7 @@ object Dispatcher {
             Left(Some(Applicative[F].unit)) // all cleanup is elsewhere
           } else {
             // since this is a single consumer queue, we should never have multiple callbacks
+            // assert(latchR.get() == Signal)
             latchR.set(null)
             Right(())
           }
