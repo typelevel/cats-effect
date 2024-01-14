@@ -114,8 +114,9 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
             }
-          } *> gate.await
+          }
         }
+        _ <- gate.await
 
         vec <- results.get
         _ <- IO(vec mustEqual 0.until(length).toVector)
