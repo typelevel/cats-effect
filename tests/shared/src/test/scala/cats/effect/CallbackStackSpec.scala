@@ -16,7 +16,9 @@
 
 package cats.effect
 
-class CallbackStackSpec extends BaseSpec {
+import cats.syntax.all._
+
+class CallbackStackSpec extends BaseSpec with DetectPlatform {
 
   "CallbackStack" should {
     "correctly report the number removed" in {
@@ -25,9 +27,9 @@ class CallbackStackSpec extends BaseSpec {
       stack.push(_ => ())
       val removed = stack.clearHandle(handle)
       if (removed)
-        stack.pack(1) must beEqualTo(0)
+        stack.pack(1) mustEqual 0
       else
-        stack.pack(1) must beEqualTo(1)
+        stack.pack(1) mustEqual 1
     }
 
     "handle race conditions in pack" in real {
@@ -40,10 +42,10 @@ class CallbackStackSpec extends BaseSpec {
         } yield (if (removed) 1 else 0) + packed
 
         pushClearPack
-          .both(pushClearPack)
+          .parReplicateA(3000)
           .product(IO(stack.pack(1)))
-          .flatMap { case ((x, y), z) => IO((x + y + z) must beEqualTo(2)) }
-          .replicateA_(1000)
+          .flatMap { case (xs, y) => IO((xs.sum + y) mustEqual 3000) }
+          .replicateA_(if (isJS || isNative) 1 else 1000)
           .as(ok)
       }
     }
@@ -54,7 +56,7 @@ class CallbackStackSpec extends BaseSpec {
         val handle = stack.push(_ => ())
         stack.clearHandle(handle)
         stack
-      }.flatMap(stack => IO(stack.pack(1)).both(IO(stack.clear()))).replicateA_(1000).as(ok)
+      }.flatMap(stack => IO(stack.pack(1)).both(IO(stack.clear()))).parReplicateA_(1000).as(ok)
     }
   }
 
