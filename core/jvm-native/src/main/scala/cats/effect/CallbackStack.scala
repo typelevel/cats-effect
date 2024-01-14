@@ -59,7 +59,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
    * iff *any* callbacks were invoked.
    */
   def apply(a: A): Boolean = {
-    // TODO should we read allowedToPack for memory effect?
+    // see also note about data races in Node#packTail
 
     val cb = callback
     var invoked = if (cb != null) {
