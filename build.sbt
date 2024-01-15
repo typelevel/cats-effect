@@ -658,7 +658,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.unsafe.WorkerThread.sleep"),
       // #3787, internal utility that was no longer needed
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$"),
+      // #3943, refactored internal private CallbackStack data structure
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.CallbackStack.push"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.CallbackStack.currentHandle")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -815,7 +819,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack"),
         // introduced by #3642, which optimized the BatchingMacrotaskExecutor
         ProblemFilters.exclude[MissingClassProblem](
-          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$")
+          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$"),
+        // #3943, refactored internal private CallbackStack data structure
+        ProblemFilters.exclude[Problem]("cats.effect.CallbackStackOps.*")
       )
     },
     mimaBinaryIssueFilters ++= {

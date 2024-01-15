@@ -163,15 +163,14 @@ private final class IOFiber[A](
   private[this] var _join: IO[OutcomeIO[A]] = IO.asyncCheckAttempt { cb =>
     IO {
       if (outcome == null) {
-        val back = callbacks.push(oc => cb(Right(oc)))
+        val handle = callbacks.push(oc => cb(Right(oc)))
 
         /* double-check */
         if (outcome != null) {
-          back.clearCurrent(back.currentHandle())
+          callbacks.clearHandle(handle)
           Right(outcome)
         } else {
-          val handle = back.currentHandle()
-          Left(Some(IO(back.clearCurrent(handle))))
+          Left(Some(IO { callbacks.clearHandle(handle); () }))
         }
       } else {
         Right(outcome)
@@ -1061,7 +1060,7 @@ private final class IOFiber[A](
     outcome = oc
 
     try {
-      if (!callbacks(oc, false) && runtime.config.reportUnhandledFiberErrors) {
+      if (!callbacks(oc) && runtime.config.reportUnhandledFiberErrors) {
         oc match {
           case Outcome.Errored(e) => currentCtx.reportFailure(e)
           case _ => ()

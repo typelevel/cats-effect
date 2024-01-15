@@ -16,15 +16,47 @@
 
 package cats.effect
 
-class CallbackStackSpec extends BaseSpec {
+import cats.syntax.all._
+
+class CallbackStackSpec extends BaseSpec with DetectPlatform {
 
   "CallbackStack" should {
     "correctly report the number removed" in {
       val stack = CallbackStack[Unit](null)
-      val pushed = stack.push(_ => ())
-      val handle = pushed.currentHandle()
-      pushed.clearCurrent(handle)
-      stack.pack(1) must beEqualTo(1)
+      val handle = stack.push(_ => ())
+      stack.push(_ => ())
+      val removed = stack.clearHandle(handle)
+      if (removed)
+        stack.pack(1) mustEqual 0
+      else
+        stack.pack(1) mustEqual 1
+    }
+
+    "handle race conditions in pack" in real {
+
+      IO(CallbackStack[Unit](null)).flatMap { stack =>
+        val pushClearPack = for {
+          handle <- IO(stack.push(_ => ()))
+          removed <- IO(stack.clearHandle(handle))
+          packed <- IO(stack.pack(1))
+        } yield (if (removed) 1 else 0) + packed
+
+        pushClearPack
+          .parReplicateA(3000)
+          .product(IO(stack.pack(1)))
+          .flatMap { case (xs, y) => IO((xs.sum + y) mustEqual 3000) }
+          .replicateA_(if (isJS || isNative) 1 else 1000)
+          .as(ok)
+      }
+    }
+
+    "pack runs concurrently with clear" in real {
+      IO {
+        val stack = CallbackStack[Unit](null)
+        val handle = stack.push(_ => ())
+        stack.clearHandle(handle)
+        stack
+      }.flatMap(stack => IO(stack.pack(1)).both(IO(stack.clear()))).parReplicateA_(1000).as(ok)
     }
   }
 
