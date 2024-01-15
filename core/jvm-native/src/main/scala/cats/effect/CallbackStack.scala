@@ -129,14 +129,15 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
    */
   def pack(bound: Int): Int =
     if (allowedToPack.compareAndSet(true, false)) {
-      val got = head.get()
-      val rtn =
+      try {
+        val got = head.get()
         if (got ne null)
           got.packHead(bound, 0, this)
         else
           0
-      allowedToPack.set(true)
-      rtn
+      } finally {
+        allowedToPack.set(true)
+      }
     } else {
       0
     }
