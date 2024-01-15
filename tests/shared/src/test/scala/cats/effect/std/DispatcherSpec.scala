@@ -43,6 +43,34 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           .replicateA(if (isJS || isNative) 1 else 10000)
           .as(true)
       }
+
+      "await work queue drain on shutdown" in real {
+        val count = 1000
+
+        IO.ref(0) flatMap { resultsR =>
+          val increments = D use { runner =>
+            IO {
+              0.until(count).foreach(_ => runner.unsafeRunAndForget(resultsR.update(_ + 1)))
+            }
+          }
+
+          increments *> resultsR.get.flatMap(r => IO(r mustEqual count))
+        }
+      }
+
+      "terminating worker preserves task order" in real {
+        val count = 10
+
+        IO.ref(Vector[Int]()) flatMap { resultsR =>
+          val appends = D use { runner =>
+            IO {
+              0.until(count).foreach(i => runner.unsafeRunAndForget(resultsR.update(_ :+ i)))
+            }
+          }
+
+          appends *> resultsR.get.flatMap(r => IO(r mustEqual 0.until(count).toVector))
+        }
+      }
     }
 
     "await = false" >> {
