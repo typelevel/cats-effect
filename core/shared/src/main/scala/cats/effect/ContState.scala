@@ -18,9 +18,9 @@ package cats.effect
 
 import cats.effect.unsafe.WeakBag
 
-import org.typelevel.scalaccompat.annotation._
-
 import java.util.concurrent.atomic.AtomicReference
+
+import Platform.static
 
 /**
  * Possible states (held in the `AtomicReference`):
@@ -51,6 +51,6 @@ private object ContState {
    * important. It must be private (so that no user code can access it), and it mustn't be used
    * for any other purpose.
    */
-  @static3 private val waitingSentinel: Either[Throwable, Any] =
+  @static private val waitingSentinel: Either[Throwable, Any] =
     new Right(null)
 }

@@ -44,8 +44,6 @@ import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
-import org.typelevel.scalaccompat.annotation._
-
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{
   CancellationException,
@@ -60,6 +58,8 @@ import scala.util.control.NonFatal
 
 import java.util.UUID
 import java.util.concurrent.Executor
+
+import Platform.static
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -1111,8 +1111,8 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
-  @static3 private[this] val _alignForIO = new IOAlign
-  @static3 private[this] val _asyncForIO: kernel.Async[IO] = new IOAsync
+  @static private[this] val _alignForIO = new IOAlign
+  @static private[this] val _asyncForIO: kernel.Async[IO] = new IOAsync
 
   /**
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing

@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import org.typelevel.scalaccompat.annotation._
+import Platform.static
 
 private[effect] final class ByteStack
 
@@ -24,7 +24,7 @@ private object ByteStack {
 
   type T = Array[Int]
 
-  @static3 final def toDebugString(
+  @static final def toDebugString(
       stack: Array[Int],
       translate: Byte => String = _.toString): String = {
     val count = size(stack)
@@ -44,10 +44,10 @@ private object ByteStack {
       .toString
   }
 
-  @static3 final def create(initialMaxOps: Int): Array[Int] =
+  @static final def create(initialMaxOps: Int): Array[Int] =
     new Array[Int](1 + 1 + ((initialMaxOps - 1) >> 3)) // count-slot + 1 for each set of 8 ops
 
-  @static3 final def growIfNeeded(stack: Array[Int], count: Int): Array[Int] = {
+  @static final def growIfNeeded(stack: Array[Int], count: Int): Array[Int] = {
     if ((1 + ((count + 1) >> 3)) < stack.length) {
       stack
     } else {
@@ -57,7 +57,7 @@ private object ByteStack {
     }
   }
 
-  @static3 final def push(stack: Array[Int], op: Byte): Array[Int] = {
+  @static final def push(stack: Array[Int], op: Byte): Array[Int] = {
     val c = stack(0) // current count of elements
     val use = growIfNeeded(stack, c) // alias so we add to the right place
     val s = (c >> 3) + 1 // current slot in `use`
@@ -67,24 +67,24 @@ private object ByteStack {
     use
   }
 
-  @static3 final def size(stack: Array[Int]): Int =
+  @static final def size(stack: Array[Int]): Int =
     stack(0)
 
-  @static3 final def isEmpty(stack: Array[Int]): Boolean =
+  @static final def isEmpty(stack: Array[Int]): Boolean =
     stack(0) < 1
 
-  @static3 final def read(stack: Array[Int], pos: Int): Byte = {
+  @static final def read(stack: Array[Int], pos: Int): Byte = {
     if (pos < 0 || pos >= stack(0)) throw new ArrayIndexOutOfBoundsException()
     ((stack((pos >> 3) + 1) >>> ((pos & 7) << 2)) & 0x0000000f).toByte
   }
 
-  @static3 final def peek(stack: Array[Int]): Byte = {
+  @static final def peek(stack: Array[Int]): Byte = {
     val c = stack(0) - 1
     if (c < 0) throw new ArrayIndexOutOfBoundsException()
     ((stack((c >> 3) + 1) >>> ((c & 7) << 2)) & 0x0000000f).toByte
   }
 
-  @static3 final def pop(stack: Array[Int]): Byte = {
+  @static final def pop(stack: Array[Int]): Byte = {
     val op = peek(stack)
     stack(0) -= 1
     op

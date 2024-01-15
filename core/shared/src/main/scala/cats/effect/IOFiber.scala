@@ -20,8 +20,6 @@ import cats.arrow.FunctionK
 import cats.effect.tracing._
 import cats.effect.unsafe._
 
-import org.typelevel.scalaccompat.annotation._
-
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -29,6 +27,8 @@ import scala.util.control.NonFatal
 
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
+
+import Platform.static
 
 /*
  * Rationale on memory barrier exploitation in this class...
@@ -1571,11 +1571,11 @@ private final class IOFiber[A](
 
 private object IOFiber {
   /* prefetch */
-  @static3 private[IOFiber] val TypeBlocking = Sync.Type.Blocking
-  @static3 private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
-  @static3 private[effect] val RightUnit = Right(())
+  @static private[IOFiber] val TypeBlocking = Sync.Type.Blocking
+  @static private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
+  @static private[effect] val RightUnit = Right(())
 
-  @static3 def onFatalFailure(t: Throwable): Nothing = {
+  @static def onFatalFailure(t: Throwable): Nothing = {
     val interrupted = Thread.interrupted()
 
     if (IORuntime.globalFatalFailureHandled.compareAndSet(false, true)) {

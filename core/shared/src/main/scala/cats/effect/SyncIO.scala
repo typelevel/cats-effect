@@ -22,13 +22,13 @@ import cats.effect.syntax.monadCancel._
 import cats.kernel.{Monoid, Semigroup}
 import cats.syntax.all._
 
-import org.typelevel.scalaccompat.annotation._
-
 import scala.annotation.{switch, tailrec}
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.control.NonFatal
+
+import Platform.static
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -398,8 +398,8 @@ private[effect] trait SyncIOLowPriorityImplicits {
 
 object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
 
-  @static3 private[this] val Delay = Sync.Type.Delay
-  @static3 private[this] val _syncForSyncIO: Sync[SyncIO] = new SyncIOSync
+  @static private[this] val Delay = Sync.Type.Delay
+  @static private[this] val _syncForSyncIO: Sync[SyncIO] = new SyncIOSync
 
   // constructors
 
