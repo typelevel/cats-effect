@@ -13,6 +13,7 @@ changelog:
       labels:
         - ':gear: infrastructure'
         - ':robot:'
+        - ':art: backstage'
     # Not for published notes, just to make sure we don't forget any accidentally unlabeled PRs
     - title: Uncategorized
       labels:
