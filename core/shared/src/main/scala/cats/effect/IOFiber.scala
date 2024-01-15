@@ -28,6 +28,8 @@ import scala.util.control.NonFatal
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
+import Platform.static
+
 /*
  * Rationale on memory barrier exploitation in this class...
  *
@@ -85,7 +87,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
-  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
+  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack.of(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
   private[this] val runtime: IORuntime = rt
@@ -96,7 +98,7 @@ private final class IOFiber[A](
    * Ideally these would be on the stack, but they can't because we sometimes need to
    * relocate our runloop to another fiber.
    */
-  private[this] var conts: ByteStack = _
+  private[this] var conts: ByteStack.T = _
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0
@@ -1569,11 +1571,11 @@ private final class IOFiber[A](
 
 private object IOFiber {
   /* prefetch */
-  private[IOFiber] val TypeBlocking = Sync.Type.Blocking
-  private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
-  private[effect] val RightUnit = Right(())
+  @static private[IOFiber] val TypeBlocking = Sync.Type.Blocking
+  @static private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
+  @static private[effect] val RightUnit = Right(())
 
-  def onFatalFailure(t: Throwable): Nothing = {
+  @static def onFatalFailure(t: Throwable): Nothing = {
     val interrupted = Thread.interrupted()
 
     if (IORuntime.globalFatalFailureHandled.compareAndSet(false, true)) {
