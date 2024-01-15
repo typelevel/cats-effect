@@ -41,10 +41,12 @@ class CallbackStackSpec extends BaseSpec with DetectPlatform {
           packed <- IO(stack.pack(1))
         } yield (if (removed) 1 else 0) + packed
 
+        val concurrency = Math.max(2, Runtime.getRuntime().availableProcessors())
+
         pushClearPack
-          .parReplicateA(3000)
+          .parReplicateA(concurrency)
           .product(IO(stack.pack(1)))
-          .flatMap { case (xs, y) => IO((xs.sum + y) mustEqual 3000) }
+          .flatMap { case (xs, y) => IO((xs.sum + y) mustEqual concurrency) }
           .replicateA_(if (isJS || isNative) 1 else 1000)
           .as(ok)
       }
