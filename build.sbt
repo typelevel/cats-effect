@@ -767,7 +767,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.this"),
           // annoying consequence of reverting #2473
-          ProblemFilters.exclude[AbstractClassProblem]("cats.effect.ExitCode")
+          ProblemFilters.exclude[AbstractClassProblem]("cats.effect.ExitCode"),
+          // #3934 which made these internal vals into proper static fields
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntime.allRuntimes"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntime.globalFatalFailureHandled")
         )
       } else Seq()
     }
