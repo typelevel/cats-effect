@@ -66,7 +66,7 @@ private final class CallbackStackOps[A](private val callbacks: js.Array[A => Uni
 }
 
 private object CallbackStack {
-  @inline def apply[A](cb: A => Unit): CallbackStack[A] =
+  @inline def of[A](cb: A => Unit): CallbackStack[A] =
     js.Array(cb).asInstanceOf[CallbackStack[A]]
 
   @inline implicit def ops[A](stack: CallbackStack[A]): CallbackStackOps[A] =

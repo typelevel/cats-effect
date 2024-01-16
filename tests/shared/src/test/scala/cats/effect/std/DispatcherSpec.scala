@@ -362,6 +362,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
                   _ <- IO(if (rogueResult == false) {
                     // if the rogue task is not completed then we must have failed to submit it
                     rogueSubmitResult must beLeft
+                    ()
                   })
                 } yield ok
             }

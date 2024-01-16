@@ -24,6 +24,7 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
+import cats.~>
 
 import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -1325,8 +1326,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "catch exceptions in cont" in ticked { implicit ticker =>
         IO.cont[Unit, Unit](new Cont[IO, Unit, Unit] {
-          override def apply[F[_]](implicit F: MonadCancel[F, Throwable]) = { (_, _, _) =>
-            throw new Exception
+          override def apply[F[_]](implicit F: MonadCancel[F, Throwable])
+              : (Either[Throwable, Unit] => Unit, F[Unit], cats.effect.IO ~> F) => F[Unit] = {
+            (_, _, _) => throw new Exception
           }
         }).voidError must completeAs(())
       }
@@ -1545,6 +1547,34 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "be cancelable" in ticked { implicit ticker =>
         val p = for {
           f <- List(1, 2, 3).parTraverseN(2)(_ => IO.never).start
+          _ <- IO.sleep(100.millis)
+          _ <- f.cancel
+        } yield true
+
+        p must completeAs(true)
+      }
+
+    }
+
+    "parTraverseN_" should {
+
+      "throw when n < 1" in real {
+        IO.defer {
+          List.empty[Int].parTraverseN_(0)(_.pure[IO])
+        }.mustFailWith[IllegalArgumentException]
+      }
+
+      "propagate errors" in real {
+        List(1, 2, 3)
+          .parTraverseN_(2) { (n: Int) =>
+            if (n == 2) IO.raiseError(new RuntimeException) else n.pure[IO]
+          }
+          .mustFailWith[RuntimeException]
+      }
+
+      "be cancelable" in ticked { implicit ticker =>
+        val p = for {
+          f <- List(1, 2, 3).parTraverseN_(2)(_ => IO.never).start
           _ <- IO.sleep(100.millis)
           _ <- f.cancel
         } yield true

@@ -14,19 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
+package unsafe
 
-import cats.effect.tracing.TracingConstants
-
-import scala.concurrent.ExecutionContext
-
-private[unsafe] trait FiberMonitorCompanionPlatform {
-  def apply(compute: ExecutionContext): FiberMonitor = {
-    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
-      new FiberMonitor(wstp)
-    } else {
-      new FiberMonitor(null)
-    }
-  }
+/**
+ * An introspectable executor that runs fibers. Useful for fiber dumps.
+ */
+private[unsafe] trait FiberExecutor {
+  def liveTraces(): Map[IOFiber[_], Trace]
 }

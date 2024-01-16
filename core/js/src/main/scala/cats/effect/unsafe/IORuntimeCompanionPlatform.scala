@@ -55,6 +55,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
           () => resetGlobal(),
           IORuntimeConfig())
       }
+      ()
     }
 
     _global

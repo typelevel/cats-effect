@@ -8,8 +8,8 @@ object Hello extends IOApp.Simple {
   def sleepPrint(word: String, name: String, rand: Random[IO]) =
     for {
       delay <- rand.betweenInt(200, 700)
-      _     <- IO.sleep(delay.millis)
-      _     <- IO.println(s"$word, $name")
+      _ <- IO.sleep(delay.millis)
+      _ <- IO.println(s"$word, $name")
     } yield ()
 
   val run =
@@ -21,7 +21,7 @@ object Hello extends IOApp.Simple {
       name <- IO.pure("Daniel")
 
       english <- sleepPrint("Hello", name, rand).foreverM.start
-      french  <- sleepPrint("Bonjour", name, rand).foreverM.start
+      french <- sleepPrint("Bonjour", name, rand).foreverM.start
       spanish <- sleepPrint("Hola", name, rand).foreverM.start
 
       _ <- IO.sleep(5.seconds)
