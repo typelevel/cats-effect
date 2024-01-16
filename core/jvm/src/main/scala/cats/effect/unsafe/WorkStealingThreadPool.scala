@@ -527,7 +527,7 @@ private[effect] final class WorkStealingThreadPool[P](
    */
   private[effect] def prepareForBlocking(): Unit = {
     val thread = Thread.currentThread()
-    val worker = thread.asInstanceOf[WorkerThread]
+    val worker = thread.asInstanceOf[WorkerThread[_]]
     worker.prepareForBlocking()
   }
 
