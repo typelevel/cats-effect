@@ -668,6 +668,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // #3787, internal utility that was no longer needed
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$"),
+      // #3943, refactored internal private CallbackStack data structure
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.CallbackStack.push"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.CallbackStack.currentHandle"),
       // introduced by #3332, polling system
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.IORuntimeBuilder.this"),
@@ -836,6 +840,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         // introduced by #3642, which optimized the BatchingMacrotaskExecutor
         ProblemFilters.exclude[MissingClassProblem](
           "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$"),
+        // #3943, refactored internal private CallbackStack data structure
+        ProblemFilters.exclude[Problem]("cats.effect.CallbackStackOps.*"),
         // introduced by #3695, which ported fiber monitoring to Native
         // internal API change
         ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.ES2021FiberMonitor")

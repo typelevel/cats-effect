@@ -793,7 +793,7 @@ private final class WorkerThread[P](
   }
 
   /**
-   * A mechanism for executing support code before executing a blocking action.
+   * Support code that must be run before executing a blocking action on this thread.
    *
    * The current thread creates a replacement worker thread (or reuses a cached one) that will
    * take its place in the pool and does a complete transfer of ownership of the data structures
@@ -809,21 +809,11 @@ private final class WorkerThread[P](
    * continue, it will be cached for a period of time instead. Finally, the `blocking` flag is
    * useful when entering nested blocking regions. In this case, there is no need to spawn a
    * replacement worker thread.
-   *
-   * @note
-   *   There is no reason to enclose any code in a `try/catch` block because the only way this
-   *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
-  override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-    val rnd = random
-
-    pool.notifyParked(rnd)
-
+  def prepareForBlocking(): Unit = {
     if (blocking) {
-      // This `WorkerThread` is already inside an enclosing blocking region.
-      // There is no need to spawn another `WorkerThread`. Instead, directly
-      // execute the blocking action.
-      thunk
+      // This `WorkerThread` has already been prepared for blocking.
+      // There is no need to spawn another `WorkerThread`.
     } else {
       // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
@@ -836,7 +826,7 @@ private final class WorkerThread[P](
         cedeBypass = null
       }
 
-      // Logically enter the blocking region.
+      // Logically become a blocking thread.
       blocking = true
 
       val prefix = pool.blockerThreadPrefix
@@ -879,9 +869,19 @@ private final class WorkerThread[P](
         pool.blockedWorkerThreadCounter.incrementAndGet()
         clone.start()
       }
-
-      thunk
     }
+  }
+
+  /**
+   * A mechanism for executing support code before executing a blocking action.
+   *
+   * @note
+   *   There is no reason to enclose any code in a `try/catch` block because the only way this
+   *   code path can be exercised is through `IO.delay`, which already handles exceptions.
+   */
+  override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+    prepareForBlocking()
+    thunk
   }
 
   private[this] def init(newIdx: Int): Unit = {

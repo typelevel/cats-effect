@@ -23,17 +23,17 @@ private final class IODeferred[A] extends Deferred[IO, A] {
   private[this] val initial: IO[A] = {
     val await = IO.asyncCheckAttempt[A] { cb =>
       IO {
-        val stack = callbacks.push(cb)
-        val handle = stack.currentHandle()
+        val handle = callbacks.push(cb)
 
         def clear(): Unit = {
-          stack.clearCurrent(handle)
-          val clearCount = clearCounter.incrementAndGet()
-          if ((clearCount & (clearCount - 1)) == 0) { // power of 2
-            clearCounter.addAndGet(-callbacks.pack(clearCount))
-            ()
+          val removed = callbacks.clearHandle(handle)
+          if (!removed) {
+            val clearCount = clearCounter.incrementAndGet()
+            if ((clearCount & (clearCount - 1)) == 0) { // power of 2
+              clearCounter.addAndGet(-callbacks.pack(clearCount))
+              ()
+            }
           }
-          ()
         }
 
         val back = cell.get()
@@ -61,7 +61,7 @@ private final class IODeferred[A] extends Deferred[IO, A] {
 
   def complete(a: A): IO[Boolean] = IO {
     if (cell.compareAndSet(initial, IO.pure(a))) {
-      val _ = callbacks(Right(a), false)
+      val _ = callbacks(Right(a))
       callbacks.clear() // avoid leaks
       true
     } else {

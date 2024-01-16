@@ -162,15 +162,20 @@ private final class IOFiber[A](
   }
 
   /* this is swapped for an `IO.pure(outcome)` when we complete */
-  private[this] var _join: IO[OutcomeIO[A]] = IO.async { cb =>
+  private[this] var _join: IO[OutcomeIO[A]] = IO.asyncCheckAttempt { cb =>
     IO {
-      val stack = registerListener(oc => cb(Right(oc)))
+      if (outcome == null) {
+        val handle = callbacks.push(oc => cb(Right(oc)))
 
-      if (stack eq null)
-        Some(IO.unit) /* we were already invoked, so no `CallbackStack` needs to be managed */
-      else {
-        val handle = stack.currentHandle()
-        Some(IO(stack.clearCurrent(handle)))
+        /* double-check */
+        if (outcome != null) {
+          callbacks.clearHandle(handle)
+          Right(outcome)
+        } else {
+          Left(Some(IO { callbacks.clearHandle(handle); () }))
+        }
+      } else {
+        Right(outcome)
       }
     }
   }
@@ -996,10 +1001,12 @@ private final class IOFiber[A](
             if (ec.isInstanceOf[WorkStealingThreadPool[_]]) {
               val wstp = ec.asInstanceOf[WorkStealingThreadPool[_]]
               if (wstp.canExecuteBlockingCode()) {
+                wstp.prepareForBlocking()
+
                 var error: Throwable = null
                 val r =
                   try {
-                    scala.concurrent.blocking(cur.thunk())
+                    cur.thunk()
                   } catch {
                     case t if NonFatal(t) =>
                       error = t
@@ -1008,7 +1015,8 @@ private final class IOFiber[A](
                   }
 
                 val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
-                runLoop(next, nextCancelation, nextAutoCede)
+                // reset auto-cede counter
+                runLoop(next, nextCancelation, runtime.autoYieldThreshold)
               } else {
                 blockingFallback(cur)
               }
@@ -1075,7 +1083,7 @@ private final class IOFiber[A](
     outcome = oc
 
     try {
-      if (!callbacks(oc, false) && runtime.config.reportUnhandledFiberErrors) {
+      if (!callbacks(oc) && runtime.config.reportUnhandledFiberErrors) {
         oc match {
           case Outcome.Errored(e) => currentCtx.reportFailure(e)
           case _ => ()
@@ -1186,26 +1194,6 @@ private final class IOFiber[A](
    */
   private def setCallback(cb: OutcomeIO[A] => Unit): Unit = {
     callbacks.unsafeSetCallback(cb)
-  }
-
-  /* can return null, meaning that no CallbackStack needs to be later invalidated */
-  private[this] def registerListener(
-      listener: OutcomeIO[A] => Unit): CallbackStack[OutcomeIO[A]] = {
-    if (outcome == null) {
-      val back = callbacks.push(listener)
-
-      /* double-check */
-      if (outcome != null) {
-        back.clearCurrent(back.currentHandle())
-        listener(outcome) /* the implementation of async saves us from double-calls */
-        null
-      } else {
-        back
-      }
-    } else {
-      listener(outcome)
-      null
-    }
   }
 
   @tailrec
