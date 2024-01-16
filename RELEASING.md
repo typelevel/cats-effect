@@ -14,7 +14,7 @@
 1. Publish the release.
 1. Wait for all the CI madness to happen, for the release to announced to Discord, and for the artifacts to sync to Maven Central.
 1. Make sure you're locally updated and on the right major/minor branch (this is the same branch as step 3).
-1. Run the following script to open two PRs to (1) update the version in README/docs of the minor branch and then (2) merge the minor branch into the major branch. This script currently works only for patch releases and not for minor releases, milestones, or release candidates, which need special handling.
+1. Run the following script to open two PRs to (1) update the version in the README/docs of the minor branch and then (2) merge the minor branch into the major branch. This script currently works only for patch releases and not for minor releases, milestones, or release candidates, which need special handling.
 
    `scripts/make-release-prs.sh <old-version> <new-version>`
 
