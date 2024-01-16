@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import CallbackStack.Handle
 import CallbackStack.Node
-
 import Platform.static
 
 private final class CallbackStack[A](private[this] var callback: A => Unit)
