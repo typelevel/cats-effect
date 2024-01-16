@@ -22,10 +22,10 @@ import cats.effect.kernel.testkit.OutcomeGenerators
 import cats.laws.discipline.{ApplicativeErrorTests, MonadErrorTests}
 
 import org.scalacheck.{Arbitrary, Cogen}
-import org.specs2.mutable.Specification
-import org.typelevel.discipline.specs2.mutable.Discipline
 
-class OutcomeSpec extends Specification with Discipline {
+import munit.DisciplineSuite
+
+class OutcomeSuite extends DisciplineSuite {
   import OutcomeGenerators._
 
   {

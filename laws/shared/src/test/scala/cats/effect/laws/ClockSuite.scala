@@ -20,10 +20,9 @@ package laws
 import cats.data.ContT
 import cats.effect.kernel.testkit.freeEval._
 
-import org.specs2.mutable.Specification
-import org.typelevel.discipline.specs2.mutable.Discipline
+import munit.DisciplineSuite
 
-class ClockSpec extends Specification with Discipline with BaseSpec {
+class ClockSuite extends DisciplineSuite with BaseSuite {
 
   // we only need to test the ones that *aren't* also Sync
   checkAll("ContT[FreeEitherSync, Int, *]", ClockTests[ContT[FreeEitherSync, Int, *]].clock)

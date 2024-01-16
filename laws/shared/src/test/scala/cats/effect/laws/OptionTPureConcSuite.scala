@@ -17,31 +17,56 @@
 package cats.effect
 package laws
 
-import cats.data.EitherT
+import cats.Applicative
+import cats.data.OptionT
+import cats.effect.kernel.Outcome
+import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}
 import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class EitherTPureConcSpec extends Specification with Discipline with BaseSpec {
+import munit.DisciplineSuite
+
+class OptionTPureConcSuite extends DisciplineSuite with BaseSuite {
   import PureConcGenerators._
   import OutcomeGenerators._
 
-  implicit def exec[E](sbool: EitherT[TimeT[PureConc[Int, *], *], E, Boolean]): Prop =
+  implicit def exec(sbool: OptionT[TimeT[PureConc[Int, *], *], Boolean]): Prop =
     Prop(
       pure
         .run(TimeT.run(sbool.value))
-        .fold(false, _ => false, bO => bO.fold(false)(e => e.fold(_ => false, b => b))))
+        .fold(
+          false,
+          _ => false,
+          bO => bO.flatten.fold(false)(_ => true)
+        ))
+
+  test("optiont bracket forward completed zeros on to the handler") {
+    var observed = false
+
+    val test = OptionT.none[PureConc[Int, *], Unit] guaranteeCase {
+      case Outcome.Succeeded(fa) =>
+        observed = true
+
+        OptionT(fa.value.map(assertEquals(_, None)).as(None))
+
+      case _ => Applicative[OptionT[PureConc[Int, *], *]].unit
+    }
+
+    assert(pure.run(test.value) === Outcome.Succeeded(Some(Option.empty[Unit])))
+
+    assert(observed)
+  }
 
   checkAll(
-    "EitherT[TimeT[PureConc]]",
-    GenTemporalTests[EitherT[TimeT[PureConc[Int, *], *], Int, *], Int]
+    "OptionT[TimeT[PureConc]]",
+    GenTemporalTests[OptionT[TimeT[PureConc[Int, *], *], *], Int]
       .temporal[Int, Int, Int](10.millis)
   )
 }

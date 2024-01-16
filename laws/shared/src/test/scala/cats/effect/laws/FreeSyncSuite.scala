@@ -18,17 +18,14 @@ package cats.effect
 package laws
 
 import cats.{Eq, Eval}
-import cats.data.OptionT
 import cats.effect.kernel.testkit.{FreeSyncEq, FreeSyncGenerators, SyncTypeGenerators}
 import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
 import cats.laws.discipline.arbitrary._
 
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
+import munit.DisciplineSuite
 
-class OptionTFreeSyncSpec extends Specification with Discipline with BaseSpec with FreeSyncEq {
-
+class FreeSyncSuite extends DisciplineSuite with BaseSuite with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
 
@@ -36,5 +33,8 @@ class OptionTFreeSyncSpec extends Specification with Discipline with BaseSpec wi
       : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =
     eqFreeSync[Either[Throwable, *], Either[Int, Either[Throwable, Int]]]
 
-  checkAll("OptionT[FreeEitherSync]", SyncTests[OptionT[FreeEitherSync, *]].sync[Int, Int, Int])
+  checkAll("FreeEitherSync", SyncTests[FreeEitherSync].sync[Int, Int, Int])
 }
+
+//See the explicitly summoned implicits above - scala 2.12 has weird divergent implicit expansion problems
+trait LowPriorityImplicits extends FreeSyncEq {}

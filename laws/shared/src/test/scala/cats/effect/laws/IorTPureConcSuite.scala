@@ -17,61 +17,35 @@
 package cats.effect
 package laws
 
-import cats.Applicative
-import cats.data.OptionT
-import cats.effect.kernel.Outcome
-import cats.effect.kernel.syntax.all._
+import cats.data.IorT
 import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}
 import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
-import cats.syntax.all._
 
 import org.scalacheck.Prop
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class OptionTPureConcSpec extends Specification with Discipline with BaseSpec {
+import munit.DisciplineSuite
+
+class IorTPureConcSuite extends DisciplineSuite with BaseSuite {
   import PureConcGenerators._
   import OutcomeGenerators._
 
-  implicit def exec(sbool: OptionT[TimeT[PureConc[Int, *], *], Boolean]): Prop =
+  implicit def exec[L](sbool: IorT[TimeT[PureConc[Int, *], *], L, Boolean]): Prop =
     Prop(
       pure
         .run(TimeT.run(sbool.value))
         .fold(
           false,
           _ => false,
-          bO => bO.flatten.fold(false)(_ => true)
-        ))
-
-  "optiont bracket" should {
-    "forward completed zeros on to the handler" in {
-      var observed = false
-
-      val test = OptionT.none[PureConc[Int, *], Unit] guaranteeCase {
-        case Outcome.Succeeded(fa) =>
-          observed = true
-
-          OptionT(fa.value.map(_ must beNone).as(None))
-
-        case _ => Applicative[OptionT[PureConc[Int, *], *]].unit
-      }
-
-      pure.run(test.value) must beLike {
-        case Outcome.Succeeded(Some(None)) => ok
-        case _ => ko
-      }
-
-      observed must beTrue
-    }
-  }
+          iO => iO.fold(false)(i => i.fold(_ => false, _ => true, (_, _) => false)))
+    )
 
   checkAll(
-    "OptionT[TimeT[PureConc]]",
-    GenTemporalTests[OptionT[TimeT[PureConc[Int, *], *], *], Int]
+    "IorT[PureConc]",
+    GenTemporalTests[IorT[TimeT[PureConc[Int, *], *], Int, *], Int]
       .temporal[Int, Int, Int](10.millis)
   )
 }
