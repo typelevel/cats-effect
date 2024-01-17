@@ -64,14 +64,22 @@ private final class WeakList[A] extends AtomicReference[Node[A]] {
     if (allowedToPack.compareAndSet(true, false)) {
       try {
         var gcCount = this.gcCount // local copy
+
+        var shouldPack = false
         while (queue.poll() != null) {
           gcCount += 1
           if ((gcCount > 0) && (gcCount & (gcCount - 1)) == 0) { // positive power of 2
-            // b/c pack is aggressive, it may clean nodes before we poll them out of the queue
-            // in that case, gcCount may go negative
-            gcCount -= pack(gcCount)
+            shouldPack = true
+            // don't break the loop, keep draining queue
           }
         }
+
+        if (shouldPack) {
+          // b/c pack is aggressive, it may clean nodes before we poll them out of the queue
+          // in that case, gcCount may go negative
+          gcCount -= pack(gcCount)
+        }
+
         this.gcCount = gcCount
       } finally {
         allowedToPack.set(true)
