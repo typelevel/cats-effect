@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import java.util.Arrays
+
 private final class ArrayStack[A <: AnyRef](
     private[this] var buffer: Array[AnyRef],
     private[this] var index: Int) {
@@ -70,9 +72,7 @@ private final class ArrayStack[A <: AnyRef](
   private[this] def checkAndGrow(): Unit =
     if (index >= buffer.length) {
       val len = buffer.length
-      val buffer2 = new Array[AnyRef](len * 2)
-      System.arraycopy(buffer, 0, buffer2, 0, len)
-      buffer = buffer2
+      buffer = Arrays.copyOf(buffer, len * 2)
     }
 }
 

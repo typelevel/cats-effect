@@ -20,12 +20,11 @@ import cats.effect.unsafe.ref.{ReferenceQueue, WeakReference}
 
 import scala.annotation.tailrec
 
+import java.util.Arrays
 import java.util.concurrent.atomic.AtomicBoolean
 
 private final class WeakBag[A <: AnyRef] {
   import WeakBag._
-
-  private[this] final val MaxSizePow2: Int = 1 << 30
 
   private[this] val queue: ReferenceQueue[A] = new ReferenceQueue()
   private[this] var capacity: Int = 256
@@ -60,11 +59,8 @@ private final class WeakBag[A <: AnyRef] {
 
       // There are no expired entries, and the table has no leftover capacity.
       // The data structure needs to grow in this case.
-      val oldTable = table
-      val newCap = if (cap == MaxSizePow2) Int.MaxValue else cap << 1
-      val newTable = new Array[Entry[A]](newCap)
-      System.arraycopy(oldTable, 0, newTable, 0, idx)
-      table = newTable
+      val newCap = if (cap == MaxSizePow2) Int.MaxValue else 2 * cap
+      table = Arrays.copyOf(table, newCap)
       capacity = newCap
       insert(a)
     }
@@ -101,6 +97,8 @@ private final class WeakBag[A <: AnyRef] {
 }
 
 private[effect] object WeakBag {
+  private final val MaxSizePow2 = 1 << 30
+
   trait Handle {
     def deregister(): Unit
   }
