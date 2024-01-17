@@ -89,12 +89,12 @@ private object WeakList {
 
   private[WeakList] final class Node[A](a: A, queue: ReferenceQueue[A])
       extends WeakReference(a, queue) {
-    private[this] var next: Node[A] = _
+    private[this] var _next: Node[A] = _ // `next` clashes with field in superclass (?)
 
-    def getNext(): Node[A] = next
+    def getNext(): Node[A] = _next
 
     def setNext(next: Node[A]): Unit = {
-      this.next = next
+      this._next = next
     }
 
     /**
@@ -102,7 +102,7 @@ private object WeakList {
      */
     @tailrec
     def packHead(bound: Int, removed: Int, root: WeakList[A]): Int = {
-      val next = this.next // local copy
+      val next = this._next // local copy
 
       if (get() == null) {
         if (root.compareAndSet(this, next)) {
@@ -142,7 +142,7 @@ private object WeakList {
      */
     @tailrec
     private def packTail(bound: Int, removed: Int, prev: Node[A]): Int = {
-      val next = this.next // local copy
+      val next = this._next // local copy
 
       if (get() == null) {
         // We own the pack lock, so it is safe to write `next`. It will be published to subsequent packs via the lock.
@@ -169,7 +169,7 @@ private object WeakList {
       }
     }
 
-    override def toString(): String = s"Node(${get()}, $next)"
+    override def toString(): String = s"Node(${get()}, ${_next})"
   }
 
 }
