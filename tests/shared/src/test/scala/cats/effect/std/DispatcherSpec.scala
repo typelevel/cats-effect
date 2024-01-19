@@ -329,14 +329,43 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         test.as(ok)
     }
 
-    "does long cancellation block a worker?" in real {
+    "cancelation does not block a worker" in real {
       dispatcher
         .use { runner =>
-          val run = IO { runner.unsafeToFutureCancelable(IO.never[Unit].uncancelable)._2 }
-          run.flatMap(cancel => IO(cancel())).parReplicateA_(1000) *> IO.fromFuture(
-            IO(runner.unsafeToFuture(IO.unit)))
+          val clogUp = IO.deferred[Unit].flatMap { gate =>
+            IO {
+              val task = gate.complete(()) *> IO.never[Unit].uncancelable
+              runner.unsafeToFutureCancelable(task)._2
+            }.flatMap { cancel =>
+              // wait until task starts, then cancel
+              gate.get *> IO(cancel())
+            }
+          }
+          clogUp.parReplicateA_(1000) *>
+            // now try to run a new task
+            IO.fromFuture(IO(runner.unsafeToFuture(IO.unit)))
         }
-        .replicateA_(1000)
+        .replicateA_(if (isJVM) 1000 else 1)
+        .as(ok)
+    }
+
+    "cancelation race does not block a worker" in real {
+      dispatcher
+        .use { runner =>
+          val clogUp = IO {
+            val task = IO.never[Unit].uncancelable
+            runner.unsafeToFutureCancelable(task)._2
+          }.flatMap { cancel =>
+            // cancel concurrently
+            // We want to trigger race condition where task starts but then discovers it was canceled
+            IO(cancel())
+          }
+
+          clogUp.parReplicateA_(1000) *>
+            // now try to run a new task
+            IO.fromFuture(IO(runner.unsafeToFuture(IO.unit)))
+        }
+        .replicateA_(if (isJVM) 1000 else 1)
         .as(ok)
     }
   }
