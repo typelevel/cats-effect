@@ -34,7 +34,6 @@ import cats.effect.kernel.syntax.all._
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
 
-import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Failure
 
@@ -607,46 +606,18 @@ object Dispatcher {
       }
   }
 
-  private val Signal: Either[Any, Unit] => Unit = _ => ()
   private val RightUnit: Right[Nothing, Unit] = Right(())
 
   // MPSC assumption
   private final class UnsafeAsyncQueue[F[_]: Async, A] {
     private[this] val buffer = new UnsafeUnbounded[A]()
 
-    /*
-     * State machine:
-     *
-     * - null => no taker, buffer state undefined
-     * - Signal => no (unnotified) taker, buffer state likely non-empty
-     * - other => taker, buffer state empty
-     */
     private[this] val latchR = new AtomicReference[Either[Throwable, Unit] => Unit](null)
 
     def unsafeOffer(a: A): Unit = {
       val _ = buffer.put(a)
-
-      @tailrec
-      def notify(): Unit = {
-        latchR.get() match {
-          case null =>
-            if (!latchR.compareAndSet(null, Signal)) {
-              // someone suspended while we were looking, retry notification
-              notify()
-            }
-
-          // in this case, someone else already awakened the taker, so we're good
-          case Signal => ()
-
-          case f =>
-            // failed cas is fine, since it means some other producer woke up the consumer
-            if (latchR.compareAndSet(f, Signal)) {
-              f(RightUnit)
-            }
-        }
-      }
-
-      notify()
+      val back = latchR.getAndSet(null)
+      if (back ne null) back(RightUnit)
     }
 
     def take: F[A] = Async[F].cont[Unit, A] {
@@ -654,18 +625,12 @@ object Dispatcher {
         def apply[G[_]: MonadCancelThrow] = { (k, get, lift) =>
           MonadCancel[G].uncancelable { poll =>
             val takeF = lift(Sync[F].delay(buffer.take()))
-
-            val latchF = lift(Sync[F].delay(latchR.compareAndSet(null, k))).flatTap {
-              case true => poll(get) // no `onCancel`, all cleanup is elsewhere
-              case false =>
-                // since this is a single consumer queue, we should never have multiple callbacks
-                // assert(latchR.get() == Signal)
-                lift(Sync[F].delay(latchR.set(null)))
-            }
+            val setLatchF = lift(Sync[F].delay(latchR.set(k)))
+            val unsetLatchF = lift(Sync[F].delay(latchR.set(null)))
 
             takeF.handleErrorWith { _ => // emptiness is reported as a FailureSignal error
-              latchF *> takeF.handleErrorWith { _ =>
-                latchF *> takeF // guaranteed to succeed
+              setLatchF *> (takeF <* unsetLatchF).handleErrorWith { _ => // double-check
+                poll(get) *> takeF // guaranteed to succeed
               }
             }
           }
