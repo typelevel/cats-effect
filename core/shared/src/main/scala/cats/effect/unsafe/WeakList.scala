@@ -159,7 +159,7 @@ private object WeakList {
 
       if (get() == null) {
         // We own the pack lock, so it is safe to write `next`. It will be published to subsequent packs via the lock.
-        // Concurrent readers ie `CallbackStack#apply` may read a stale value for `next` still pointing to this node.
+        // Concurrent readers ie `WeakList#foreach` may read a stale value for `next` still pointing to this node.
         // This is okay b/c the new `next` (this node's tail) is still reachable via the old `next` (this node).
         prev.setNext(next)
         if (next == null) {
