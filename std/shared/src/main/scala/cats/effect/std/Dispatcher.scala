@@ -20,8 +20,10 @@ import cats.Applicative
 import cats.effect.kernel.{
   Async,
   Concurrent,
+  Cont,
   Deferred,
   MonadCancel,
+  MonadCancelThrow,
   Outcome,
   Ref,
   Resource,
@@ -647,24 +649,29 @@ object Dispatcher {
       notify()
     }
 
-    def take: F[A] = {
-      val latchF = Async[F].asyncCheckAttempt[Unit] { k =>
-        Sync[F] delay {
-          if (latchR.compareAndSet(null, k)) {
-            Left(Some(Applicative[F].unit)) // all cleanup is elsewhere
-          } else {
-            // since this is a single consumer queue, we should never have multiple callbacks
-            // assert(latchR.get() == Signal)
-            latchR.set(null)
-            Right(())
+    def take: F[A] = Async[F].cont[Unit, A] {
+      new Cont[F, Unit, A] {
+        def apply[G[_]: MonadCancelThrow] = { (k, get, lift) =>
+          MonadCancel[G].uncancelable { poll =>
+            val takeF = lift(Sync[F].delay(buffer.take()))
+
+            val latchF = lift(Sync[F].delay(latchR.compareAndSet(null, k))).flatTap {
+              case true => poll(get) // no `onCancel`, all cleanup is elsewhere
+              case false =>
+                // since this is a single consumer queue, we should never have multiple callbacks
+                // assert(latchR.get() == Signal)
+                lift(Sync[F].delay(latchR.set(null)))
+            }
+
+            takeF.handleErrorWith { _ => // emptiness is reported as a FailureSignal error
+              latchF *> takeF.handleErrorWith { _ =>
+                latchF *> takeF // guaranteed to succeed
+              }
+            }
           }
         }
       }
-
-      MonadCancel[F] uncancelable { poll =>
-        // emptiness is reported as a FailureSignal error
-        Sync[F].delay(buffer.take()).handleErrorWith(_ => poll(latchF *> take))
-      }
     }
+
   }
 }
