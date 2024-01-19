@@ -609,10 +609,10 @@ object Dispatcher {
   private val RightUnit: Right[Nothing, Unit] = Right(())
 
   // MPSC assumption
-  private final class UnsafeAsyncQueue[F[_]: Async, A] {
-    private[this] val buffer = new UnsafeUnbounded[A]()
+  private final class UnsafeAsyncQueue[F[_]: Async, A]
+      extends AtomicReference[Either[Throwable, Unit] => Unit](null) { latchR =>
 
-    private[this] val latchR = new AtomicReference[Either[Throwable, Unit] => Unit](null)
+    private[this] val buffer = new UnsafeUnbounded[A]()
 
     def unsafeOffer(a: A): Unit = {
       val _ = buffer.put(a)
