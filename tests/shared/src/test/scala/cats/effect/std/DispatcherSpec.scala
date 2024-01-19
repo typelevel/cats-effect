@@ -328,6 +328,17 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       else
         test.as(ok)
     }
+
+    "does long cancellation block a worker?" in real {
+      dispatcher
+        .use { runner =>
+          val run = IO { runner.unsafeToFutureCancelable(IO.never[Unit].uncancelable)._2 }
+          run.flatMap(cancel => IO(cancel())).parReplicateA_(1000) *> IO.fromFuture(
+            IO(runner.unsafeToFuture(IO.unit)))
+        }
+        .replicateA_(1000)
+        .as(ok)
+    }
   }
 
   private def common(dispatcher: Resource[IO, Dispatcher[IO]], cancelable: Boolean) = {
@@ -529,17 +540,6 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
             _ <- IO(count.get() mustEqual 3)
           } yield ok
         }
-      }
-
-      "does long cancellation block a worker?" in real {
-        dispatcher
-          .use { runner =>
-            val run = IO { runner.unsafeToFutureCancelable(IO.never[Unit].uncancelable)._2 }
-            run.flatMap(cancel => IO(cancel())).parReplicateA_(1000) *> IO.fromFuture(
-              IO(runner.unsafeToFuture(IO.unit)))
-          }
-          .replicateA_(1000)
-          .as(ok)
       }
 
     }
