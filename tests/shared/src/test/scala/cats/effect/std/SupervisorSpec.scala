@@ -18,10 +18,13 @@ package cats.effect
 package std
 
 import org.specs2.specification.core.Fragments
+import org.specs2.matcher.MatchResult
+
+import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-class SupervisorSpec extends BaseSpec {
+class SupervisorSpec extends BaseSpec with DetectPlatform {
 
   "Supervisor" should {
     "concurrent" >> {
@@ -228,6 +231,51 @@ class SupervisorSpec extends BaseSpec {
 
       // if this doesn't work properly, the test will hang
       test.start.flatMap(_.join).as(ok).timeoutTo(2.seconds, IO(false must beTrue))
+    }
+
+    "supervise / finalize race" in real {
+      val tsk = IO.uncancelable { poll =>
+        constructor(false, None).allocated.flatMap {
+          case (supervisor, close) =>
+            supervisor.supervise(IO.never[Unit]).replicateA(100).flatMap { fibers =>
+              IO.ref(false).flatMap { _ =>
+                IO.both(supervisor.supervise(IO.never[Unit]), close).flatMap {
+                  case (fiber, _) =>
+                    def joinAndCheck(
+                        fib: Fiber[IO, Throwable, Unit]): IO[MatchResult[Boolean]] =
+                      fib.join.flatMap { oc => IO(oc.isCanceled must beTrue) }
+                    poll(fibers.traverse(joinAndCheck) *> joinAndCheck(fiber))
+                }
+              }
+            }
+        }
+      }
+      tsk.parReplicateA_(if (isJVM) 1000 else 5).as(ok)
+    }
+
+    "submit to closed supervisor" in real {
+      constructor(false, None).use(IO.pure(_)).flatMap { leaked =>
+        leaked.supervise(IO.unit).attempt.flatMap { r =>
+          IO(r must beLeft(beAnInstanceOf[IllegalStateException]))
+        }
+      }
+    }
+
+    "restart / cancel race" in real {
+      val tsk = constructor(false, Some(_ => true)).use { supervisor =>
+        IO.ref(0).flatMap { counter =>
+          supervisor.supervise(counter.update(_ + 1) *> IO.canceled).flatMap { adaptedFiber =>
+            IO.sleep(100.millis) *> adaptedFiber.cancel *> adaptedFiber.join *> (
+              (counter.get, IO.sleep(100.millis) *> counter.get).flatMapN {
+                case (v1, v2) =>
+                  IO((v1: Int) mustEqual (v2: Int))
+              }
+            )
+          }
+        }
+      }
+
+      tsk.parReplicateA_(if (isJVM) 1000 else 5).as(ok)
     }
   }
 }
