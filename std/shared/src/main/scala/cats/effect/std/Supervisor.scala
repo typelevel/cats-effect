@@ -232,6 +232,9 @@ object Supervisor {
             cleanup = state.remove(token)
             fiber <- monitor(fa, done.set(true) >> cleanup)
             _ <- state.add(token, fiber)
+            // `cleanup` could run *before* the previous line
+            // (if `fa` is very fast), in which case it doesn't
+            // remove the fiber from the state, so we re-check:
             _ <- done.get.ifM(cleanup, F.unit)
           } yield fiber
         }
