@@ -238,12 +238,43 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
       test.start.flatMap(_.join).as(ok).timeoutTo(2.seconds, IO(false must beTrue))
     }
 
+    "self-cancel loop" in real {
+      IO.ref(0L).flatMap { counter =>
+        constructor(true, Some(_ => true))
+          .use { supervisor =>
+            val task = counter.update(_ + 1L) *> IO.canceled
+            supervisor.supervise(task) *> IO.sleep(100.millis)
+          }
+          .flatMap { _ => counter.get.flatMap { count => IO(count must beGreaterThan(1L)) } }
+      }
+    }
+
+    "lots of simple tasks" in real {
+      val N = if (isJVM) 10000 else 5
+      IO.ref(0L).flatMap { counter =>
+        constructor(true, Some(_ => false))
+          .use { supervisor =>
+            val task = counter.update(_ + 1L)
+            supervisor.supervise(task).parReplicateA(N).void
+          }
+          .flatMap { _ => counter.get.flatMap { count => IO(count mustEqual N) } }
+      }
+    }
+
     "supervise / finalize race" in real {
+      superviseFinalizeRace(constructor(false, None), IO.never[Unit])
+    }
+
+    "supervise / finalize race with checkRestart" in real {
+      superviseFinalizeRace(constructor(false, Some(_ => true)), IO.canceled)
+    }
+
+    def superviseFinalizeRace(mkSupervisor: Resource[IO, Supervisor[IO]], task: IO[Unit]) = {
       val tsk = IO.uncancelable { poll =>
-        constructor(false, None).allocated.flatMap {
+        mkSupervisor.allocated.flatMap {
           case (supervisor, close) =>
             supervisor.supervise(IO.never[Unit]).replicateA(100).flatMap { fibers =>
-              val tryFork = supervisor.supervise(IO.never[Unit]).map(Some(_)).recover {
+              val tryFork = supervisor.supervise(task).map(Some(_)).recover {
                 case ex: IllegalStateException
                     if ex.getMessage == "supervisor already shutdown" =>
                   None
