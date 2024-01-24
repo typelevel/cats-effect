@@ -19,7 +19,6 @@ package cats.effect.std
 import cats.effect.kernel._
 import cats.effect.kernel.implicits._
 import cats.syntax.all._
-import cats.MonadError
 
 import scala.collection.mutable.ListBuffer
 
@@ -140,9 +139,15 @@ object Supervisor {
     apply[F](false)
 
   private trait State[F[_]] {
+
     def remove(token: Unique.Token): F[Unit]
+
+    /**
+     * Must return `false` (and may not insert) if `Supervisor` is already closed
+     */
     def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean]
-    // run all the finalizers
+
+    // these are allowed to destroy the state, since they're called during closing:
     val joinAll: F[Unit]
     val cancelAll: F[Unit]
   }
@@ -152,8 +157,7 @@ object Supervisor {
       await: Boolean,
       checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
-    // It would have preferable to use Scope here but explicit cancelation is
-    // intertwined with resource management
+
     for {
       doneR <- Resource.eval(F.ref(false))
       state <- Resource.makeCase(mkState(doneR)) {
@@ -173,7 +177,7 @@ object Supervisor {
                 F.ref(false) flatMap { canceledR =>
                   F.deferred[Fiber[F, Throwable, A]].flatMap { firstCurrent =>
                     F.ref(firstCurrent).flatMap { currentR =>
-                      def action(current: Deferred[F, Fiber[F, Throwable, A]]): F[Unit] =
+                      def action(current: Deferred[F, Fiber[F, Throwable, A]]): F[Unit] = {
                         F uncancelable { _ =>
                           val started = F start {
                             fa guaranteeCase { oc =>
@@ -181,11 +185,12 @@ object Supervisor {
                                 currentR.set(newCurrent) *> {
                                   canceledR.get flatMap { canceled =>
                                     doneR.get flatMap { done =>
-                                      if (!canceled && !done && restart(oc))
+                                      if (!canceled && !done && restart(oc)) {
                                         action(newCurrent)
-                                      else
+                                      } else {
                                         newCurrent.complete(null) *> fin.guarantee(
                                           resultR.complete(oc).void)
+                                      }
                                     }
                                   }
                                 }
@@ -195,6 +200,7 @@ object Supervisor {
 
                           started flatMap { f => current.complete(f).void }
                         }
+                      }
 
                       action(firstCurrent).as(
                         new Fiber[F, Throwable, A] {
@@ -221,7 +227,7 @@ object Supervisor {
                                         }
                                     }
                                   case _ =>
-                                    resultR.tryGet.map(_.isDefined).ifM(F.unit, cancel)
+                                    resultR.get.void
                                 }
                             }
                           }
@@ -239,28 +245,31 @@ object Supervisor {
           }
 
           for {
-            taskDone <- F.ref(false)
-            insertDone <- F.deferred[Boolean]
+            done <- F.ref(false)
+            insertResult <- F.deferred[Boolean]
             token <- F.unique
             cleanup = state.remove(token)
             fiber <- monitor(
-              insertDone.get.ifM(fa, F.canceled *> F.never[A]),
-              taskDone.set(true) >> cleanup
+              insertResult.get.ifM(fa, F.canceled *> F.never[A]),
+              done.set(true) *> cleanup
             )
-            insertSuccessful <- state.add(token, fiber)
-            _ <- insertDone.complete(insertSuccessful)
+            insertOk <- state.add(token, fiber)
+            _ <- insertResult.complete(insertOk)
             // `cleanup` could run *before* the `state.add`
             // (if `fa` is very fast), in which case it doesn't
             // remove the fiber from the state, so we re-check:
-            _ <- taskDone.get.ifM(cleanup, F.unit)
-            _ <- if (!insertSuccessful) raiseClosedError[F] else F.unit
+            _ <- done.get.ifM(cleanup, F.unit)
+            _ <- {
+              if (!insertOk) {
+                F.raiseError(new IllegalStateException("supervisor already shutdown"))
+              } else {
+                F.unit
+              }
+            }
           } yield fiber
         }
     }
   }
-
-  private[this] def raiseClosedError[F[_]](implicit F: MonadError[F, Throwable]): F[Unit] =
-    F.raiseError(new IllegalStateException("supervisor already shutdown"))
 
   private[effect] def applyForConcurrent[F[_]](
       await: Boolean,
@@ -302,8 +311,15 @@ object Supervisor {
 
         def remove(token: Unique.Token): F[Unit] = F.delay(state.remove(token)).void
 
-        def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean] =
+        def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean] = {
+          // We might insert a fiber even when closed, but
+          // then we return `false`, so it will not actually
+          // execute its task, but will self-cancel. In this
+          // case we need not remove the (cancelled) fiber
+          // from the map, since the whole `Supervisor` is
+          // shutting down anyway.
           F.delay(state.put(token, fiber)) *> doneR.get.map(!_)
+        }
 
         private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
           F delay {
