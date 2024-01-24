@@ -243,26 +243,24 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
         constructor(false, None).allocated.flatMap {
           case (supervisor, close) =>
             supervisor.supervise(IO.never[Unit]).replicateA(100).flatMap { fibers =>
-              IO.ref(false).flatMap { _ =>
-                val tryFork = supervisor.supervise(IO.never[Unit]).map(Some(_)).recover {
-                  case ex: IllegalStateException
-                      if ex.getMessage == "supervisor already shutdown" =>
-                    None
-                }
-                IO.both(tryFork, close).flatMap {
-                  case (maybeFiber, _) =>
-                    def joinAndCheck(fib: Fiber[IO, Throwable, Unit]) =
-                      fib.join.flatMap { oc => IO(oc.isCanceled must beTrue) }
-                    poll(fibers.traverse(joinAndCheck) *> {
-                      maybeFiber match {
-                        case None =>
-                          IO.unit
-                        case Some(fiber) =>
-                          // `supervise` won the race, so our fiber must've been cancelled:
-                          joinAndCheck(fiber)
-                      }
-                    })
-                }
+              val tryFork = supervisor.supervise(IO.never[Unit]).map(Some(_)).recover {
+                case ex: IllegalStateException
+                    if ex.getMessage == "supervisor already shutdown" =>
+                  None
+              }
+              IO.both(tryFork, close).flatMap {
+                case (maybeFiber, _) =>
+                  def joinAndCheck(fib: Fiber[IO, Throwable, Unit]) =
+                    fib.join.flatMap { oc => IO(oc.isCanceled must beTrue) }
+                  poll(fibers.traverse(joinAndCheck) *> {
+                    maybeFiber match {
+                      case None =>
+                        IO.unit
+                      case Some(fiber) =>
+                        // `supervise` won the race, so our fiber must've been cancelled:
+                        joinAndCheck(fiber)
+                    }
+                  })
               }
             }
         }
