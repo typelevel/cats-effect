@@ -18,7 +18,6 @@ package cats.effect
 package std
 
 import org.specs2.specification.core.Fragments
-import org.specs2.matcher.MatchResult
 
 import cats.syntax.all._
 
@@ -29,6 +28,8 @@ import java.lang.ref.WeakReference
 class SupervisorSpec extends BaseSpec with DetectPlatform {
 
   sequential
+
+  override def executionTimeout = 120.seconds
 
   "Supervisor" should {
     "concurrent" >> {
@@ -243,18 +244,30 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
           case (supervisor, close) =>
             supervisor.supervise(IO.never[Unit]).replicateA(100).flatMap { fibers =>
               IO.ref(false).flatMap { _ =>
-                IO.both(supervisor.supervise(IO.never[Unit]), close).flatMap {
-                  case (fiber, _) =>
-                    def joinAndCheck(
-                        fib: Fiber[IO, Throwable, Unit]): IO[MatchResult[Boolean]] =
+                val tryFork = supervisor.supervise(IO.never[Unit]).map(Some(_)).recover {
+                  case ex: IllegalStateException
+                      if ex.getMessage == "supervisor already shutdown" =>
+                    None
+                }
+                IO.both(tryFork, close).flatMap {
+                  case (maybeFiber, _) =>
+                    def joinAndCheck(fib: Fiber[IO, Throwable, Unit]) =
                       fib.join.flatMap { oc => IO(oc.isCanceled must beTrue) }
-                    poll(fibers.traverse(joinAndCheck) *> joinAndCheck(fiber))
+                    poll(fibers.traverse(joinAndCheck) *> {
+                      maybeFiber match {
+                        case None =>
+                          IO.unit
+                        case Some(fiber) =>
+                          // `supervise` won the race, so our fiber must've been cancelled:
+                          joinAndCheck(fiber)
+                      }
+                    })
                 }
               }
             }
         }
       }
-      tsk.parReplicateA_(if (isJVM) 1000 else 5).as(ok)
+      tsk.parReplicateA_(if (isJVM) 10000 else 5).as(ok)
     }
 
     "submit to closed supervisor" in real {
@@ -279,17 +292,21 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
         }
       }
 
-      tsk.parReplicateA_(if (isJVM) 1000 else 5).as(ok)
+      tsk.parReplicateA_(if (isJVM) 10000 else 5).as(ok)
     }
 
     "fiber finish / state.add race" in real { // was fixed in #1670
       val tsk = constructor(false, None).use { supervisor =>
-        supervisor.supervise(IO.unit).flatTap(_.joinWithNever).map(new WeakReference(_)).flatMap { fiberWr =>
-          (IO(System.gc()) *> IO.cede).whileM_(IO(fiberWr.get() ne null)).as(ok)
-        }
+        supervisor
+          .supervise(IO.unit)
+          .flatTap(_.joinWithNever)
+          .map(new WeakReference(_))
+          .flatMap { fiberWr =>
+            (IO(System.gc()) *> IO.sleep(100.millis)).whileM_(IO(fiberWr.get() ne null)).as(ok)
+          }
       }
 
-      tsk.parReplicateA_(if (isJVM) 1000 else 1).as(ok)
+      tsk.parReplicateA_(if (isJVM) 2000 else 1).as(ok)
     }
   }
 }

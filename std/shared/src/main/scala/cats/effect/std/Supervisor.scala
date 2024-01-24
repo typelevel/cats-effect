@@ -19,6 +19,7 @@ package cats.effect.std
 import cats.effect.kernel._
 import cats.effect.kernel.implicits._
 import cats.syntax.all._
+import cats.MonadError
 
 import scala.collection.mutable.ListBuffer
 
@@ -140,14 +141,14 @@ object Supervisor {
 
   private trait State[F[_]] {
     def remove(token: Unique.Token): F[Unit]
-    def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Unit]
+    def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean]
     // run all the finalizers
     val joinAll: F[Unit]
     val cancelAll: F[Unit]
   }
 
   private def supervisor[F[_]](
-      mkState: F[State[F]],
+      mkState: Ref[F, Boolean] => F[State[F]],
       await: Boolean,
       checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
@@ -155,7 +156,7 @@ object Supervisor {
     // intertwined with resource management
     for {
       doneR <- Resource.eval(F.ref(false))
-      state <- Resource.makeCase(mkState) {
+      state <- Resource.makeCase(mkState(doneR)) {
         case (st, Resource.ExitCase.Succeeded) if await => doneR.set(true) >> st.joinAll
         case (st, _) =>
           doneR.set(true) >> { /*println("canceling all!");*/
@@ -170,53 +171,64 @@ object Supervisor {
             case Some(restart) => { (fa, fin) =>
               F.deferred[Outcome[F, Throwable, A]] flatMap { resultR =>
                 F.ref(false) flatMap { canceledR =>
-                  F.deferred[Ref[F, Fiber[F, Throwable, A]]] flatMap { currentR =>
-                    lazy val action: F[Unit] = F uncancelable { _ =>
-                      val started = F start {
-                        fa guaranteeCase { oc =>
-                          canceledR.get flatMap { canceled =>
-                            doneR.get flatMap { done =>
-                              if (!canceled && !done && restart(oc))
-                                action.void
-                              else
-                                fin.guarantee(resultR.complete(oc).void)
+                  F.deferred[Fiber[F, Throwable, A]].flatMap { firstCurrent =>
+                    F.ref(firstCurrent).flatMap { currentR =>
+                      def action(current: Deferred[F, Fiber[F, Throwable, A]]): F[Unit] =
+                        F uncancelable { _ =>
+                          val started = F start {
+                            fa guaranteeCase { oc =>
+                              F.deferred[Fiber[F, Throwable, A]].flatMap { newCurrent =>
+                                currentR.set(newCurrent) *> {
+                                  canceledR.get flatMap { canceled =>
+                                    doneR.get flatMap { done =>
+                                      if (!canceled && !done && restart(oc))
+                                        action(newCurrent)
+                                      else
+                                        newCurrent.complete(null) *> fin.guarantee(
+                                          resultR.complete(oc).void)
+                                    }
+                                  }
+                                }
+                              }
                             }
                           }
-                        }
-                      }
 
-                      started flatMap { f =>
-                        lazy val loop: F[Unit] = currentR.tryGet flatMap {
-                          case Some(inner) =>
-                            inner.set(f)
-
-                          case None =>
-                            F.ref(f)
-                              .flatMap(inner => currentR.complete(inner).ifM(F.unit, loop))
+                          started flatMap { f => current.complete(f).void }
                         }
 
-                        loop
-                      }
-                    }
+                      action(firstCurrent).as(
+                        new Fiber[F, Throwable, A] {
 
-                    action map { _ =>
-                      new Fiber[F, Throwable, A] {
-                        private[this] val delegateF = currentR.get.flatMap(_.get)
+                          private[this] val delegateF = currentR.get.flatMap(_.get)
 
-                        val cancel: F[Unit] = F uncancelable { _ =>
-                          canceledR.set(true) >> delegateF flatMap { fiber =>
-                            fiber.cancel >> fiber.join flatMap {
-                              case Outcome.Canceled() =>
-                                resultR.complete(Outcome.Canceled()).void
-
-                              case _ =>
-                                resultR.tryGet.map(_.isDefined).ifM(F.unit, cancel)
+                          val cancel: F[Unit] = F uncancelable { _ =>
+                            canceledR.set(true) *> delegateF flatMap {
+                              case null =>
+                                resultR.get.void
+                              case fiber =>
+                                fiber.cancel *> fiber.join flatMap {
+                                  case Outcome.Canceled() =>
+                                    // double-check:
+                                    delegateF.flatMap {
+                                      case null =>
+                                        resultR.get.void
+                                      case fiber2 =>
+                                        if (fiber2 eq fiber) {
+                                          fin.guarantee(
+                                            resultR.complete(Outcome.Canceled()).void)
+                                        } else {
+                                          F.raiseError(new AssertionError("unexpected fiber"))
+                                        }
+                                    }
+                                  case _ =>
+                                    resultR.tryGet.map(_.isDefined).ifM(F.unit, cancel)
+                                }
                             }
                           }
-                        }
 
-                        val join = resultR.get
-                      }
+                          def join = resultR.get
+                        }
+                      )
                     }
                   }
                 }
@@ -227,19 +239,28 @@ object Supervisor {
           }
 
           for {
-            done <- F.ref(false)
+            taskDone <- F.ref(false)
+            insertDone <- F.deferred[Boolean]
             token <- F.unique
             cleanup = state.remove(token)
-            fiber <- monitor(fa, done.set(true) >> cleanup)
-            _ <- state.add(token, fiber)
-            // `cleanup` could run *before* the previous line
+            fiber <- monitor(
+              insertDone.get.ifM(fa, F.canceled *> F.never[A]),
+              taskDone.set(true) >> cleanup
+            )
+            insertSuccessful <- state.add(token, fiber)
+            _ <- insertDone.complete(insertSuccessful)
+            // `cleanup` could run *before* the `state.add`
             // (if `fa` is very fast), in which case it doesn't
             // remove the fiber from the state, so we re-check:
-            _ <- done.get.ifM(cleanup, F.unit)
+            _ <- taskDone.get.ifM(cleanup, F.unit)
+            _ <- if (!insertSuccessful) raiseClosedError[F] else F.unit
           } yield fiber
         }
     }
   }
+
+  private[this] def raiseClosedError[F[_]](implicit F: MonadError[F, Throwable]): F[Unit] =
+    F.raiseError(new IllegalStateException("supervisor already shutdown"))
 
   private[effect] def applyForConcurrent[F[_]](
       await: Boolean,
@@ -247,44 +268,53 @@ object Supervisor {
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.ref[Map[Unique.Token, Fiber[F, Throwable, _]]](Map.empty).map { stateRef =>
       new State[F] {
-        def remove(token: Unique.Token): F[Unit] = stateRef.update(_ - token)
-        def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Unit] =
-          stateRef.update(_ + (token -> fiber))
+
+        def remove(token: Unique.Token): F[Unit] = stateRef.update {
+          case null => null
+          case map => map.removed(token)
+        }
+
+        def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean] =
+          stateRef.modify {
+            case null => (null, false)
+            case map => (map.updated(token, fiber), true)
+          }
 
         private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
-          stateRef.get.map(_.values.toList)
+          stateRef.getAndSet(null).map(_.values.toList)
 
         val joinAll: F[Unit] = allFibers.flatMap(_.traverse_(_.join.void))
+
         val cancelAll: F[Unit] = allFibers.flatMap(_.parUnorderedTraverse(_.cancel).void)
       }
     }
 
-    supervisor(mkState, await, checkRestart)
+    supervisor(_ => mkState, await, checkRestart)
   }
 
   private[effect] def applyForAsync[F[_]](
       await: Boolean,
       checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
       implicit F: Async[F]): Resource[F, Supervisor[F]] = {
-    val mkState = F.delay {
+    def mkState(doneR: Ref[F, Boolean]) = F.delay {
       val state = new ConcurrentHashMap[Unique.Token, Fiber[F, Throwable, _]]
       new State[F] {
 
         def remove(token: Unique.Token): F[Unit] = F.delay(state.remove(token)).void
 
-        def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Unit] =
-          F.delay(state.put(token, fiber)).void
+        def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean] =
+          F.delay(state.put(token, fiber)) *> doneR.get.map(!_)
 
         private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
           F delay {
-            val fibersToCancel = ListBuffer.empty[Fiber[F, Throwable, _]]
-            fibersToCancel.sizeHint(state.size())
+            val fibers = ListBuffer.empty[Fiber[F, Throwable, _]]
+            fibers.sizeHint(state.size())
             val values = state.values().iterator()
             while (values.hasNext) {
-              fibersToCancel += values.next()
+              fibers += values.next()
             }
 
-            fibersToCancel.result()
+            fibers.result()
           }
 
         val joinAll: F[Unit] = allFibers.flatMap(_.traverse_(_.join.void))
