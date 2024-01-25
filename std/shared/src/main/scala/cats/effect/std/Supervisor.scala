@@ -26,17 +26,17 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * A fiber-based supervisor that monitors the lifecycle of all fibers that are started via its
- * interface. The supervisor is managed by a singular fiber to which the lifecycles of all
- * spawned fibers are bound.
+ * interface. The lifecycles of all these spawned fibers are bound to the lifecycle of the
+ * [[Supervisor]] itself.
  *
  * Whereas [[cats.effect.kernel.GenSpawn.background]] links the lifecycle of the spawned fiber
  * to the calling fiber, starting a fiber via a [[Supervisor]] links the lifecycle of the
  * spawned fiber to the supervisor fiber. This is useful when the scope of some fiber must
  * survive the spawner, but should still be confined within some "larger" scope.
  *
- * The fibers started via the supervisor are guaranteed to be terminated when the supervisor
- * fiber is terminated. When a supervisor fiber is canceled, all active and queued fibers will
- * be safely finalized before finalization of the supervisor is complete.
+ * The fibers started via the supervisor are guaranteed to be terminated when the supervisor is
+ * terminated. When a supervisor is finalized, all active and queued fibers will be safely
+ * finalized before finalization of the supervisor is complete.
  *
  * The following diagrams illustrate the lifecycle of a fiber spawned via
  * [[cats.effect.kernel.GenSpawn.start]], [[cats.effect.kernel.GenSpawn.background]], and
@@ -95,6 +95,9 @@ trait Supervisor[F[_]] {
   /**
    * Starts the supplied effect `fa` on the supervisor.
    *
+   * Trying to start an effect with this method on an already finalized supervisor results in an
+   * error (inside `F`).
+   *
    * @return
    *   a [[cats.effect.kernel.Fiber]] that represents a handle to the started fiber.
    */
@@ -138,34 +141,33 @@ object Supervisor {
   def apply[F[_]: Concurrent]: Resource[F, Supervisor[F]] =
     apply[F](false)
 
-  private trait State[F[_]] {
+  private sealed abstract class State[F[_]] {
 
     def remove(token: Unique.Token): F[Unit]
 
     /**
-     * Must return `false` (and may not insert) if `Supervisor` is already closed
+     * Must return `false` (and might not insert) if `Supervisor` is already closed
      */
     def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean]
 
-    // these are allowed to destroy the state, since they're called during closing:
+    // these are allowed to destroy the state, since they're only called during closing:
     val joinAll: F[Unit]
     val cancelAll: F[Unit]
   }
 
   private def supervisor[F[_]](
-      mkState: Ref[F, Boolean] => F[State[F]],
+      mkState: Ref[F, Boolean] => F[State[F]], // receives the main shutdown flag
       await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
+      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])( // `None` never restarts
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
 
     for {
       doneR <- Resource.eval(F.ref(false))
       state <- Resource.makeCase(mkState(doneR)) {
-        case (st, Resource.ExitCase.Succeeded) if await => doneR.set(true) >> st.joinAll
+        case (st, Resource.ExitCase.Succeeded) if await =>
+          doneR.set(true) *> st.joinAll
         case (st, _) =>
-          doneR.set(true) >> { /*println("canceling all!");*/
-            st.cancelAll
-          }
+          doneR.set(true) *> st.cancelAll
       }
     } yield new Supervisor[F] {
 
@@ -223,6 +225,7 @@ object Supervisor {
                                           fin.guarantee(
                                             resultR.complete(Outcome.Canceled()).void)
                                         } else {
+                                          // this should never happen
                                           F.raiseError(new AssertionError("unexpected fiber"))
                                         }
                                     }
