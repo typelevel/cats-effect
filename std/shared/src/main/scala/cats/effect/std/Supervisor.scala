@@ -178,18 +178,30 @@ object Supervisor {
               F.deferred[Outcome[F, Throwable, A]] flatMap { resultR =>
                 F.ref(false) flatMap { canceledR =>
                   F.deferred[Fiber[F, Throwable, A]].flatMap { firstCurrent =>
+                    // `currentR` holds (a `Deferred` to) the current
+                    // incarnation of the fiber executing `fa`:
                     F.ref(firstCurrent).flatMap { currentR =>
                       def action(current: Deferred[F, Fiber[F, Throwable, A]]): F[Unit] = {
                         F uncancelable { _ =>
                           val started = F start {
                             fa guaranteeCase { oc =>
                               F.deferred[Fiber[F, Throwable, A]].flatMap { newCurrent =>
+                                // we're replacing the `Deferred` holding
+                                // the current fiber with a new one BEFORE
+                                // the current fiber finishes; crucially,
+                                // this means that the fiber reachable
+                                // through `currentR` can be (is) "early"
+                                // but it's never "late":
                                 currentR.set(newCurrent) *> {
                                   canceledR.get flatMap { canceled =>
                                     doneR.get flatMap { done =>
                                       if (!canceled && !done && restart(oc)) {
                                         action(newCurrent)
                                       } else {
+                                        // we must complete `newCurrent`,
+                                        // because `cancel` below may wait
+                                        // for it; we signal that it is not
+                                        // restarted with `null`:
                                         newCurrent.complete(null) *> fin.guarantee(
                                           resultR.complete(oc).void)
                                       }
@@ -212,24 +224,42 @@ object Supervisor {
                           val cancel: F[Unit] = F uncancelable { _ =>
                             canceledR.set(true) *> delegateF flatMap {
                               case null =>
+                                // ok, task wasn't restarted, but we
+                                // wait for the result to be completed:
                                 resultR.get.void
                               case fiber =>
+                                // a fiber is executing our task,
+                                // cancel it, and wait for it:
                                 fiber.cancel *> fiber.join flatMap {
                                   case Outcome.Canceled() =>
-                                    // double-check:
+                                    // cancel successful (or self-canceled),
+                                    // but we don't know if the `guaranteeCase`
+                                    // above ran so we need to double check:
                                     delegateF.flatMap {
                                       case null =>
+                                        // ok, the `guaranteeCase`
+                                        // certainly executed/ing:
                                         resultR.get.void
                                       case fiber2 =>
+                                        // we cancelled the fiber before it did
+                                        // anything, so the finalizer didn't run,
+                                        // we need to do it now:
+                                        val cleanup = fin.guarantee(
+                                          resultR.complete(Outcome.Canceled()).void
+                                        )
+                                        // just to be sure:
                                         if (fiber2 eq fiber) {
-                                          fin.guarantee(
-                                            resultR.complete(Outcome.Canceled()).void)
+                                          cleanup
                                         } else {
                                           // this should never happen
-                                          F.raiseError(new AssertionError("unexpected fiber"))
+                                          cleanup *> F.raiseError(
+                                            new AssertionError("unexpected fiber"))
                                         }
                                     }
                                   case _ =>
+                                    // finished in error/success,
+                                    // the outcome will certainly
+                                    // be completed:
                                     resultR.get.void
                                 }
                             }
@@ -253,12 +283,16 @@ object Supervisor {
             token <- F.unique
             cleanup = state.remove(token)
             fiber <- monitor(
+              // if the supervisor have been (or is now)
+              // shutting down, inserting into state will
+              // fail; so we need to wait for the result
+              // of inserting before actually doing the task:
               insertResult.get.ifM(fa, F.canceled *> F.never[A]),
               done.set(true) *> cleanup
             )
             insertOk <- state.add(token, fiber)
             _ <- insertResult.complete(insertOk)
-            // `cleanup` could run *before* the `state.add`
+            // `cleanup` could run BEFORE the `state.add`
             // (if `fa` is very fast), in which case it doesn't
             // remove the fiber from the state, so we re-check:
             _ <- done.get.ifM(cleanup, F.unit)
