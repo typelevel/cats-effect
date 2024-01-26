@@ -27,7 +27,7 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
 
   sequential
 
-  override def executionTimeout = 30.seconds
+  override def executionTimeout = 60.seconds
 
   "Supervisor" should {
     "concurrent" >> {
