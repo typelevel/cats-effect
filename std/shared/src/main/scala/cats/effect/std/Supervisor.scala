@@ -187,11 +187,12 @@ object Supervisor {
                             fa guaranteeCase { oc =>
                               F.deferred[Fiber[F, Throwable, A]].flatMap { newCurrent =>
                                 // we're replacing the `Deferred` holding
-                                // the current fiber with a new one BEFORE
-                                // the current fiber finishes; crucially,
-                                // this means that the fiber reachable
-                                // through `currentR` can be (is) "early"
-                                // but it's never "late":
+                                // the current fiber with a new one before
+                                // the current fiber finishes, and even
+                                // before we check for the cancel signal;
+                                // this guarantees, that the fiber reachable
+                                // through `currentR` is the last one (or
+                                // null, see below):
                                 currentR.set(newCurrent) *> {
                                   canceledR.get flatMap { canceled =>
                                     doneR.get flatMap { done =>
@@ -222,14 +223,17 @@ object Supervisor {
                           private[this] val delegateF = currentR.get.flatMap(_.get)
 
                           val cancel: F[Unit] = F uncancelable { _ =>
+                            // after setting `canceledR`, at
+                            // most one restart happens, and
+                            // the fiber we get through `delegateF`
+                            // is the final one:
                             canceledR.set(true) *> delegateF flatMap {
                               case null =>
                                 // ok, task wasn't restarted, but we
-                                // wait for the result to be completed:
+                                // wait for the result to be completed
+                                // (and the finalizer to run):
                                 resultR.get.void
                               case fiber =>
-                                // a fiber is executing our task,
-                                // cancel it, and wait for it:
                                 fiber.cancel *> fiber.join flatMap {
                                   case Outcome.Canceled() =>
                                     // cancel successful (or self-canceled),
@@ -247,7 +251,6 @@ object Supervisor {
                                         val cleanup = fin.guarantee(
                                           resultR.complete(Outcome.Canceled()).void
                                         )
-                                        // just to be sure:
                                         if (fiber2 eq fiber) {
                                           cleanup
                                         } else {
