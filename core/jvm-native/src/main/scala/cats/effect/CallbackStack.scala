@@ -74,6 +74,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
       val cb = currentNode.getCallback()
       if (cb != null) {
         cb(a)
+        currentNode.clear()
         invoked = true
       }
       currentNode = currentNode.getNext()
