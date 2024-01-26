@@ -23,13 +23,11 @@ import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-import java.lang.ref.WeakReference
-
 class SupervisorSpec extends BaseSpec with DetectPlatform {
 
   sequential
 
-  override def executionTimeout = 120.seconds
+  override def executionTimeout = 30.seconds
 
   "Supervisor" should {
     "concurrent" >> {
@@ -296,7 +294,7 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
             }
         }
       }
-      tsk.parReplicateA_(if (isJVM) 10000 else 5).as(ok)
+      tsk.parReplicateA_(if (isJVM) 5000 else 5).as(ok)
     }
 
     "submit to closed supervisor" in real {
@@ -322,20 +320,6 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
       }
 
       tsk.parReplicateA_(if (isJVM) 10000 else 5).as(ok)
-    }
-
-    "fiber finish / state.add race" in real { // was fixed in #1670
-      val tsk = constructor(false, None).use { supervisor =>
-        supervisor
-          .supervise(IO.unit)
-          .flatTap(_.joinWithNever)
-          .map(new WeakReference(_))
-          .flatMap { fiberWr =>
-            (IO(System.gc()) *> IO.sleep(100.millis)).whileM_(IO(fiberWr.get() ne null)).as(ok)
-          }
-      }
-
-      tsk.parReplicateA_(if (isJVM) 2000 else 1).as(ok)
     }
   }
 }

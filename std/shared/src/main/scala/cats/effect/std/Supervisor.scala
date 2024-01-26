@@ -285,8 +285,8 @@ object Supervisor {
             fiber <- monitor(
               // if the supervisor have been (or is now)
               // shutting down, inserting into state will
-              // fail; so we need to wait for the result
-              // of inserting before actually doing the task:
+              // fail; so we need to wait for the positive result
+              // of inserting, before actually doing the task:
               insertResult.get.ifM(fa, F.canceled *> F.never[A]),
               done.set(true) *> cleanup
             )
