@@ -320,7 +320,7 @@ object Supervisor {
 
         def remove(token: Unique.Token): F[Unit] = stateRef.update {
           case null => null
-          case map => map.removed(token)
+          case map => map - token
         }
 
         def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean] =
