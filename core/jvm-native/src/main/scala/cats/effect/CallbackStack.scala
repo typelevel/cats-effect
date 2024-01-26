@@ -97,6 +97,11 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
    */
   def clear(): Unit = {
     callback = null
+    var currentNode = head.get()
+    while (currentNode ne null) {
+      currentNode.clear()
+      currentNode = currentNode.getNext()
+    }
     head.lazySet(null)
   }
 
