@@ -61,7 +61,6 @@ private final class IODeferred[A] extends Deferred[IO, A] {
   def complete(a: A): IO[Boolean] = IO {
     if (cell.compareAndSet(initial, IO.pure(a))) {
       val _ = callbacks(Right(a))
-      callbacks.clear() // avoid leaks
       true
     } else {
       false

@@ -1059,15 +1059,11 @@ private final class IOFiber[A](
 
     outcome = oc
 
-    try {
-      if (!callbacks(oc) && runtime.config.reportUnhandledFiberErrors) {
-        oc match {
-          case Outcome.Errored(e) => currentCtx.reportFailure(e)
-          case _ => ()
-        }
+    if (!callbacks(oc) && runtime.config.reportUnhandledFiberErrors) {
+      oc match {
+        case Outcome.Errored(e) => currentCtx.reportFailure(e)
+        case _ => ()
       }
-    } finally {
-      callbacks.clear() /* avoid leaks */
     }
 
     /*
