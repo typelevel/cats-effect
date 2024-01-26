@@ -77,7 +77,9 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
         currentNode.clear()
         invoked = true
       }
-      currentNode = currentNode.getNext()
+      val nextNode = currentNode.getNext()
+      currentNode.setNext(null)
+      currentNode = nextNode
     }
 
     invoked
@@ -99,8 +101,10 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
     callback = null
     var currentNode = head.get()
     while (currentNode ne null) {
+      val nextNode = currentNode.getNext()
       currentNode.clear()
-      currentNode = currentNode.getNext()
+      currentNode.setNext(null)
+      currentNode = nextNode
     }
     head.lazySet(null)
   }
