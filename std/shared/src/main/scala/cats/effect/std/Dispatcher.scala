@@ -388,6 +388,7 @@ object Dispatcher {
   // the signal is just a skolem for the atomic references; we never actually run it
   private final class Worker[F[_]: Async](
       val queue: UnsafeAsyncQueue[F, Registration[F]],
+      supervisor: Supervisor[F],
       executor: Executor[F],
       terminationLatch: Deferred[F, Unit]) {
 
@@ -427,7 +428,10 @@ object Dispatcher {
                       } else {
                         reg.stateR.get() match {
                           case RegState.CancelRequested(latch) =>
-                            cancelF.guarantee(Sync[F].delay(latch.success(())).void)
+                            supervisor
+                              .supervise(
+                                cancelF.guarantee(Sync[F].delay(latch.success(())).void))
+                              .void
 
                           case RegState.Completed =>
                             Applicative[F].unit
@@ -448,7 +452,7 @@ object Dispatcher {
           }
 
         case Registration.Finalizer(action) =>
-          action
+          supervisor.supervise(action).void
 
         case Registration.PoisonPill() =>
           Sync[F].delay(doneR.set(true))
@@ -467,10 +471,17 @@ object Dispatcher {
     def apply[F[_]: Async](
         executor: Executor[F],
         terminationLatch: Deferred[F, Unit]): Resource[F, Worker[F]] = {
-      val initF = Sync[F].delay(
-        new Worker[F](new UnsafeAsyncQueue[F, Registration[F]](), executor, terminationLatch))
+      // we make a new supervisor just for cancelation actions
+      Supervisor[F](false) flatMap { supervisor =>
+        val initF = Sync[F].delay(
+          new Worker[F](
+            new UnsafeAsyncQueue[F, Registration[F]](),
+            supervisor,
+            executor,
+            terminationLatch))
 
-      Resource.make(initF)(w => Sync[F].delay(w.queue.unsafeOffer(Registration.PoisonPill())))
+        Resource.make(initF)(w => Sync[F].delay(w.queue.unsafeOffer(Registration.PoisonPill())))
+      }
     }
   }
 

@@ -330,40 +330,39 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
     }
 
     "cancelation does not block a worker" in real {
-      dispatcher
-        .use { runner =>
-          val clogUp = IO.deferred[Unit].flatMap { gate =>
-            IO {
-              val task = gate.complete(()) *> IO.never[Unit].uncancelable
-              runner.unsafeToFutureCancelable(task)._2
-            }.flatMap { cancel =>
-              // wait until task starts, then cancel
-              gate.get *> IO(cancel())
+      TestControl executeEmbed {
+        dispatcher use { runner =>
+          (IO.deferred[Unit], IO.deferred[Unit]) flatMapN { (latch1, latch2) =>
+            val task = (latch1.complete(()) *> latch2.get).uncancelable
+
+            IO(runner.unsafeToFutureCancelable(task)._2) flatMap { cancel =>
+              latch1.get *>
+                IO(cancel()) *>
+                IO(runner.unsafeRunAndForget(latch2.complete(()))) *>
+                latch2.get.as(ok)
             }
           }
-          clogUp.parReplicateA_(1000) *>
-            // now try to run a new task
-            IO.fromFuture(IO(runner.unsafeToFuture(IO.unit)))
         }
-        .replicateA_(if (isJVM) 1000 else 1)
-        .as(ok)
+      }
     }
 
     "cancelation race does not block a worker" in real {
       dispatcher
         .use { runner =>
-          val clogUp = IO {
-            val task = IO.never[Unit].uncancelable
-            runner.unsafeToFutureCancelable(task)._2
-          }.flatMap { cancel =>
-            // cancel concurrently
-            // We want to trigger race condition where task starts but then discovers it was canceled
-            IO(cancel())
-          }
+          IO.deferred[Unit] flatMap { latch =>
+            val clogUp = IO {
+              val task = latch.get.uncancelable
+              runner.unsafeToFutureCancelable(task)._2
+            }.flatMap { cancel =>
+              // cancel concurrently
+              // We want to trigger race condition where task starts but then discovers it was canceled
+              IO(cancel())
+            }
 
-          clogUp.parReplicateA_(1000) *>
-            // now try to run a new task
-            IO.fromFuture(IO(runner.unsafeToFuture(IO.unit)))
+            clogUp.parReplicateA_(1000) *>
+              // now try to run a new task
+              IO.fromFuture(IO(runner.unsafeToFuture(latch.complete(()))))
+          }
         }
         .replicateA_(if (isJVM) 1000 else 1)
         .as(ok)
