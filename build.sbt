@@ -895,7 +895,8 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
   )
   .jvmSettings(
     Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}",
+    // Test / javaOptions += "-XX:ActiveProcessorCount=2",
   )
 
 lazy val testsJS = tests.js
@@ -981,7 +982,9 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.std.Queue$UnsafeUnbounded$Cell"),
         // introduced by #3480
         // adds method to sealed Hotswap
-        ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get")
+        ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get"),
+        // #3972, private trait
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.std.Supervisor$State"),
       )
   )
   .jsSettings(
