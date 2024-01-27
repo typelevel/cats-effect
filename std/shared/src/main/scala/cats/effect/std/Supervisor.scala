@@ -329,8 +329,12 @@ object Supervisor {
             case map => (map.updated(token, fiber), true)
           }
 
-        private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
+        private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] = {
+          // we're closing, so we won't need the state any more,
+          // so we're using `null` as a sentinel to reject later
+          // insertions in `add`:
           stateRef.getAndSet(null).map(_.values.toList)
+        }
 
         val joinAll: F[Unit] = allFibers.flatMap(_.traverse_(_.join.void))
 

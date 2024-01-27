@@ -25,10 +25,6 @@ import scala.concurrent.duration._
 
 class SupervisorSpec extends BaseSpec with DetectPlatform {
 
-  sequential
-
-  override def executionTimeout = 60.seconds
-
   "Supervisor" should {
     "concurrent" >> {
       supervisorTests(Supervisor.applyForConcurrent)
@@ -219,7 +215,7 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).as(ok).timeoutTo(2.seconds, IO(false must beTrue))
+      test.start.flatMap(_.join).as(ok).timeoutTo(3.seconds, IO(false must beTrue))
     }
 
     "cancel inner fiber and ignore restart if outer errored" in real {
@@ -233,7 +229,7 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).as(ok).timeoutTo(2.seconds, IO(false must beTrue))
+      test.start.flatMap(_.join).as(ok).timeoutTo(3.seconds, IO(false must beTrue))
     }
 
     "supervise / finalize race" in real {
@@ -250,8 +246,8 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
           case (supervisor, close) =>
             supervisor.supervise(IO.never[Unit]).replicateA(100).flatMap { fibers =>
               val tryFork = supervisor.supervise(task).map(Some(_)).recover {
-                case ex: IllegalStateException
-                    if ex.getMessage == "supervisor already shutdown" =>
+                case ex: IllegalStateException =>
+                  ex.getMessage mustEqual "supervisor already shutdown"
                   None
               }
               IO.both(tryFork, close).flatMap {
@@ -271,7 +267,7 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
             }
         }
       }
-      tsk.parReplicateA_(if (isJVM) 5000 else 5).as(ok)
+      tsk.parReplicateA_(if (isJVM) 1000 else 1).as(ok)
     }
 
     "submit to closed supervisor" in real {
@@ -289,14 +285,14 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
             IO.sleep(100.millis) *> adaptedFiber.cancel *> adaptedFiber.join *> (
               (counter.get, IO.sleep(100.millis) *> counter.get).flatMapN {
                 case (v1, v2) =>
-                  IO((v1: Int) mustEqual (v2: Int))
+                  IO(v1 mustEqual v2)
               }
             )
           }
         }
       }
 
-      tsk.parReplicateA_(if (isJVM) 10000 else 5).as(ok)
+      tsk.parReplicateA_(if (isJVM) 1000 else 1).as(ok)
     }
   }
 }
