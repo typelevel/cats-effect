@@ -105,6 +105,12 @@ object Queue {
   private[effect] def unboundedForAsync[F[_], A](implicit F: Async[F]): F[Queue[F, A]] =
     F.delay(new UnboundedAsyncQueue())
 
+  def unsafeBounded[F[_], A](capacity: Int)(
+      implicit F: Async[F]): F[Queue[F, A] with unsafe.BoundedQueueSink[F, A]] = {
+    require(capacity > 1 && capacity < Short.MaxValue.toInt * 2)
+    F.delay(new BoundedAsyncQueue(capacity))
+  }
+
   /**
    * Constructs a queue through which a single element can pass only in the case when there are
    * at least one taking fiber and at least one offering fiber for `F` data types that are
@@ -134,6 +140,10 @@ object Queue {
       case _ =>
         unboundedForConcurrent
     }
+
+  def unsafeUnbounded[F[_], A](
+      implicit F: Async[F]): F[Queue[F, A] with unsafe.UnboundedQueueSink[F, A]] =
+    F.delay(new UnboundedAsyncQueue())
 
   /**
    * Constructs an empty, bounded, dropping queue holding up to `capacity` elements for `F` data
@@ -542,7 +552,9 @@ object Queue {
    * Does not correctly handle bound = 0 because take waiters are async[Unit]
    */
   private final class BoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F])
-      extends Queue[F, A] {
+      extends Queue[F, A]
+      with unsafe.BoundedQueueSink[F, A] {
+
     require(capacity > 1)
 
     private[this] val buffer = new UnsafeBounded[A](capacity)
@@ -625,7 +637,7 @@ object Queue {
         }
       }
 
-    def tryOffer(a: A): F[Boolean] = F delay {
+    def unsafeTryOffer(a: A): Boolean = {
       try {
         buffer.put(a)
         notifyOne(takers)
@@ -635,6 +647,8 @@ object Queue {
           false
       }
     }
+
+    def tryOffer(a: A): F[Boolean] = F.delay(unsafeTryOffer(a))
 
     val size: F[Int] = F.delay(buffer.size())
 
@@ -802,15 +816,20 @@ object Queue {
     }
   }
 
-  private final class UnboundedAsyncQueue[F[_], A]()(implicit F: Async[F]) extends Queue[F, A] {
+  private final class UnboundedAsyncQueue[F[_], A]()(implicit F: Async[F])
+      extends Queue[F, A]
+      with unsafe.UnboundedQueueSink[F, A] {
+
     private[this] val buffer = new UnsafeUnbounded[A]()
     private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
     private[this] val FailureSignal = cats.effect.std.FailureSignal // prefetch
 
-    def offer(a: A): F[Unit] = F delay {
+    def unsafeOffer(a: A): Unit = {
       buffer.put(a)
       notifyOne()
     }
+
+    def offer(a: A): F[Unit] = F.delay(unsafeOffer(a))
 
     def tryOffer(a: A): F[Boolean] = F delay {
       buffer.put(a)
@@ -1101,147 +1120,6 @@ object Queue {
             fa.tryTake.map(_.map(f))
           override def size: F[Int] =
             fa.size
-        }
-    }
-}
-
-trait QueueSource[F[_], A] {
-
-  /**
-   * Dequeues an element from the front of the queue, possibly fiber blocking until an element
-   * becomes available.
-   */
-  def take: F[A]
-
-  /**
-   * Attempts to dequeue an element from the front of the queue, if one is available without
-   * fiber blocking.
-   *
-   * @return
-   *   an effect that describes whether the dequeueing of an element from the queue succeeded
-   *   without blocking, with `None` denoting that no element was available
-   */
-  def tryTake: F[Option[A]]
-
-  /**
-   * Attempts to dequeue elements from the front of the queue, if they are available without
-   * semantically blocking. This method does not guarantee any additional performance benefits
-   * beyond simply recursively calling [[tryTake]], though some implementations will provide a
-   * more efficient implementation.
-   *
-   * @param maxN
-   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
-   *
-   * @return
-   *   an effect that contains the dequeued elements
-   */
-  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] =
-    QueueSource.tryTakeN[F, A](maxN, tryTake)
-
-  def size: F[Int]
-}
-
-object QueueSource {
-
-  private[std] def tryTakeN[F[_], A](maxN: Option[Int], tryTake: F[Option[A]])(
-      implicit F: Monad[F]): F[List[A]] = {
-    QueueSource.assertMaxNPositive(maxN)
-
-    def loop(i: Int, limit: Int, acc: List[A]): F[List[A]] =
-      if (i >= limit)
-        F.pure(acc.reverse)
-      else
-        tryTake flatMap {
-          case Some(a) => loop(i + 1, limit, a :: acc)
-          case None => F.pure(acc.reverse)
-        }
-
-    maxN match {
-      case Some(limit) => loop(0, limit, Nil)
-      case None => loop(0, Int.MaxValue, Nil)
-    }
-  }
-
-  private[std] def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
-    case Some(n) if n <= 0 =>
-      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
-    case _ => ()
-  }
-
-  implicit def catsFunctorForQueueSource[F[_]: Functor]: Functor[QueueSource[F, *]] =
-    new Functor[QueueSource[F, *]] {
-      override def map[A, B](fa: QueueSource[F, A])(f: A => B): QueueSource[F, B] =
-        new QueueSource[F, B] {
-          override def take: F[B] =
-            fa.take.map(f)
-          override def tryTake: F[Option[B]] = {
-            fa.tryTake.map(_.map(f))
-          }
-          override def size: F[Int] =
-            fa.size
-        }
-    }
-}
-
-trait QueueSink[F[_], A] {
-
-  /**
-   * Enqueues the given element at the back of the queue, possibly fiber blocking until
-   * sufficient capacity becomes available.
-   *
-   * @param a
-   *   the element to be put at the back of the queue
-   */
-  def offer(a: A): F[Unit]
-
-  /**
-   * Attempts to enqueue the given element at the back of the queue without semantically
-   * blocking.
-   *
-   * @param a
-   *   the element to be put at the back of the queue
-   * @return
-   *   an effect that describes whether the enqueuing of the given element succeeded without
-   *   blocking
-   */
-  def tryOffer(a: A): F[Boolean]
-
-  /**
-   * Attempts to enqueue the given elements at the back of the queue without semantically
-   * blocking. If an item in the list cannot be enqueued, the remaining elements will be
-   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
-   * any additional performance benefits.
-   *
-   * @param list
-   *   the elements to be put at the back of the queue
-   * @return
-   *   an effect that contains the remaining valus that could not be offered.
-   */
-  def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] =
-    QueueSink.tryOfferN[F, A](list, tryOffer)
-
-}
-
-object QueueSink {
-
-  private[std] def tryOfferN[F[_], A](list: List[A], tryOffer: A => F[Boolean])(
-      implicit F: Monad[F]): F[List[A]] = list match {
-    case Nil => F.pure(list)
-    case h :: t =>
-      tryOffer(h).ifM(
-        tryOfferN(t, tryOffer),
-        F.pure(list)
-      )
-  }
-
-  implicit def catsContravariantForQueueSink[F[_]]: Contravariant[QueueSink[F, *]] =
-    new Contravariant[QueueSink[F, *]] {
-      override def contramap[A, B](fa: QueueSink[F, A])(f: B => A): QueueSink[F, B] =
-        new QueueSink[F, B] {
-          override def offer(b: B): F[Unit] =
-            fa.offer(f(b))
-          override def tryOffer(b: B): F[Boolean] =
-            fa.tryOffer(f(b))
         }
     }
 }
