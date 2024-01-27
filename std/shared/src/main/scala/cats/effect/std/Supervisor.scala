@@ -255,8 +255,8 @@ object Supervisor {
                                           cleanup
                                         } else {
                                           // this should never happen
-                                          cleanup *> F.raiseError(
-                                            new AssertionError("unexpected fiber"))
+                                          cleanup *> F.raiseError(new AssertionError(
+                                            "unexpected fiber (this is a bug in Supervisor)"))
                                         }
                                     }
                                   case _ =>
@@ -290,7 +290,13 @@ object Supervisor {
               // shutting down, inserting into state will
               // fail; so we need to wait for the positive result
               // of inserting, before actually doing the task:
-              insertResult.get.ifM(fa, F.canceled *> F.never[A]),
+              insertResult
+                .get
+                .ifM(
+                  fa,
+                  F.canceled *> F.raiseError[A](new AssertionError(
+                    "supervised fiber couldn't cancel (this is a bug in Supervisor)"))
+                ),
               done.set(true) *> cleanup
             )
             insertOk <- state.add(token, fiber)
