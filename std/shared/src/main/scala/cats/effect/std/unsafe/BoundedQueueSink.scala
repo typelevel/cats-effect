@@ -24,9 +24,11 @@ trait BoundedQueueSink[F[_], A] extends QueueSink[F, A] {
 }
 
 object BoundedQueueSink {
-  implicit def catsContravariantForBoundedQueueSink[F[_]]: Contravariant[BoundedQueueSink[F, *]] =
+  implicit def catsContravariantForBoundedQueueSink[F[_]]
+      : Contravariant[BoundedQueueSink[F, *]] =
     new Contravariant[BoundedQueueSink[F, *]] {
-      override def contramap[A, B](fa: BoundedQueueSink[F, A])(f: B => A): BoundedQueueSink[F, B] =
+      override def contramap[A, B](fa: BoundedQueueSink[F, A])(
+          f: B => A): BoundedQueueSink[F, B] =
         new BoundedQueueSink[F, B] {
           override def unsafeTryOffer(b: B): Boolean =
             fa.unsafeTryOffer(f(b))

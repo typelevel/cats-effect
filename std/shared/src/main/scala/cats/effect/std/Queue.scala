@@ -106,7 +106,7 @@ object Queue {
     F.delay(new UnboundedAsyncQueue())
 
   def unsafeBounded[F[_], A](capacity: Int)(
-      implicit F: Async[F]): F[Queue[F, A] with unsafe.BoundedQueueSink[F, A]] = {
+      implicit F: Async[F]): F[unsafe.BoundedQueue[F, A]] = {
     require(capacity > 1 && capacity < Short.MaxValue.toInt * 2)
     F.delay(new BoundedAsyncQueue(capacity))
   }
@@ -141,8 +141,7 @@ object Queue {
         unboundedForConcurrent
     }
 
-  def unsafeUnbounded[F[_], A](
-      implicit F: Async[F]): F[Queue[F, A] with unsafe.UnboundedQueueSink[F, A]] =
+  def unsafeUnbounded[F[_], A](implicit F: Async[F]): F[unsafe.UnboundedQueue[F, A]] =
     F.delay(new UnboundedAsyncQueue())
 
   /**
@@ -553,7 +552,7 @@ object Queue {
    */
   private final class BoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F])
       extends Queue[F, A]
-      with unsafe.BoundedQueueSink[F, A] {
+      with unsafe.BoundedQueue[F, A] {
 
     require(capacity > 1)
 
@@ -818,7 +817,7 @@ object Queue {
 
   private final class UnboundedAsyncQueue[F[_], A]()(implicit F: Async[F])
       extends Queue[F, A]
-      with unsafe.UnboundedQueueSink[F, A] {
+      with unsafe.UnboundedQueue[F, A] {
 
     private[this] val buffer = new UnsafeUnbounded[A]()
     private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()

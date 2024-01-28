@@ -19,28 +19,32 @@ package effect
 package std
 package unsafe
 
-trait UnboundedQueueSink[F[_], A] extends QueueSink[F, A] with BoundedQueueSink[F, A] {
-  def unsafeOffer(a: A): Unit
+import cats.syntax.all._
 
-  def unsafeTryOffer(a: A): Boolean = {
-    unsafeOffer(a)
-    true
-  }
-}
+trait UnboundedQueue[F[_], A]
+    extends Queue[F, A]
+    with BoundedQueue[F, A]
+    with UnboundedQueueSink[F, A]
 
-object UnboundedQueueSink {
-  implicit def catsContravariantForUnboundedQueueSink[F[_]]
-      : Contravariant[UnboundedQueueSink[F, *]] =
-    new Contravariant[UnboundedQueueSink[F, *]] {
-      override def contramap[A, B](fa: UnboundedQueueSink[F, A])(
-          f: B => A): UnboundedQueueSink[F, B] =
-        new UnboundedQueueSink[F, B] {
-          override def unsafeOffer(b: B): Unit =
-            fa.unsafeOffer(f(b))
+object UnboundedQueue {
+
+  def apply[F[_]: kernel.Async, A]: F[UnboundedQueue[F, A]] =
+    Queue.unsafeUnbounded[F, A]
+
+  implicit def catsInvariantForUnboundedQueue[F[_]: Functor]: Invariant[Queue[F, *]] =
+    new Invariant[Queue[F, *]] {
+      override def imap[A, B](fa: Queue[F, A])(f: A => B)(g: B => A): Queue[F, B] =
+        new Queue[F, B] {
           override def offer(b: B): F[Unit] =
-            fa.offer(f(b))
+            fa.offer(g(b))
           override def tryOffer(b: B): F[Boolean] =
-            fa.tryOffer(f(b))
+            fa.tryOffer(g(b))
+          override def take: F[B] =
+            fa.take.map(f)
+          override def tryTake: F[Option[B]] =
+            fa.tryTake.map(_.map(f))
+          override def size: F[Int] =
+            fa.size
         }
     }
 }

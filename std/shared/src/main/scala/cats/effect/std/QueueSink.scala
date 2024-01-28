@@ -60,7 +60,8 @@ trait QueueSink[F[_], A] {
 
 object QueueSink {
 
-  private[std] def tryOfferN[F[_], A](list: List[A], tryOffer: A => F[Boolean])(implicit F: Monad[F]): F[List[A]] = list match {
+  private[std] def tryOfferN[F[_], A](list: List[A], tryOffer: A => F[Boolean])(
+      implicit F: Monad[F]): F[List[A]] = list match {
     case Nil => F.pure(list)
     case h :: t =>
       tryOffer(h).ifM(

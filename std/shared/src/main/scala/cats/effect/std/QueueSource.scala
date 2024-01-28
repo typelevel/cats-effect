@@ -58,7 +58,8 @@ trait QueueSource[F[_], A] {
 
 object QueueSource {
 
-  private[std] def tryTakeN[F[_], A](maxN: Option[Int], tryTake: F[Option[A]])(implicit F: Monad[F]): F[List[A]] = {
+  private[std] def tryTakeN[F[_], A](maxN: Option[Int], tryTake: F[Option[A]])(
+      implicit F: Monad[F]): F[List[A]] = {
     QueueSource.assertMaxNPositive(maxN)
 
     def loop(i: Int, limit: Int, acc: List[A]): F[List[A]] =
