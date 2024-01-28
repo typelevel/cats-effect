@@ -52,14 +52,6 @@ class CallbackStackSpec extends BaseSpec with DetectPlatform {
       }
     }
 
-    "pack runs concurrently with clear" in real {
-      IO {
-        val stack = CallbackStack[Unit](null)
-        val handle = stack.push(_ => ())
-        stack.clearHandle(handle)
-        stack
-      }.flatMap(stack => IO(stack.pack(1)).both(IO(stack.clear()))).parReplicateA_(1000).as(ok)
-    }
   }
 
 }

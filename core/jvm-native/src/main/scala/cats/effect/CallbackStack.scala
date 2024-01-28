@@ -60,26 +60,42 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
    */
   def apply(a: A): Boolean = {
     // see also note about data races in Node#packTail
-
-    val cb = callback
-    var invoked = if (cb != null) {
-      cb(a)
-      true
-    } else {
-      false
-    }
     var currentNode = head.get()
-
-    while (currentNode ne null) {
-      val cb = currentNode.getCallback()
-      if (cb != null) {
+    try {
+      val cb = callback
+      var invoked = if (cb != null) {
         cb(a)
-        invoked = true
+        true
+      } else {
+        false
       }
-      currentNode = currentNode.getNext()
-    }
 
-    invoked
+      // note that we're tearing down the callback stack structure behind us as we go
+      while (currentNode ne null) {
+        val cb = currentNode.getCallback()
+        if (cb != null) {
+          cb(a)
+          currentNode.clear()
+          invoked = true
+        }
+        val nextNode = currentNode.getNext()
+        currentNode.setNext(null)
+        currentNode = nextNode
+      }
+      head.lazySet(null)
+
+      invoked
+    } finally {
+      // if a callback throws, we stop invoking remaining callbacks
+      // but we continue the process of tearing down the stack to prevent memory leaks
+      while (currentNode ne null) {
+        val nextNode = currentNode.getNext()
+        currentNode.clear()
+        currentNode.setNext(null)
+        currentNode = nextNode
+      }
+      head.lazySet(null)
+    }
   }
 
   /**
@@ -89,14 +105,6 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
   def clearHandle(handle: CallbackStack.Handle[A]): Boolean = {
     handle.clear()
     false
-  }
-
-  /**
-   * Nulls all references in this callback stack.
-   */
-  def clear(): Unit = {
-    callback = null
-    head.lazySet(null)
   }
 
   /**
