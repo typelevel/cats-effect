@@ -570,6 +570,17 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
         }
       }
 
+      "complete / cancel race" in real {
+        val tsk = dispatcher.use { dispatcher =>
+          IO.fromFuture(IO {
+            val (_, cancel) = dispatcher.unsafeToFutureCancelable(IO.unit)
+            val cancelFut = cancel()
+            cancelFut
+          })
+        }
+
+        tsk.replicateA_(if (isJVM) 10000 else 1).as(ok)
+      }
     }
   }
 
