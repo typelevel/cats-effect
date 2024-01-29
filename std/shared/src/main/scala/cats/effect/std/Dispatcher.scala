@@ -317,6 +317,7 @@ object Dispatcher {
                       val reg = new Registration.Primary(promisory.void, stateR)
                       worker.queue.unsafeOffer(reg)
 
+                      @tailrec
                       def cancel(): Future[Unit] = {
                         stateR.get() match {
                           case RegState.Unstarted =>
