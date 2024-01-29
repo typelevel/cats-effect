@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -215,7 +215,7 @@ ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
 
 ThisBuild / githubWorkflowPublish +=
   WorkflowStep.Run(
-    List("scripts/post-release-discord ${{ github.ref }}"),
+    List("scripts/post-release-discord.sh ${{ github.ref }}"),
     name = Some("Post release to Discord"),
     env = Map("DISCORD_WEBHOOK_URL" -> "${{ secrets.DISCORD_WEBHOOK_URL }}")
   )
@@ -658,7 +658,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.unsafe.WorkerThread.sleep"),
       // #3787, internal utility that was no longer needed
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.Thunk$"),
+      // #3943, refactored internal private CallbackStack data structure
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.CallbackStack.push"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.CallbackStack.currentHandle"),
+      // #3973, remove clear from internal private CallbackStack
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.clear")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -815,7 +821,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack"),
         // introduced by #3642, which optimized the BatchingMacrotaskExecutor
         ProblemFilters.exclude[MissingClassProblem](
-          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$")
+          "cats.effect.unsafe.BatchingMacrotaskExecutor$executeBatchTaskRunnable$"),
+        // #3943, refactored internal private CallbackStack data structure
+        ProblemFilters.exclude[Problem]("cats.effect.CallbackStackOps.*")
       )
     },
     mimaBinaryIssueFilters ++= {
@@ -889,7 +897,8 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
   )
   .jvmSettings(
     Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}",
+    // Test / javaOptions += "-XX:ActiveProcessorCount=2",
   )
 
 lazy val testsJS = tests.js
@@ -976,6 +985,8 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         // introduced by #3480
         // adds method to sealed Hotswap
         ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get"),
+        // #3972, private trait
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.std.Supervisor$State"),
         // introduced by #3923
         // Rewrote Dispatcher
         ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode"),
