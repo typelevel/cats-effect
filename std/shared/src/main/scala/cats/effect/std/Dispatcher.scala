@@ -280,7 +280,7 @@ object Dispatcher {
           workersF evalMap { workers =>
             Async[F].executionContext flatMap { ec =>
               val launchAll = 0.until(workers.length).toList traverse_ { i =>
-                supervisor.supervise(workers(i).run).void
+                supervisor.supervise(workers(i).run)
               }
 
               launchAll.as(new Dispatcher[F] {
