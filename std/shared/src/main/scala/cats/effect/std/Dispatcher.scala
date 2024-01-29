@@ -34,6 +34,7 @@ import cats.effect.kernel.syntax.all._
 import cats.effect.std.Dispatcher.parasiticEC
 import cats.syntax.all._
 
+import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Failure
 
