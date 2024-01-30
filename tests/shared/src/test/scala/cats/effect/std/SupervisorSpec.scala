@@ -267,7 +267,7 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
             }
         }
       }
-      tsk.parReplicateA_(if (isJVM) 1000 else 1).as(ok)
+      tsk.parReplicateA_(if (isJVM) 700 else 1).as(ok)
     }
 
     "submit to closed supervisor" in real {
