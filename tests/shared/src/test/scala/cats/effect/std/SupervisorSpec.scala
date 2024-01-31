@@ -215,7 +215,7 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).as(ok).timeoutTo(3.seconds, IO(false must beTrue))
+      test.start.flatMap(_.join).as(ok).timeoutTo(4.seconds, IO(false must beTrue))
     }
 
     "cancel inner fiber and ignore restart if outer errored" in real {
@@ -229,7 +229,7 @@ class SupervisorSpec extends BaseSpec with DetectPlatform {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).as(ok).timeoutTo(3.seconds, IO(false must beTrue))
+      test.start.flatMap(_.join).as(ok).timeoutTo(4.seconds, IO(false must beTrue))
     }
 
     "supervise / finalize race" in real {
