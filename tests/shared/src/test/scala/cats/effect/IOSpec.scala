@@ -1052,7 +1052,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         val outer = IO.async[Int] { cb1 =>
           val inner = IO.async[Int] { cb2 =>
             IO(cb1(Right(1))) *>
-              IO.executionContext.flatMap(ec => IO(ec.execute { () => cb2(Right(2)); () })).as(None)
+              IO.executionContext
+                .flatMap(ec => IO(ec.execute { () => cb2(Right(2)); () }))
+                .as(None)
           }
 
           inner.flatMap(i => IO { innerR = i }).as(None)
@@ -1469,7 +1471,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         var success = false
 
         val target = IO.async[Unit] { _ =>
-          val fin = IO.async_[Unit] { cb => ticker.ctx.execute { () => cb(Right(())); () } } *> IO {
+          val fin = IO.async_[Unit] { cb =>
+            ticker.ctx.execute { () => cb(Right(())); () }
+          } *> IO {
             success = true
           }
 
