@@ -197,7 +197,8 @@ private final class IOFiber[A](
   private[this] def runLoop(
       _cur0: IO[Any],
       cancelationIterations: Int,
-      autoCedeIterations: Int): Unit = {
+      autoCedeIterations: Int,
+      needToUnmask: Boolean = false): Unit = {
     /*
      * `cur` will be set to `EndFiber` when the runloop needs to terminate,
      * either because the entire IO is done, or because this branch is done
@@ -229,6 +230,11 @@ private final class IOFiber[A](
       val fin = prepareFiberForCancelation(null)
       runLoop(fin, nextCancelation, nextAutoCede)
     } else {
+
+      if (needToUnmask) { // we're `poll(/*HERE*/_cur0)`
+        masks -= 1
+      }
+
       /* Null IO, blow up but keep the failure within IO */
       val cur0: IO[Any] = if (_cur0 == null) {
         IO.Error(new NullPointerException())
@@ -576,16 +582,22 @@ private final class IOFiber[A](
            * we keep track of nested uncancelable sections.
            * The outer block wins.
            */
-          if (masks == cur.id && (self eq cur.self)) {
-            masks -= 1
+          val willNeedToUnmask = if (masks == cur.id && (self eq cur.self)) {
             /*
              * The UnmaskK marker gets used by `succeeded` and `failed`
              * to restore masking state after `cur.ioa` has finished
              */
             conts = ByteStack.push(conts, UnmaskK)
+            true
+          } else {
+            false
           }
 
-          runLoop(cur.ioa, nextCancelation, nextAutoCede)
+          // this is ugly, but we pass on that we will need
+          // to unmask right before executing `cur.ioa` (but
+          // after any possible cancellation checks because
+          // we mustn't cancel before `cur.ioa`):
+          runLoop(cur.ioa, nextCancelation + 1, nextAutoCede, needToUnmask = willNeedToUnmask)
 
         case 14 =>
           val cur = cur0.asInstanceOf[IOCont[Any, Any]]
