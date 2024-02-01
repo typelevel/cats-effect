@@ -781,6 +781,7 @@ private final class WorkerThread[P](
             val cb = sleepers.pollFirstIfTriggered(now)
             if (cb ne null) {
               cb(RightUnit)
+              ()
             } else {
               cont = false
             }

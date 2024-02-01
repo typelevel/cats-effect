@@ -107,6 +107,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
 
               if (result != null) {
                 nextCb(result)
+                ()
               }
             }
 
@@ -171,6 +172,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                 if (done.get() && cb.get() != null) {
                   // this indicates that the blocking action completed *before* we registered the callback
                   finCb(RightUnit) // ...so we just complete cancelation ourselves
+                  ()
                 }
               }
             }
