@@ -1753,7 +1753,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO.uncancelable { poll =>
-      acquire(poll).flatMap { a => IO.defer(poll(use(a))).guaranteeCase(release(a, _)) }
+      // the `IO.unit *>` below adds a chance to
+      // observe cancellation before `use`; this is
+      // for compatibility with the default impl
+      // in `MonadCancel`:
+      acquire(poll).flatMap { a =>
+        IO.defer(poll(IO.unit *> use(a))).guaranteeCase(release(a, _))
+      }
     }
 
   /*
