@@ -105,7 +105,10 @@ object EpollSystem extends PollingSystem {
         readReadyCounter = counter
         val cb = readCallback
         readCallback = null
-        if (cb ne null) cb(Right(counter))
+        if (cb ne null) {
+          cb(Right(counter))
+          ()
+        }
       }
       if ((events & EPOLLOUT) != 0) {
         val counter = writeReadyCounter + 1

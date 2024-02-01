@@ -199,12 +199,14 @@ object KqueueSystem extends PollingSystem {
             val cb = callbacks.getOrNull(kevent)
             callbacks -= kevent
 
-            if (cb ne null)
+            if (cb ne null) {
               cb(
                 if ((event.flags.toLong & EV_ERROR) != 0)
                   Left(new IOException(fromCString(strerror(event.data.toInt))))
                 else Either.unit
               )
+              ()
+            }
 
             i += 1
             event += 1
