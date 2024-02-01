@@ -98,12 +98,12 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
       _.asLeft[Unit])
 
   def raceNeverNoncanceledIdentityLeft[A](fa: F[A]) =
-    F.race(F.never[Unit], fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))) <->
-      fa.flatMap(r => F.pure(r.asRight[Unit])).handleErrorWith(F.raiseError(_))
+    F.race(F.never[Unit], F.unit *> fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))) <->
+      F.unit *> fa.flatMap(r => F.pure(r.asRight[Unit])).handleErrorWith(F.raiseError(_))
 
   def raceNeverNoncanceledIdentityRight[A](fa: F[A]) =
-    F.race(fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_)), F.never[Unit]) <->
-      fa.flatMap(r => F.pure(r.asLeft[Unit])).handleErrorWith(F.raiseError(_))
+    F.race(F.unit *> fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_)), F.never[Unit]) <->
+      F.unit *> fa.flatMap(r => F.pure(r.asLeft[Unit])).handleErrorWith(F.raiseError(_))
 
   // I really like these laws, since they relate cede to timing, but they're definitely nondeterministic
   /*def raceLeftCedeYields[A](a: A) =
@@ -132,7 +132,7 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
 
   def fiberJoinIsGuaranteeCase[A](fa0: F[A], f: Outcome[F, E, A] => F[Unit]) = {
     // the semantics of cancelation create boundary conditions we must avoid
-    val fa = fa0.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))
+    val fa = F.unit *> fa0.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))
 
     F.start(fa)
       .flatMap(_.join)
