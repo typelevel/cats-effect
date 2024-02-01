@@ -504,7 +504,10 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
                     F.pure((b, rel2))
 
                   case Frame(head, tail) =>
-                    poll(continue(head(b), tail, rel2))
+                    // we allow a chance of observing cancellation
+                    // before `continue` (since we can't do it
+                    // right inside `poll`):
+                    poll(F.unit *> continue(head(b), tail, rel2))
                       .onCancel(rel(ExitCase.Canceled))
                       .onError { case e => rel(ExitCase.Errored(e)).handleError(_ => ()) }
                 }
