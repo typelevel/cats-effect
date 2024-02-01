@@ -763,7 +763,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "complete a fiber with Canceled under finalizer on poll" in ticked { implicit ticker =>
         val ioa =
-          IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit))
+          IO.uncancelable(p => IO.canceled >> p(IO.unit *> IO.unit).guarantee(IO.unit))
             .start
             .flatMap(_.join)
 
@@ -1139,7 +1139,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "sequence onCancel when canceled before registration" in ticked { implicit ticker =>
         var passed = false
         val test = IO.uncancelable { poll =>
-          IO.canceled >> poll(IO.unit).onCancel(IO { passed = true })
+          IO.canceled >> poll(IO.unit *> IO.unit).onCancel(IO { passed = true })
         }
 
         test must selfCancel
@@ -1149,7 +1149,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "break out of uncancelable when canceled before poll" in ticked { implicit ticker =>
         var passed = true
         val test = IO.uncancelable { poll =>
-          IO.canceled >> poll(IO.unit) >> IO { passed = false }
+          IO.canceled >> poll(IO.unit *> IO.unit) >> IO { passed = false }
         }
 
         test must selfCancel
