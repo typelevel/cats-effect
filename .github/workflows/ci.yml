@@ -27,7 +27,7 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-14]
         scala: [3.3.1, 2.12.18, 2.13.12]
         java:
           - temurin@8
@@ -52,13 +52,13 @@ jobs:
           - os: windows-latest
             scala: 3.3.1
             ci: ciJVM
-          - os: macos-latest
+          - os: macos-14
             scala: 3.3.1
             ci: ciJVM
           - os: windows-latest
             scala: 2.12.18
             ci: ciJVM
-          - os: macos-latest
+          - os: macos-14
             scala: 2.12.18
             ci: ciJVM
           - ci: ciFirefox
@@ -79,7 +79,7 @@ jobs:
             java: graalvm@17
           - os: windows-latest
             ci: ciJS
-          - os: macos-latest
+          - os: macos-14
             ci: ciJS
           - ci: ciFirefox
             java: temurin@11
@@ -91,7 +91,7 @@ jobs:
             java: graalvm@17
           - os: windows-latest
             ci: ciFirefox
-          - os: macos-latest
+          - os: macos-14
             ci: ciFirefox
           - ci: ciChrome
             java: temurin@11
@@ -103,7 +103,7 @@ jobs:
             java: graalvm@17
           - os: windows-latest
             ci: ciChrome
-          - os: macos-latest
+          - os: macos-14
             ci: ciChrome
           - ci: ciNative
             java: temurin@11
@@ -115,7 +115,7 @@ jobs:
             java: graalvm@17
           - os: windows-latest
             ci: ciNative
-          - os: macos-latest
+          - os: macos-14
             ci: ciNative
             scala: 2.12.18
           - os: windows-latest
