@@ -297,10 +297,21 @@ object Dispatcher {
                     // forward atomicity guarantees onto promise completion
                     val promisory = MonadCancel[F] uncancelable { poll =>
                       // invalidate the cancel action when we're done
-                      poll(fe.guarantee(Sync[F].delay(stateR.set(RegState.Completed))))
-                        .redeemWith(
-                          e => Sync[F].delay(result.failure(e)),
-                          a => Sync[F].delay(result.success(a)))
+                      val completeState = Sync[F].delay {
+                        stateR.getAndSet(RegState.Completed) match {
+                          case RegState.CancelRequested(latch) =>
+                            // we already have a cancel, must complete it:
+                            latch.trySuccess(()) // `try` because we're racing with `Worker`
+                            ()
+                          case RegState.Unstarted | RegState.Running(_) =>
+                            ()
+                          case RegState.Completed =>
+                            throw new AssertionError("unexpected Completed state")
+                        }
+                      }
+                      poll(fe.guarantee(completeState)).redeemWith(
+                        e => Sync[F].delay(result.failure(e)),
+                        a => Sync[F].delay(result.success(a)))
                     }
 
                     val worker =
@@ -418,10 +429,8 @@ object Dispatcher {
                     }
                   }
                 } else {
-                  val withCompletion =
-                    action.guarantee(Sync[F].delay(reg.stateR.set(RegState.Completed)))
 
-                  executor(withCompletion) { cancelF =>
+                  executor(action) { cancelF =>
                     Sync[F] defer {
                       if (reg
                           .stateR
@@ -431,8 +440,10 @@ object Dispatcher {
                         reg.stateR.get() match {
                           case RegState.CancelRequested(latch) =>
                             supervisor
-                              .supervise(
-                                cancelF.guarantee(Sync[F].delay(latch.success(())).void))
+                              .supervise(cancelF.guarantee(Sync[F].delay {
+                                latch.trySuccess(())
+                                ()
+                              }))
                               .void
 
                           case RegState.Completed =>
