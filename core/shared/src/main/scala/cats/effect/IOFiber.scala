@@ -596,7 +596,12 @@ private final class IOFiber[A](
           // this is ugly, but we pass on that we will need
           // to unmask right before executing `cur.ioa` (but
           // after any possible cancellation checks because
-          // we mustn't cancel before `cur.ioa`):
+          // we mustn't cancel before `cur.ioa`); we also add
+          // 1 to `nextCancelation`, to make sure the check
+          // at the beginning of `runLoop` never finds that
+          // it should cancel (`nextCancelation` is never 0
+          // here, so +1 makes sure it will never reach 0 at
+          // the next check either):
           runLoop(cur.ioa, nextCancelation + 1, nextAutoCede, needToUnmask = willNeedToUnmask)
 
         case 14 =>
