@@ -299,14 +299,16 @@ object Dispatcher {
                       // invalidate the cancel action when we're done
                       val completeState = Sync[F].delay {
                         stateR.getAndSet(RegState.Completed) match {
-                          case RegState.CancelRequested(latch) =>
+                          case st: RegState.CancelRequested[_] =>
                             // we already have a cancel, must complete it:
-                            latch.trySuccess(()) // `try` because we're racing with `Worker`
+                            st.latch.trySuccess(()) // `try` because we're racing with `Worker`
                             ()
-                          case RegState.Unstarted | RegState.Running(_) =>
-                            ()
+
                           case RegState.Completed =>
                             throw new AssertionError("unexpected Completed state")
+
+                          case _ =>
+                            ()
                         }
                       }
                       poll(fe.guarantee(completeState)).redeemWith(
