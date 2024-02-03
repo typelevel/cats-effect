@@ -629,25 +629,24 @@ object Dispatcher {
 
     def unsafeOffer(a: A): Unit = {
       val _ = buffer.put(a)
-      val back = latchR.getAndSet(null)
+      val back = latchR.get()
       if (back ne null) back(RightUnit)
     }
 
     def take: F[A] = Async[F].cont[Unit, A] {
       new Cont[F, Unit, A] {
         def apply[G[_]: MonadCancelThrow] = { (k, get, lift) =>
-          MonadCancel[G].uncancelable { poll =>
-            val takeF = lift(Sync[F].delay(buffer.take()))
-            val setLatchF = lift(Sync[F].delay(latchR.set(k)))
-            val unsetLatchF = lift(Sync[F].delay(latchR.set(null)))
+          val takeG = lift(Sync[F].delay(buffer.take()))
+          val setLatchG = lift(Sync[F].delay(latchR.set(k)))
+          val unsetLatchG = lift(Sync[F].delay(latchR.lazySet(null)))
 
-            takeF.handleErrorWith { _ => // emptiness is reported as a FailureSignal error
-              setLatchF *> (takeF <* unsetLatchF).handleErrorWith { _ => // double-check
-                poll(get) *> takeF // guaranteed to succeed
-              }
+          takeG.handleErrorWith { _ => // emptiness is reported as a FailureSignal error
+            setLatchG *> (takeG <* unsetLatchG).handleErrorWith { _ => // double-check
+              get *> unsetLatchG *> lift(take) // recurse
             }
           }
         }
+
       }
     }
 
