@@ -199,7 +199,8 @@ trait MonadCancelGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
   // TODO we can't really use poll :-( since we can't Cogen FunctionK
   private def genUncancelable[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
     deeper[A].map(pc =>
-      F.uncancelable(_ => pc)
+      F.unit *> F
+        .uncancelable(_ => pc)
         .flatMap(F.pure(_))
         .handleErrorWith(
           F.raiseError(_)

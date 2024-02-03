@@ -60,8 +60,8 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
                     other
                 }
 
-                fa
-                  // hack around functor law breakage
+                // hack around functor law breakage
+                F.unit *> fa
                   .flatMap(F.pure(_))
                   .handleErrorWith(F.raiseError(_))
                   // end hack
