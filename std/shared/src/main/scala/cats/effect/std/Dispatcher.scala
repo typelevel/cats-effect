@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.Applicative
+import cats.{Applicative, MonadThrow}
 import cats.effect.kernel.{
   Async,
   Concurrent,
@@ -301,7 +301,7 @@ object Dispatcher {
                         stateR.getAndSet(RegState.Completed) match {
                           case st: RegState.CancelRequested[_] =>
                             // we already have a cancel, must complete it:
-                            st.latch.trySuccess(()) // `try` because we're racing with `Worker`
+                            st.latch.success(())
                             ()
 
                           case RegState.Completed =>
@@ -420,15 +420,19 @@ object Dispatcher {
                 if (action == null) {
                   // this corresponds to a memory race where we see action's write before stateR's
                   val check = Spawn[F].cede *> Sync[F].delay(reg.stateR.get())
-                  check.iterateWhile(_ == RegState.Unstarted) *> Sync[F].delay {
-                    reg.stateR.get() match {
-                      case RegState.CancelRequested(latch) =>
-                        latch.success(())
-                        ()
-
-                      case s =>
-                        throw new AssertionError(s"a => $s")
-                    }
+                  check.iterateWhile(_ == RegState.Unstarted).flatMap {
+                    case cr @ RegState.CancelRequested(latch) =>
+                      Sync[F].delay {
+                        if (reg.stateR.compareAndSet(cr, RegState.Completed)) {
+                          latch.success(())
+                          ()
+                        } else {
+                          val s = reg.stateR.get()
+                          throw new AssertionError(s"d => $s")
+                        }
+                      }
+                    case s =>
+                      MonadThrow[F].raiseError[Unit](new AssertionError(s"a => $s"))
                   }
                 } else {
 
@@ -440,18 +444,28 @@ object Dispatcher {
                         Applicative[F].unit
                       } else {
                         reg.stateR.get() match {
-                          case RegState.CancelRequested(latch) =>
-                            supervisor
-                              .supervise(cancelF.guarantee(Sync[F].delay {
-                                latch.trySuccess(())
-                                ()
-                              }))
-                              .void
+                          case cr @ RegState.CancelRequested(latch) =>
+                            if (reg.stateR.compareAndSet(cr, RegState.Running(cancelF))) {
+                              supervisor
+                                .supervise(cancelF.guarantee(Sync[F].delay {
+                                  latch.success(())
+                                  ()
+                                }))
+                                .void
+                            } else {
+                              reg.stateR.get() match {
+                                case RegState.Completed =>
+                                  Applicative[F].unit
+                                case s =>
+                                  throw new AssertionError(s"e => $s")
+                              }
+                            }
 
                           case RegState.Completed =>
                             Applicative[F].unit
 
-                          case s => throw new AssertionError(s"b => $s")
+                          case s =>
+                            throw new AssertionError(s"b => $s")
                         }
                       }
                     }
