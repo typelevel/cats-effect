@@ -1270,6 +1270,52 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         guarantee mustEqual 42
       }
 
+      "correctly cancel poll(never)" in ticked { implicit ticker =>
+        var passed = false
+        val test = IO.uncancelable { poll =>
+          IO.canceled *> poll(IO.never[Unit]).onCancel(IO { passed = true })
+        }
+
+        test must selfCancel
+        passed must beTrue
+      }
+
+      "correctly cancel poll(async)" in ticked { implicit ticker =>
+        var passed = false
+        val test = IO.uncancelable { poll =>
+          val async = IO.async[Unit] { cb =>
+            IO {
+              cb(Right(()))
+              Some(IO.unit)
+            }
+          }
+          IO.canceled *> poll(async).onCancel(IO { passed = true })
+        }
+
+        test must selfCancel
+        passed must beTrue
+      }
+
+      "correctly cancel after cede" in ticked { implicit ticker =>
+        var passed = false
+        val test = IO.uncancelable { poll =>
+          IO.canceled *> poll(IO.cede *> IO.unit).onCancel(IO { passed = true })
+        }
+
+        test must selfCancel
+        passed must beTrue
+      }
+
+      "correctly cancel before cede" in ticked { implicit ticker =>
+        var passed = false
+        val test = IO.uncancelable { poll =>
+          IO.canceled *> poll(IO.unit *> IO.cede).onCancel(IO { passed = true })
+        }
+
+        test must selfCancel
+        passed must beTrue
+      }
+
       "never terminate when racing infinite cancels" in ticked { implicit ticker =>
         var started = false
 

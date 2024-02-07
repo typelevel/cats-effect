@@ -192,13 +192,18 @@ private final class IOFiber[A](
     _join
   }
 
-  /* masks encoding: initMask => no masks, ++ => push, -- => pop */
+  /*
+   * masks encoding:
+   * 0 => no masks
+   * ++ => push
+   * -- => pop
+   * negative => need to pop right before `_cur0`
+   */
   @tailrec
   private[this] def runLoop(
       _cur0: IO[Any],
       cancelationIterations: Int,
-      autoCedeIterations: Int,
-      needToUnmask: Boolean = false): Unit = {
+      autoCedeIterations: Int): Unit = {
     /*
      * `cur` will be set to `EndFiber` when the runloop needs to terminate,
      * either because the entire IO is done, or because this branch is done
@@ -231,8 +236,12 @@ private final class IOFiber[A](
       runLoop(fin, nextCancelation, nextAutoCede)
     } else {
 
-      if (needToUnmask) { // we're `poll(/*HERE*/_cur0)`
-        masks -= 1
+      if (masks < 0) {
+        // We're `poll(/*HERE*/_cur0)`, so
+        // we need to unmask (and remove the
+        // negative `masks`). This is the
+        // same as `masks = (-masks) - 1`:
+        masks = ~masks
       }
 
       /* Null IO, blow up but keep the failure within IO */
@@ -579,30 +588,28 @@ private final class IOFiber[A](
           val self = this
 
           /*
-           * we keep track of nested uncancelable sections.
+           * We keep track of nested uncancelable sections.
            * The outer block wins.
            */
-          val willNeedToUnmask = if (masks == cur.id && (self eq cur.self)) {
+          if (masks == cur.id && (self eq cur.self)) {
+            /*
+             * We can't unmask right now, because right
+             * inside poll we're not allowed to cancel.
+             * We'll have to unmark right before starting
+             * to execute `cur.ioa`. So we encode this
+             * by multiplying `masks` with -1, and check
+             * for that during the next iteration.
+             */
+            masks = -masks
             /*
              * The UnmaskK marker gets used by `succeeded` and `failed`
              * to restore masking state after `cur.ioa` has finished
              */
             conts = ByteStack.push(conts, UnmaskK)
-            true
-          } else {
-            false
+
           }
 
-          // this is ugly, but we pass on that we will need
-          // to unmask right before executing `cur.ioa` (but
-          // after any possible cancellation checks because
-          // we mustn't cancel before `cur.ioa`); we also add
-          // 1 to `nextCancelation`, to make sure the check
-          // at the beginning of `runLoop` never finds that
-          // it should cancel (`nextCancelation` is never 0
-          // here, so +1 makes sure it will never reach 0 at
-          // the next check either):
-          runLoop(cur.ioa, nextCancelation + 1, nextAutoCede, needToUnmask = willNeedToUnmask)
+          runLoop(cur.ioa, nextCancelation, nextAutoCede)
 
         case 14 =>
           val cur = cur0.asInstanceOf[IOCont[Any, Any]]
