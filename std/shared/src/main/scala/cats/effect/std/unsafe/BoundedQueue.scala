@@ -21,6 +21,16 @@ package unsafe
 
 import cats.syntax.all._
 
+/**
+ * A [[Queue]] which supports a side-effecting variant of `tryOffer`, allowing impure code to
+ * add elements to the queue without having to indirect through something like [[Dispatcher]].
+ * Note that a side-effecting variant of `offer` is impossible without hard-blocking a thread
+ * (when the queue is full), and thus is not supported by this API. For a variant of the same
+ * queue which supports a side-effecting `offer`, see [[UnboundedQueue]].
+ *
+ * @see
+ *   [[Queue.unsafeBounded]]
+ */
 trait BoundedQueue[F[_], A] extends Queue[F, A] with BoundedQueueSink[F, A]
 
 object BoundedQueue {

@@ -105,6 +105,20 @@ object Queue {
   private[effect] def unboundedForAsync[F[_], A](implicit F: Async[F]): F[Queue[F, A]] =
     F.delay(new UnboundedAsyncQueue())
 
+  /**
+   * Creates a new `Queue` subject to some `capacity` bound which supports a side-effecting
+   * `tryOffer` function, allowing impure code to directly add values to the queue without
+   * indirecting through something like [[Dispatcher]]. This can improve performance
+   * significantly in some common cases. Note that the queue produced by this constructor can be
+   * used as a perfectly conventional [[Queue]] (as it is a subtype).
+   *
+   * @param capacity
+   *   the maximum capacity of the queue (must be strictly greater than 1 and less than 32768)
+   * @return
+   *   an empty bounded queue
+   * @see
+   *   [[cats.effect.std.unsafe.BoundedQueue]]
+   */
   def unsafeBounded[F[_], A](capacity: Int)(
       implicit F: Async[F]): F[unsafe.BoundedQueue[F, A]] = {
     require(capacity > 1 && capacity < Short.MaxValue.toInt * 2)
@@ -141,6 +155,18 @@ object Queue {
         unboundedForConcurrent
     }
 
+  /**
+   * Creates a new `Queue` subject to some `capacity` bound which supports a side-effecting
+   * `offer` function, allowing impure code to directly add values to the queue without
+   * indirecting through something like [[Dispatcher]]. This can improve performance
+   * significantly in some common cases. Note that the queue produced by this constructor can be
+   * used as a perfectly conventional [[Queue]] (as it is a subtype).
+   *
+   * @return
+   *   an empty unbounded queue
+   * @see
+   *   [[cats.effect.std.unsafe.UnboundedQueue]]
+   */
   def unsafeUnbounded[F[_], A](implicit F: Async[F]): F[unsafe.UnboundedQueue[F, A]] =
     F.delay(new UnboundedAsyncQueue())
 

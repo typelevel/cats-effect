@@ -21,6 +21,13 @@ package unsafe
 
 import cats.syntax.all._
 
+/**
+ * A [[Queue]] which supports a side-effecting variant of `offer`, allowing impure code to add
+ * elements to the queue without having to indirect through something like [[Dispatcher]].
+ *
+ * @see
+ *   [[Queue.unsafeUnbounded]]
+ */
 trait UnboundedQueue[F[_], A]
     extends Queue[F, A]
     with BoundedQueue[F, A]
