@@ -285,7 +285,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
             }
           }
 
-          rec.use(_ => IO.unit)
+          rec.use(_ => awaitAll)
         }
       } yield ok
     }
