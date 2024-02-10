@@ -481,7 +481,7 @@ object Dispatcher {
           }
 
         case Registration.Finalizer(action) =>
-          supervisor.supervise(action).void
+          supervisor.supervise(action).void.voidError
 
         case Registration.PoisonPill() =>
           Sync[F].delay(doneR.set(true))
