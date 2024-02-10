@@ -71,12 +71,12 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *     the callback will be effective! All subsequent invocations will be silently dropped.
    *
    * The process of registering the callback itself is suspended in `F` (the outer `F` of
-   * `F[Either[Option[G[Unit]], A]]`).
+   * `F[Either[Option[F[Unit]], A]]`).
    *
    * The effect returns `Either[Option[F[Unit]], A]` where:
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
-   *   - left side `Option[F[Unit]] `is an optional finalizer to be run in the event that the
+   *   - left side `Option[F[Unit]]` is an optional finalizer to be run in the event that the
    *     fiber running `asyncCheckAttempt(k)` is canceled.
    *
    * Also, note that `asyncCheckAttempt` is uncancelable during its registration.
@@ -139,7 +139,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * This function can be thought of as a safer, lexically-constrained version of `Promise`,
    * where `IO` is like a safer, lazy version of `Future`.
    *
-   * Also, note that `async` is uncancelable during its registration.
+   * Also, note that `async_` is uncancelable during its registration.
    *
    * @see
    *   [[async]] for more generic version providing a finalizer
