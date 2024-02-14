@@ -9,6 +9,7 @@ const users = [
   ['Agoda', 'https://www.agoda.com/'],
   ['Azavea', 'https://www.azavea.com/'],
   ['Anduin Transactions', 'https://www.anduintransact.com/'],
+  ['Avantstay', 'https://avantstay.com/'],
   ['BUX', 'https://getbux.com/'],
   ['Cleverbase', 'https://cleverbase.com/'],
   ['Comcast', 'https://comcast.com'],
