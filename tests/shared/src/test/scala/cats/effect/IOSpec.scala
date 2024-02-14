@@ -1270,6 +1270,26 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         guarantee mustEqual 42
       }
 
+      "never cancel poll(uncancelable(...))" in ticked { implicit ticker =>
+        var onCancel = false
+        var guarantee = 0
+        val test = IO
+          .uncancelable { poll =>
+            IO.canceled *> poll(IO.uncancelable(_ => IO.unit *> IO.pure(42))).onCancel(IO {
+              onCancel = true
+            })
+          }
+          .guaranteeCase {
+            case Outcome.Succeeded(io) => io.flatMap(result => IO { guarantee = result })
+            case _ => IO.unit
+          }
+          .void
+
+        test must selfCancel
+        onCancel must beFalse
+        guarantee mustEqual 42
+      }
+
       "correctly cancel poll(never)" in ticked { implicit ticker =>
         var passed = false
         val test = IO.uncancelable { poll =>
