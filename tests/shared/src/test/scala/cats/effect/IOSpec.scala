@@ -1290,30 +1290,85 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         guarantee mustEqual 42
       }
 
-      "correctly cancel poll(never)" in ticked { implicit ticker =>
-        var passed = false
+      def pollAsyncTest(async: IO[Unit], isCancelable: Boolean)(implicit ticker: Ticker) = {
+        var cancelled = false
         val test = IO.uncancelable { poll =>
-          IO.canceled *> poll(IO.never[Unit]).onCancel(IO { passed = true })
-        }
+          IO.canceled *> poll(async).onCancel(IO { cancelled = true })
+        }.void
 
         test must selfCancel
-        passed must beTrue
+        cancelled mustEqual isCancelable
       }
 
-      "correctly cancel poll(async)" in ticked { implicit ticker =>
-        var passed = false
-        val test = IO.uncancelable { poll =>
-          val async = IO.async[Unit] { cb =>
+      "never cancel poll(async_)" in ticked { implicit ticker =>
+        val async = IO.async_[Unit] { cb =>
+          cb(Right(()))
+          ()
+        }
+        pollAsyncTest(async, isCancelable = false)
+      }
+
+      "never cancel poll(async) without finalizer" in ticked { implicit ticker =>
+        val async = IO.async[Unit] { cb =>
+          IO {
+            cb(Right(()))
+            None
+          }
+        }
+        pollAsyncTest(async, isCancelable = false)
+      }
+
+      "never cancel poll(async) which doesn't suspend" in ticked { implicit ticker =>
+        val async = IO.async[Unit] { cb =>
+          IO {
+            cb(Right(()))
+            Some(IO.unit)
+          }
+        }
+        pollAsyncTest(async, isCancelable = false)
+      }
+
+      "correctly cancel poll(never)" in ticked { implicit ticker =>
+        pollAsyncTest(IO.never[Unit], isCancelable = true)
+      }
+
+      "correctly cancel poll(async) which suspends and has finalizer" in ticked {
+        implicit ticker =>
+          val async = IO.async[Unit] { _ => IO.pure(Some(IO.unit)) }
+          pollAsyncTest(async, isCancelable = true)
+      }
+
+      "never cancel poll(asyncCheckAttempt) with immediate result" in ticked {
+        implicit ticker =>
+          val async = IO.asyncCheckAttempt[Unit] { _ => IO.pure(Right(())) }
+          pollAsyncTest(async, isCancelable = false)
+      }
+
+      "never cancel poll(asyncCheckAttempt) without finalizer" in ticked { implicit ticker =>
+        val async = IO.asyncCheckAttempt[Unit] { cb =>
+          IO {
+            cb(Right(()))
+            Left(None)
+          }
+        }
+        pollAsyncTest(async, isCancelable = false)
+      }
+
+      "never cancel poll(asyncCheckAttempt) which doesn't suspend" in ticked {
+        implicit ticker =>
+          val async = IO.asyncCheckAttempt[Unit] { cb =>
             IO {
               cb(Right(()))
-              Some(IO.unit)
+              Left(Some(IO.unit))
             }
           }
-          IO.canceled *> poll(async).onCancel(IO { passed = true })
-        }
+          pollAsyncTest(async, isCancelable = false)
+      }
 
-        test must selfCancel
-        passed must beTrue
+      "correctly cancel poll(asyncCheckAttempt) which suspends and has finalizer" in ticked {
+        implicit ticker =>
+          val async = IO.asyncCheckAttempt[Unit] { _ => IO.pure(Left(Some(IO.unit))) }
+          pollAsyncTest(async, isCancelable = true)
       }
 
       "correctly cancel after cede" in ticked { implicit ticker =>
