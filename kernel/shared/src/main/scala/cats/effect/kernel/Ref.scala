@@ -34,7 +34,11 @@ import cats.syntax.all._
  * mutable data as `AtomicReference#compareAndSet` and friends are dependent upon object
  * reference equality.
  *
- * See also `cats.effect.std.AtomicCell` class from `cats-effect-std` for an alternative.
+ * See also `cats.effect.std.AtomicCell` class from `cats-effect-std` for an alternative that
+ * ensures exclusive access and effectual updates.
+ *
+ * If your contents are an immutable `Map[K, V]`, and all your operations are per-key, consider
+ * using `cats.effect.std.MapRef`.
  */
 abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 

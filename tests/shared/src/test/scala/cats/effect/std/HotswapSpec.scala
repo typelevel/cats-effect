@@ -97,6 +97,23 @@ class HotswapSpec extends BaseSpec { outer =>
       go must completeAs(())
     }
 
+    "not finalize Hotswap while resource is in use" in ticked { implicit ticker =>
+      val r = Resource.make(IO.ref(true))(_.set(false))
+      val go = Hotswap.create[IO, Ref[IO, Boolean]].allocated.flatMap {
+        case (hs, fin) =>
+          hs.swap(r) *> (IO.sleep(1.second) *> fin).background.surround {
+            hs.get.use {
+              case Some(ref) =>
+                val notReleased = ref.get.flatMap(b => IO(b must beTrue))
+                notReleased *> IO.sleep(2.seconds) *> notReleased.void
+              case None => IO(false must beTrue).void
+            }
+          }
+      }
+
+      go must completeAs(())
+    }
+
     "resource can be accessed concurrently" in ticked { implicit ticker =>
       val go = Hotswap.create[IO, Unit].use { hs =>
         hs.swap(Resource.unit) *>
@@ -148,6 +165,15 @@ class HotswapSpec extends BaseSpec { outer =>
 
       TestControl.executeEmbed(go, IORuntimeConfig(1, 2)).replicateA_(1000) must completeAs(())
     }
-  }
 
+    "get should not acquire a lock when there is no resource present" in ticked {
+      implicit ticker =>
+        val go = Hotswap.create[IO, Unit].use { hs =>
+          hs.get.useForever.start *>
+            IO.sleep(2.seconds) *>
+            hs.swap(Resource.unit)
+        }
+        go must completeAs(())
+    }
+  }
 }

@@ -62,4 +62,5 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    */
   def readLine: IO[String] =
     Console[IO].readLine
+
 }

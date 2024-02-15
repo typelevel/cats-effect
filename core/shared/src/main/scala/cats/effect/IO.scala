@@ -22,6 +22,7 @@ import cats.{
   Applicative,
   CommutativeApplicative,
   Eval,
+  Foldable,
   Functor,
   Id,
   Monad,
@@ -40,6 +41,7 @@ import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleDuration
 import cats.effect.std.{Backpressure, Console, Env, Supervisor, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
+import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import scala.annotation.unchecked.uncheckedVariance
@@ -56,6 +58,8 @@ import scala.util.control.NonFatal
 
 import java.util.UUID
 import java.util.concurrent.Executor
+
+import Platform.static
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -358,10 +362,26 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    */
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
+  /**
+   * Shifts the execution of the current IO to the specified [[java.util.concurrent.Executor]].
+   *
+   * @see
+   *   [[evalOn]]
+   */
+  def evalOnExecutor(executor: Executor): IO[A] =
+    IO.asyncForIO.evalOnExecutor(this, executor)
+
   def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = start.evalOn(ec)
+
+  def startOnExecutor(executor: Executor): IO[FiberIO[A @uncheckedVariance]] =
+    IO.asyncForIO.startOnExecutor(this, executor)
 
   def backgroundOn(ec: ExecutionContext): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
     Resource.make(startOn(ec))(_.cancel).map(_.join)
+
+  def backgroundOnExecutor(
+      executor: Executor): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
+    IO.asyncForIO.backgroundOnExecutor(this, executor)
 
   /**
    * Given an effect which might be [[uncancelable]] and a finalizer, produce an effect which
@@ -652,7 +672,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     else
       flatMap(a => replicateA(n - 1).map(a :: _))
 
-  // TODO PR to cats
   def replicateA_(n: Int): IO[Unit] =
     if (n <= 0)
       IO.unit
@@ -1092,6 +1111,9 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
+  @static private[this] val _alignForIO = new IOAlign
+  @static private[this] val _asyncForIO: kernel.Async[IO] = new IOAsync
+
   /**
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing
    * parallel processing in `ap` and `map2`, needed for implementing `cats.Parallel`.
@@ -1405,6 +1427,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     _asyncForIO.parTraverseN(n)(ta)(f)
 
   /**
+   * Like `Parallel.parTraverse_`, but limits the degree of parallelism.
+   */
+  def parTraverseN_[T[_]: Foldable, A, B](n: Int)(ta: T[A])(f: A => IO[B]): IO[Unit] =
+    _asyncForIO.parTraverseN_(n)(ta)(f)
+
+  /**
+   * Like `Parallel.parSequence_`, but limits the degree of parallelism.
+   */
+  def parSequenceN_[T[_]: Foldable, A](n: Int)(tma: T[IO[A]]): IO[Unit] =
+    _asyncForIO.parSequenceN_(n)(tma)
+
+  /**
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
    */
   def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[IO[A]]): IO[T[A]] =
@@ -1484,6 +1518,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def trace: IO[Trace] =
     IOTrace
+
+  private[effect] def runtime: IO[IORuntime] = ReadRT
+
+  def pollers: IO[List[Any]] =
+    IO.runtime.map(_.pollers)
 
   def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
     Uncancelable(body, Tracing.calculateTracingEvent(body))
@@ -1753,7 +1792,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit def alignForIO: Align[IO] = _alignForIO
 
-  private[this] val _alignForIO = new Align[IO] {
+  private[this] final class IOAlign extends Align[IO] {
     def align[A, B](fa: IO[A], fb: IO[B]): IO[Ior[A, B]] =
       alignWith(fa, fb)(identity)
 
@@ -1766,8 +1805,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def functor: Functor[IO] = Functor[IO]
   }
 
-  private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]
-    with StackSafeMonad[IO] {
+  private[this] final class IOAsync extends kernel.Async[IO] with StackSafeMonad[IO] {
 
     override def asyncCheckAttempt[A](
         k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
@@ -2085,6 +2123,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object IOTrace extends IO[Trace] {
     def tag = 23
+  }
+
+  private[effect] case object ReadRT extends IO[IORuntime] {
+    def tag = 24
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations

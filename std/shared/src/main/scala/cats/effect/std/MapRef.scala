@@ -17,7 +17,6 @@
 package cats.effect.std
 
 import cats._
-import cats.conversions.all._
 import cats.data._
 import cats.effect.kernel._
 import cats.syntax.all._
@@ -26,8 +25,15 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * This is a total map from K to Ref[F, V]. This allows us to use the Ref API backed by a
- * ConcurrentHashMap or similar.
+ * This is a total map from `K` to `Ref[F, V]`.
+ *
+ * It is conceptually similar to a `Ref[F, Map[K, V]]`, but with better ergonomics when working
+ * on a per key basis. Note, however, that it does not support atomic updates to multiple keys.
+ *
+ * Additionally, some implementations also provide less contention: since all operations are
+ * performed on individual key-value pairs, the pairs can be sharded by key. Thus, multiple
+ * concurrent updates may be executed independently to each other, as long as their keys belong
+ * to different shards.
  */
 trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 
@@ -191,7 +197,7 @@ object MapRef extends MapRefCompanionPlatform {
 
       def tryModify[B](f: Option[V] => (Option[V], B)): F[Option[B]] =
         // we need the suspend because we do effects inside
-        delay {
+        delay[F[Option[B]]] {
           val init = chm.get(k)
           if (init == null) {
             f(None) match {

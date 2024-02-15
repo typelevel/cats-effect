@@ -25,7 +25,6 @@ import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, 
 import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
-import cats.syntax.all._
 
 import org.scalacheck.Prop
 import org.specs2.mutable._
@@ -55,7 +54,7 @@ class OptionTPureConcSpec extends Specification with Discipline with BaseSpec {
         case Outcome.Succeeded(fa) =>
           observed = true
 
-          OptionT(fa.value.map(_ must beNone).as(None))
+          OptionT(fa.value.map(_ must beNone).map(_ => None))
 
         case _ => Applicative[OptionT[PureConc[Int, *], *]].unit
       }

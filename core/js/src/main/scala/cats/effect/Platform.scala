@@ -20,4 +20,6 @@ private object Platform {
   final val isJs = true
   final val isJvm = false
   final val isNative = false
+
+  class static extends scala.annotation.Annotation
 }

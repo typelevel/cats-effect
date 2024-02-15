@@ -454,8 +454,8 @@ private final class TimerHeap extends AtomicInteger {
 
       // if we're on the thread that owns this heap, we can remove ourselves immediately
       val thread = Thread.currentThread()
-      if (thread.isInstanceOf[WorkerThread]) {
-        val worker = thread.asInstanceOf[WorkerThread]
+      if (thread.isInstanceOf[WorkerThread[_]]) {
+        val worker = thread.asInstanceOf[WorkerThread[_]]
         val heap = TimerHeap.this
         if (worker.ownsTimers(heap)) {
           // remove only if we are still in the heap

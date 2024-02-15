@@ -9,7 +9,7 @@ Syntactic sugar that allows for direct-style programming.
 
 This feature is provided by an incubating side-library that lives in another repository ([typelevel/cats-effect-cps](https://github.com/typelevel/cats-effect-cps)), so that it can undergo updates at a higher pace than Cats Effect if required.
 
-Because it relies on experimental functionality from the compiler, cats-effec-cps ought to be considered experimental until upstream support stabilises, at which point it will be folded into Cats Effect itself.
+Because it relies on experimental functionality from the compiler, cats-effect-cps ought to be considered experimental until upstream support stabilises, at which point it will be folded into Cats Effect itself.
 
 ## Installation
 

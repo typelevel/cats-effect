@@ -167,11 +167,36 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
 
   /**
+   * [[Async.evalOn]] with provided [[java.util.concurrent.Executor]]
+   */
+  def evalOnExecutor[A](fa: F[A], executor: Executor): F[A] = {
+    require(executor != null, "Cannot pass null Executor as an argument")
+    executor match {
+      case ec: ExecutionContext =>
+        evalOn[A](fa, ec: ExecutionContext)
+      case executor =>
+        flatMap(executionContext) { refEc =>
+          val newEc: ExecutionContext =
+            ExecutionContext.fromExecutor(executor, refEc.reportFailure)
+          evalOn[A](fa, newEc)
+        }
+    }
+  }
+
+  /**
    * [[Async.evalOn]] as a natural transformation.
    */
   def evalOnK(ec: ExecutionContext): F ~> F =
     new (F ~> F) {
       def apply[A](fa: F[A]): F[A] = evalOn(fa, ec)
+    }
+
+  /**
+   * [[Async.evalOnExecutor]] as a natural transformation.
+   */
+  def evalOnExecutorK(executor: Executor): F ~> F =
+    new (F ~> F) {
+      def apply[A](fa: F[A]): F[A] = evalOnExecutor(fa, executor)
     }
 
   /**
@@ -183,6 +208,14 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
     evalOn(start(fa), ec)
 
   /**
+   * Start a new fiber on a different executor.
+   *
+   * See [[GenSpawn.start]] for more details.
+   */
+  def startOnExecutor[A](fa: F[A], executor: Executor): F[Fiber[F, Throwable, A]] =
+    evalOnExecutor(start(fa), executor)
+
+  /**
    * Start a new background fiber on a different execution context.
    *
    * See [[GenSpawn.background]] for more details.
@@ -191,6 +224,16 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
       fa: F[A],
       ec: ExecutionContext): Resource[F, F[Outcome[F, Throwable, A]]] =
     Resource.make(startOn(fa, ec))(_.cancel)(this).map(_.join)
+
+  /**
+   * Start a new background fiber on a different executor.
+   *
+   * See [[GenSpawn.background]] for more details.
+   */
+  def backgroundOnExecutor[A](
+      fa: F[A],
+      executor: Executor): Resource[F, F[Outcome[F, Throwable, A]]] =
+    Resource.make(startOnExecutor(fa, executor))(_.cancel)(this).map(_.join)
 
   /**
    * Obtain a reference to the current execution context.
@@ -212,9 +255,9 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   [[fromFutureCancelable]] for a cancelable version
    */
   def fromFuture[A](fut: F[Future[A]]): F[A] =
-    flatMap(fut) { f =>
-      flatMap(executionContext) { implicit ec =>
-        async_[A](cb => f.onComplete(t => cb(t.toEither)))
+    flatMap(executionContext) { implicit ec =>
+      uncancelable { poll =>
+        flatMap(poll(fut)) { f => async_[A](cb => f.onComplete(t => cb(t.toEither))) }
       }
     }
 
@@ -222,11 +265,15 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * Like [[fromFuture]], but is cancelable via the provided finalizer.
    */
   def fromFutureCancelable[A](futCancel: F[(Future[A], F[Unit])]): F[A] =
-    flatMap(futCancel) {
-      case (fut, fin) =>
-        flatMap(executionContext) { implicit ec =>
-          async[A](cb => as(delay(fut.onComplete(t => cb(t.toEither))), Some(fin)))
+    flatMap(executionContext) { implicit ec =>
+      uncancelable { poll =>
+        flatMap(poll(futCancel)) {
+          case (fut, fin) =>
+            onCancel(
+              poll(async[A](cb => as(delay(fut.onComplete(t => cb(t.toEither))), Some(unit)))),
+              fin)
         }
+      }
     }
 
   /**
@@ -363,7 +410,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: OptionT[F, Unique.Token] =
       delay(new Unique.Token())
@@ -434,7 +481,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: EitherT[F, E, Unique.Token] =
       delay(new Unique.Token())
@@ -506,7 +553,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: IorT[F, L, Unique.Token] =
       delay(new Unique.Token())
@@ -577,7 +624,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: WriterT[F, L, Unique.Token] =
       delay(new Unique.Token())
@@ -645,7 +692,7 @@ object Async {
     implicit protected def F: Async[F]
 
     override protected final def delegate = super.delegate
-    override protected final def C = F
+    override protected final def C: Clock[F] = F
 
     override def unique: Kleisli[F, R, Unique.Token] =
       delay(new Unique.Token())

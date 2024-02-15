@@ -45,6 +45,10 @@ package examples {
     register(Arguments)
     register(NonFatalError)
     register(FatalError)
+    register(RaiseFatalErrorAttempt)
+    register(RaiseFatalErrorHandle)
+    register(RaiseFatalErrorMap)
+    register(RaiseFatalErrorFlatMap)
     registerRaw(FatalErrorRaw)
     register(Canceled)
     registerLazy("catseffect.examples.GlobalRacingInit", GlobalRacingInit)
@@ -104,21 +108,6 @@ package examples {
 
   object UndefinedProcessExit extends IOApp {
     def run(args: List[String]): IO[ExitCode] = IO.pure(ExitCode.Success)
-  }
-
-  // stub
-  object EvalOnMainThread extends IOApp {
-    def run(args: List[String]): IO[ExitCode] = IO.never
-  }
-
-  // stub
-  object MainThreadReportFailure extends IOApp {
-    def run(args: List[String]): IO[ExitCode] = IO.never
-  }
-
-  // stub
-  object BlockedThreads extends IOApp.Simple {
-    val run = IO.never
   }
 
 }
