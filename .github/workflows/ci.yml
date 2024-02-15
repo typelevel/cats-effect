@@ -283,20 +283,12 @@ jobs:
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
         shell: bash
-<<<<<<< HEAD
-        run: mkdir -p benchmarks/target testkit/native/target target std/jvm/target example/js/target kernel-testkit/jvm/target testkit/js/target rootJS/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target graalvm-example/target kernel-testkit/js/target core/jvm/target rootJVM/target rootNative/target example/native/target kernel/native/target example/jvm/target laws/jvm/target std/native/target testkit/jvm/target project/target
-=======
         run: mkdir -p testkit/native/target std/jvm/target kernel-testkit/jvm/target testkit/js/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target kernel-testkit/js/target core/jvm/target kernel/native/target laws/jvm/target std/native/target testkit/jvm/target project/target
->>>>>>> series/3.x
 
       - name: Compress target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
         shell: bash
-<<<<<<< HEAD
-        run: tar cf targets.tar benchmarks/target testkit/native/target target std/jvm/target example/js/target kernel-testkit/jvm/target testkit/js/target rootJS/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target graalvm-example/target kernel-testkit/js/target core/jvm/target rootJVM/target rootNative/target example/native/target kernel/native/target example/jvm/target laws/jvm/target std/native/target testkit/jvm/target project/target
-=======
         run: tar cf targets.tar testkit/native/target std/jvm/target kernel-testkit/jvm/target testkit/js/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target kernel-testkit/js/target core/jvm/target kernel/native/target laws/jvm/target std/native/target testkit/jvm/target project/target
->>>>>>> series/3.x
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
@@ -617,5 +609,5 @@ jobs:
       - name: Submit Dependencies
         uses: scalacenter/sbt-dependency-submission@v2
         with:
-          modules-ignore: cats-effect-benchmarks_3 cats-effect-benchmarks_2.12 cats-effect-benchmarks_2.13 cats-effect_3 cats-effect_2.12 cats-effect_2.13 cats-effect-stress-tests_3 cats-effect-stress-tests_2.12 cats-effect-stress-tests_2.13 cats-effect-example_sjs1_3 cats-effect-example_sjs1_2.12 cats-effect-example_sjs1_2.13 rootjs_3 rootjs_2.12 rootjs_2.13 ioapptestsnative_3 ioapptestsnative_2.12 ioapptestsnative_2.13 cats-effect-graalvm-example_3 cats-effect-graalvm-example_2.12 cats-effect-graalvm-example_2.13 cats-effect-tests_sjs1_3 cats-effect-tests_sjs1_2.12 cats-effect-tests_sjs1_2.13 rootjvm_3 rootjvm_2.12 rootjvm_2.13 rootnative_3 rootnative_2.12 rootnative_2.13 cats-effect-example_native0.4_3 cats-effect-example_native0.4_2.12 cats-effect-example_native0.4_2.13 cats-effect-example_3 cats-effect-example_2.12 cats-effect-example_2.13 cats-effect-tests_3 cats-effect-tests_2.12 cats-effect-tests_2.13 ioapptestsjvm_3 ioapptestsjvm_2.12 ioapptestsjvm_2.13 ioapptestsjs_3 ioapptestsjs_2.12 ioapptestsjs_2.13 cats-effect-tests_native0.4_3 cats-effect-tests_native0.4_2.12 cats-effect-tests_native0.4_2.13
+          modules-ignore: cats-effect-benchmarks_3 cats-effect-benchmarks_2.12 cats-effect-benchmarks_2.13 cats-effect_3 cats-effect_2.12 cats-effect_2.13 cats-effect-example_sjs1_3 cats-effect-example_sjs1_2.12 cats-effect-example_sjs1_2.13 rootjs_3 rootjs_2.12 rootjs_2.13 ioapptestsnative_3 ioapptestsnative_2.12 ioapptestsnative_2.13 cats-effect-graalvm-example_3 cats-effect-graalvm-example_2.12 cats-effect-graalvm-example_2.13 cats-effect-tests_sjs1_3 cats-effect-tests_sjs1_2.12 cats-effect-tests_sjs1_2.13 rootjvm_3 rootjvm_2.12 rootjvm_2.13 rootnative_3 rootnative_2.12 rootnative_2.13 cats-effect-example_native0.4_3 cats-effect-example_native0.4_2.12 cats-effect-example_native0.4_2.13 cats-effect-example_3 cats-effect-example_2.12 cats-effect-example_2.13 cats-effect-tests_3 cats-effect-tests_2.12 cats-effect-tests_2.13 ioapptestsjvm_3 ioapptestsjvm_2.12 ioapptestsjvm_2.13 ioapptestsjs_3 ioapptestsjs_2.12 ioapptestsjs_2.13 cats-effect-tests_native0.4_3 cats-effect-tests_native0.4_2.12 cats-effect-tests_native0.4_2.13
           configs-ignore: test scala-tool scala-doc-tool test-internal
