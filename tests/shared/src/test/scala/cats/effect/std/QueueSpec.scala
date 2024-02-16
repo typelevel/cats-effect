@@ -372,6 +372,7 @@ class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
     commonTests(_ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     batchTakeTests(_ => constructor, _.offer(_), _.tryTakeN(_))
     batchOfferTests(_ => constructor, _.tryOfferN(_), _.tryTakeN(_))
+    cancelableTakeTests(_ => constructor, _.offer(_), _.take)
   }
 }
 
