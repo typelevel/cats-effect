@@ -888,24 +888,12 @@ private final class IOFiber[A](
              *   completed and the state is "result"
              */
 
-            val result = state.get()
-
-            if (!shouldFinalize()) {
-              /* we weren't canceled, so resume the runloop */
-              val next = result match {
-                case Left(t) => failed(t, 0)
-                case Right(a) => succeeded(a, 0)
-              }
-
-              runLoop(next, nextCancelation, nextAutoCede)
-            } else if (outcome == null) {
-              /*
-               * we were canceled, but `cancel` cannot run the finalisers
-               * because the runloop was not suspended, so we have to run them
-               */
-              val fin = prepareFiberForCancelation(null)
-              runLoop(fin, nextCancelation, nextAutoCede)
+            val next = state.get() match {
+              case Left(t) => failed(t, 0)
+              case Right(a) => succeeded(a, 0)
             }
+
+            runLoop(next, nextCancelation, nextAutoCede)
           }
 
         /* Cede */
