@@ -1,0 +1,8 @@
+cats-effect
+Copyright 2020-2024 Typelevel
+Licensed under Apache License 2.0 (see LICENSE)
+
+This software contains portions of code derived from scala-js
+https://github.com/scala-js/scala-js
+Copyright EPFL
+Licensed under Apache License 2.0 (see LICENSE)

@@ -36,12 +36,15 @@ import cats.effect.tracing.TracingConstants
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.control.NonFatal
 
 import java.time.Instant
 import java.time.temporal.ChronoField
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
+
+import WorkStealingThreadPool._
 
 /**
  * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose
@@ -78,7 +81,7 @@ private[effect] final class WorkStealingThreadPool[P](
    */
   private[this] val workerThreads: Array[WorkerThread[P]] = new Array(threadCount)
   private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
-  private[unsafe] val sleepers: Array[TimerSkipList] = new Array(threadCount)
+  private[unsafe] val sleepers: Array[TimerHeap] = new Array(threadCount)
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
   private[unsafe] val pollers: Array[P] =
@@ -135,8 +138,8 @@ private[effect] final class WorkStealingThreadPool[P](
     while (i < threadCount) {
       val queue = new LocalQueue()
       localQueues(i) = queue
-      val sleepersList = new TimerSkipList()
-      sleepers(i) = sleepersList
+      val sleepersHeap = new TimerHeap()
+      sleepers(i) = sleepersHeap
       val parkedSignal = new AtomicBoolean(false)
       parkedSignals(i) = parkedSignal
       val index = i
@@ -152,7 +155,7 @@ private[effect] final class WorkStealingThreadPool[P](
           parkedSignal,
           externalQueue,
           fiberBag,
-          sleepersList,
+          sleepersHeap,
           system,
           poller,
           this)
@@ -254,18 +257,7 @@ private[effect] final class WorkStealingThreadPool[P](
       // (note: it doesn't matter if we try to steal
       // from ourselves).
       val index = (from + i) % threadCount
-      val tsl = sleepers(index)
-      var invoked = false // whether we successfully invoked a timer
-      var cont = true
-      while (cont) {
-        val cb = tsl.pollFirstIfTriggered(now)
-        if (cb ne null) {
-          cb(RightUnit)
-          invoked = true
-        } else {
-          cont = false
-        }
-      }
+      val invoked = sleepers(index).steal(now) // whether we successfully invoked a timer
 
       if (invoked) {
         // we did some work, don't
@@ -326,24 +318,6 @@ private[effect] final class WorkStealingThreadPool[P](
     }
 
     false
-  }
-
-  /**
-   * A specialized version of `notifyParked`, for when we know which thread to wake up, and know
-   * that it should wake up due to a new timer (i.e., it must always wake up, even if only to go
-   * back to sleep, because its current sleeping time might be incorrect).
-   *
-   * @param index
-   *   The index of the thread to notify (must be less than `threadCount`).
-   */
-  private[this] final def notifyForTimer(index: Int): Unit = {
-    val signal = parkedSignals(index)
-    if (signal.getAndSet(false)) {
-      state.getAndAdd(DeltaSearching)
-      workerThreadPublisher.get()
-      val worker = workerThreads(index)
-      system.interrupt(worker, pollers(index))
-    } // else: was already unparked
   }
 
   /**
@@ -649,8 +623,6 @@ private[effect] final class WorkStealingThreadPool[P](
     now.getEpochSecond() * 1000000 + now.getLong(ChronoField.MICRO_OF_SECOND)
   }
 
-  private[this] val RightUnit = IOFiber.RightUnit
-
   /**
    * Tries to call the current worker's `sleep`, but falls back to `sleepExternal` if needed.
    */
@@ -673,26 +645,37 @@ private[effect] final class WorkStealingThreadPool[P](
   }
 
   /**
-   * Chooses a random `TimerSkipList` from this pool, and inserts the `callback`.
+   * Reschedule onto a worker thread and then submit the sleep.
    */
   private[this] final def sleepExternal(
       delay: FiniteDuration,
       callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
-    val random = ThreadLocalRandom.current()
-    val idx = random.nextInt(threadCount)
-    val tsl = sleepers(idx)
-    val cancel = tsl.insert(
-      now = System.nanoTime(),
-      delay = delay.toNanos,
-      callback = callback,
-      tlr = random
-    )
-    notifyForTimer(idx)
+    val scheduledAt = monotonicNanos()
+    val cancel = new ExternalSleepCancel
+
+    scheduleExternal { () =>
+      val worker = Thread.currentThread().asInstanceOf[WorkerThread[_]]
+      cancel.setCallback(worker.sleepLate(scheduledAt, delay, callback))
+    }
+
     cancel
   }
 
   override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-    sleepInternal(delay, _ => task.run())
+    val cb = new AtomicBoolean with (Right[Nothing, Unit] => Unit) { // run at most once
+      def apply(ru: Right[Nothing, Unit]) = if (compareAndSet(false, true)) {
+        try {
+          task.run()
+        } catch {
+          case ex if NonFatal(ex) =>
+            reportFailure(ex)
+        }
+      }
+    }
+
+    val cancel = sleepInternal(delay, cb)
+
+    () => if (cb.compareAndSet(false, true)) cancel.run() else ()
   }
 
   /**
@@ -844,4 +827,30 @@ private[effect] final class WorkStealingThreadPool[P](
    */
   private[unsafe] def getSuspendedFiberCount(): Long =
     workerThreads.map(_.getSuspendedFiberCount().toLong).sum
+}
+
+private object WorkStealingThreadPool {
+
+  /**
+   * A wrapper for a cancelation callback that is created asynchronously.
+   */
+  private final class ExternalSleepCancel
+      extends AtomicReference[Function0[Unit]]
+      with Function0[Unit]
+      with Runnable { callback =>
+    def setCallback(cb: Function0[Unit]) = {
+      val back = callback.getAndSet(cb)
+      if (back eq CanceledSleepSentinel)
+        cb() // we were already canceled, invoke right away
+    }
+
+    def apply() = {
+      val back = callback.getAndSet(CanceledSleepSentinel)
+      if (back ne null) back()
+    }
+
+    def run() = apply()
+  }
+
+  private val CanceledSleepSentinel: Function0[Unit] = () => ()
 }

@@ -52,7 +52,7 @@ private final class WorkerThread[P](
     private[this] val external: ScalQueue[AnyRef],
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
-    private[this] var sleepers: TimerSkipList,
+    private[this] var sleepers: TimerHeap,
     private[this] val system: PollingSystem.WithPoller[P],
     private[this] var _poller: P,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
@@ -107,6 +107,12 @@ private final class WorkerThread[P](
   private val indexTransfer: LinkedTransferQueue[Integer] = new LinkedTransferQueue()
   private[this] val runtimeBlockingExpiration: Duration = pool.runtimeBlockingExpiration
 
+  private[this] val RightUnit = Right(())
+  private[this] val noop = new Function0[Unit] with Runnable {
+    def apply() = ()
+    def run() = ()
+  }
+
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.getAndIncrement()
 
   // Constructor code.
@@ -155,20 +161,53 @@ private final class WorkerThread[P](
     }
   }
 
-  def sleep(
-      delay: FiniteDuration,
-      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+  private[this] def nanoTime(): Long = {
     // take the opportunity to update the current time, just in case other timers can benefit
     val _now = System.nanoTime()
     now = _now
+    _now
+  }
+
+  def sleep(
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable =
+    sleepImpl(nanoTime(), delay.toNanos, callback)
+
+  /**
+   * A sleep that is being scheduled "late"
+   */
+  def sleepLate(
+      scheduledAt: Long,
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+    val _now = nanoTime()
+    val newDelay = delay.toNanos - (_now - scheduledAt)
+    if (newDelay > 0) {
+      sleepImpl(_now, newDelay, callback)
+    } else {
+      callback(RightUnit)
+      noop
+    }
+  }
+
+  private[this] def sleepImpl(
+      now: Long,
+      delay: Long,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+    val out = new Array[Right[Nothing, Unit] => Unit](1)
 
     // note that blockers aren't owned by the pool, meaning we only end up here if !blocking
-    sleepers.insert(
-      now = _now,
-      delay = delay.toNanos,
+    val cancel = sleepers.insert(
+      now = now,
+      delay = delay,
       callback = callback,
-      tlr = random
+      out = out
     )
+
+    val cb = out(0)
+    if (cb ne null) cb(RightUnit)
+
+    cancel
   }
 
   /**
@@ -252,6 +291,9 @@ private final class WorkerThread[P](
     foreign.toMap
   }
 
+  private[unsafe] def ownsTimers(timers: TimerHeap): Boolean =
+    sleepers eq timers
+
   /**
    * The run loop of the [[WorkerThread]].
    */
@@ -259,7 +301,6 @@ private final class WorkerThread[P](
     val self = this
     random = ThreadLocalRandom.current()
     val rnd = random
-    val RightUnit = IOFiber.RightUnit
     val reportFailure = pool.reportFailure(_)
 
     /*
@@ -524,6 +565,8 @@ private final class WorkerThread[P](
             }
           }
 
+          // Clean up any externally canceled timers
+          sleepers.packIfNeeded()
           // give the polling system a chance to discover events
           system.poll(_poller, 0, reportFailure)
 

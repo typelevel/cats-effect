@@ -394,7 +394,7 @@ trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with Scala
 
         // we race a lot of "sleeps", it must not hang
         // (this includes inserting and cancelling
-        // a lot of callbacks into the skip list,
+        // a lot of callbacks into the heap,
         // thus hopefully stressing the data structure):
         List
           .fill(500) {
@@ -426,6 +426,16 @@ trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with Scala
         }
 
         spin.as(ok)
+      }
+
+      "lots of externally-canceled timers" in real {
+        Resource
+          .make(IO(Executors.newSingleThreadExecutor()))(exec => IO(exec.shutdownNow()).void)
+          .map(ExecutionContext.fromExecutor(_))
+          .use { ec =>
+            IO.sleep(1.day).start.flatMap(_.cancel.evalOn(ec)).parReplicateA_(100000)
+          }
+          .as(ok)
       }
 
       "not lose cedeing threads from the bypass when blocker transitioning" in {
