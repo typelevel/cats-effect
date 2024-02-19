@@ -164,8 +164,10 @@ private final class TimerHeap extends AtomicInteger {
       } else false
 
     val heap = this.heap // local copy
-    val size = Math.min(this.size, heap.length - 1)
-    go(heap, size, 1)
+    if (heap ne null) {
+      val size = Math.min(this.size, heap.length - 1)
+      go(heap, size, 1)
+    } else false
   }
 
   /**
