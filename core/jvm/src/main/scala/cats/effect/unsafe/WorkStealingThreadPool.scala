@@ -36,6 +36,7 @@ import cats.effect.tracing.TracingConstants
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.control.NonFatal
 
 import java.time.Instant
 import java.time.temporal.ChronoField
@@ -662,7 +663,14 @@ private[effect] final class WorkStealingThreadPool[P](
 
   override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
     val cb = new AtomicBoolean with (Right[Nothing, Unit] => Unit) { // run at most once
-      def apply(ru: Right[Nothing, Unit]) = if (compareAndSet(false, true)) task.run()
+      def apply(ru: Right[Nothing, Unit]) = if (compareAndSet(false, true)) {
+        try {
+          task.run()
+        } catch {
+          case ex if NonFatal(ex) =>
+            reportFailure(ex)
+        }
+      }
     }
 
     val cancel = sleepInternal(delay, cb)
