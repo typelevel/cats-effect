@@ -521,12 +521,12 @@ object Dispatcher {
   private object Executor {
 
     // default sequential executor (ignores cancelation)
-    def inplace[F[_]: Applicative]: Executor[F] =
+    def inplace[F[_]: Concurrent]: Executor[F] =
       new Executor[F] {
         def apply(task: F[Unit])(registerCancel: F[Unit] => F[Unit]): F[Unit] = {
-          // we can use unit as a cancel action here since it must always sequence *after* the task
-          // thus, the task must complete before the cancel action will be picked up
-          registerCancel(Applicative[F].unit) *> task
+          Concurrent[F].deferred[Unit].flatMap { d =>
+            (registerCancel(d.get) *> task).guarantee(d.complete(()).void)
+          }
         }
       }
 
