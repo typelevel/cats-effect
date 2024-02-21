@@ -87,13 +87,12 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
                 // either the task didn't run at all (i.e.,
                 // it was cancelled before starting), or
                 // it ran and already finished completely:
-                (ctr1.get, ctr2.get).flatMapN { (v1, v2) =>
-                  IO(v1 mustEqual v2)
-                }
+                (ctr1.get, ctr2.get).flatMapN { (v1, v2) => IO(v1 mustEqual v2) }
               }
             }
           }
-        }.replicateA_(10000).as(ok)
+        }.replicateA_(10000)
+          .as(ok)
       }
     }
 
