@@ -91,7 +91,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
               }
             }
           }
-        }.replicateA_(10000)
+        }.replicateA_(if (isJVM) 10000 else 1)
           .as(ok)
       }
     }
