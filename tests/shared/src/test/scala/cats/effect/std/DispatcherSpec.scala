@@ -71,6 +71,30 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
           appends *> resultsR.get.flatMap(r => IO(r mustEqual 0.until(count).toVector))
         }
       }
+
+      "correctly backpressure cancellation" in real {
+        D.use { dispatcher =>
+          IO.ref(0).flatMap { ctr1 =>
+            IO.ref(0).flatMap { ctr2 =>
+              IO.fromFuture(IO {
+                val (_, cancel) = dispatcher.unsafeToFutureCancelable(IO.uncancelable { _ =>
+                  ctr1.update(_ + 1) *> IO.sleep(0.1.second) *> ctr2.update(_ + 1)
+                })
+                val cancelFut = cancel()
+                cancelFut
+              }).flatMap { _ =>
+                // if we're here, `cancel()` finished, so
+                // either the task didn't run at all (i.e.,
+                // it was cancelled before starting), or
+                // it ran and already finished completely:
+                (ctr1.get, ctr2.get).flatMapN { (v1, v2) =>
+                  IO(v1 mustEqual v2)
+                }
+              }
+            }
+          }
+        }.replicateA_(10000).as(ok)
+      }
     }
 
     "await = false" >> {
