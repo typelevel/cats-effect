@@ -18,9 +18,6 @@ package cats.effect
 package unsafe
 
 import cats.effect.tracing.TracingConstants
-import cats.effect.unsafe.ref.WeakReference
-
-import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * A slightly more involved implementation of an unordered bag used for tracking asynchronously
@@ -47,11 +44,10 @@ private[effect] sealed class FiberMonitor(
     private[this] val compute: WorkStealingThreadPool
 ) extends FiberMonitorShared {
 
-  private[this] final val BagReferences =
-    new ConcurrentLinkedQueue[WeakReference[WeakBag[Runnable]]]
+  private[this] final val BagReferences = new WeakList[WeakBag[Runnable]]
   private[this] final val Bags = ThreadLocal.withInitial { () =>
     val bag = new WeakBag[Runnable]()
-    BagReferences.offer(new WeakReference(bag))
+    BagReferences.prepend(bag)
     bag
   }
 
@@ -197,15 +193,12 @@ private[effect] sealed class FiberMonitor(
   private[this] def foreignFibers(): Map[IOFiber[_], Trace] = {
     val foreign = Map.newBuilder[IOFiber[_], Trace]
 
-    BagReferences.iterator().forEachRemaining { bagRef =>
-      val bag = bagRef.get()
-      if (bag ne null) {
-        val _ = bag.synchronizationPoint.get()
-        bag.forEach {
-          case fiber: IOFiber[_] if !fiber.isDone =>
-            foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.captureTrace())
-          case _ => ()
-        }
+    BagReferences.foreach { bag =>
+      val _ = bag.synchronizationPoint.get()
+      bag.forEach {
+        case fiber: IOFiber[_] if !fiber.isDone =>
+          foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.captureTrace())
+        case _ => ()
       }
     }
 
