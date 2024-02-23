@@ -205,7 +205,10 @@ private final class WorkerThread[P](
     )
 
     val cb = out(0)
-    if (cb ne null) cb(RightUnit)
+    if (cb ne null) {
+      cb(RightUnit)
+      ()
+    }
 
     cancel
   }

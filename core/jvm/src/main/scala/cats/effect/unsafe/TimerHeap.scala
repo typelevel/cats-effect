@@ -154,7 +154,10 @@ private final class TimerHeap extends AtomicInteger {
         if ((node ne null) && isExpired(node, now)) {
           val cb = node.getAndClear()
           val invoked = cb ne null
-          if (invoked) cb(RightUnit)
+          if (invoked) {
+            cb(RightUnit)
+            ()
+          }
 
           val leftInvoked = go(heap, size, 2 * m)
           val rightInvoked = go(heap, size, 2 * m + 1)
