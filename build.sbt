@@ -110,7 +110,7 @@ ThisBuild / developers := List(
 
 val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
-val MacOS = "macos-latest"
+val MacOS = "macos-14"
 
 val Scala212 = "2.12.18"
 val Scala213 = "2.13.12"
@@ -244,7 +244,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
       Seq(
         MatrixExclude(Map("os" -> Windows, "scala" -> scala, "ci" -> CI.JVM.command)),
         MatrixExclude(Map("os" -> MacOS, "scala" -> scala, "ci" -> CI.JVM.command)))
-    }
+    } :+ MatrixExclude(Map("os" -> MacOS, "java" -> OldGuardJava.render))
 
   val jsScalaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
