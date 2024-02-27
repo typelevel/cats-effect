@@ -31,5 +31,5 @@ These are some selected videos on various topics in Cats Effect:
 * [Concurrency with Cats Effect](https://www.youtube.com/watch?v=Gig-f_HXvLI&ab_channel=FunctionalTV), Michael Pilquist
 * [How do Fibers work?](https://www.youtube.com/watch?v=x5_MmZVLiSM&ab_channel=ScalaWorld), Fabio Labella
 * [Cancellation in Cats Effect](https://www.youtube.com/watch?v=X9u3rgPz_zE&t=1002s&ab_channel=ScalaintheCity), Daniel Ciocîrlan
-* [Intro to Cats Effect](https://www.youtube.com/watch?v=83pXEdCpY4A&ab_channel=thoughtbot), Gavin Biesi
+* [Intro to Cats Effect](https://www.youtube.com/watch?v=83pXEdCpY4A&ab_channel=thoughtbot), Gavin Bisesi
 * [The IO Monad for Scala](https://www.youtube.com/watch?v=8_TWM2t97r4&t=811s&ab_channel=ScalaIOFR), Gabriel Volpe
