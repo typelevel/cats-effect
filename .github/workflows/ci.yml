@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-14]
-        scala: [3.3.1, 2.12.18, 2.13.12]
+        scala: [3.3.1, 2.12.19, 2.13.12]
         java:
           - temurin@8
           - temurin@11
@@ -41,13 +41,13 @@ jobs:
             java: temurin@11
           - scala: 3.3.1
             java: temurin@21
-          - scala: 2.12.18
+          - scala: 2.12.19
             java: temurin@11
-          - scala: 2.12.18
+          - scala: 2.12.19
             java: temurin@17
-          - scala: 2.12.18
+          - scala: 2.12.19
             java: temurin@21
-          - scala: 2.12.18
+          - scala: 2.12.19
             java: graalvm@17
           - os: windows-latest
             scala: 3.3.1
@@ -56,10 +56,10 @@ jobs:
             scala: 3.3.1
             ci: ciJVM
           - os: windows-latest
-            scala: 2.12.18
+            scala: 2.12.19
             ci: ciJVM
           - os: macos-14
-            scala: 2.12.18
+            scala: 2.12.19
             ci: ciJVM
           - os: macos-14
             java: temurin@8
@@ -68,9 +68,9 @@ jobs:
           - ci: ciChrome
             scala: 3.3.1
           - ci: ciFirefox
-            scala: 2.12.18
+            scala: 2.12.19
           - ci: ciChrome
-            scala: 2.12.18
+            scala: 2.12.19
           - ci: ciJS
             java: temurin@11
           - ci: ciJS
@@ -119,7 +119,7 @@ jobs:
             ci: ciNative
           - os: macos-14
             ci: ciNative
-            scala: 2.12.18
+            scala: 2.12.19
           - os: windows-latest
             java: graalvm@17
     runs-on: ${{ matrix.os }}
@@ -422,32 +422,32 @@ jobs:
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.12.18, ciJVM)
+      - name: Download target directories (2.12.19, ciJVM)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.19-ciJVM
 
-      - name: Inflate target directories (2.12.18, ciJVM)
+      - name: Inflate target directories (2.12.19, ciJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.12.18, ciNative)
+      - name: Download target directories (2.12.19, ciNative)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.19-ciNative
 
-      - name: Inflate target directories (2.12.18, ciNative)
+      - name: Inflate target directories (2.12.19, ciNative)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.12.18, ciJS)
+      - name: Download target directories (2.12.19, ciJS)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.19-ciJS
 
-      - name: Inflate target directories (2.12.18, ciJS)
+      - name: Inflate target directories (2.12.19, ciJS)
         run: |
           tar xf targets.tar
           rm targets.tar
