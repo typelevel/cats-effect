@@ -113,7 +113,7 @@ val Windows = "windows-latest"
 val MacOS = "macos-14"
 
 val Scala212 = "2.12.19"
-val Scala213 = "2.13.12"
+val Scala213 = "2.13.13"
 val Scala3 = "3.3.3"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
