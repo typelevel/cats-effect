@@ -44,7 +44,7 @@ name := "cats-effect-tutorial"
 
 version := "3.5.3"
 
-scalaVersion := "2.13.6"
+scalaVersion := "2.13.13"
 
 libraryDependencies += "org.typelevel" %% "cats-effect" % "3.5.3" withSources() withJavadoc()
 
@@ -52,15 +52,13 @@ scalacOptions ++= Seq(
   "-feature",
   "-deprecation",
   "-unchecked",
-  "-language:postfixOps"
 )
 ```
-
-Also make sure that you use a recent version of `sbt`, at least `1.4.2`. You can
-set the `sbt` version in `project/build.properties` file:
+Also make sure that you use a recent version of `sbt`, _e.g._ `1.9.8`. You can set
+the `sbt` version in `project/build.properties` file:
 
 ```scala
-sbt.version=1.4.2
+sbt.version=1.9.8
 ```
 
 Almost all code snippets in this tutorial can be pasted and compiled right in
