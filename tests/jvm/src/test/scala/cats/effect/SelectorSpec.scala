@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.effect.unsafe.IORuntime
-import cats.syntax.all._
 
 import scala.concurrent.duration._
 
