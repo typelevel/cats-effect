@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
 import cats.effect.IO
 
@@ -22,11 +22,11 @@ import scala.concurrent.duration.FiniteDuration
 
 import java.util.concurrent.atomic.AtomicLong
 
-private[metrics] class CpuStarvation private (
+private[unsafe] class CpuStarvation private (
     counter: AtomicLong,
     currentClockDrift: AtomicLong,
     maxClockDrift: AtomicLong)
-    extends CpuStarvationMBean {
+    extends UnsealedCpuStarvationMBean {
 
   override def getCpuStarvationCount(): Long = counter.get()
 
@@ -48,8 +48,8 @@ private[metrics] class CpuStarvation private (
 
 }
 
-private[metrics] object CpuStarvation {
-  private[metrics] def apply(): IO[CpuStarvation] = for {
+private[unsafe] object CpuStarvation {
+  private[unsafe] def apply(): IO[CpuStarvation] = for {
     counter <- IO.delay(new AtomicLong(0))
     currentClockDrift <- IO.delay(new AtomicLong(0))
     maxClockDrift <- IO.delay(new AtomicLong(0))

@@ -17,6 +17,8 @@
 package cats.effect.unsafe
 package metrics
 
+import java.util.concurrent.atomic.AtomicLong
+
 /**
  * An implementation of the [[LocalQueueSamplerMBean]] interface which simply delegates to the
  * corresponding methods of the [[cats.effect.unsafe.LocalQueue]] being monitored.
@@ -25,7 +27,7 @@ package metrics
  *   the monitored local queue
  */
 private[unsafe] final class LocalQueueSampler(queue: LocalQueue)
-    extends LocalQueueSamplerMBean {
+    extends UnsealedLocalQueueSamplerMBean {
   def getFiberCount(): Int = queue.getFiberCount()
   def getHeadIndex(): Int = queue.getHeadIndex()
   def getTailIndex(): Int = queue.getTailIndex()
@@ -36,4 +38,8 @@ private[unsafe] final class LocalQueueSampler(queue: LocalQueue)
   def getRealHeadTag(): Int = queue.getRealHeadTag()
   def getStealHeadTag(): Int = queue.getStealHeadTag()
   def getTailTag(): Int = queue.getTailTag()
+}
+
+private[unsafe] object LocalQueueSampler {
+  val counter: AtomicLong = new AtomicLong(0)
 }
