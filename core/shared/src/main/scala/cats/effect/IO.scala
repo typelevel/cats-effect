@@ -1206,7 +1206,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
           lift(k(resume)) flatMap {
             case Right(a) => G.pure(a)
             case Left(Some(fin)) => G.onCancel(poll(get), lift(fin))
-            case Left(None) => poll(get)
+            case Left(None) => get
           }
         }
       }

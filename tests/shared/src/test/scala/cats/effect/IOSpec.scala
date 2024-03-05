@@ -608,6 +608,17 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         outerR mustEqual 1
         innerR mustEqual 2
       }
+
+      "be uncancelable if None finalizer" in ticked { implicit ticker =>
+        val t = IO.asyncCheckAttempt[Int] { _ => IO.pure(Left(None)) }
+        val test = for {
+          fib <- t.start
+          _ <- IO(ticker.ctx.tick())
+          _ <- fib.cancel
+        } yield ()
+
+        test must nonTerminate
+      }
     }
 
     "async" should {
