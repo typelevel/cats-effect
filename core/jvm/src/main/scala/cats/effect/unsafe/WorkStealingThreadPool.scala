@@ -48,7 +48,7 @@ import WorkStealingThreadPool._
 
 /**
  * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose
- * of executing [[java.lang.Runnable]] instancess with work-stealing scheduling semantics.
+ * of executing [[java.lang.Runnable]] instances with work-stealing scheduling semantics.
  *
  * The thread pool starts with `threadCount` worker threads in the active state, looking to find
  * fibers to execute in their own local work stealing queues, or externally scheduled work

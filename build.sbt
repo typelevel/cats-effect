@@ -674,7 +674,25 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.unsafe.IORuntimeBuilder.this"),
       // introduced by #3695, which enabled fiber dumps on native
       ProblemFilters.exclude[MissingClassProblem](
-        "cats.effect.unsafe.FiberMonitorCompanionPlatform")
+        "cats.effect.unsafe.FiberMonitorCompanionPlatform"),
+      // introduced by #3317, internal API change
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvationMBean"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.JvmCpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.JvmCpuStarvationMetrics$"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.JvmCpuStarvationMetrics$NoOpCpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.JsCpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.JsCpuStarvationMetrics$"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.NativeCpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.NativeCpuStarvationMetrics$")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions

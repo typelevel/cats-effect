@@ -16,9 +16,10 @@
 
 package cats.effect
 
-import cats.effect.metrics.{CpuStarvationMetrics, CpuStarvationWarningMetrics}
+import cats.effect.metrics.CpuStarvationWarningMetrics
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
+import cats.effect.unsafe.metrics.CpuStarvationSampler
 import cats.syntax.all._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -27,7 +28,7 @@ private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
 
   def run(
       runtimeConfig: IORuntimeConfig,
-      metrics: CpuStarvationMetrics,
+      metrics: CpuStarvationSampler,
       onCpuStarvationWarn: CpuStarvationWarningMetrics => IO[Unit]): IO[Nothing] = {
     import runtimeConfig._
 

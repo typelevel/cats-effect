@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import cats.effect.unsafe.metrics.CpuStarvationSampler
+
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -43,7 +45,9 @@ final class IORuntime private[unsafe] (
     private[effect] val pollers: List[Any],
     private[effect] val fiberMonitor: FiberMonitor,
     val shutdown: () => Unit,
-    val config: IORuntimeConfig
+    val config: IORuntimeConfig,
+    private[effect] val cpuStarvationSampler: CpuStarvationSampler,
+    val metrics: IORuntimeMetrics
 ) {
 
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
@@ -74,6 +78,8 @@ object IORuntime extends IORuntimeCompanionPlatform {
       unregister()
       shutdown()
     }
+    val cpuStarvationSampler = CpuStarvationSampler.create()
+    val metrics = IORuntimeMetrics.create(compute, cpuStarvationSampler)
 
     val runtime =
       new IORuntime(
@@ -83,7 +89,10 @@ object IORuntime extends IORuntimeCompanionPlatform {
         pollers,
         fiberMonitor,
         unregisterAndShutdown,
-        config)
+        config,
+        cpuStarvationSampler,
+        metrics
+      )
     allRuntimes.put(runtime, runtime.hashCode())
     runtime
   }
@@ -103,14 +112,36 @@ object IORuntime extends IORuntimeCompanionPlatform {
       scheduler: Scheduler,
       fiberMonitor: FiberMonitor,
       shutdown: () => Unit,
-      config: IORuntimeConfig): IORuntime =
-    new IORuntime(compute, blocking, scheduler, Nil, fiberMonitor, shutdown, config)
+      config: IORuntimeConfig): IORuntime = {
+    val cpuStarvationSampler = CpuStarvationSampler.create()
+    val metrics = IORuntimeMetrics.create(compute, cpuStarvationSampler)
+    new IORuntime(
+      compute,
+      blocking,
+      scheduler,
+      Nil,
+      fiberMonitor,
+      shutdown,
+      config,
+      cpuStarvationSampler,
+      metrics)
+  }
 
   def builder(): IORuntimeBuilder =
     IORuntimeBuilder()
 
   private[effect] def testRuntime(ec: ExecutionContext, scheduler: Scheduler): IORuntime =
-    new IORuntime(ec, ec, scheduler, Nil, new NoOpFiberMonitor(), () => (), IORuntimeConfig())
+    new IORuntime(
+      ec,
+      ec,
+      scheduler,
+      Nil,
+      new NoOpFiberMonitor(),
+      () => (),
+      IORuntimeConfig(),
+      CpuStarvationSampler.noop,
+      IORuntimeMetrics.noop
+    )
 
   @static private[effect] final val allRuntimes: ThreadSafeHashtable[IORuntime] =
     new ThreadSafeHashtable(4)

@@ -16,9 +16,10 @@
 
 package cats.effect
 
-import cats.effect.metrics.{CpuStarvationWarningMetrics, JvmCpuStarvationMetrics}
+import cats.effect.metrics.CpuStarvationWarningMetrics
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
+import cats.effect.unsafe.metrics.CpuStarvationSamplerMBean
 import cats.syntax.all._
 
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}
@@ -447,10 +448,11 @@ trait IOApp {
     val queue = this.queue
 
     val fiber =
-      JvmCpuStarvationMetrics()
-        .flatMap { cpuStarvationMetrics =>
+      CpuStarvationSamplerMBean
+        .register(runtime.cpuStarvationSampler)
+        .flatMap { _ =>
           CpuStarvationCheck
-            .run(runtimeConfig, cpuStarvationMetrics, onCpuStarvationWarn)
+            .run(runtimeConfig, runtime.cpuStarvationSampler, onCpuStarvationWarn)
             .background
         }
         .surround(ioa)

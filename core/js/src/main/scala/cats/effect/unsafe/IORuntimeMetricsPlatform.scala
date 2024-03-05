@@ -14,18 +14,6 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe
 
-import cats.effect.IO
-
-import scala.concurrent.duration.FiniteDuration
-
-private[effect] class NativeCpuStarvationMetrics extends CpuStarvationMetrics {
-  override def incCpuStarvationCount: IO[Unit] = IO.unit
-
-  override def recordClockDrift(drift: FiniteDuration): IO[Unit] = IO.unit
-}
-
-private[effect] object NativeCpuStarvationMetrics {
-  private[effect] def apply(): CpuStarvationMetrics = new NativeCpuStarvationMetrics
-}
+private[unsafe] trait IORuntimeMetricsPlatform { this: IORuntimeMetrics => }
