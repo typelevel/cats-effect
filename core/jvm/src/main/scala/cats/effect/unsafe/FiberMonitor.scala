@@ -18,7 +18,6 @@ package cats.effect
 package unsafe
 
 import cats.effect.tracing.TracingConstants
-import cats.effect.unsafe.ref.WeakReference
 
 import scala.concurrent.ExecutionContext
 
