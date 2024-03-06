@@ -215,7 +215,7 @@ ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
 
 ThisBuild / githubWorkflowPublish +=
   WorkflowStep.Run(
-    List("scripts/post-release-discord.sh ${{ github.ref }}"),
+    List("scripts/post-release-discord.sh ${{ github.ref_name }}"),
     name = Some("Post release to Discord"),
     env = Map("DISCORD_WEBHOOK_URL" -> "${{ secrets.DISCORD_WEBHOOK_URL }}")
   )
