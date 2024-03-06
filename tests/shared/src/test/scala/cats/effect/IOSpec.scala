@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -634,6 +634,17 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         test must completeAs(())
         outerR mustEqual 1
         innerR mustEqual 2
+      }
+
+      "be uncancelable if None finalizer" in ticked { implicit ticker =>
+        val t = IO.asyncCheckAttempt[Int] { _ => IO.pure(Left(None)) }
+        val test = for {
+          fib <- t.start
+          _ <- IO(ticker.ctx.tick())
+          _ <- fib.cancel
+        } yield ()
+
+        test must nonTerminate
       }
     }
 

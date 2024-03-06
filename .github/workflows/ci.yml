@@ -532,7 +532,7 @@ jobs:
       - name: Post release to Discord
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: scripts/post-release-discord ${{ github.ref }}
+        run: scripts/post-release-discord.sh ${{ github.ref }}
 
   dependency-submission:
     name: Submit Dependencies

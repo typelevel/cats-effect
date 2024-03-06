@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -223,7 +223,7 @@ ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
 
 ThisBuild / githubWorkflowPublish +=
   WorkflowStep.Run(
-    List("scripts/post-release-discord ${{ github.ref }}"),
+    List("scripts/post-release-discord.sh ${{ github.ref }}"),
     name = Some("Post release to Discord"),
     env = Map("DISCORD_WEBHOOK_URL" -> "${{ secrets.DISCORD_WEBHOOK_URL }}")
   )
@@ -669,6 +669,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.CallbackStack.push"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.CallbackStack.currentHandle"),
+      // #3973, remove clear from internal private CallbackStack
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.clear"),
       // introduced by #3332, polling system
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.IORuntimeBuilder.this"),
@@ -1030,7 +1032,18 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.std.Queue$UnsafeUnbounded$Cell"),
         // introduced by #3480
         // adds method to sealed Hotswap
-        ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get")
+        ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.std.Hotswap.get"),
+        // #3972, private trait
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem](
+          "cats.effect.std.Supervisor$State"),
+        // introduced by #3923
+        // Rewrote Dispatcher
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Dispatcher$Mode$"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.std.Dispatcher$Mode$Parallel$"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.std.Dispatcher$Mode$Sequential$")
       )
   )
   .jsSettings(

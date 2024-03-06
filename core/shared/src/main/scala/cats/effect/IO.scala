@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1310,7 +1310,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
           lift(k(resume)) flatMap {
             case Right(a) => G.pure(a)
             case Left(Some(fin)) => G.onCancel(poll(get), lift(fin))
-            case Left(None) => poll(get)
+            case Left(None) => get
           }
         }
       }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,13 @@
 package cats.effect
 package std
 
+import cats.syntax.all._
+
 import org.specs2.specification.core.Fragments
 
 import scala.concurrent.duration._
 
-class SupervisorSpec extends BaseSpec {
+class SupervisorSpec extends BaseSpec with DetectPlatform {
 
   "Supervisor" should {
     "concurrent" >> {
@@ -213,7 +215,7 @@ class SupervisorSpec extends BaseSpec {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).as(ok).timeoutTo(2.seconds, IO(false must beTrue))
+      test.start.flatMap(_.join).as(ok).timeoutTo(4.seconds, IO(false must beTrue))
     }
 
     "cancel inner fiber and ignore restart if outer errored" in real {
@@ -227,7 +229,70 @@ class SupervisorSpec extends BaseSpec {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).as(ok).timeoutTo(2.seconds, IO(false must beTrue))
+      test.start.flatMap(_.join).as(ok).timeoutTo(4.seconds, IO(false must beTrue))
+    }
+
+    "supervise / finalize race" in real {
+      superviseFinalizeRace(constructor(false, None), IO.never[Unit])
+    }
+
+    "supervise / finalize race with checkRestart" in real {
+      superviseFinalizeRace(constructor(false, Some(_ => true)), IO.canceled)
+    }
+
+    def superviseFinalizeRace(mkSupervisor: Resource[IO, Supervisor[IO]], task: IO[Unit]) = {
+      val tsk = IO.uncancelable { poll =>
+        mkSupervisor.allocated.flatMap {
+          case (supervisor, close) =>
+            supervisor.supervise(IO.never[Unit]).replicateA(100).flatMap { fibers =>
+              val tryFork = supervisor.supervise(task).map(Some(_)).recover {
+                case ex: IllegalStateException =>
+                  ex.getMessage mustEqual "supervisor already shutdown"
+                  None
+              }
+              IO.both(tryFork, close).flatMap {
+                case (maybeFiber, _) =>
+                  def joinAndCheck(fib: Fiber[IO, Throwable, Unit]) =
+                    fib.join.flatMap { oc => IO(oc.isCanceled must beTrue) }
+                  poll(fibers.traverse(joinAndCheck) *> {
+                    maybeFiber match {
+                      case None =>
+                        IO.unit
+                      case Some(fiber) =>
+                        // `supervise` won the race, so our fiber must've been cancelled:
+                        joinAndCheck(fiber)
+                    }
+                  })
+              }
+            }
+        }
+      }
+      tsk.parReplicateA_(if (isJVM) 700 else 1).as(ok)
+    }
+
+    "submit to closed supervisor" in real {
+      constructor(false, None).use(IO.pure(_)).flatMap { leaked =>
+        leaked.supervise(IO.unit).attempt.flatMap { r =>
+          IO(r must beLeft(beAnInstanceOf[IllegalStateException]))
+        }
+      }
+    }
+
+    "restart / cancel race" in real {
+      val tsk = constructor(false, Some(_ => true)).use { supervisor =>
+        IO.ref(0).flatMap { counter =>
+          supervisor.supervise(counter.update(_ + 1) *> IO.canceled).flatMap { adaptedFiber =>
+            IO.sleep(100.millis) *> adaptedFiber.cancel *> adaptedFiber.join *> (
+              (counter.get, IO.sleep(100.millis) *> counter.get).flatMapN {
+                case (v1, v2) =>
+                  IO(v1 mustEqual v2)
+              }
+            )
+          }
+        }
+      }
+
+      tsk.parReplicateA_(if (isJVM) 1000 else 1).as(ok)
     }
   }
 }

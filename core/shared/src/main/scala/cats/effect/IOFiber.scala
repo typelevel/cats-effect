@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1082,15 +1082,11 @@ private final class IOFiber[A](
 
     outcome = oc
 
-    try {
-      if (!callbacks(oc) && runtime.config.reportUnhandledFiberErrors) {
-        oc match {
-          case Outcome.Errored(e) => currentCtx.reportFailure(e)
-          case _ => ()
-        }
+    if (!callbacks(oc) && runtime.config.reportUnhandledFiberErrors) {
+      oc match {
+        case Outcome.Errored(e) => currentCtx.reportFailure(e)
+        case _ => ()
       }
-    } finally {
-      callbacks.clear() /* avoid leaks */
     }
 
     /*

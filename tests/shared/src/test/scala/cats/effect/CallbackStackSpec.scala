@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  */
 
 package cats.effect
-
-import cats.syntax.all._
 
 class CallbackStackSpec extends BaseSpec with DetectPlatform {
 
@@ -52,14 +50,6 @@ class CallbackStackSpec extends BaseSpec with DetectPlatform {
       }
     }
 
-    "pack runs concurrently with clear" in real {
-      IO {
-        val stack = CallbackStack.of[Unit](null)
-        val handle = stack.push(_ => ())
-        stack.clearHandle(handle)
-        stack
-      }.flatMap(stack => IO(stack.pack(1)).both(IO(stack.clear()))).parReplicateA_(1000).as(ok)
-    }
   }
 
 }
