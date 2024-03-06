@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.syntax.all._
+
 
 class CallbackStackSpec extends BaseSpec with DetectPlatform {
 
