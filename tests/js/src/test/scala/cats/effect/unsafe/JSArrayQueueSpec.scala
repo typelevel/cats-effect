@@ -66,6 +66,8 @@ class JSArrayQueueSpec extends BaseSpec with ScalaCheck {
               val expected = shadow.dequeue()
               got must beEqualTo(expected)
               checkContents()
+            } else {
+              ok
             }
         }
 

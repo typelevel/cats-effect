@@ -64,7 +64,7 @@ object Clock {
       implicit F0: Monad[F],
       C0: Clock[F]): Clock[OptionT[F, *]] =
     new OptionTClock[F] {
-      def applicative = OptionT.catsDataMonadForOptionT(F)
+      def applicative: Applicative[OptionT[F, *]] = OptionT.catsDataMonadForOptionT(F)
       implicit override def F: Monad[F] = F0
       implicit override def C: Clock[F] = C0
     }
@@ -73,7 +73,7 @@ object Clock {
       implicit F0: Monad[F],
       C0: Clock[F]): Clock[EitherT[F, E, *]] =
     new EitherTClock[F, E] {
-      def applicative = EitherT.catsDataMonadErrorForEitherT(F)
+      def applicative: Applicative[EitherT[F, E, *]] = EitherT.catsDataMonadErrorForEitherT(F)
       implicit override def F: Monad[F] = F0
       implicit override def C: Clock[F] = C0
     }
@@ -82,7 +82,8 @@ object Clock {
       implicit F0: Monad[F],
       C0: Clock[F]): Clock[StateT[F, S, *]] =
     new StateTClock[F, S] {
-      def applicative = IndexedStateT.catsDataMonadForIndexedStateT(F)
+      def applicative: Applicative[IndexedStateT[F, S, S, *]] =
+        IndexedStateT.catsDataMonadForIndexedStateT(F)
       implicit override def F: Monad[F] = F0
       implicit override def C: Clock[F] = C0
     }
@@ -92,7 +93,7 @@ object Clock {
       C0: Clock[F],
       L0: Monoid[L]): Clock[WriterT[F, L, *]] =
     new WriterTClock[F, L] {
-      def applicative = WriterT.catsDataMonadForWriterT(F, L)
+      def applicative: Applicative[WriterT[F, L, *]] = WriterT.catsDataMonadForWriterT(F, L)
       implicit override def F: Monad[F] = F0
       implicit override def C: Clock[F] = C0
 
@@ -105,7 +106,7 @@ object Clock {
       C0: Clock[F],
       L0: Semigroup[L]): Clock[IorT[F, L, *]] =
     new IorTClock[F, L] {
-      def applicative = IorT.catsDataMonadErrorForIorT(F, L)
+      def applicative: Applicative[IorT[F, L, *]] = IorT.catsDataMonadErrorForIorT(F, L)
       implicit override def F: Monad[F] = F0
       implicit override def C: Clock[F] = C0
 
@@ -116,7 +117,7 @@ object Clock {
       implicit F0: Monad[F],
       C0: Clock[F]): Clock[Kleisli[F, R, *]] =
     new KleisliClock[F, R] {
-      def applicative = Kleisli.catsDataMonadForKleisli(F)
+      def applicative: Applicative[Kleisli[F, R, *]] = Kleisli.catsDataMonadForKleisli(F)
       implicit override def F: Monad[F] = F0
       implicit override def C: Clock[F] = C0
     }
@@ -126,7 +127,7 @@ object Clock {
       C0: Clock[F],
       D0: Defer[F]): Clock[ContT[F, R, *]] =
     new ContTClock[F, R] {
-      def applicative = ContT.catsDataContTMonad(D)
+      def applicative: Applicative[ContT[F, R, *]] = ContT.catsDataContTMonad(D)
       implicit override def F: Monad[F] = F0
       implicit override def C: Clock[F] = C0
       implicit override def D: Defer[F] = D0
@@ -137,7 +138,8 @@ object Clock {
       C0: Clock[F],
       L0: Monoid[L]): Clock[ReaderWriterStateT[F, R, L, S, *]] =
     new ReaderWriterStateTClock[F, R, L, S] {
-      def applicative = IndexedReaderWriterStateT.catsDataMonadForRWST(F, L)
+      def applicative: Applicative[ReaderWriterStateT[F, R, L, S, *]] =
+        IndexedReaderWriterStateT.catsDataMonadForRWST(F, L)
       implicit override def F: Monad[F] = F0
       implicit override def C: Clock[F] = C0
 

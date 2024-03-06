@@ -17,7 +17,7 @@
 package cats.effect
 
 import scala.concurrent.Future
-import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
+import scala.scalajs.js
 
 abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 
@@ -31,10 +31,10 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
    * @see
    *   [[IO.fromPromise]]
    */
-  def unsafeToPromise()(implicit runtime: unsafe.IORuntime): Promise[A] =
-    new Promise[A]((resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
+  def unsafeToPromise()(implicit runtime: unsafe.IORuntime): js.Promise[A] =
+    new js.Promise[A]((resolve, reject) =>
       self.unsafeRunAsync {
-        case Left(JavaScriptException(e)) =>
+        case Left(js.JavaScriptException(e)) =>
           reject(e)
           ()
 
@@ -76,10 +76,10 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
    * @see
    *   [[IO.syncStep(limit:Int)*]]
    */
-  def unsafeRunSyncToPromise()(implicit runtime: unsafe.IORuntime): Promise[A] =
+  def unsafeRunSyncToPromise()(implicit runtime: unsafe.IORuntime): js.Promise[A] =
     self.syncStep(runtime.config.autoYieldThreshold).attempt.unsafeRunSync() match {
-      case Left(t) => Promise.reject(t)
+      case Left(t) => js.Promise.reject(t)
       case Right(Left(ioa)) => ioa.unsafeToPromise()
-      case Right(Right(a)) => Promise.resolve[A](a)
+      case Right(Right(a)) => js.Promise.resolve[A](a)
     }
 }

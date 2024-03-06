@@ -67,6 +67,33 @@ class IOPropSpec extends BaseSpec with Discipline {
       }
     }
 
+    "parTraverseN_" should {
+
+      "never exceed the maximum bound of concurrent tasks" in realProp {
+        for {
+          length <- Gen.chooseNum(0, 50)
+          limit <- Gen.chooseNum(1, 15, 2, 5)
+        } yield length -> limit
+      } {
+        case (length, limit) =>
+          Queue.unbounded[IO, Int].flatMap { q =>
+            val task = q.offer(1) >> IO.sleep(7.millis) >> q.offer(-1)
+            val testRun = List.fill(length)(task).parSequenceN_(limit)
+            def check(acc: Int = 0): IO[Unit] =
+              q.tryTake.flatMap {
+                case None => IO.unit
+                case Some(n) =>
+                  val newAcc = acc + n
+                  if (newAcc > limit)
+                    IO.raiseError(new Exception(s"Limit of $limit exceeded, was $newAcc"))
+                  else check(newAcc)
+              }
+
+            testRun >> check().mustEqual(())
+          }
+      }
+    }
+
     "parSequenceN" should {
       "give the same result as parSequence" in realProp(
         Gen.posNum[Int].flatMap(n => arbitrary[List[Int]].map(n -> _))) {

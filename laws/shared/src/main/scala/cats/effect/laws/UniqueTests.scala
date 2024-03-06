@@ -29,8 +29,8 @@ trait UniqueTests[F[_]] extends Laws {
   def unique(implicit exec: F[Boolean] => Prop): RuleSet = {
     new RuleSet {
       val name = "unique"
-      val bases = Nil
-      val parents = Seq()
+      val bases: Seq[(String, Laws#RuleSet)] = Nil
+      val parents: Seq[RuleSet] = Seq()
 
       val props = Seq("uniqueness" -> exec(laws.uniqueness))
     }

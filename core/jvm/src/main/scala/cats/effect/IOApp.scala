@@ -165,6 +165,9 @@ trait IOApp {
    */
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
+  protected def pollingSystem: unsafe.PollingSystem =
+    unsafe.IORuntime.createDefaultPollingSystem()
+
   /**
    * Controls the number of worker threads which will be allocated to the compute pool in the
    * underlying runtime. In general, this should be no ''greater'' than the number of physical
@@ -334,12 +337,13 @@ trait IOApp {
    * isn't the main process thread. This condition can happen when we are running inside of an
    * `sbt run` with `fork := false`
    */
+  def warnOnNonMainThreadDetected: Boolean =
+    Option(System.getProperty("cats.effect.warnOnNonMainThreadDetected"))
+      .map(_.equalsIgnoreCase("true"))
+      .getOrElse(true)
+
   private def onNonMainThreadDetected(): Unit = {
-    val shouldPrint =
-      Option(System.getProperty("cats.effect.warnOnNonMainThreadDetected"))
-        .map(_.equalsIgnoreCase("true"))
-        .getOrElse(true)
-    if (shouldPrint)
+    if (warnOnNonMainThreadDetected)
       System
         .err
         .println(
@@ -380,11 +384,12 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
-        val (compute, compDown) =
+        val (compute, poller, compDown) =
           IORuntime.createWorkStealingComputeThreadPool(
             threads = computeWorkerThreadCount,
             reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
-            blockedThreadDetectionEnabled = blockedThreadDetectionEnabled
+            blockedThreadDetectionEnabled = blockedThreadDetectionEnabled,
+            pollingSystem = pollingSystem
           )
 
         val (blocking, blockDown) =
@@ -394,6 +399,7 @@ trait IOApp {
           compute,
           blocking,
           compute,
+          List(poller),
           { () =>
             compDown()
             blockDown()
@@ -471,6 +477,8 @@ trait IOApp {
 
     if (isStackTracing)
       runtime.fiberMonitor.monitorSuspended(fiber)
+    else
+      ()
 
     def handleShutdown(): Unit = {
       if (counter.compareAndSet(1, 0)) {

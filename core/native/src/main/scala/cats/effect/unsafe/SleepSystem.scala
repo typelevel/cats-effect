@@ -14,19 +14,30 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
+package unsafe
 
-import cats.effect.tracing.TracingConstants
+object SleepSystem extends PollingSystem {
 
-import scala.concurrent.ExecutionContext
+  type Api = AnyRef
+  type Poller = AnyRef
 
-private[unsafe] trait FiberMonitorCompanionPlatform {
-  def apply(compute: ExecutionContext): FiberMonitor = {
-    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
-      new FiberMonitor(wstp)
-    } else {
-      new FiberMonitor(null)
-    }
+  def close(): Unit = ()
+
+  def makeApi(access: (Poller => Unit) => Unit): Api = this
+
+  def makePoller(): Poller = this
+
+  def closePoller(poller: Poller): Unit = ()
+
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+    if (nanos > 0)
+      Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
+    false
   }
+
+  def needsPoll(poller: Poller): Boolean = false
+
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
+
 }

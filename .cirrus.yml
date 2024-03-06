@@ -7,9 +7,9 @@ jvm_highcore_task:
     memory: 8G
   matrix:
     - name: JVM high-core-count 2.13
-      script: sbt '++ 2.13' testsJVM/test
+      script: sbt '++ 2.13' testsJVM/test ioAppTestsJVM/test
     - name: JVM high-core-count 3
-      script: sbt '++ 3' testsJVM/test
+      script: sbt '++ 3' testsJVM/test ioAppTestsJVM/test
 
 jvm_arm_highcore_task:
   only_if: $CIRRUS_TAG != '' || $CIRRUS_PR != ''
@@ -20,9 +20,9 @@ jvm_arm_highcore_task:
     memory: 8G
   matrix:
     - name: JVM ARM high-core-count 2.13
-      script: sbt '++ 2.13' testsJVM/test
+      script: sbt '++ 2.13' testsJVM/test ioAppTestsJVM/test
     - name: JVM ARM high-core-count 3
-      script: sbt '++ 3' testsJVM/test
+      script: sbt '++ 3' testsJVM/test ioAppTestsJVM/test
 
 native_arm_task:
   only_if: $CIRRUS_TAG != '' || $CIRRUS_PR != ''
@@ -33,4 +33,4 @@ native_arm_task:
     memory: 8G
   matrix:
     - name: Native ARM 3
-      script: sbt '++ 3' testsNative/test
+      script: sbt '++ 3' testsNative/test ioAppTestsNative/test

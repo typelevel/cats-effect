@@ -24,11 +24,12 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
+import cats.~>
 
 import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.{CancellationException, ExecutionContext, TimeoutException}
+import scala.concurrent.{CancellationException, ExecutionContext, Promise, TimeoutException}
 import scala.concurrent.duration._
 
 import Prop.forAll
@@ -114,6 +115,26 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         (IO.pure(42) orElse IO.raiseError[Int](TestException)) must completeAs(42)
       }
 
+      "adaptError is a no-op for a successful effect" in ticked { implicit ticker =>
+        IO(42).adaptError { case x => x } must completeAs(42)
+      }
+
+      "adaptError is a no-op for a non-matching error" in ticked { implicit ticker =>
+        case object TestException1 extends RuntimeException
+        case object TestException2 extends RuntimeException
+        IO.raiseError[Unit](TestException1).adaptError {
+          case TestException2 => TestException2
+        } must failAs(TestException1)
+      }
+
+      "adaptError transforms the error in a failed effect" in ticked { implicit ticker =>
+        case object TestException1 extends RuntimeException
+        case object TestException2 extends RuntimeException
+        IO.raiseError[Unit](TestException1).adaptError {
+          case TestException1 => TestException2
+        } must failAs(TestException2)
+      }
+
       "attempt is redeem with Left(_) for recover and Right(_) for map" in ticked {
         implicit ticker =>
           forAll { (io: IO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
@@ -122,6 +143,12 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "attempt is flattened redeemWith" in ticked { implicit ticker =>
         forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
           io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
+        }
+      }
+
+      "attemptTap(f) is an alias for attempt.flatTap(f).rethrow" in ticked { implicit ticker =>
+        forAll { (io: IO[Int], f: Either[Throwable, Int] => IO[Int]) =>
+          io.attemptTap(f) eqv io.attempt.flatTap(f).rethrow
         }
       }
 
@@ -1336,8 +1363,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "catch exceptions in cont" in ticked { implicit ticker =>
         IO.cont[Unit, Unit](new Cont[IO, Unit, Unit] {
-          override def apply[F[_]](implicit F: MonadCancel[F, Throwable]) = { (_, _, _) =>
-            throw new Exception
+          override def apply[F[_]](implicit F: MonadCancel[F, Throwable])
+              : (Either[Throwable, Unit] => Unit, F[Unit], cats.effect.IO ~> F) => F[Unit] = {
+            (_, _, _) => throw new Exception
           }
         }).voidError must completeAs(())
       }
@@ -1556,6 +1584,34 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "be cancelable" in ticked { implicit ticker =>
         val p = for {
           f <- List(1, 2, 3).parTraverseN(2)(_ => IO.never).start
+          _ <- IO.sleep(100.millis)
+          _ <- f.cancel
+        } yield true
+
+        p must completeAs(true)
+      }
+
+    }
+
+    "parTraverseN_" should {
+
+      "throw when n < 1" in real {
+        IO.defer {
+          List.empty[Int].parTraverseN_(0)(_.pure[IO])
+        }.mustFailWith[IllegalArgumentException]
+      }
+
+      "propagate errors" in real {
+        List(1, 2, 3)
+          .parTraverseN_(2) { (n: Int) =>
+            if (n == 2) IO.raiseError(new RuntimeException) else n.pure[IO]
+          }
+          .mustFailWith[RuntimeException]
+      }
+
+      "be cancelable" in ticked { implicit ticker =>
+        val p = for {
+          f <- List(1, 2, 3).parTraverseN_(2)(_ => IO.never).start
           _ <- IO.sleep(100.millis)
           _ <- f.cancel
         } yield true
@@ -1832,6 +1888,34 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             }
           }
         }
+      }
+
+      "no-op when canceling an expired timer 1" in realWithRuntime { rt =>
+        // this one excercises a timer removed via `TimerHeap#pollFirstIfTriggered`
+        IO(Promise[Unit]())
+          .flatMap { p =>
+            IO(rt.scheduler.sleep(1.nanosecond, () => p.success(()))).flatMap { cancel =>
+              IO.fromFuture(IO(p.future)) *> IO(cancel.run())
+            }
+          }
+          .as(ok)
+      }
+
+      "no-op when canceling an expired timer 2" in realWithRuntime { rt =>
+        // this one excercises a timer removed via `TimerHeap#insert`
+        IO(Promise[Unit]())
+          .flatMap { p =>
+            IO(rt.scheduler.sleep(1.nanosecond, () => p.success(()))).flatMap { cancel =>
+              IO.sleep(1.nanosecond) *> IO.fromFuture(IO(p.future)) *> IO(cancel.run())
+            }
+          }
+          .as(ok)
+      }
+
+      "no-op when canceling a timer twice" in realWithRuntime { rt =>
+        IO(rt.scheduler.sleep(1.day, () => ()))
+          .flatMap(cancel => IO(cancel.run()) *> IO(cancel.run()))
+          .as(ok)
       }
     }
 

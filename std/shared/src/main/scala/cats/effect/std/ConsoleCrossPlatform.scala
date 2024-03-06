@@ -256,6 +256,7 @@ private[std] abstract class ConsoleCompanionCrossPlatform {
           if (len > 0) {
             if (builder.charAt(len - 1) == '\r') {
               builder.deleteCharAt(len - 1)
+              ()
             }
           }
           builder.toString()

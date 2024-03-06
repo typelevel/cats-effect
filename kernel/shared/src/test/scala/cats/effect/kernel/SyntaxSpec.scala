@@ -47,8 +47,18 @@ class SyntaxSpec extends Specification {
     }
 
     {
+      val result = List(1).parTraverseN_(3)(F.pure)
+      result: F[Unit]
+    }
+
+    {
       val result = List(target).parSequenceN(3)
       result: F[List[A]]
+    }
+
+    {
+      val result = List(target).parSequenceN_(3)
+      result: F[Unit]
     }
 
     {

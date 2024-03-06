@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2023 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package catseffect
 
-import scala.concurrent.duration._
+import cats.effect.{ExitCode, IO, IOApp}
 
-// JVM WSTP sets ExternalQueueTicks = 64 so we steal it here
-private[effect] object QueueExecutorScheduler extends PollingExecutorScheduler(64) {
+import java.io.{File, FileWriter}
 
-  def poll(timeout: Duration): Boolean = {
-    if (timeout != Duration.Zero && timeout.isFinite) {
-      val nanos = timeout.toNanos
-      Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
-    }
-    false
+package examples {
+  object Finalizers extends IOApp {
+
+    def writeToFile(string: String, file: File): IO[Unit] =
+      IO(new FileWriter(file)).bracket { writer => IO(writer.write(string)) }(writer =>
+        IO(writer.close()))
+
+    def run(args: List[String]): IO[ExitCode] =
+      (IO(println("Started")) >> IO.never)
+        .onCancel(writeToFile("canceled", new File(args.head)))
+        .as(ExitCode.Success)
   }
-
 }

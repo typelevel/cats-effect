@@ -30,7 +30,7 @@ trait RunnersPlatform extends BeforeAfterAll {
     val (blocking, blockDown) =
       IORuntime.createDefaultBlockingExecutionContext(threadPrefix =
         s"io-blocking-${getClass.getName}")
-    val (compute, compDown) =
+    val (compute, poller, compDown) =
       IORuntime.createWorkStealingComputeThreadPool(
         threadPrefix = s"io-compute-${getClass.getName}",
         blockerThreadPrefix = s"io-blocker-${getClass.getName}")
@@ -39,6 +39,7 @@ trait RunnersPlatform extends BeforeAfterAll {
       compute,
       blocking,
       compute,
+      List(poller),
       { () =>
         compDown()
         blockDown()

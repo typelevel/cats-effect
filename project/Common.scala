@@ -29,14 +29,17 @@ object Common extends AutoPlugin {
   override def requires = plugins.JvmPlugin && TypelevelPlugin && ScalafixPlugin
   override def trigger = allRequirements
 
+  override def buildSettings =
+    Seq(
+      semanticdbEnabled := true,
+      semanticdbVersion := scalafixSemanticdb.revision
+    )
+
   override def projectSettings =
     Seq(
       headerLicense := Some(
         HeaderLicense.ALv2(s"${startYear.value.get}-2024", organizationName.value)
       ),
-      ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0",
-      ThisBuild / semanticdbEnabled := !tlIsScala3.value,
-      ThisBuild / semanticdbVersion := scalafixSemanticdb.revision,
       tlVersionIntroduced ++= {
         if (crossProjectPlatform.?.value.contains(NativePlatform))
           List("2.12", "2.13", "3").map(_ -> "3.4.0").toMap

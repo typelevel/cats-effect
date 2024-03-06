@@ -17,7 +17,13 @@
 package cats.effect
 
 import cats.effect.std.Semaphore
-import cats.effect.unsafe.{IORuntime, IORuntimeConfig, WorkStealingThreadPool}
+import cats.effect.unsafe.{
+  IORuntime,
+  IORuntimeConfig,
+  PollingSystem,
+  SleepSystem,
+  WorkStealingThreadPool
+}
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
@@ -30,12 +36,13 @@ import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
   CountDownLatch,
+  ExecutorService,
   Executors,
   ThreadLocalRandom
 }
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, AtomicReference}
 
-trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
+trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with ScalaCheck =>
 
   def platformSpecs = {
     "platform" should {
@@ -263,7 +270,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       "run a timer which crosses into a blocking region" in realWithRuntime { rt =>
         rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
+          case sched: WorkStealingThreadPool[_] =>
             // we structure this test by calling the runtime directly to avoid nondeterminism
             val delay = IO.async[Unit] { cb =>
               IO {
@@ -286,7 +293,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       "run timers exactly once when crossing into a blocking region" in realWithRuntime { rt =>
         rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
+          case sched: WorkStealingThreadPool[_] =>
             IO defer {
               val ai = new AtomicInteger(0)
 
@@ -304,7 +311,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       "run a timer registered on a blocker" in realWithRuntime { rt =>
         rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
+          case sched: WorkStealingThreadPool[_] =>
             // we structure this test by calling the runtime directly to avoid nondeterminism
             val delay = IO.async[Unit] { cb =>
               IO {
@@ -324,7 +331,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
       }
 
       "safely detect hard-blocked threads even while blockers are being created" in {
-        val (compute, shutdown) =
+        val (compute, _, shutdown) =
           IORuntime.createWorkStealingComputeThreadPool(blockedThreadDetectionEnabled = true)
 
         implicit val runtime: IORuntime =
@@ -344,7 +351,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       // this test ensures that the parkUntilNextSleeper bit works
       "run a timer when parking thread" in {
-        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+        val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
 
         implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
 
@@ -359,7 +366,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
       // this test ensures that we always see the timer, even when it fires just as we're about to park
       "run a timer when detecting just prior to park" in {
-        val (pool, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
+        val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
 
         implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
 
@@ -387,7 +394,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
         // we race a lot of "sleeps", it must not hang
         // (this includes inserting and cancelling
-        // a lot of callbacks into the skip list,
+        // a lot of callbacks into the heap,
         // thus hopefully stressing the data structure):
         List
           .fill(500) {
@@ -421,16 +428,28 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         spin.as(ok)
       }
 
+      "lots of externally-canceled timers" in real {
+        Resource
+          .make(IO(Executors.newSingleThreadExecutor()))(exec => IO(exec.shutdownNow()).void)
+          .map(ExecutionContext.fromExecutor(_))
+          .use { ec =>
+            IO.sleep(1.day).start.flatMap(_.cancel.evalOn(ec)).parReplicateA_(100000)
+          }
+          .as(ok)
+      }
+
       "not lose cedeing threads from the bypass when blocker transitioning" in {
         // writing this test in terms of IO seems to not reproduce the issue
         0.until(5) foreach { _ =>
-          val wstp = new WorkStealingThreadPool(
+          val wstp = new WorkStealingThreadPool[AnyRef](
             threadCount = 2,
             threadPrefix = "testWorker",
             blockerThreadPrefix = "testBlocker",
             runtimeBlockingExpiration = 3.seconds,
             reportFailure0 = _.printStackTrace(),
-            blockedThreadDetectionEnabled = false
+            blockedThreadDetectionEnabled = false,
+            shutdownTimeout = 1.second,
+            system = SleepSystem
           )
 
           val runtime = IORuntime
@@ -464,6 +483,84 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
         ok
       }
+
+      "wake parked thread for polled events" in {
+
+        trait DummyPoller {
+          def poll: IO[Unit]
+        }
+
+        object DummySystem extends PollingSystem {
+          type Api = DummyPoller
+          type Poller = AtomicReference[List[Either[Throwable, Unit] => Unit]]
+
+          def close() = ()
+
+          def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Unit])
+          def needsPoll(poller: Poller) = poller.get.nonEmpty
+          def closePoller(poller: Poller) = ()
+
+          def interrupt(targetThread: Thread, targetPoller: Poller) =
+            SleepSystem.interrupt(targetThread, SleepSystem.makePoller())
+
+          def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit) = {
+            poller.getAndSet(Nil) match {
+              case Nil =>
+                SleepSystem.poll(SleepSystem.makePoller(), nanos, reportFailure)
+              case cbs =>
+                cbs.foreach(_.apply(Right(())))
+                true
+            }
+          }
+
+          def makeApi(access: (Poller => Unit) => Unit): DummySystem.Api =
+            new DummyPoller {
+              def poll = IO.async_[Unit] { cb =>
+                access { poller =>
+                  poller.getAndUpdate(cb :: _)
+                  ()
+                }
+              }
+            }
+        }
+
+        val (pool, poller, shutdown) = IORuntime.createWorkStealingComputeThreadPool(
+          threads = 2,
+          pollingSystem = DummySystem)
+
+        implicit val runtime: IORuntime =
+          IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()
+
+        try {
+          val test =
+            IO.pollers.map(_.head.asInstanceOf[DummyPoller]).flatMap { poller =>
+              val blockAndPoll = IO.blocking(Thread.sleep(10)) *> poller.poll
+              blockAndPoll.replicateA(100).as(true)
+            }
+          test.unsafeRunSync() must beTrue
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
+      if (javaMajorVersion >= 21)
+        "block in-place on virtual threads" in real {
+          val loomExec = classOf[Executors]
+            .getDeclaredMethod("newVirtualThreadPerTaskExecutor")
+            .invoke(null)
+            .asInstanceOf[ExecutorService]
+
+          val loomEc = ExecutionContext.fromExecutor(loomExec)
+
+          IO.blocking {
+            classOf[Thread]
+              .getDeclaredMethod("isVirtual")
+              .invoke(Thread.currentThread())
+              .asInstanceOf[Boolean]
+          }.evalOn(loomEc)
+        }
+      else
+        "block in-place on virtual threads" in skipped("virtual threads not supported")
     }
   }
 }

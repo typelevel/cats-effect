@@ -18,7 +18,7 @@ package cats
 package effect
 package kernel
 
-import cats.{Eq, Show}
+import cats.Eq
 import cats.data.State
 
 import scala.concurrent.duration._
@@ -148,6 +148,7 @@ class LensRefSpec extends BaseSpec with DetectPlatform { outer =>
 
           op must completeAs((false, Foo(5, -1)))
       }
+    else ()
 
     "tryModify - successfully modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
@@ -180,6 +181,7 @@ class LensRefSpec extends BaseSpec with DetectPlatform { outer =>
 
           op must completeAs((None, Foo(5, -1)))
       }
+    else ()
 
     "tryModifyState - successfully modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {

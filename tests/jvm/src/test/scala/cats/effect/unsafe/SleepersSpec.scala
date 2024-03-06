@@ -25,17 +25,24 @@ class SleepersSpec extends Specification {
 
   "SleepCallback" should {
     "have a trigger time in the future" in {
-      val sleepers = new TimerSkipList
+      val sleepers = new TimerHeap
       val now = 100.millis.toNanos
       val delay = 500.millis.toNanos
-      sleepers.insertTlr(now, delay, _ => ())
+      sleepers.insert(now, delay, _ => (), new Array(1))
       val triggerTime = sleepers.peekFirstTriggerTime()
       val expected = 600.millis.toNanos // delay + now
 
       triggerTime mustEqual expected
     }
 
-    def dequeueAll(sleepers: TimerSkipList): List[(Long, Right[Nothing, Unit] => Unit)] = {
+    def collectOuts(outs: (Long, Array[Right[Nothing, Unit] => Unit])*)
+        : List[(Long, Right[Nothing, Unit] => Unit)] =
+      outs.toList.flatMap {
+        case (now, out) =>
+          Option(out(0)).map(now -> _).toList
+      }
+
+    def dequeueAll(sleepers: TimerHeap): List[(Long, Right[Nothing, Unit] => Unit)] = {
       @tailrec
       def loop(acc: List[(Long, Right[Nothing, Unit] => Unit)])
           : List[(Long, Right[Nothing, Unit] => Unit)] = {
@@ -56,7 +63,7 @@ class SleepersSpec extends Specification {
     }
 
     "be ordered according to the trigger time" in {
-      val sleepers = new TimerSkipList
+      val sleepers = new TimerHeap
 
       val now1 = 100.millis.toNanos
       val delay1 = 500.millis.toNanos
@@ -74,22 +81,26 @@ class SleepersSpec extends Specification {
       val cb2 = newCb()
       val cb3 = newCb()
 
-      sleepers.insertTlr(now1, delay1, cb1)
-      sleepers.insertTlr(now2, delay2, cb2)
-      sleepers.insertTlr(now3, delay3, cb3)
+      val out1 = new Array[Right[Nothing, Unit] => Unit](1)
+      val out2 = new Array[Right[Nothing, Unit] => Unit](1)
+      val out3 = new Array[Right[Nothing, Unit] => Unit](1)
+      sleepers.insert(now1, delay1, cb1, out1)
+      sleepers.insert(now2, delay2, cb2, out2)
+      sleepers.insert(now3, delay3, cb3, out3)
 
-      val ordering = dequeueAll(sleepers)
+      val ordering =
+        collectOuts(now1 -> out1, now2 -> out2, now3 -> out3) ::: dequeueAll(sleepers)
       val expectedOrdering = List(expected2 -> cb2, expected3 -> cb3, expected1 -> cb1)
 
       ordering mustEqual expectedOrdering
     }
 
     "be ordered correctly even if Long overflows" in {
-      val sleepers = new TimerSkipList
+      val sleepers = new TimerHeap
 
       val now1 = Long.MaxValue - 20L
       val delay1 = 10.nanos.toNanos
-      val expected1 = Long.MaxValue - 10L // no overflow yet
+      // val expected1 = Long.MaxValue - 10L // no overflow yet
 
       val now2 = Long.MaxValue - 5L
       val delay2 = 10.nanos.toNanos
@@ -98,11 +109,13 @@ class SleepersSpec extends Specification {
       val cb1 = newCb()
       val cb2 = newCb()
 
-      sleepers.insertTlr(now1, delay1, cb1)
-      sleepers.insertTlr(now2, delay2, cb2)
+      val out1 = new Array[Right[Nothing, Unit] => Unit](1)
+      val out2 = new Array[Right[Nothing, Unit] => Unit](1)
+      sleepers.insert(now1, delay1, cb1, out1)
+      sleepers.insert(now2, delay2, cb2, out2)
 
-      val ordering = dequeueAll(sleepers)
-      val expectedOrdering = List(expected1 -> cb1, expected2 -> cb2)
+      val ordering = collectOuts(now1 -> out1, now2 -> out2) ::: dequeueAll(sleepers)
+      val expectedOrdering = List(now2 -> cb1, expected2 -> cb2)
 
       ordering mustEqual expectedOrdering
     }

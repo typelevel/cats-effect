@@ -21,4 +21,7 @@ trait DetectPlatform {
   def isJS: Boolean = false
   def isJVM: Boolean = true
   def isNative: Boolean = false
+
+  def javaMajorVersion: Int =
+    System.getProperty("java.version").stripPrefix("1.").takeWhile(_.isDigit).toInt
 }

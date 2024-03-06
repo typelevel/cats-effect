@@ -29,8 +29,8 @@ trait ClockTests[F[_]] extends Laws {
   def clock(implicit exec: F[Boolean] => Prop): RuleSet = {
     new RuleSet {
       val name = "clock"
-      val bases = Nil
-      val parents = Seq()
+      val bases: Seq[(String, Laws#RuleSet)] = Nil
+      val parents: Seq[RuleSet] = Seq()
 
       val props = Seq("monotonicity" -> exec(laws.monotonicity))
     }

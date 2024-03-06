@@ -1141,7 +1141,16 @@ trait QueueSource[F[_], A] {
    * @return
    *   an effect that contains the dequeued elements
    */
-  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] = {
+  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] =
+    QueueSource.tryTakeN[F, A](maxN, tryTake)
+
+  def size: F[Int]
+}
+
+object QueueSource {
+
+  private[std] def tryTakeN[F[_], A](maxN: Option[Int], tryTake: F[Option[A]])(
+      implicit F: Monad[F]): F[List[A]] = {
     QueueSource.assertMaxNPositive(maxN)
 
     def loop(i: Int, limit: Int, acc: List[A]): F[List[A]] =
@@ -1159,10 +1168,6 @@ trait QueueSource[F[_], A] {
     }
   }
 
-  def size: F[Int]
-}
-
-object QueueSource {
   private[std] def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
     case Some(n) if n <= 0 =>
       throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
@@ -1218,17 +1223,23 @@ trait QueueSink[F[_], A] {
    * @return
    *   an effect that contains the remaining valus that could not be offered.
    */
-  def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] = list match {
-    case Nil => F.pure(list)
-    case h :: t =>
-      tryOffer(h).ifM(
-        tryOfferN(t),
-        F.pure(list)
-      )
-  }
+  def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] =
+    QueueSink.tryOfferN[F, A](list, tryOffer)
+
 }
 
 object QueueSink {
+
+  private[std] def tryOfferN[F[_], A](list: List[A], tryOffer: A => F[Boolean])(
+      implicit F: Monad[F]): F[List[A]] = list match {
+    case Nil => F.pure(list)
+    case h :: t =>
+      tryOffer(h).ifM(
+        tryOfferN(t, tryOffer),
+        F.pure(list)
+      )
+  }
+
   implicit def catsContravariantForQueueSink[F[_]]: Contravariant[QueueSink[F, *]] =
     new Contravariant[QueueSink[F, *]] {
       override def contramap[A, B](fa: QueueSink[F, A])(f: B => A): QueueSink[F, B] =

@@ -18,7 +18,6 @@ package cats
 package effect
 package std
 
-import cats.Applicative
 import cats.effect.kernel._
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._

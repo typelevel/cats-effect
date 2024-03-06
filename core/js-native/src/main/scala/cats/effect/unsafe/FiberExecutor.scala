@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
+package unsafe
 
-import scala.concurrent.ExecutionContext
-
-private[unsafe] trait FiberMonitorCompanionPlatform {
-  def apply(compute: ExecutionContext): FiberMonitor = {
-    val _ = compute
-    new NoOpFiberMonitor
-  }
+/**
+ * An introspectable executor that runs fibers. Useful for fiber dumps.
+ */
+private[unsafe] trait FiberExecutor {
+  def liveTraces(): Map[IOFiber[_], Trace]
 }

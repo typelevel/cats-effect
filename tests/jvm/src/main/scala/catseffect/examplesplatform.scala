@@ -22,7 +22,6 @@ import cats.syntax.all._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
 package object examples {
@@ -37,7 +36,7 @@ package examples {
       super.runtimeConfig.copy(shutdownHookTimeout = Duration.Zero)
 
     val run: IO[Unit] =
-      IO(System.exit(0)).uncancelable
+      IO.blocking(System.exit(0)).uncancelable
   }
 
   object FatalErrorUnsafeRun extends IOApp {
@@ -49,24 +48,6 @@ package examples {
         _ <- IO.blocking(IO(throw new OutOfMemoryError("Boom!")).start.unsafeRunSync())
         _ <- IO.never[Unit]
       } yield ExitCode.Success
-  }
-
-  object Finalizers extends IOApp {
-    import java.io.FileWriter
-
-    def writeToFile(string: String, file: File): IO[Unit] =
-      IO(new FileWriter(file)).bracket { writer => IO(writer.write(string)) }(writer =>
-        IO(writer.close()))
-
-    def run(args: List[String]): IO[ExitCode] =
-      (IO(println("Started")) >> IO.never)
-        .onCancel(writeToFile("canceled", new File(args.head)))
-        .as(ExitCode.Success)
-  }
-
-  // just a stub to satisfy compiler, never run on JVM
-  object UndefinedProcessExit extends IOApp {
-    def run(args: List[String]): IO[ExitCode] = IO.never
   }
 
   object EvalOnMainThread extends IOApp {

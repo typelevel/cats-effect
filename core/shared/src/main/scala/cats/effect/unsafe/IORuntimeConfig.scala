@@ -233,7 +233,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       shutdownHookTimeout: Duration,
       reportUnhandledFiberErrors: Boolean,
       cpuStarvationCheckInterval: FiniteDuration,
-      cpuStarvationCheckInitialDelay: FiniteDuration,
+      cpuStarvationCheckInitialDelay: Duration,
       cpuStarvationCheckThreshold: Double
   ): IORuntimeConfig = {
     new IORuntimeConfig(
@@ -248,4 +248,26 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       cpuStarvationCheckThreshold
     )
   }
+
+  def apply(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int,
+      shutdownHookTimeout: Duration,
+      reportUnhandledFiberErrors: Boolean,
+      cpuStarvationCheckInterval: FiniteDuration,
+      cpuStarvationCheckInitialDelay: FiniteDuration,
+      cpuStarvationCheckThreshold: Double): IORuntimeConfig =
+    apply(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout,
+      reportUnhandledFiberErrors,
+      cpuStarvationCheckInterval,
+      cpuStarvationCheckInitialDelay: Duration,
+      cpuStarvationCheckThreshold
+    )
 }

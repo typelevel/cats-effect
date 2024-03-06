@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import CallbackStack.Handle
 import CallbackStack.Node
+import Platform.static
 
 private final class CallbackStack[A](private[this] var callback: A => Unit)
     extends AtomicReference[Node[A]] {
@@ -155,8 +156,8 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
 }
 
 private object CallbackStack {
-  def apply[A](callback: A => Unit): CallbackStack[A] =
-    new CallbackStack(callback)
+  @static def of[A](cb: A => Unit): CallbackStack[A] =
+    new CallbackStack(cb)
 
   sealed abstract class Handle[A] {
     private[CallbackStack] def clear(): Unit
