@@ -16,8 +16,6 @@
 
 package cats.effect
 
-
-
 class CallbackStackSpec extends BaseSpec with DetectPlatform {
 
   "CallbackStack" should {
