@@ -28,6 +28,10 @@
 
 package cats.effect.std
 
+import cats.Applicative
+import cats.effect.kernel.Sync
+import cats.effect.std.Random.ScalaRandom
+
 import scala.scalajs.js
 import scala.scalajs.js.typedarray._
 
@@ -109,5 +113,11 @@ private[std] trait SecureRandomCompanionPlatform {
       )
     }
   }
+
+  def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
+    Sync[F].delay(unsafeJavaSecuritySecureRandom())
+
+  private[effect] def unsafeJavaSecuritySecureRandom[F[_]: Sync](): SecureRandom[F] =
+    new ScalaRandom[F](Applicative[F].pure(new JavaSecureRandom())) with SecureRandom[F] {}
 
 }

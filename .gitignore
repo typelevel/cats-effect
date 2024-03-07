@@ -20,3 +20,6 @@ metals.sbt
 
 # npm
 node_modules/
+
+# nix flake
+.direnv/
