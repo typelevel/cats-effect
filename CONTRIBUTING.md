@@ -18,11 +18,11 @@ All PRs and branches are built using GitHub Actions, covering a large set of per
 
 Fairly standard pull request workflow. Please do *not* rebase commits that you've already pushed to a non-draft pull request unless explicitly requested. It's also very helpful if you toggle on the "Allow edits and access to secrets by maintainers" check box. There are no secrets, so you aren't leaking anything. What this does is allows maintainers to push last-minute trivial fixes to your PR (e.g. scalafmt) and ensure it can be merged with appropriate attribution.
 
-We maintain multiple primary branches within the Cats Effect repository. The active branches are dependent on the most recent release. The following examples assume the most recent releases were 3.4.1 and 2.5.7 (in the 2.x and 3.x lineages, respective). For those most recent releases, the active branches will be as follows:
+We maintain multiple primary branches within the Cats Effect repository. The active branches are dependent on the most recent release. The following examples assume the most recent releases were 3.5.4 and 2.5.7 (in the 2.x and 3.x lineages, respectively). For those most recent releases, the active branches will be as follows:
 
 - `series/3.x` (default)
   + Any *binary compatible* changes on top of a 3.x version which are not source- or forward-compatible
-- `series/3.4.x`
+- `series/3.5.x`
   + Any *source-* and *forward-compatible* changes on top of the latest major/minor version in the 3.x lineage
 - `series/2.x`
   + Any *binary compatible* changes on top of a 2.x version which are not source- or forward-compatible
@@ -33,11 +33,11 @@ We maintain multiple primary branches within the Cats Effect repository. The act
 - `docs`
   + The shared website definition (including adopters list, main page, etc)
 
-When in doubt, just target your work against `series/3.x`. If you're *very* certain that your changes will be source- *and* forward-compatible, it's safe to target the latest major/minor series (e.g. `series/3.4.x`). Note that forward-compatibility means that you cannot *add or remove* an API, while backward-compatibility means you cannot *remove* an API.
+When in doubt, just target your work against `series/3.x`. If you're *very* certain that your changes will be source- *and* forward-compatible, it's safe to target the latest major/minor series (e.g. `series/3.5.x`). Note that forward-compatibility means that you cannot *add or remove* an API, while backward-compatibility means you cannot *remove* an API.
 
-With documentation changes (both Scaladoc and Markdown documentation in `/docs`), target the *earliest* maintained branch to which those changes are relevant. For example, if a method already exists in `series/3.4.x`, documentation about it should also go into `series/3.4.x`. On the other hand, if that method was only added in `series/3.x`, its documentation should go into `series/3.x`.
+With documentation changes (both Scaladoc and Markdown documentation in `/docs`), target the *earliest* maintained branch to which those changes are relevant. For example, if a method already exists in `series/3.5.x`, documentation about it should also go into `series/3.5.x`. On the other hand, if that method was only added in `series/3.x`, its documentation should go into `series/3.x`.
 
-Most releases will be made from the major/minor series branch (e.g. `series/3.4.x`) unless we've determined that it's time to release the next full minor version. With each patch release, we will pull request the major/minor series branch back into the full major branch (e.g. `series/3.x`) to ensure that changes are incorporated. This process is another reason to avoid rebasing or cherry picking already-pull-requested work, since doing so can cause conflicts.
+Most releases will be made from the major/minor series branch (e.g. `series/3.5.x`) unless we've determined that it's time to release the next full minor version. With each patch release, we will pull request the major/minor series branch back into the full major branch (e.g. `series/3.x`) to ensure that changes are incorporated. This process is another reason to avoid rebasing or cherry picking already-pull-requested work, since doing so can cause conflicts.
 
 ## Licensing
 
