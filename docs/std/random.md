@@ -48,7 +48,7 @@ Random.scalaUtilRandom[IO]
 
 ## Using `Random`
 ```scala mdoc
-import cats.effect.std.{Console, Random}
+import cats.effect.std.{Console, Random, SecureRandom}
 import cats.{Functor, FlatMap}
 import cats.syntax.all.toFlatMapOps
 import cats.syntax.all.toFunctorOps
@@ -78,7 +78,8 @@ def showMagicNumber3[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F
   } yield ()
  */
 
-val app = showMagicNumber("rnd", Random.scalaUtilRandom[IO])
+val app = showMagicNumber("rnd", Random.scalaUtilRandom[IO]) *>
+  showMagicNumber[IO]("sec-rnd", SecureRandom.javaSecuritySecureRandom[IO])
 
 // required for unsafeRunSync()
 
