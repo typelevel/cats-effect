@@ -48,8 +48,7 @@ Random.scalaUtilRandom[IO]
 
 ## Using `Random`
 ```scala mdoc
-import cats.effect.std.{Console, Random, SecureRandom}
-import cats.effect.{IO, IOApp}
+import cats.effect.std.{Console, Random}
 import cats.{Functor, FlatMap}
 import cats.syntax.all.toFlatMapOps
 import cats.syntax.all.toFunctorOps
@@ -58,13 +57,18 @@ def dieRoll[F[_] : Functor : Random]: F[Int] =
   Random[F].betweenInt(0, 6).map(_ + 1)
 
 def showMagicNumber[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F[Unit] =
+  // Scala 2.x & 3.x
+  rnd.flatMap(implicit rnd => dieRoll[F].flatMap(i => Console[F].println(s"$id: $i")))
+
+/* Scala 3.x only
   for {
     given Random[F] <- rnd
     i               <- dieRoll[F]
     _               <- Console[F].println(s"$id: $i")
   } yield ()
+ */
  
-val app = showMagicNumber("rnd", Random.scalaUtilRandom[IO]) *> showMagicNumber("sec-rnd", SecureRandom.javaSecuritySecureRandom)
+val app = showMagicNumber("rnd", Random.scalaUtilRandom[IO])
 
 // required for unsafeRunSync()
 import cats.effect.unsafe.implicits.global    
