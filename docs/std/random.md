@@ -48,13 +48,29 @@ Random.scalaUtilRandom[IO]
 
 ## Using `Random`
 ```scala mdoc
-import cats.Functor
-import cats.syntax.functor._
+import cats.effect.std.{Console, Random, SecureRandom}
+import cats.effect.{IO, IOApp}
+import cats.{Functor, FlatMap}
+import cats.syntax.all.toFlatMapOps
+import cats.syntax.all.toFunctorOps
 
-def dieRoll[F[_]: Functor: Random]: F[Int] =
-  Random[F].betweenInt(0, 6).map(_ + 1) // `6` is excluded from the range
+def dieRoll[F[_] : Functor : Random]: F[Int] =
+  Random[F].betweenInt(0, 6).map(_ + 1)
+
+def showMagicNumber[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F[Unit] =
+  for {
+    given Random[F] <- rnd
+    i               <- dieRoll[F]
+    _               <- Console[F].println(s"$id: $i")
+  } yield a
+ 
+val app = showMagicNumber("rnd", Random.scalaUtilRandom[IO]) *> showMagicNumber("sec-rnd", SecureRandom.javaSecuritySecureRandom)
+
+// required for unsafeRunSync()
+import cats.effect.unsafe.implicits.global    
+
+app.unsafeRunSync()
 ```
-
 ## Derivation
 
 An instance of `cats.effect.std.Random` can be created by any data type
