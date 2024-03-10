@@ -60,13 +60,14 @@ def dieRoll[F[_] : Functor : Random]: F[Int] =
 def showMagicNumber[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F[Unit] =
   rnd.flatMap(implicit rnd => dieRoll[F].flatMap(i => Console[F].println(s"$id: $i")))
 
-// Scala 2.x with better-monadic-for compiler plugin
+/* Scala 2.x with better-monadic-for compiler plugin
 def showMagicNumber_bmf[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F[Unit] =
   for {
     implicit0(it: Random[F]) <- rnd
     i <- dieRoll[F]
     _ <- Console[F].println(s"$id: $i")
   } yield ()
+ */
 
 /* Scala 3.x only
 def showMagicNumber3[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F[Unit] = 
