@@ -62,7 +62,7 @@ def showMagicNumber[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F[
     given Random[F] <- rnd
     i               <- dieRoll[F]
     _               <- Console[F].println(s"$id: $i")
-  } yield a
+  } yield ()
  
 val app = showMagicNumber("rnd", Random.scalaUtilRandom[IO]) *> showMagicNumber("sec-rnd", SecureRandom.javaSecuritySecureRandom)
 
