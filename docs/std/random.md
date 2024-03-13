@@ -30,11 +30,11 @@ minor renamings to avoid method overloading, e.g. `betweenLong`,
 
 `cats.effect.std.Random` can be backed by a variety of random sources available
 on the JVM:
-  - `scala.util.Random` (`Random.scalaUtilRandom[F: Sync]`)
+- `scala.util.Random` (`Random.scalaUtilRandom[F: Sync]`)
     - Individual instances can be customized with an initial seed, or load
       balanced between several `scala.util.Random` instances
-  - `java.util.Random`
-  - `java.security.SecureRandom`
+- `java.util.Random`
+- `java.security.SecureRandom`
 
 ## Creating a `Random` instance
 
@@ -48,13 +48,44 @@ Random.scalaUtilRandom[IO]
 
 ## Using `Random`
 ```scala mdoc
-import cats.Functor
-import cats.syntax.functor._
+import cats.effect.std.{Console, Random, SecureRandom}
+import cats.{Functor, FlatMap}
+import cats.syntax.all.toFlatMapOps
+import cats.syntax.all.toFunctorOps
 
-def dieRoll[F[_]: Functor: Random]: F[Int] =
-  Random[F].betweenInt(0, 6).map(_ + 1) // `6` is excluded from the range
+def dieRoll[F[_] : Functor : Random]: F[Int] =
+  Random[F].betweenInt(0, 6).map(_ + 1)
+
+// Scala 2.x & 3.x
+def showMagicNumber[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F[Unit] =
+  rnd.flatMap(implicit rnd => dieRoll[F].flatMap(i => Console[F].println(s"$id: $i")))
+
+/* Scala 2.x with better-monadic-for compiler plugin
+def showMagicNumber_bmf[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F[Unit] =
+  for {
+    implicit0(it: Random[F]) <- rnd
+    i <- dieRoll[F]
+    _ <- Console[F].println(s"$id: $i")
+  } yield ()
+ */
+
+/* Scala 3.x only
+def showMagicNumber3[F[_] : Console : FlatMap](id: String, rnd: F[Random[F]]): F[Unit] = 
+  for {
+    given Random[F] <- rnd
+    i               <- dieRoll[F]
+    _               <- Console[F].println(s"$id: $i")
+  } yield ()
+ */
+
+val app = showMagicNumber("rnd", Random.scalaUtilRandom[IO]) *>
+  showMagicNumber[IO]("sec-rnd", SecureRandom.javaSecuritySecureRandom[IO])
+
+// required for unsafeRunSync()
+import cats.effect.unsafe.implicits.global
+
+app.unsafeRunSync()
 ```
-
 ## Derivation
 
 An instance of `cats.effect.std.Random` can be created by any data type
