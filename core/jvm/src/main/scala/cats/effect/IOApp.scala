@@ -388,7 +388,10 @@ trait IOApp {
           )
 
         val (blocking, blockDown) =
-          IORuntime.createDefaultBlockingExecutionContext()
+          IORuntime.createDefaultBlockingExecutionContext(
+            reportFailure =
+              (t: Throwable) => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
+          )
 
         IORuntime(
           compute,

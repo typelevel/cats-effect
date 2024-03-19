@@ -899,7 +899,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       cb(Left(new CancellationException("The fiber was canceled"))),
       t => {
         if (!NonFatal(t)) {
-          t.printStackTrace()
+          runtime.compute.reportFailure(t)
         }
         cb(Left(t))
       },
@@ -914,7 +914,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       cb(Outcome.canceled),
       t => {
         if (!NonFatal(t)) {
-          t.printStackTrace()
+          runtime.compute.reportFailure(t)
         }
         cb(Outcome.errored(t))
       },
@@ -939,7 +939,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         if (NonFatal(t)) {
           if (runtime.config.reportUnhandledFiberErrors)
             runtime.compute.reportFailure(t)
-        } else { t.printStackTrace() }
+        } else { runtime.compute.reportFailure(t) }
       },
       _ => ())
     ()
