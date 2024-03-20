@@ -88,8 +88,7 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
       case _ => ()
     }(parasiticEC)
 
-  protected def reportFailure(t: Throwable): Unit =
-    t.printStackTrace()
+  protected def reportFailure(t: Throwable): Unit
 
   // package-private because it's just an internal utility which supports specific implementations
   // anyone who needs this type of thing should use unsafeToFuture and then onComplete

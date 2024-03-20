@@ -141,7 +141,11 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       threadPrefix: String = "io-compute",
       blockerThreadPrefix: String = DefaultBlockerPrefix)
       : (WorkStealingThreadPool, () => Unit) =
-    createWorkStealingComputeThreadPool(threads, threadPrefix, blockerThreadPrefix)
+    createWorkStealingComputeThreadPool(
+      threads,
+      threadPrefix,
+      blockerThreadPrefix,
+      reportFailure = t => self.compute.reportFailure(t))
 
   @deprecated("bincompat shim for previous default method overload", "3.3.13")
   def createDefaultComputeThreadPool(
@@ -151,7 +155,14 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     createDefaultComputeThreadPool(self(), threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
-      threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
+      threadPrefix: String
+  ): (ExecutionContext, () => Unit) =
+    createDefaultBlockingExecutionContext(threadPrefix, _.printStackTrace())
+
+  private[effect] def createDefaultBlockingExecutionContext(
+      threadPrefix: String = "io-blocking",
+      reportFailure: Throwable => Unit = _.printStackTrace()
+  ): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
     val executor = Executors.newCachedThreadPool { (r: Runnable) =>
       val t = new Thread(r)
@@ -159,7 +170,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       t.setDaemon(true)
       t
     }
-    (ExecutionContext.fromExecutor(executor), { () => executor.shutdown() })
+    (ExecutionContext.fromExecutor(executor, reportFailure), { () => executor.shutdown() })
   }
 
   def createDefaultScheduler(threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) = {
