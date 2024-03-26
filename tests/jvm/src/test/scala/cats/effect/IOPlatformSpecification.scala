@@ -268,6 +268,61 @@ trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with Scala
         } must completeAs(true)
       }
 
+      "never observe external cancellation right inside poll" in {
+        // we need to set `cancelationCheckThreshold`,
+        // so we create our own runtime:
+        val runtime = IORuntime
+          .builder()
+          .setConfig(IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2048))
+          .build()
+        try {
+          val test = IO.deferred[Unit].flatMap { latch1 =>
+            IO.deferred[Unit].flatMap { latch2 =>
+              IO.deferred[Either[Throwable, Unit]].flatMap { assertion =>
+                IO.deferred[Unit].flatMap { testDone =>
+                  val unc = IO.uncancelable[Unit] { poll =>
+                    latch1.complete(()) *> latch2.get *> {
+                      val act = IO.unit // this should pass
+                      // val act = IO.unit *> IO.unit // this should fail
+                      poll(act).guaranteeCase {
+                        case Outcome.Canceled() =>
+                          assertion
+                            .complete(Left(new AssertionError("uncancelable was cancelled")))
+                            .void
+                        case _ =>
+                          assertion.complete(Right(())).void
+                      } *> testDone.get
+                    }
+                  }
+                  unc.start.flatMap { fiber =>
+                    latch1.get *> latch2.complete(()) *> {
+                      fiber.cancel.start.void *> assertion.get.rethrow *> {
+                        fiber
+                          .join
+                          .flatMap { oc =>
+                            IO.raiseError(
+                              new AssertionError(s"fiber finished unexpectedly with ${oc}"))
+                          }
+                          .timeoutTo(
+                            1.second,
+                            testDone.complete(()) *> fiber.join.flatMap { oc =>
+                              IO(oc.isSuccess must beTrue)
+                            }
+                          )
+                      }
+                    }.guarantee(testDone.complete(()).void)
+                  }
+                }
+              }
+            }
+          }
+
+          test.parReplicateA_(10000).as(ok).unsafeRunSync()(runtime)
+        } finally {
+          runtime.shutdown()
+        }
+      }
+
       "run a timer which crosses into a blocking region" in realWithRuntime { rt =>
         rt.scheduler match {
           case sched: WorkStealingThreadPool[_] =>
@@ -297,7 +352,7 @@ trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with Scala
             IO defer {
               val ai = new AtomicInteger(0)
 
-              sched.sleepInternal(500.millis, { _ => ai.getAndIncrement(); () })
+              sched.sleepInternal(500.millis, { _ => ai.getAndIncrement(); true })
 
               // if we aren't careful, this conversion can duplicate the timer
               scala.concurrent.blocking {
@@ -492,11 +547,11 @@ trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with Scala
 
         object DummySystem extends PollingSystem {
           type Api = DummyPoller
-          type Poller = AtomicReference[List[Either[Throwable, Unit] => Unit]]
+          type Poller = AtomicReference[List[Either[Throwable, Unit] => Boolean]]
 
           def close() = ()
 
-          def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Unit])
+          def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Boolean])
           def needsPoll(poller: Poller) = poller.get.nonEmpty
           def closePoller(poller: Poller) = ()
 

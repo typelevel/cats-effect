@@ -108,7 +108,7 @@ private final class TimerHeap extends AtomicInteger {
   /**
    * for testing
    */
-  def peekFirstQuiescent(): Right[Nothing, Unit] => Unit = {
+  def peekFirstQuiescent(): Right[Nothing, Unit] => Boolean = {
     if (size > 0) heap(1).get()
     else null
   }
@@ -116,11 +116,11 @@ private final class TimerHeap extends AtomicInteger {
   /**
    * only called by owner thread
    */
-  def pollFirstIfTriggered(now: Long): Right[Nothing, Unit] => Unit = {
+  def pollFirstIfTriggered(now: Long): Right[Nothing, Unit] => Boolean = {
     val heap = this.heap // local copy
 
     @tailrec
-    def loop(): Right[Nothing, Unit] => Unit = if (size > 0) {
+    def loop(): Right[Nothing, Unit] => Boolean = if (size > 0) {
       val root = heap(1)
       val rootDeleted = root.isDeleted()
       val rootExpired = !rootDeleted && isExpired(root, now)
@@ -154,7 +154,10 @@ private final class TimerHeap extends AtomicInteger {
         if ((node ne null) && isExpired(node, now)) {
           val cb = node.getAndClear()
           val invoked = cb ne null
-          if (invoked) cb(RightUnit)
+          if (invoked) {
+            cb(RightUnit)
+            ()
+          }
 
           val leftInvoked = go(heap, size, 2 * m)
           val rightInvoked = go(heap, size, 2 * m + 1)
@@ -176,8 +179,8 @@ private final class TimerHeap extends AtomicInteger {
   def insert(
       now: Long,
       delay: Long,
-      callback: Right[Nothing, Unit] => Unit,
-      out: Array[Right[Nothing, Unit] => Unit]
+      callback: Right[Nothing, Unit] => Boolean,
+      out: Array[Right[Nothing, Unit] => Boolean]
   ): Function0[Unit] with Runnable = if (size > 0) {
     val heap = this.heap // local copy
     val triggerTime = computeTriggerTime(now, delay)
@@ -428,21 +431,21 @@ private final class TimerHeap extends AtomicInteger {
 
   private final class Node(
       val triggerTime: Long,
-      private[this] var callback: Right[Nothing, Unit] => Unit,
+      private[this] var callback: Right[Nothing, Unit] => Boolean,
       var index: Int
   ) extends Function0[Unit]
       with Runnable {
 
     private[this] var canceled: Boolean = false
 
-    def getAndClear(): Right[Nothing, Unit] => Unit = {
+    def getAndClear(): Right[Nothing, Unit] => Boolean = {
       val back = callback
       if (back ne null) // only clear if we read something
         callback = null
       back
     }
 
-    def get(): Right[Nothing, Unit] => Unit = callback
+    def get(): Right[Nothing, Unit] => Boolean = callback
 
     /**
      * Cancel this timer.

@@ -526,7 +526,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "ignore asyncCheckAttempt callback" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 =>
           IO { cb = cb0 } *> IO.pure(Right(42))
@@ -548,7 +548,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "ignore asyncCheckAttempt callback real" in real {
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val test = for {
           latch1 <- Deferred[IO, Unit]
@@ -570,7 +570,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "repeated asyncCheckAttempt callback" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 =>
           IO { cb = cb0 } *> IO.pure(Left(None))
@@ -594,7 +594,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "repeated asyncCheckAttempt callback real" in real {
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val test = for {
           latch1 <- Deferred[IO, Unit]
@@ -622,7 +622,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           val inner = IO.asyncCheckAttempt[Int] { cb2 =>
             IO(cb1(Right(1))) *>
               IO.executionContext
-                .flatMap(ec => IO(ec.execute(() => cb2(Right(2)))))
+                .flatMap(ec => IO(ec.execute(() => { cb2(Right(2)); () })))
                 .as(Left(None))
           }
 
@@ -672,7 +672,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "repeated async callback" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val async = IO.async_[Int] { cb0 => cb = cb0 }
 
@@ -694,7 +694,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "repeated async callback real" in real {
         case object TestException extends RuntimeException
 
-        var cb: Either[Throwable, Int] => Unit = null
+        var cb: Either[Throwable, Int] => Boolean = null
 
         val test = for {
           latch1 <- Deferred[IO, Unit]
@@ -726,7 +726,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "calling async callback with null after registration (ticked)" in ticked {
         implicit ticker =>
           val test = for {
-            cbp <- Deferred[IO, Either[Throwable, Int] => Unit]
+            cbp <- Deferred[IO, Either[Throwable, Int] => Boolean]
             fib <- IO.async[Int] { cb => cbp.complete(cb).as(None) }.start
             _ <- IO(ticker.ctx.tickAll())
             cb <- cbp.get
@@ -748,7 +748,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "calling async callback with null after registration (real)" in real {
         for {
-          cbp <- Deferred[IO, Either[Throwable, Int] => Unit]
+          cbp <- Deferred[IO, Either[Throwable, Int] => Boolean]
           latch <- Deferred[IO, Unit]
           fib <- IO.async[Int] { cb => cbp.complete(cb) *> latch.get.as(None) }.start
           cb <- cbp.get
@@ -763,7 +763,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "complete a fiber with Canceled under finalizer on poll" in ticked { implicit ticker =>
         val ioa =
-          IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit))
+          IO.uncancelable(p => IO.canceled >> p(IO.unit *> IO.unit).guarantee(IO.unit))
             .start
             .flatMap(_.join)
 
@@ -1052,7 +1052,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         val outer = IO.async[Int] { cb1 =>
           val inner = IO.async[Int] { cb2 =>
             IO(cb1(Right(1))) *>
-              IO.executionContext.flatMap(ec => IO(ec.execute(() => cb2(Right(2))))).as(None)
+              IO.executionContext
+                .flatMap(ec => IO(ec.execute { () => cb2(Right(2)); () }))
+                .as(None)
           }
 
           inner.flatMap(i => IO { innerR = i }).as(None)
@@ -1137,7 +1139,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "sequence onCancel when canceled before registration" in ticked { implicit ticker =>
         var passed = false
         val test = IO.uncancelable { poll =>
-          IO.canceled >> poll(IO.unit).onCancel(IO { passed = true })
+          IO.canceled >> poll(IO.unit *> IO.unit).onCancel(IO { passed = true })
         }
 
         test must selfCancel
@@ -1147,7 +1149,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "break out of uncancelable when canceled before poll" in ticked { implicit ticker =>
         var passed = true
         val test = IO.uncancelable { poll =>
-          IO.canceled >> poll(IO.unit) >> IO { passed = false }
+          IO.canceled >> poll(IO.unit *> IO.unit) >> IO { passed = false }
         }
 
         test must selfCancel
@@ -1244,6 +1246,145 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         val test = IO.uncancelable { poll =>
           poll(poll(IO.unit) >> IO.canceled) >> IO { passed = false }
+        }
+
+        test must selfCancel
+        passed must beTrue
+      }
+
+      "never self-cancel right inside poll" in ticked { implicit ticker =>
+        var onCancel = false
+        var guarantee = 0
+        val test = IO
+          .uncancelable { poll =>
+            IO.canceled *> poll(IO.pure(42)).onCancel(IO { onCancel = true })
+          }
+          .guaranteeCase {
+            case Outcome.Succeeded(io) => io.flatMap(result => IO { guarantee = result })
+            case _ => IO.unit
+          }
+          .void
+
+        test must selfCancel
+        onCancel must beFalse
+        guarantee mustEqual 42
+      }
+
+      "never cancel poll(uncancelable(...))" in ticked { implicit ticker =>
+        var onCancel = false
+        var guarantee = 0
+        val test = IO
+          .uncancelable { poll =>
+            IO.canceled *> poll(IO.uncancelable(_ => IO.unit *> IO.pure(42))).onCancel(IO {
+              onCancel = true
+            })
+          }
+          .guaranteeCase {
+            case Outcome.Succeeded(io) => io.flatMap(result => IO { guarantee = result })
+            case _ => IO.unit
+          }
+          .void
+
+        test must selfCancel
+        onCancel must beFalse
+        guarantee mustEqual 42
+      }
+
+      def pollAsyncTest(async: IO[Unit], isCancelable: Boolean)(implicit ticker: Ticker) = {
+        var cancelled = false
+        val test = IO.uncancelable { poll =>
+          IO.canceled *> poll(async).onCancel(IO { cancelled = true })
+        }.void
+
+        test must selfCancel
+        cancelled mustEqual isCancelable
+      }
+
+      "never cancel poll(async_)" in ticked { implicit ticker =>
+        val async = IO.async_[Unit] { cb =>
+          cb(Right(()))
+          ()
+        }
+        pollAsyncTest(async, isCancelable = false)
+      }
+
+      "never cancel poll(async) without finalizer" in ticked { implicit ticker =>
+        val async = IO.async[Unit] { cb =>
+          IO {
+            cb(Right(()))
+            None
+          }
+        }
+        pollAsyncTest(async, isCancelable = false)
+      }
+
+      "never cancel poll(async) which doesn't suspend" in ticked { implicit ticker =>
+        val async = IO.async[Unit] { cb =>
+          IO {
+            cb(Right(()))
+            Some(IO.unit)
+          }
+        }
+        pollAsyncTest(async, isCancelable = false)
+      }
+
+      "correctly cancel poll(never)" in ticked { implicit ticker =>
+        pollAsyncTest(IO.never[Unit], isCancelable = true)
+      }
+
+      "correctly cancel poll(async) which suspends and has finalizer" in ticked {
+        implicit ticker =>
+          val async = IO.async[Unit] { _ => IO.pure(Some(IO.unit)) }
+          pollAsyncTest(async, isCancelable = true)
+      }
+
+      "never cancel poll(asyncCheckAttempt) with immediate result" in ticked {
+        implicit ticker =>
+          val async = IO.asyncCheckAttempt[Unit] { _ => IO.pure(Right(())) }
+          pollAsyncTest(async, isCancelable = false)
+      }
+
+      "never cancel poll(asyncCheckAttempt) without finalizer" in ticked { implicit ticker =>
+        val async = IO.asyncCheckAttempt[Unit] { cb =>
+          IO {
+            cb(Right(()))
+            Left(None)
+          }
+        }
+        pollAsyncTest(async, isCancelable = false)
+      }
+
+      "never cancel poll(asyncCheckAttempt) which doesn't suspend" in ticked {
+        implicit ticker =>
+          val async = IO.asyncCheckAttempt[Unit] { cb =>
+            IO {
+              cb(Right(()))
+              Left(Some(IO.unit))
+            }
+          }
+          pollAsyncTest(async, isCancelable = false)
+      }
+
+      "correctly cancel poll(asyncCheckAttempt) which suspends and has finalizer" in ticked {
+        implicit ticker =>
+          val async = IO.asyncCheckAttempt[Unit] { _ => IO.pure(Left(Some(IO.unit))) }
+          pollAsyncTest(async, isCancelable = true)
+      }
+
+      "correctly cancel after cede" in ticked { implicit ticker =>
+        var passed = false
+        val test = IO.uncancelable { poll =>
+          IO.canceled *> poll(IO.cede *> IO.unit).onCancel(IO { passed = true })
+        }
+
+        test must selfCancel
+        passed must beTrue
+      }
+
+      "correctly cancel before cede" in ticked { implicit ticker =>
+        var passed = false
+        val test = IO.uncancelable { poll =>
+          IO.canceled *> poll(IO.unit *> IO.cede).onCancel(IO { passed = true })
         }
 
         test must selfCancel
@@ -1363,10 +1504,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "catch exceptions in cont" in ticked { implicit ticker =>
         IO.cont[Unit, Unit](new Cont[IO, Unit, Unit] {
-          override def apply[F[_]](implicit F: MonadCancel[F, Throwable])
-              : (Either[Throwable, Unit] => Unit, F[Unit], cats.effect.IO ~> F) => F[Unit] = {
-            (_, _, _) => throw new Exception
-          }
+          override def apply[F[_]](implicit F: MonadCancel[F, Throwable]): (
+              Either[Throwable, Unit] => Boolean,
+              F[Unit],
+              cats.effect.IO ~> F) => F[Unit] = { (_, _, _) => throw new Exception }
         }).voidError must completeAs(())
       }
     }
@@ -1443,7 +1584,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "ensure async callback is suppressed during suspension of async finalizers" in ticked {
         implicit ticker =>
-          var cb: Either[Throwable, Unit] => Unit = null
+          var cb: Either[Throwable, Unit] => Boolean = null
 
           val subject = IO.async[Unit] { cb0 =>
             IO {
@@ -1469,7 +1610,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         var success = false
 
         val target = IO.async[Unit] { _ =>
-          val fin = IO.async_[Unit] { cb => ticker.ctx.execute(() => cb(Right(()))) } *> IO {
+          val fin = IO.async_[Unit] { cb =>
+            ticker.ctx.execute { () => cb(Right(())); () }
+          } *> IO {
             success = true
           }
 
@@ -1974,6 +2117,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               IO.async_[Unit] { cb =>
                 inAsync = true
                 cb(Right(()))
+                ()
               }
             }
             .flatMap { _ =>

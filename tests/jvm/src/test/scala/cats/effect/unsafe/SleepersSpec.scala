@@ -28,24 +28,24 @@ class SleepersSpec extends Specification {
       val sleepers = new TimerHeap
       val now = 100.millis.toNanos
       val delay = 500.millis.toNanos
-      sleepers.insert(now, delay, _ => (), new Array(1))
+      sleepers.insert(now, delay, _ => true, new Array(1))
       val triggerTime = sleepers.peekFirstTriggerTime()
       val expected = 600.millis.toNanos // delay + now
 
       triggerTime mustEqual expected
     }
 
-    def collectOuts(outs: (Long, Array[Right[Nothing, Unit] => Unit])*)
-        : List[(Long, Right[Nothing, Unit] => Unit)] =
+    def collectOuts(outs: (Long, Array[Right[Nothing, Unit] => Boolean])*)
+        : List[(Long, Right[Nothing, Unit] => Boolean)] =
       outs.toList.flatMap {
         case (now, out) =>
           Option(out(0)).map(now -> _).toList
       }
 
-    def dequeueAll(sleepers: TimerHeap): List[(Long, Right[Nothing, Unit] => Unit)] = {
+    def dequeueAll(sleepers: TimerHeap): List[(Long, Right[Nothing, Unit] => Boolean)] = {
       @tailrec
-      def loop(acc: List[(Long, Right[Nothing, Unit] => Unit)])
-          : List[(Long, Right[Nothing, Unit] => Unit)] = {
+      def loop(acc: List[(Long, Right[Nothing, Unit] => Boolean)])
+          : List[(Long, Right[Nothing, Unit] => Boolean)] = {
         val tt = sleepers.peekFirstTriggerTime()
         if (tt == Long.MinValue) acc.reverse
         else {
@@ -58,8 +58,8 @@ class SleepersSpec extends Specification {
     }
 
     // creates a new callback, making sure it's a separate object:
-    def newCb(): Right[Nothing, Unit] => Unit = {
-      new Function1[Right[Nothing, Unit], Unit] { def apply(x: Right[Nothing, Unit]) = () }
+    def newCb(): Right[Nothing, Unit] => Boolean = {
+      new Function1[Right[Nothing, Unit], Boolean] { def apply(x: Right[Nothing, Unit]) = true }
     }
 
     "be ordered according to the trigger time" in {
@@ -81,9 +81,9 @@ class SleepersSpec extends Specification {
       val cb2 = newCb()
       val cb3 = newCb()
 
-      val out1 = new Array[Right[Nothing, Unit] => Unit](1)
-      val out2 = new Array[Right[Nothing, Unit] => Unit](1)
-      val out3 = new Array[Right[Nothing, Unit] => Unit](1)
+      val out1 = new Array[Right[Nothing, Unit] => Boolean](1)
+      val out2 = new Array[Right[Nothing, Unit] => Boolean](1)
+      val out3 = new Array[Right[Nothing, Unit] => Boolean](1)
       sleepers.insert(now1, delay1, cb1, out1)
       sleepers.insert(now2, delay2, cb2, out2)
       sleepers.insert(now3, delay3, cb3, out3)
@@ -109,8 +109,8 @@ class SleepersSpec extends Specification {
       val cb1 = newCb()
       val cb2 = newCb()
 
-      val out1 = new Array[Right[Nothing, Unit] => Unit](1)
-      val out2 = new Array[Right[Nothing, Unit] => Unit](1)
+      val out1 = new Array[Right[Nothing, Unit] => Boolean](1)
+      val out2 = new Array[Right[Nothing, Unit] => Boolean](1)
       sleepers.insert(now1, delay1, cb1, out1)
       sleepers.insert(now2, delay2, cb2, out2)
 

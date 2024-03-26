@@ -650,14 +650,17 @@ object Dispatcher {
 
   // MPSC assumption
   private final class UnsafeAsyncQueue[F[_]: Async, A]
-      extends AtomicReference[Either[Throwable, Unit] => Unit](null) { latchR =>
+      extends AtomicReference[Either[Throwable, Unit] => Boolean](null) { latchR =>
 
     private[this] val buffer = new UnsafeUnbounded[A]()
 
     def unsafeOffer(a: A): Unit = {
       val _ = buffer.put(a)
       val back = latchR.get()
-      if (back ne null) back(RightUnit)
+      if (back ne null) {
+        back(RightUnit)
+        ()
+      }
     }
 
     def take: F[A] = Async[F].cont[Unit, A] {

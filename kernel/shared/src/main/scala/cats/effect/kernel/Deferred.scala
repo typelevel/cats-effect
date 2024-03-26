@@ -81,7 +81,7 @@ object Deferred {
   sealed abstract private class State[A]
   private object State {
     final case class Set[A](a: A) extends State[A]
-    final case class Unset[A](readers: LongMap[A => Unit], nextId: Long) extends State[A]
+    final case class Unset[A](readers: LongMap[A => Boolean], nextId: Long) extends State[A]
 
     val initialId = 1L
     val dummyId = 0L
@@ -95,7 +95,7 @@ object Deferred {
 
     def get: F[A] = {
       // side-effectful
-      def addReader(awakeReader: A => Unit): Long = {
+      def addReader(awakeReader: A => Boolean): Long = {
         @tailrec
         def loop(): Long =
           ref.get match {
@@ -155,12 +155,12 @@ object Deferred {
       }
 
     def complete(a: A): F[Boolean] = {
-      def notifyReaders(readers: LongMap[A => Unit]): F[Unit] = {
+      def notifyReaders(readers: LongMap[A => Boolean]): F[Unit] = {
         // LongMap iterators return values in unsigned key order,
         // which corresponds to the arrival order of readers since
         // insertion is governed by a monotonically increasing id
         val cursor = readers.valuesIterator
-        var acc = F.unit
+        var acc = F.pure(false)
 
         while (cursor.hasNext) {
           val next = cursor.next()
@@ -168,7 +168,7 @@ object Deferred {
           acc = acc >> task
         }
 
-        acc
+        acc.void
       }
 
       // side-effectful (even though it returns F[Unit])

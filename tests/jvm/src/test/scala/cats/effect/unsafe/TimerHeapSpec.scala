@@ -23,8 +23,8 @@ class TimerHeapSpec extends Specification {
   /**
    * Creates a new callback, making sure it's a separate object
    */
-  def newCb(): Right[Nothing, Unit] => Unit = {
-    new Function1[Right[Nothing, Unit], Unit] { def apply(x: Right[Nothing, Unit]) = () }
+  def newCb(): Right[Nothing, Unit] => Boolean = {
+    new Function1[Right[Nothing, Unit], Boolean] { def apply(x: Right[Nothing, Unit]) = true }
   }
 
   private val cb0 = newCb()
@@ -38,7 +38,7 @@ class TimerHeapSpec extends Specification {
 
     "correctly insert / pollFirstIfTriggered" in {
       val m = new TimerHeap
-      val out = new Array[Right[Nothing, Unit] => Unit](1)
+      val out = new Array[Right[Nothing, Unit] => Boolean](1)
       m.pollFirstIfTriggered(Long.MinValue) must beNull
       m.pollFirstIfTriggered(Long.MaxValue) must beNull
       m.toString mustEqual "TimerHeap()"
@@ -72,7 +72,7 @@ class TimerHeapSpec extends Specification {
 
     "correctly insert / remove (cancel)" in {
       val m = new TimerHeap
-      val out = new Array[Right[Nothing, Unit] => Unit](1)
+      val out = new Array[Right[Nothing, Unit] => Boolean](1)
       val r0 = m.insert(0L, 1L, cb0, out)
       out(0) must beNull
       val r1 = m.insert(0L, 2L, cb1, out)
@@ -121,12 +121,12 @@ class TimerHeapSpec extends Specification {
       val startFrom = Long.MaxValue - 100L
       var nanoTime = startFrom
       val removers = new Array[Runnable](200)
-      val callbacksBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
-      val triggeredBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
+      val callbacksBuilder = Vector.newBuilder[Right[Nothing, Unit] => Boolean]
+      val triggeredBuilder = Vector.newBuilder[Right[Nothing, Unit] => Boolean]
       for (i <- 0 until 200) {
         if (i >= 10 && i % 2 == 0) removers(i - 10).run()
         val cb = newCb()
-        val out = new Array[Right[Nothing, Unit] => Unit](1)
+        val out = new Array[Right[Nothing, Unit] => Boolean](1)
         val r = m.insert(nanoTime, 10L, cb, out)
         triggeredBuilder ++= Option(out(0))
         removers(i) = r
