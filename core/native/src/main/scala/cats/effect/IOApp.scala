@@ -146,6 +146,14 @@ trait IOApp {
 
   private[this] var _runtime: unsafe.IORuntime = null
 
+  @volatile
+  private[this] var _failureReporter: Throwable => IO[Unit] =
+    err => IO.consoleForIO.printStackTrace(err)
+
+  @volatile
+  private[this] var _onCpuStarvationReporter: CpuStarvationWarningMetrics => IO[Unit] =
+    metrics => onCpuStarvationWarn(metrics)
+
   /**
    * The runtime which will be used by `IOApp` to evaluate the [[IO]] produced by the `run`
    * method. This may be overridden by `IOApp` implementations which have extremely specialized
@@ -168,11 +176,52 @@ trait IOApp {
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   /**
+   * Configures the action to perform when unhandled errors are caught by the runtime.
+   *
+   * An unhandled error is an error that is raised (and not handled) on a Fiber that nobody is
+   * joining.
+   *
+   * For example:
+   *
+   * {{{
+   *   import scala.concurrent.duration._
+   *   override def run: IO[Unit] = IO(throw new Exception("")).start *> IO.sleep(1.second)
+   * }}}
+   *
+   * In this case, the exception is raised on a Fiber with no listeners. Nobody would be
+   * notified about that error. Therefore it is unhandled, and it goes through the reportFailure
+   * mechanism.
+   *
+   * By default, the runtime simply delegates to [[cats.effect.std.Console!.printStackTrace]].
+   * It is safe to perform any `IO` action within this handler; it will not block the progress
+   * of the runtime. With that said, some care should be taken to avoid raising unhandled errors
+   * as a result of handling unhandled errors, since that will result in the obvious chaos.
+   */
+  protected final def setFailureReporter(
+      reporter: Throwable => IO[Unit]
+  ): IO[Unit] =
+    IO {
+      _failureReporter = reporter
+    }
+
+  /**
    * Defines what to do when CpuStarvationCheck is triggered. Defaults to log a warning to
    * System.err.
    */
+  @deprecatedOverriding("Use setOnCpuStarvationReporter instead", "3.6.0")
   protected def onCpuStarvationWarn(metrics: CpuStarvationWarningMetrics): IO[Unit] =
     CpuStarvationCheck.logWarning(metrics)
+
+  /**
+   * Configures what to do when CpuStarvationCheck is triggered. By default the runtime logs a
+   * warning to System.err.
+   */
+  protected final def setOnCpuStarvationReporter(
+      reporter: CpuStarvationWarningMetrics => IO[Unit]
+  ): IO[Unit] =
+    IO {
+      _onCpuStarvationReporter = reporter
+    }
 
   /**
    * The [[unsafe.PollingSystem]] used by the [[runtime]] which will evaluate the [[IO]]
@@ -203,6 +252,12 @@ trait IOApp {
   final def main(args: Array[String]): Unit = {
     val installed = if (runtime == null) {
       import unsafe.IORuntime
+
+      // Eventually this will be needed:
+      // reportFailure = t =>
+      //   IO(_failureReporter)
+      //     .flatMap(_.apply(t))
+      //     .unsafeRunAndForgetWithoutCallback()(runtime)
 
       val installed = IORuntime installGlobal {
         val (loop, poller, loopDown) = IORuntime.createEventLoop(pollingSystem)
@@ -270,9 +325,15 @@ trait IOApp {
         }
       else Resource.unit[IO]
 
-    val starvationChecker = CpuStarvationCheck
-      .run(runtimeConfig, NativeCpuStarvationMetrics(), onCpuStarvationWarn)
-      .background
+    val starvationChecker =
+      CpuStarvationCheck
+        .run(
+          runtimeConfig,
+          NativeCpuStarvationMetrics(),
+          onCpuStarvationWarn =
+            metrics => IO(_onCpuStarvationReporter).flatMap(_.apply(metrics))
+        )
+        .background
 
     Spawn[IO]
       .raceOutcome[ExitCode, ExitCode](
