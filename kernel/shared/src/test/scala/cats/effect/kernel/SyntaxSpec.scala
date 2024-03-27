@@ -114,7 +114,8 @@ class SyntaxSpec extends Specification {
     }
   }
 
-  def genSpawnSyntax[F[_], A, B, E](target: F[A], another: F[B])(implicit F: GenSpawn[F, E]) = {
+  def genSpawnSyntax[F[_], A, B, E](target: F[A], another: F[B], f: A => B)(
+      implicit F: GenSpawn[F, E]) = {
     import syntax.spawn._
 
     GenSpawn[F]: F.type
@@ -148,6 +149,16 @@ class SyntaxSpec extends Specification {
     {
       val result = target.bothOutcome(another)
       result: F[(Outcome[F, E, A], Outcome[F, E, B])]
+    }
+
+    {
+      val result = target.cedeMap(f)
+      result: F[B]
+    }
+
+    {
+      val result = target.intercede
+      result: F[A]
     }
   }
 
