@@ -338,7 +338,7 @@ object Dispatcher {
                       @tailrec
                       def cancel(): Future[Unit] = {
                         stateR.get() match {
-                          case u @ RegState.Unstarted(_) =>
+                          case u: RegState.Unstarted[_] =>
                             val latch = Promise[Unit]()
                             if (stateR.compareAndSet(u, RegState.CancelRequested(latch))) {
                               latch.future
