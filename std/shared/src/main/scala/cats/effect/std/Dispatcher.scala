@@ -311,9 +311,11 @@ object Dispatcher {
                             ()
                         }
                       }
-                      poll(fe.guarantee(completeState)).redeemWith(
-                        e => Sync[F].delay(result.failure(e)),
-                        a => Sync[F].delay(result.success(a))).void
+                      poll(fe.guarantee(completeState))
+                        .redeemWith(
+                          e => Sync[F].delay(result.failure(e)),
+                          a => Sync[F].delay(result.success(a)))
+                        .void
                     }
 
                     stateR.set(RegState.Unstarted(promisory))
@@ -338,9 +340,7 @@ object Dispatcher {
                         stateR.get() match {
                           case u @ RegState.Unstarted(_) =>
                             val latch = Promise[Unit]()
-                            if (stateR.compareAndSet(
-                                u,
-                                RegState.CancelRequested(latch))) {
+                            if (stateR.compareAndSet(u, RegState.CancelRequested(latch))) {
                               latch.future
                             } else {
                               cancel()
@@ -391,8 +391,7 @@ object Dispatcher {
   private sealed abstract class Registration[F[_]]
 
   private object Registration {
-    final class Primary[F[_]](val stateR: AtomicReference[RegState[F]])
-        extends Registration[F]
+    final class Primary[F[_]](val stateR: AtomicReference[RegState[F]]) extends Registration[F]
 
     final case class Finalizer[F[_]](action: F[Unit]) extends Registration[F]
 
@@ -415,9 +414,7 @@ object Dispatcher {
               case u @ RegState.Unstarted(action) =>
                 executor(action) { cancelF =>
                   Sync[F] defer {
-                    if (reg
-                        .stateR
-                        .compareAndSet(u, RegState.Running(cancelF))) {
+                    if (reg.stateR.compareAndSet(u, RegState.Running(cancelF))) {
                       Applicative[F].unit
                     } else {
                       reg.stateR.get() match {
