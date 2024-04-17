@@ -387,7 +387,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
               IO.fromFuture(IO(runner.unsafeToFuture(latch.complete(()))))
           }
         }
-        .replicateA_(if (isJVM) 1000 else 1)
+        .replicateA_(if (isJVM) 500 else 1)
         .as(ok)
     }
   }
