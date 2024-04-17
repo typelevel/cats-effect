@@ -18,7 +18,7 @@ addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
 It is remommended to enable warnings for non-unit statements(see [FAQ](./faq.md#what-do-non-unit-statement-warnings-mean)):
 
 ```scala
-scalacOptions += -Wnonunit-statement
+scalacOptions += "-Wnonunit-statement"
 ```
 
 Alternatively, you can use the Cats Effect 3 Giter8 template, which sets up some basic project infrastructure:
