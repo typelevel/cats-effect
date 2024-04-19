@@ -72,17 +72,23 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
     productL(fa)(sleep(time))
 
   /**
-   * Returns an effect that either completes with the result of the source within the specified
-   * time `duration` or otherwise evaluates the `fallback`.
+   * Returns an effect that either completes with the result of the source or otherwise
+   * evaluates the `fallback`.
    *
-   * The source is canceled in the event that it takes longer than the specified time duration
-   * to complete. Once the source has been successfully canceled (and has completed its
-   * finalizers), the fallback will be sequenced. If the source is uncancelable, the resulting
-   * effect will wait for it to complete before evaluating the fallback.
+   * The source is raised against the timeout `duration`, and its cancelation is triggered if
+   * the source doesn't complete within the specified time. The resulting effect will always
+   * wait for the source effect to complete (and to complete its finalizers), and will return
+   * the source's outcome over sequencing the `fallback`.
+   *
+   * In case source and timeout complete simultaneously, the result of the source will be
+   * returned over sequencing the `fallback`.
+   *
+   * If the source in uncancelable, `fallback` will never be evaluated.
    *
    * @param duration
-   *   The time span for which we wait for the source to complete; in the event that the
-   *   specified time has passed without the source completing, the `fallback` gets evaluated
+   *   The time span for which we wait for the source to complete before triggering its
+   *   cancelation; in the event that the specified time has passed without the source
+   *   completing, the `fallback` gets evaluated
    *
    * @param fallback
    *   The task evaluated after the duration has passed and the source canceled
@@ -91,23 +97,36 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
     handleDuration(duration, fa)(timeoutTo(fa, _, fallback))
 
   protected def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
-    flatMap(race(fa, sleep(duration))) {
-      case Left(a) => pure(a)
-      case Right(_) => fallback
+    uncancelable { poll =>
+      implicit val F: GenTemporal[F, E] = this
+
+      poll(racePair(fa, sleep(duration))) flatMap {
+        case Left((oc, f)) => f.cancel *> oc.embed(poll(F.canceled) *> F.never)
+        case Right((f, _)) => f.cancel *> f.join.flatMap { oc => oc.embed(fallback) }
+      }
     }
 
   /**
-   * Returns an effect that either completes with the result of the source within the specified
-   * time `duration` or otherwise raises a `TimeoutException`.
+   * Returns an effect that either completes with the result of the source or raises a
+   * `TimeoutException`.
    *
-   * The source is canceled in the event that it takes longer than the specified time duration
-   * to complete. Once the source has been successfully canceled (and has completed its
-   * finalizers), the `TimeoutException` will be raised. If the source is uncancelable, the
-   * resulting effect will wait for it to complete before raising the exception.
+   * The source is raced against the timeout `duration`, and its cancelation is triggered if the
+   * source doesn't complete within the specified time. The resulting effect will always wait
+   * for the source effect to complete (and to complete its finalizers), and will return the
+   * source's outcome over raising a `TimeoutException`.
+   *
+   * In case source and timeout complete simultaneously, the result of the source will be
+   * returned over raising a `TimeoutException`.
+   *
+   * If the source effect is uncancelable, a `TimeoutException` will never be raised.
    *
    * @param duration
-   *   The time span for which we wait for the source to complete; in the event that the
-   *   specified time has passed without the source completing, a `TimeoutException` is raised
+   *   The time span for which we wait for the source to complete before triggering its
+   *   cancelation; in the event that the specified time has passed without the source
+   *   completing, a `TimeoutException` is raised
+   * @see
+   *   [[timeoutAndForget[A](fa:F[A],duration:scala\.concurrent\.duration\.Duration)* timeoutAndForget]]
+   *   for a variant which does not wait for cancelation of the source effect to complete.
    */
   def timeout[A](fa: F[A], duration: Duration)(implicit ev: TimeoutException <:< E): F[A] = {
     handleDuration(duration, fa)(timeout(fa, _))
@@ -115,9 +134,16 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
 
   protected def timeout[A](fa: F[A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< E): F[A] = {
-    flatMap(race(fa, sleep(duration))) {
-      case Left(a) => pure(a)
-      case Right(_) => raiseError[A](ev(new TimeoutException(duration.toString())))
+    uncancelable { poll =>
+      implicit val F: GenTemporal[F, E] = this
+
+      poll(racePair(fa, sleep(duration))) flatMap {
+        case Left((oc, f)) => f.cancel *> oc.embed(poll(F.canceled) *> F.never)
+        case Right((f, _)) =>
+          f.cancel *> f.join.flatMap { oc =>
+            oc.embed(raiseError[A](ev(new TimeoutException(duration.toString()))))
+          }
+      }
     }
   }
 
