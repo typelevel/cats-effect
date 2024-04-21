@@ -243,7 +243,7 @@ For example the following code emits the warning: `unused value of type cats.eff
 ```scala
   def example(input: String): IO[String] = {
     IO.println(input)
-    IO(input)
+    IO.pure(input)
   }
 ```
 
