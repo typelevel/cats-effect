@@ -15,7 +15,7 @@ Naturally, if you're using ScalaJS, you should replace the double `%%` with a tr
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
 ```
 
-It is remommended to enable warnings for non-unit statements(see [FAQ](./faq.md#what-do-non-unit-statement-warnings-mean)):
+It is recommended to enable warnings for non-unit statements (see [FAQ](./faq.md#what-do-non-unit-statement-warnings-mean)):
 
 ```scala
 scalacOptions += "-Wnonunit-statement"

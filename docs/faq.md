@@ -247,7 +247,7 @@ For example the following code emits the warning: `unused value of type cats.eff
   }
 ```
 
-This warning tells you, that the `IO.println` statement is created and then discarded without being used. Consequently this code will not print anything. To fix this you have to connect both IO instances.
+This warning tells you, that the `IO.println` instance is created and then discarded without being used. Consequently this code will not print anything. To fix this you have to connect both IO instances.
 
 Working version of the above example (emitting no warnings):
 
