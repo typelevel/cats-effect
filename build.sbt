@@ -318,7 +318,7 @@ ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.10.0"
 val Specs2Version = "4.20.5"
-val ScalaCheckVersion = "1.17.0"
+val ScalaCheckVersion = "1.17.1"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
 
