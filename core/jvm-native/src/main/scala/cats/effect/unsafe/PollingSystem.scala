@@ -92,6 +92,23 @@ abstract class PollingSystem {
   def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean
 
   /**
+   * Makes a best-effort to steal completed I/O events. Not all polling systems support this.
+   *
+   * This method is safe to call concurrently from threads that do not own the poller.
+   *
+   * @param poller
+   *   the thread-local [[Poller]] used to poll events.
+   *
+   * @param reportFailure
+   *   callback that handles any failures that occur during stealing.
+   *
+   * @return
+   *   whether any events were stolen. e.g. if the method returned due to timeout, this should
+   *   be `false`.
+   */
+  def steal(poller: Poller, reportFailure: Throwable => Unit): Boolean
+
+  /**
    * @return
    *   whether poll should be called again (i.e., there are more events to be polled)
    */
