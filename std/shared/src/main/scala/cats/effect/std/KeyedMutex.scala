@@ -100,7 +100,7 @@ object KeyedMutex {
           val lastCell = map(key) // Safe.
           if (lastCell eq ourCell)
             if (nextCell eq ConcurrentImpl.EmptyCell)
-              setter(map.removed(key))
+              setter(map - key)
             else
               setter(map.updated(key, value = nextCell))
           else F.pure(false)
