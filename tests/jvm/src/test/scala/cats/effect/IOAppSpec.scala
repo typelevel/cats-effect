@@ -285,6 +285,13 @@ class IOAppSpec extends Specification {
         h.stderr() must not(contain("Promise already completed"))
       }
 
+      "shut down WSTP on fatal error without IOApp" in {
+        val h = platform(FatalErrorShutsDownRt, List.empty)
+        h.awaitStatus()
+        h.stdout() must not(contain("sadness"))
+        h.stdout() must contain("done")
+      }
+
       "exit on canceled" in {
         val h = platform(Canceled, List.empty)
         h.awaitStatus() mustEqual 1
