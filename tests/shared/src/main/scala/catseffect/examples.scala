@@ -21,9 +21,12 @@ import cats.effect.std.{Console, Random}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 import cats.syntax.all._
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 package examples {
+
+  import java.util.concurrent.TimeoutException
 
   object HelloWorld extends IOApp.Simple {
     def run: IO[Unit] =
@@ -55,6 +58,36 @@ package examples {
         IO(throw new OutOfMemoryError("Boom!")).attempt.flatMap(_ => IO.println("sadness"))
       action.unsafeToFuture()
       ()
+    }
+  }
+
+  object FatalErrorShutsDownRt extends RawApp {
+    def main(args: Array[String]): Unit = {
+      val rt = cats.effect.unsafe.IORuntime.global
+      @volatile var thread: Thread = null
+      val action = for {
+        // make sure a blocking thread exists, save it:
+        _ <- IO.blocking {
+          thread = Thread.currentThread()
+        }
+        // get back on the WSTP:
+        _ <- IO.cede
+        // fatal error on the WSTP thread:
+        _ <- IO {
+          throw new OutOfMemoryError("Boom!")
+        }.attempt.flatMap(_ => IO.println("sadness (attempt)"))
+      } yield ()
+      val fut = action.unsafeToFuture()(rt)
+      try {
+        Await.ready(fut, atMost = 2.seconds)
+      } catch {
+        case _: TimeoutException => println("sadness (timeout)")
+      }
+      Thread.sleep(500L)
+      // by now the WSTP (and all its threads) must've been shut down:
+      if (thread eq null) println("sadness (thread is null)")
+      else if (thread.isAlive()) println("sadness (thread is alive)")
+      println("done")
     }
   }
 

@@ -195,10 +195,15 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (compute, _) = createWorkStealingComputeThreadPool()
-        val (blocking, _) = createDefaultBlockingExecutionContext()
+        val (compute, computeDown) = createWorkStealingComputeThreadPool()
+        val (blocking, blockingDown) = createDefaultBlockingExecutionContext()
+        val shutdown = () => {
+          computeDown()
+          blockingDown()
+          resetGlobal()
+        }
 
-        IORuntime(compute, blocking, compute, () => resetGlobal(), IORuntimeConfig())
+        IORuntime(compute, blocking, compute, shutdown, IORuntimeConfig())
       }
     }
 

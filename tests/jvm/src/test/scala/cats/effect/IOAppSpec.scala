@@ -335,6 +335,13 @@ class IOAppSpec extends Specification {
           ok
         }
 
+        "shut down WSTP on fatal error without IOApp" in {
+          val h = platform(FatalErrorShutsDownRt, List.empty)
+          h.awaitStatus()
+          h.stdout() must not(contain("sadness"))
+          h.stdout() must contain("done")
+        }
+
         "support main thread evaluation" in {
           val h = platform(EvalOnMainThread, List.empty)
           h.awaitStatus() mustEqual 0
