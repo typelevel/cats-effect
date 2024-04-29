@@ -251,5 +251,7 @@ private object CallbackStack {
         }
       }
     }
+
+    override def toString(): String = s"Node($callback, $next)"
   }
 }
