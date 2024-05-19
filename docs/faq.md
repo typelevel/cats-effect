@@ -233,3 +233,28 @@ It is still worth keeping in mind that this is only a partial solution. Whenever
 > Note: It is actually possible to implement a *proper* solution for cancelation here simply by applying the `cancelable` to the inner `blocking` effect and defining the handler to be `IO.blocking(fis.close())`, in addition to adding some error handling logic to catch the corresponding exception. This is a special case however, specific to `FileInputStream`, and doesn't make for as nice of an example. :-)
 
 The reason this is safe is it effectively leans entirely on *cooperative* cancelation. It's relatively common to have effects which cannot be canceled by normal means (and thus are, correctly, `uncancelable`) but which *can* be terminated early by using some ancillary protocol (in this case, an `AtomicBoolean`). Note that nothing is magic here and this is still fully safe with respect to backpressure and other finalizers. For example, `fis.close()` will still be run at the proper time, and cancelation of this fiber will only complete when all finalizers are done, exactly the same as non-`uncancelable` effects.
+
+## What do non-unit statement warnings mean?
+
+We recommend to enable the compiler warning `-Wnonunit-statement`.  If you do so you get compiler warnings for some common bug patterns.
+
+For example the following code emits the warning: `unused value of type cats.effect.IO[Unit]`.
+
+```scala
+  def example(input: String): IO[String] = {
+    IO.println(input)
+    IO.pure(input)
+  }
+```
+
+This warning tells you, that the `IO.println` instance is created and then discarded without being used. Consequently this code will not print anything. To fix this you have to connect both IO instances.
+
+Working version of the above example (emitting no warnings):
+
+```scala
+  def example(input: String): IO[String] = {
+    IO.println(input)
+      .flatMap(_ => IO(input))
+  }
+```
+
