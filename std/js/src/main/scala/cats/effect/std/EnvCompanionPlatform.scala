@@ -18,7 +18,6 @@ package cats.effect.std
 
 import cats.data.OptionT
 import cats.effect.kernel.Sync
-import cats.syntax.all._
 
 import scala.collection.immutable.Iterable
 import scala.scalajs.js
