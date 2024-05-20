@@ -751,6 +751,24 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
         K.combineK(allocate(this), allocate(that))
       }
 
+  /**
+   * A Resource where the acquire step is done lazily and memoized. This means that acquire
+   * happens only if and when the `F[A]` value is executed, instead of happening immediately
+   * upon `use()`. If the `F[A]` value is executed multiple times, acquire happens once only and
+   * the acquired resource is shared to all callers. The resource is released as normal at the
+   * end of `use` (whether normal termination, error, or cancelled), if it was acquired.
+   */
+  def memoizedAcquire[B >: A](implicit F: Concurrent[F]): Resource[F, F[B]] = {
+    Resource.eval(F.ref(List.empty[Resource.ExitCase => F[Unit]])).flatMap { release =>
+      val fa2 = F.uncancelable { poll =>
+        poll(allocatedCase).flatMap { case (a, r) => release.update(r :: _).as(a) }
+      }
+      Resource.makeCaseFull[F, F[B]](poll => poll(F.memoize(fa2).map(_.widen))) { (_, exit) =>
+        release.get.flatMap(_.foldMapM(_(exit)))
+      }
+    }
+  }
+
 }
 
 object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with ResourcePlatform {
@@ -1209,24 +1227,6 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       }
   }
 
-  implicit final class IdSyntax[F[_], A](val self: Resource[F, A]) extends AnyVal {
-
-    /**
-     * A Resource where the acquire step is done lazily and memoized.
-     * This means that acquire happens only if and when the `F[A]` value is executed, instead of happening immediately upon `use()`.
-     * If the `F[A]` value is executed multiple times, acquire happens once only and the acquired resource is shared to all callers.
-     * The resource is released as normal at the end of `use` (whether normal termination, error, or cancelled), if it was acquired.
-     */
-    def memoizedAcquire(implicit F: Concurrent[F]): Resource[F, F[A]] =
-      // NB this uses syntax instead of an instance method because of variance on `A` within the class
-      Concurrent[Resource[F, *]].memoize[A](self).map {
-        case Resource.Eval(fa) => fa
-        case unexpected =>
-          throw new IllegalStateException(
-            s"Memoized Resource is not Resource.Eval: $unexpected")
-      }
-  }
-
   type Par[F[_], A] = ParallelF[Resource[F, *], A]
 
   implicit def parallelForResource[F[_]: Concurrent]: Parallel.Aux[Resource[F, *], Par[F, *]] =
@@ -1395,18 +1395,8 @@ abstract private[effect] class ResourceConcurrent[F[_]]
   override def race[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, Either[A, B]] =
     fa.race(fb)
 
-  override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] = {
-    Resource.eval(F.ref(List.empty[Resource.ExitCase => F[Unit]])).flatMap { release =>
-      val fa2 = F.uncancelable { poll =>
-        poll(fa.allocatedCase).flatMap { case (a, r) => release.update(r :: _).as(a) }
-      }
-      Resource
-        .makeCaseFull[F, F[A]](poll => poll(F.memoize(fa2))) { (_, exit) =>
-          release.get.flatMap(_.foldMapM(_(exit)))
-        }
-        .map(memo => Resource.eval(memo))
-    }
-  }
+  override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] =
+    fa.memoizedAcquire.map(Resource.eval(_))
 }
 
 private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {
