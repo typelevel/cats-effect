@@ -16,7 +16,7 @@
 
 package cats.effect.unsafe
 
-import cats.effect.{BaseSpec /*, IO*/}
+import cats.effect.BaseSpec
 import cats.effect.testkit.TestInstances
 
 import scala.concurrent.duration._

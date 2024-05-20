@@ -45,7 +45,7 @@ final class DispatcherOps[F[_]] private[syntax] (private[syntax] val wrapped: Di
   def unsafeRunSyncToFuture[A](fa: F[A], syncLimit: Int)(implicit F: Async[F]): Future[A] =
     F.syncStep[SyncIO, A](fa, syncLimit).attempt.unsafeRunSync() match {
       case Left(t) => Future.failed(t)
-      case Right(Left(fa)) => wrapped.unsafeToFuture(fa)
+      case Right(Left(fa1)) => wrapped.unsafeToFuture(fa1)
       case Right(Right(a)) => Future.successful(a)
     }
 
@@ -63,7 +63,7 @@ final class DispatcherOps[F[_]] private[syntax] (private[syntax] val wrapped: Di
   def unsafeRunSyncToPromise[A](fa: F[A], syncLimit: Int)(implicit F: Async[F]): Promise[A] =
     F.syncStep[SyncIO, A](fa, syncLimit).attempt.unsafeRunSync() match {
       case Left(t) => Promise.reject(t)
-      case Right(Left(fa)) => wrapped.unsafeToPromise(fa)
+      case Right(Left(fa1)) => wrapped.unsafeToPromise(fa1)
       case Right(Right(a)) => Promise.resolve[A](a)
     }
 
