@@ -1,6 +1,7 @@
-# Cats Effect 
+# Cats Effect
 
-[![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
+[![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
+[![Discord](https://img.shields.io/discord/632277896739946517.svg?label=&logo=discord&logoColor=ffffff&color=404244&labelColor=6A7EC2)](https://discord.gg/QNnHKHq5Ts)
 
 <img align="right" width="256px" height="256px" src="images/cats-effect-logo.png"/>
 
@@ -10,38 +11,48 @@
 
 ## Getting Started
 
-- Tired: **2.4.0**
-- Wired: **3.0.0-RC3**
+- Wired: **3.5.4**
+- Tired: **2.5.5** (end of life)
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "2.4.0"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.5.4"
 ```
 
-The above represents the core, stable dependency which brings in the entirety of Cats Effect. This is *most likely* what you want. All current Cats Effect releases are published for Scala 2.12, 2.13, 3.0.0-M2 and M3, and ScalaJS 1.4.x.
+The above represents the core, stable dependency which brings in the entirety of Cats Effect. This is *most likely* what you want. All current Cats Effect releases are published for Scala 2.12, 2.13, 3.2, and Scala.js 1.13.
 
-If you are using Cats Effect 3, then you may want to consider one of the several other modules which are made available within that release. If you're a datatype implementor (like Monix), you probably only want to depend on **kernel** (the typeclasses) in your compile scope and **laws** in your test scope:
+Or, if you prefer a less bare-bones starting point, you can try [the Giter8 template](https://github.com/typelevel/ce3.g8):
 
-```scala
-libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-kernel" % "3.0.0-RC3",
-  "org.typelevel" %% "cats-effect-laws"   % "3.0.0-RC3" % Test)
+```bash
+$ sbt new typelevel/ce3.g8
 ```
 
-If you're a middleware framework (like fs2), you probably want to depend on **std**, which gives you access to `Queue`, `Semaphore`, and much more without introducing a hard-dependency on `IO` outside of your tests:
+Depending on your use-case, you may want to consider one of the several other modules which are made available within the Cats Effect release. If you're a datatype implementer (like [Monix](https://monix.io)), you probably only want to depend on **kernel** (the typeclasses) in your compile scope and **laws** in your test scope:
 
 ```scala
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-std" % "3.0.0-RC3",
-  "org.typelevel" %% "cats-effect"     % "3.0.0-RC3" % Test)
+  "org.typelevel" %% "cats-effect-kernel" % "3.5.4",
+  "org.typelevel" %% "cats-effect-laws"   % "3.5.4" % Test)
 ```
 
-You may also find some utility in the **testkit** and **kernel-testkit** projects, which contain `TestContext`, `TimeT`, generators for `IO`, and a few other things:
+If you're a middleware framework (like [Fs2](https://fs2.io/)), you probably want to depend on **std**, which gives you access to `Queue`, `Semaphore`, and much more without introducing a hard-dependency on `IO` outside of your tests:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.0.0-RC3" % Test
+libraryDependencies ++= Seq(
+  "org.typelevel" %% "cats-effect-std" % "3.5.4",
+  "org.typelevel" %% "cats-effect"     % "3.5.4" % Test)
 ```
 
-Cats Effect provides backward binary compatibility within the 2.x and 3.x version lines, and both forward and backward compatibility within any major/minor line. This is analogous to the versioning scheme used by Cats itself, as well as other  major projects such as ScalaJS. Thus, any project depending upon Cats Effect 2.2.1 can be used with libraries compiled against Cats Effect 2.0.0 or 2.2.3, but *not* with libraries compiled against 2.3.0 or higher.
+You may also find some utility in the **testkit** and **kernel-testkit** projects, which contain `TestContext`, generators for `IO`, and a few other things:
+
+```scala
+libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.5.4" % Test
+```
+
+Cats Effect provides backward binary compatibility within the 2.x and 3.x version lines, and both forward and backward compatibility within any major/minor line. This is analogous to the versioning scheme used by Cats itself, as well as other major projects such as Scala.js. Thus, any project depending upon Cats Effect 2.2.1 can be used with libraries compiled against Cats Effect 2.0.0 or 2.2.3, but *not* with libraries compiled against 2.3.0 or higher.
+
+### Updating from Cats Effect 1.x / 2.x
+
+Check out the [migration guide](https://typelevel.org/cats-effect/docs/migration-guide)!
 
 ## Hello, World
 
@@ -71,10 +82,10 @@ object Main extends IOApp {
 
 Any program written using Cats Effect provides incredibly strong guarantees and powerful functionality, performance, safety, and composability, provided you follow each of the following rules:
 
-- **Wrap *all* side-effects** in `delay`, `async`, `blocking`, or `interruptible`
+- **Wrap *all* side-effects** in `delay`, `async`, `blocking`, or `interruptible`/`interruptibleMany`
   + (pro tip: try to keep the size of your `delay` blocks small; two `delay`s with a `flatMap` is much better than one big `delay`)
 - **Use `bracket` or `Resource`** for anything which must be `close`d
-- ***Never* hard-block a thread** outside of `blocking` or `interruptible`
+- ***Never* hard-block a thread** outside of `blocking` or `interruptible`/`interruptibleMany`
 - **Use `IOApp`** instead of writing your own `def main`
 - Never call anything that has **the word `unsafe` in the name**
 
@@ -101,7 +112,7 @@ If you follow these rules, and you use libraries and frameworks which also follo
 
 [The benchmark](https://github.com/typelevel/cats-effect/blob/220d0106ca0ff6106746a41504b6ab07d8fc9199/benchmarks/src/main/scala/cats/effect/benchmarks/WorkStealingBenchmark.scala) measures the performance of a typical "disruptor pattern" application written using a fixed thread pool (from `java.util.concurrent.Executors`) compared to the same workflow implemented using Cats Effect (specifically version 3.0). The scores are not a typo: Cats Effect is *almost 55x faster* than the typical disruptor-style, hand-tuned implementation. Similarly dramatic results are consistently observed when comparing Cats Effect with other popular asynchronous and functional frameworks.
 
-As always, benchmarks are one thing, and your application is its own special snowflake with its own performance profile. Always measure and test *your application* before assuming that someone else's performance results apply in your use-case. When in doubt, [come talk with us](https://gitter.im/typelevel/cats-effect) and we'll give you an honest opinion!
+As always, benchmarks are one thing, and your application is its own special snowflake with its own performance profile. Always measure and test *your application* before assuming that someone else's performance results apply in your use-case. When in doubt, [come talk with us](https://discord.gg/QNnHKHq5Ts) and we'll give you an honest opinion!
 
 ## Abstraction
 
@@ -117,11 +128,31 @@ And, just as with arithmetic, even when you don't directly leverage the nature o
 
 ## Contributing
 
-There's always lots to do! This is an incredibly exciting project used by countless teams and companies around the world. Ask in the [Gitter channel](https://gitter.im/typelevel/cats-effect-dev) if you are unsure where to begin, or check out our [issue tracker](https://github.com/typelevel/cats-effect/issues) and try your hand at something that looks interesting! Please note that all of the Cats Effect maintainers are, unfortunately, extremely busy most of the time, so don't get discouraged if you don't get a response right away! We love you and we want you to join us, we just may have our hair on fire inside a melting production server at the exact moment you asked.
+Please see [**CONTRIBUTING.md**](CONTRIBUTING.md) for more details. Lots to do!
 
-Cats Effect is built with [sbt](https://github.com/sbt/sbt), and you should be able to jump right in by running `sbt test`. I will note, however, that `sbt +test` takes about two hours on my laptop, so you probably *shouldn't* start there...
+### Website
 
-We use a typical pull request workflow, with automated builds run within GitHub Actions. 
+To build the documentation site locally, the following dependencies are needed, in addition to `sbt`.
+
+- Node (14.x ideally)
+- Yarn (any version should work)
+
+NOTE: [Nix](https://nixos.org/) users can just run `nix-shell` at the root directory and follow along the next instructions.
+
+Next, check out the documentation branch along with its submodules.
+
+```
+git checkout --track origin/docs
+git submodule update --init --recursive
+```
+
+Finally, build the site.
+
+```
+./build.sh host
+```
+
+If everything goes well, your browser will open at the end of this.
 
 ## Tool Sponsorship
 
@@ -130,7 +161,7 @@ We use a typical pull request workflow, with automated builds run within GitHub 
 ## License
 
 ```
-Copyright 2017-2021 Typelevel
+Copyright 2017-2024 Typelevel
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -145,4 +176,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/series/2.x/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/series/3.x/CODE_OF_CONDUCT.md

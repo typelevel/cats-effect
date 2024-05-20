@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,4 +27,7 @@ package object syntax {
   object async extends kernel.syntax.AsyncSyntax
   object resource extends kernel.syntax.ResourceSyntax
   object clock extends kernel.syntax.ClockSyntax
+
+  object supervisor extends std.syntax.SupervisorSyntax
+  object dispatcher extends DispatcherSyntax
 }

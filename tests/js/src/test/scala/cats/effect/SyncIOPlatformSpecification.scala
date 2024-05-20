@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,7 @@
 
 package cats.effect
 
-import org.specs2.mutable.Specification
-
-abstract class SyncIOPlatformSpecification extends Specification with Runners {
+trait SyncIOPlatformSpecification { self: BaseSpec =>
   def platformSpecs = {
     "platform" should {
       "realTimeDate should return an Instant constructed from realTime" in {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,18 +17,13 @@
 package cats.effect.kernel.testkit
 
 import cats.{Eq, Order}
-import cats.data.Kleisli
+import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.pure.PureConc
 import cats.effect.laws.GenTemporalTests
 import cats.laws.discipline.arbitrary._
 
-import pure.PureConc
-import TimeT._
-
-import org.specs2.ScalaCheck
-import org.specs2.mutable._
-
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
-
+import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
@@ -41,13 +36,10 @@ private[testkit] trait LowPriorityInstances {
     Eq.by(TimeT.run(_))
 }
 
-class TimeTSpec
-    extends Specification
-    with Discipline
-    with ScalaCheck
-    with LowPriorityInstances {
+class TimeTSpec extends Specification with Discipline with LowPriorityInstances {
 
   import PureConcGenerators._
+  import OutcomeGenerators._
 
   checkAll(
     "TimeT[PureConc, *]",
@@ -78,8 +70,4 @@ class TimeTSpec
 
   implicit def arbTime: Arbitrary[Time] =
     Arbitrary(Arbitrary.arbitrary[FiniteDuration].map(new Time(_)))
-
-  implicit def cogenKleisli[F[_], R, A](
-      implicit cg: Cogen[R => F[A]]): Cogen[Kleisli[F, R, A]] =
-    cg.contramap(_.run)
 }

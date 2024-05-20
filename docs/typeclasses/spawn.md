@@ -3,7 +3,7 @@ id: spawn
 title: Spawn
 ---
 
-This typeclass provides a lightweight `Thread`-like abstraction, `Fiber`, which can be used to implement parallel evaluation semantics. Much like `Thread`, `Fiber` is not often directly useful in *user* code, but instead is best when used as an implementation detail for higher-level functionality, such as the [`Parallel`](https://typelevel.org/cats/typeclasses/parallel.html) typeclass in Cats.
+This typeclass provides a lightweight `Thread`-like abstraction, [`Fiber`](../concepts.md#fibers), which can be used to implement parallel evaluation semantics. Much like `Thread`, `Fiber` is not often directly useful in *user* code, but instead is best when used as an implementation detail for higher-level functionality, such as the [`Parallel`](https://typelevel.org/cats/typeclasses/parallel.html) typeclass in Cats.
 
 Fibers are exceptionally lightweight, *semantic* threads of execution. There's a lot to unpack in that sentence, so we'll take it one step at a time. `Thread` is a somewhat infamously expensive construct on the JVM. Even on an extremely beefy machine, you really can't have more than a few thousand of them before the garbage collector begins to bog down and the context switch penalties on the CPU become prohibitively high. In practice though, the situation is even worse. The *optimal* number of threads is usually just a little over the number of processors available to the host operating system, while the optimal number of *concurrent semantic actions* is likely to be exceptionally high. For example, an application implementing a microservice would likely desire at least one concurrent action per request at any given point in time, but if the number of concurrent actions is limited to the number of available threads (which is in turn limited to the number of available processors!), then the service is [not likely to scale](http://tomcat.apache.org) particularly well.
 
@@ -95,13 +95,13 @@ for {
 } yield ()
 ```
 
-This will print "`Catch me if you can!`" a nondeterministic number of times (probably quite a few!) as the `target` fiber loops around and around, printing over and over again, until the main fiber finishes sleeping for one second and cancels it. Technically, cancellation may not *instantaneously* reflect in the target fiber, depending on implementation details, but in practice it is almost always practically instant. The `target` fiber's execution is almost immediately halted, it stops printing, and the program terminates.
+This will print "`Catch me if you can!`" a nondeterministic number of times (probably quite a few!) as the `target` fiber loops around and around, printing over and over again, until the main fiber finishes sleeping for one second and cancels it. Technically, cancelation may not *instantaneously* reflect in the target fiber, depending on implementation details, but in practice it is almost always practically instant. The `target` fiber's execution is almost immediately halted, it stops printing, and the program terminates.
 
-It is actually impossible to replicate this example with `Thread` without building your own machinery for managing cancellation (usually some shared `Boolean` which tracks whether or not you've been canceled). With `Fiber`, it is handled for you.
+It is actually impossible to replicate this example with `Thread` without building your own machinery for managing cancelation (usually some shared `Boolean` which tracks whether or not you've been canceled). With `Fiber`, it is handled for you.
 
-Even more importantly, this cancellation mechanism is the same one that is described by [`MonadCancel`](./monadcancel.md), meaning that all of the resource safety and `uncancelable` functionality that it defines can be brought to bear, making it possible to write code which is resource-safe even when externally canceled by some other fiber. This problem is nearly impossible to solve by any other means.
+Even more importantly, this cancelation mechanism is the same one that is described by [`MonadCancel`](./monadcancel.md), meaning that all of the resource safety and `uncancelable` functionality that it defines can be brought to bear, making it possible to write code which is resource-safe even when externally canceled by some other fiber. This problem is nearly impossible to solve by any other means.
 
-In practice, this kind of cancellation is often handled for you (the user) in the form of cleanup when unexpected things happen. For example, imagine the following code:
+In practice, this kind of cancelation is often handled for you (the user) in the form of cleanup when unexpected things happen. For example, imagine the following code:
 
 ```scala
 import cats.syntax.all._
@@ -115,7 +115,7 @@ The `par` part of `parTraverse` means that, rather than performing each `IO` act
 
 Of course, *one* of these divisions will fail and an exception will be raised. When this happens, the result of the whole evaluation is discarded and the `IO[List[Float]]` will actually just produce the exception itself. Naturally, once any one of the constituent `IO`s has failed, there is no point in continuing to evaluate the other nineteen, and so their fibers are all immediately `cancel`ed.
 
-In these kinds of trivial examples involving primitive arithmetic, this kind of auto-cancellation doesn't represent much of a savings. However, if we were actually `parTraverse`ing a long `List` of `URL`s, where each one was being fetched in parallel, then perhaps failing fast and `cancel`ing all other actions on the first error would result in a significant savings in bandwidth and CPU.
+In these kinds of trivial examples involving primitive arithmetic, this kind of auto-cancelation doesn't represent much of a savings. However, if we were actually `parTraverse`ing a long `List` of `URL`s, where each one was being fetched in parallel, then perhaps failing fast and `cancel`ing all other actions on the first error would result in a significant savings in bandwidth and CPU.
 
 Critically, all of this functionality is built on `Spawn` and nothing else, and so we effectively get it for free whenever this instance is available for a given `F`.
 

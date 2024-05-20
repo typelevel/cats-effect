@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,12 @@
 package cats.effect
 package std
 
-import cats.implicits._
 import cats.arrow.FunctionK
-import scala.concurrent.duration._
+import cats.implicits._
 
 import org.specs2.specification.core.Fragments
+
+import scala.concurrent.duration._
 
 class CyclicBarrierSpec extends BaseSpec {
 
@@ -64,7 +65,7 @@ class CyclicBarrierSpec extends BaseSpec {
       } must nonTerminate
     }
 
-    s"$name - should clean up upon cancellation of await" in ticked { implicit ticker =>
+    s"$name - should clean up upon cancelation of await" in ticked { implicit ticker =>
       newBarrier(2).flatMap { barrier =>
         // This will time out, so count goes back to 2
         barrier.await.timeoutTo(1.second, IO.unit) >>
@@ -79,7 +80,7 @@ class CyclicBarrierSpec extends BaseSpec {
 
     /*
      * Original implementation in b31d5a486757f7793851814ec30e056b9c6e40b8
-     * had a race between cancellation of an awaiting fiber and
+     * had a race between cancelation of an awaiting fiber and
      * resetting the barrier once it's full
      */
     s"$name - race fiber cancel and barrier full" in real {

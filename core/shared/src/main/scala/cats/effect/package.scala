@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,10 +52,7 @@ package object effect {
   val Async = cekernel.Async
 
   type MonadCancelThrow[F[_]] = cekernel.MonadCancelThrow[F]
-
-  object MonadCancelThrow {
-    def apply[F[_]](implicit F: MonadCancelThrow[F]): F.type = F
-  }
+  val MonadCancelThrow = cekernel.MonadCancelThrow
 
   type Spawn[F[_]] = cekernel.Spawn[F]
   val Spawn = cekernel.Spawn
@@ -81,4 +78,6 @@ package object effect {
 
   type Ref[F[_], A] = cekernel.Ref[F, A]
   val Ref = cekernel.Ref
+
+  private[effect] type IOLocalState = scala.collection.immutable.Map[IOLocal[_], Any]
 }

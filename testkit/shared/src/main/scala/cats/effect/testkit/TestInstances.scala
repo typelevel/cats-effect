@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,17 @@ package testkit
 import cats.{~>, Applicative, Eq, Id, Order, Show}
 import cats.effect.kernel.testkit.{
   AsyncGenerators,
+  AsyncGeneratorsWithoutEvalShift,
   GenK,
   OutcomeGenerators,
   ParallelFGenerators,
   SyncGenerators,
-  SyncTypeGenerators
+  SyncTypeGenerators,
+  TestInstances => KernelTestkitTestInstances
 }
 import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -75,6 +77,24 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
     Arbitrary(generators.generators[A])
   }
 
+  def arbitraryIOWithoutContextShift[A: Arbitrary: Cogen]: Arbitrary[IO[A]] = {
+    val generators = new AsyncGeneratorsWithoutEvalShift[IO] {
+      override implicit val F: Async[IO] = IO.asyncForIO
+      override implicit protected val arbitraryFD: Arbitrary[FiniteDuration] =
+        outer.arbitraryFiniteDuration
+      override implicit val arbitraryE: Arbitrary[Throwable] = outer.arbitraryThrowable
+      override val cogenE: Cogen[Throwable] = Cogen[Throwable]
+
+      override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[IO]) =
+        super
+          .recursiveGen[B](deeper)
+          .filterNot(x =>
+            x._1 == "evalOn" || x._1 == "racePair") // todo: enable racePair after MVar been made serialization compatible
+    }
+
+    Arbitrary(generators.generators[A])
+  }
+
   implicit def arbitrarySyncIO[A: Arbitrary: Cogen]: Arbitrary[SyncIO[A]] = {
     val generators = new SyncGenerators[SyncIO] {
       val arbitraryE: Arbitrary[Throwable] =
@@ -99,7 +119,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       AFU: Arbitrary[F[Unit]],
       AA: Arbitrary[A]
   ): Arbitrary[Resource[F, A]] =
-    Arbitrary(Gen.delay(genResource[F, A]))
+    KernelTestkitInstances.arbitraryResource[F, A]
 
   // Consider improving this a strategy similar to Generators.
   // Doesn't include interruptible resources
@@ -108,29 +128,8 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       AFA: Arbitrary[F[A]],
       AFU: Arbitrary[F[Unit]],
       AA: Arbitrary[A]
-  ): Gen[Resource[F, A]] = {
-    def genAllocate: Gen[Resource[F, A]] =
-      for {
-        alloc <- arbitrary[F[A]]
-        dispose <- arbitrary[F[Unit]]
-      } yield Resource(alloc.map(a => a -> dispose))
-
-    def genBind: Gen[Resource[F, A]] =
-      genAllocate.map(_.flatMap(a => Resource.pure[F, A](a)))
-
-    def genEval: Gen[Resource[F, A]] =
-      arbitrary[F[A]].map(Resource.eval)
-
-    def genPure: Gen[Resource[F, A]] =
-      arbitrary[A].map(Resource.pure)
-
-    Gen.frequency(
-      5 -> genAllocate,
-      1 -> genBind,
-      1 -> genEval,
-      1 -> genPure
-    )
-  }
+  ): Gen[Resource[F, A]] =
+    KernelTestkitInstances.genResource[F, A]
 
   implicit lazy val arbitraryFiniteDuration: Arbitrary[FiniteDuration] = {
     import TimeUnit._
@@ -163,32 +162,15 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
 
   implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] =
     Eq.by(unsafeRun(_))
-  /*Eq instance { (left: IO[A], right: IO[A]) =>
-      val leftR = unsafeRun(left)
-      val rightR = unsafeRun(right)
-
-      val back = leftR eqv rightR
-
-      if (!back) {
-        println(s"$left != $right")
-        println(s"$leftR != $rightR")
-      }
-
-      back
-    }*/
 
   /**
-   * Defines equality for a `Resource`.  Two resources are deemed
-   * equivalent if they allocate an equivalent resource.  Cleanup,
-   * which is run purely for effect, is not considered.
+   * Defines equality for a `Resource`. Two resources are deemed equivalent if they allocate an
+   * equivalent resource. Cleanup, which is run purely for effect, is not considered.
    */
   implicit def eqResource[F[_], A](
       implicit E: Eq[F[A]],
       F: MonadCancel[F, Throwable]): Eq[Resource[F, A]] =
-    new Eq[Resource[F, A]] {
-      def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
-        E.eqv(x.use(F.pure), y.use(F.pure))
-    }
+    KernelTestkitInstances.eqResource[F, A]
 
   implicit def ordResourceFFD[F[_]](
       implicit ordF: Order[F[FiniteDuration]],
@@ -224,10 +206,9 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       ioa
         .flatMap(IO.pure(_))
         .handleErrorWith(IO.raiseError(_))
-        .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(unsafe
-          .IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig()))
+        .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(materializeRuntime)
 
-      ticker.ctx.tickAll(1.second)
+      ticker.ctx.tickAll()
 
       /*println("====================================")
       println(s"completed ioa with $results")
@@ -258,22 +239,33 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
   }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
-    unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig())
+    unsafe.IORuntime.testRuntime(ticker.ctx, scheduler)
 
-  def scheduler(implicit ticker: Ticker): unsafe.Scheduler =
+  def scheduler(implicit ticker: Ticker): unsafe.Scheduler = {
+    val ctx = ticker.ctx
     new unsafe.Scheduler {
-      import ticker.ctx
-
       def sleep(delay: FiniteDuration, action: Runnable): Runnable = {
         val cancel = ctx.schedule(delay, action)
         new Runnable { def run() = cancel() }
       }
 
       def nowMillis() = ctx.now().toMillis
+      override def nowMicros(): Long = ctx.now().toMicros
       def monotonicNanos() = ctx.now().toNanos
     }
+  }
 
   @implicitNotFound(
     "could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")
   case class Ticker(ctx: TestContext = TestContext())
 }
+
+/**
+ * This object exists for the keeping binary compatibility in the `TestInstances` trait by
+ * forwarding to the implementaions coming from `cats-effect-kernel-testkit`.
+ *
+ * This object must exist as a standalone top-level object because any attempt to hide it inside
+ * the `TestInstances` trait ends up generating synthetic forwarder methods which break binary
+ * compatibility.
+ */
+private object KernelTestkitInstances extends KernelTestkitTestInstances

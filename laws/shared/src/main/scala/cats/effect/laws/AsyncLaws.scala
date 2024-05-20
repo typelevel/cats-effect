@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,21 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
   implicit val F: Async[F]
 
   // format: off
+  def asyncCheckAttemptImmediateIsPure[A](a: A) =
+    (F.asyncCheckAttempt[A](_ => F.pure(Right(a))) <* F.unit) <-> (F.pure(a))
+  // format: on
+
+  // format: off
+  def asyncCheckAttemptSuspendedRightIsAsyncRight[A](a: A, fu: F[Unit]) =
+    (F.asyncCheckAttempt[A](k => F.delay(k(Right(a))) >> fu.as(Left(None))) <* F.unit) <-> (F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <* F.unit)
+  // format: on
+
+  // format: off
+  def asyncCheckAttemptSuspendedLeftIsAsyncLeft[A](e: Throwable, fu: F[Unit]) =
+    (F.asyncCheckAttempt[A](k => F.delay(k(Left(e))) >> fu.as(Left(None))) <* F.unit) <-> (F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <* F.unit)
+  // format: on
+
+  // format: off
   def asyncRightIsUncancelableSequencedPure[A](a: A, fu: F[Unit]) =
     (F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <* F.unit) <-> (F.uncancelable(_ => fu) >> F.pure(a))
   // format: on
@@ -46,7 +61,7 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
     F.async[A](k => F.delay(k(Left(e))) >> F.pure(Some(fu))) <-> F.raiseError(e)
 
   def neverIsDerivedFromAsync[A] =
-    F.never[A] <-> F.async[A](_ => F.pure(None))
+    F.never[A] <-> F.async[A](_ => F.pure(Some(F.unit)))
 
   def executionContextCommutativity[A](fa: F[A]) =
     (fa *> F.executionContext) <-> (F.executionContext <* fa)
@@ -65,6 +80,12 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
 
   def evalOnNeverIdentity(ec: ExecutionContext) =
     F.evalOn(F.never[Unit], ec) <-> F.never[Unit]
+
+  def syncStepIdentity[A](fa: F[A], limit: Int) =
+    F.syncStep(fa, limit).flatMap {
+      case Left(fa) => fa
+      case Right(a) => F.pure(a)
+    } <-> fa
 }
 
 object AsyncLaws {

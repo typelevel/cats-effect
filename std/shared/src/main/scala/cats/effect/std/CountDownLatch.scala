@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,25 +16,23 @@
 
 package cats.effect.std
 
-import cats.~>
-import cats.syntax.all._
 import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
+import cats.syntax.all._
+import cats.~>
 
 /**
- * Concurrency abstraction that supports semantically blocking
- * until n latches are released.
- * Note that this has 'one-shot' semantics - once the counter
- * reaches 0 then [[release]] and [[await]] will forever be no-ops
+ * Concurrency abstraction that supports fiber blocking until n latches are released. Note that
+ * this has 'one-shot' semantics - once the counter reaches 0 then [[release]] and [[await]]
+ * will forever be no-ops
  *
- * See https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html
- * for a walkthrough of building something like this
+ * See https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html for a walkthrough of
+ * building something like this
  */
 abstract class CountDownLatch[F[_]] { self =>
 
   /**
-   * Release a latch, decrementing the remaining count and
-   * releasing any fibers that are blocked if the count
-   * reaches 0
+   * Release a latch, decrementing the remaining count and releasing any fibers that are blocked
+   * if the count reaches 0
    */
   def release: F[Unit]
 
@@ -71,12 +69,10 @@ object CountDownLatch {
       extends CountDownLatch[F] {
 
     override def release: F[Unit] =
-      F.uncancelable { _ =>
-        state.modify {
-          case Awaiting(n, signal) =>
-            if (n > 1) (Awaiting(n - 1, signal), F.unit) else (Done(), signal.complete(()).void)
-          case d @ Done() => (d, F.unit)
-        }.flatten
+      state.flatModify {
+        case Awaiting(n, signal) =>
+          if (n > 1) (Awaiting(n - 1, signal), F.unit) else (Done(), signal.complete(()).void)
+        case d @ Done() => (d, F.unit)
       }
 
     override def await: F[Unit] =

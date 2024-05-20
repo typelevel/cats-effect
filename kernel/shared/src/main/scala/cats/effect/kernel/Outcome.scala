@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,50 @@
 
 package cats.effect.kernel
 
-import cats.{Applicative, ApplicativeError, Bifunctor, Eq}
-import cats.{~>, Monad, MonadError, Order, Show, Traverse}
+import cats.{
+  ~>,
+  Applicative,
+  ApplicativeError,
+  Bifunctor,
+  Eq,
+  Monad,
+  MonadError,
+  Order,
+  Show,
+  Traverse
+}
 import cats.syntax.all._
 
 import scala.annotation.tailrec
 import scala.util.{Either, Left, Right}
 
+/**
+ * Represents the result of the execution of a fiber. It may terminate in one of 3 states:
+ *   1. Succeeded(fa) The fiber completed with a value.
+ *
+ * A commonly asked question is why this wraps a value of type `F[A]` rather than one of type
+ * `A`. This is to support monad transformers. Consider
+ *
+ * {{{
+ * val oc: OutcomeIO[Int] =
+ *   for {
+ *     fiber <- Spawn[OptionT[IO, *]].start(OptionT.none[IO, Int])
+ *     oc <- fiber.join
+ *   } yield oc
+ * }}}
+ *
+ * If the fiber succeeds then there is no value of type `Int` to be wrapped in `Succeeded`,
+ * hence `Succeeded` contains a value of type `OptionT[IO, Int]` instead.
+ *
+ * In general you can assume that binding on the value of type `F[A]` contained in `Succeeded`
+ * does not perform further effects. In the case of `IO` that means that the outcome has been
+ * constructed as `Outcome.Succeeded(IO.pure(result))`.
+ *
+ * 2. Errored(e) The fiber exited with an error.
+ *
+ * 3. Canceled() The fiber was canceled, either externally or self-canceled via
+ * `MonadCancel[F]#canceled`.
+ */
 sealed trait Outcome[F[_], E, A] extends Product with Serializable {
   import Outcome._
 
@@ -31,6 +68,17 @@ sealed trait Outcome[F[_], E, A] extends Product with Serializable {
 
   def embedNever(implicit F: GenSpawn[F, E]): F[A] =
     embed(F.never)
+
+  /**
+   * Allows the restoration to a normal development flow from an Outcome.
+   *
+   * This can be useful for storing the state of a running computation and then waiters for that
+   * data can act and continue forward on that shared outcome. Cancelation is encoded as a
+   * `CancellationException`.
+   */
+  def embedError(implicit F: MonadCancel[F, E], ev: Throwable <:< E): F[A] =
+    embed(
+      F.raiseError(ev(new java.util.concurrent.CancellationException("Outcome was Canceled"))))
 
   def fold[B](canceled: => B, errored: E => B, completed: F[A] => B): B =
     this match {
@@ -45,6 +93,24 @@ sealed trait Outcome[F[_], E, A] extends Product with Serializable {
       case Errored(e) => Errored(e)
       case Succeeded(fa) => Succeeded(f(fa))
     }
+
+  def isSuccess: Boolean = this match {
+    case Canceled() => false
+    case Errored(_) => false
+    case Succeeded(_) => true
+  }
+
+  def isError: Boolean = this match {
+    case Canceled() => false
+    case Errored(_) => true
+    case Succeeded(_) => false
+  }
+
+  def isCanceled: Boolean = this match {
+    case Canceled() => true
+    case Errored(_) => false
+    case Succeeded(_) => false
+  }
 }
 
 private[kernel] trait LowPriorityImplicits {
@@ -55,7 +121,7 @@ private[kernel] trait LowPriorityImplicits {
     Show show {
       case Canceled() => "Canceled"
       case Errored(left) => s"Errored(${left.show})"
-      case Succeeded(_) => s"Succeeded(<unknown>)"
+      case Succeeded(_) => s"Succeeded(...)"
     }
 
   implicit def eq[F[_], E: Eq, A](implicit FA: Eq[F[A]]): Eq[Outcome[F, E, A]] =
@@ -163,8 +229,8 @@ object Outcome extends LowPriorityImplicits {
         }
 
       @tailrec
-      def tailRecM[A, B](a: A)(f: A => Outcome[F, E, Either[A, B]]): Outcome[F, E, B] =
-        f(a) match {
+      def tailRecM[A, B](a0: A)(f: A => Outcome[F, E, Either[A, B]]): Outcome[F, E, B] =
+        f(a0) match {
           case Succeeded(fa) =>
             Traverse[F].sequence[Either[A, *], B](fa) match { // Dotty can't infer this
               case Left(a) => tailRecM(a)(f)

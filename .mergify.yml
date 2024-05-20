@@ -1,27 +1,28 @@
 pull_request_rules:
-  - name: label scala-steward's PRs
+  - name: label typelevel-steward's PRs
     conditions:
-      - author=scala-steward
+      - author=typelevel-steward[bot]
+    actions:
+      label:
+        add: [':robot:']
+  - name: label typelevel-steward's update PRs
+    conditions:
+      - author=typelevel-steward[bot]
+      - body~=labels:.*library-update
     actions:
       label:
         add: [dependencies]
-  - name: automatically merge scala-steward's patch PRs
+  - name: label dependabots's PRs
     conditions:
-      - author=scala-steward
-      - status-success=Build and Test (ubuntu-latest, 2.12.13, adopt@1.8, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.13.5, adopt@1.8, ciJVM)
-      - status-success=Build and Test (windows-latest, 2.13.5, adopt@1.8, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 3.0.0-M3, adopt@1.8, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 3.0.0-RC1, adopt@1.8, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.12.13, adopt@1.8, ciJS)
-      - status-success=Build and Test (ubuntu-latest, 2.13.5, adopt@1.8, ciJS)
-      - status-success=Build and Test (ubuntu-latest, 3.0.0-M3, adopt@1.8, ciJS)
-      - status-success=Build and Test (ubuntu-latest, 3.0.0-RC1, adopt@1.8, ciJS)
-      - status-success=Build and Test (ubuntu-latest, 2.12.13, adopt@1.8, ciFirefox)
-      - status-success=Build and Test (ubuntu-latest, 2.13.5, adopt@1.8, ciFirefox)
-      - status-success=Build and Test (ubuntu-latest, 3.0.0-M3, adopt@1.8, ciFirefox)
-      - status-success=Build and Test (ubuntu-latest, 3.0.0-RC1, adopt@1.8, ciFirefox)
-      - body~=labels:.*semver-patch
+      - author=dependabot[bot]
+    actions:
+      label:
+        add: [':robot:']
+  - name: automatically merge dependabot docs PRs
+    conditions:
+      - author=dependabot[bot]
+      - check-success=Generate Microsite
+      - base=docs
     actions:
       merge:
         method: merge

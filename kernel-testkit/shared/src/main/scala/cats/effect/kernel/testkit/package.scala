@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,5 +19,5 @@ package cats.effect.kernel
 import cats.data.Kleisli
 
 package object testkit {
-  type TimeT[F[_], A] = Kleisli[F, Time, A]
+  private[effect] type TimeT[F[_], A] = Kleisli[F, Time, A]
 }

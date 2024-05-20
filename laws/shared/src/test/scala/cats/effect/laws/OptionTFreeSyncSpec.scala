@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,22 +19,15 @@ package laws
 
 import cats.{Eq, Eval}
 import cats.data.OptionT
-import cats.effect.kernel.testkit.{freeEval, FreeSyncEq, FreeSyncGenerators, SyncTypeGenerators}
+import cats.effect.kernel.testkit.{FreeSyncEq, FreeSyncGenerators, SyncTypeGenerators}
+import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
 import cats.laws.discipline.arbitrary._
-import freeEval.{syncForFreeT, FreeEitherSync}
 
-import org.specs2.ScalaCheck
 import org.specs2.mutable._
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class OptionTFreeSyncSpec
-    extends Specification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec
-    with FreeSyncEq {
+class OptionTFreeSyncSpec extends Specification with Discipline with BaseSpec with FreeSyncEq {
 
   import FreeSyncGenerators._
   import SyncTypeGenerators._

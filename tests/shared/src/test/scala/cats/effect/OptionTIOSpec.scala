@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,57 @@
 
 package cats.effect
 
-import cats.data.OptionT
 import cats.Order
-import cats.laws.discipline.arbitrary._
+import cats.data.OptionT
 import cats.effect.laws.AsyncTests
-import cats.implicits._
+import cats.effect.syntax.all._
+import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
-// import org.scalacheck.rng.Seed
-
-import org.specs2.ScalaCheck
-// import org.specs2.scalacheck.Parameters
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class OptionTIOSpec
-    extends IOPlatformSpecification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
-  outer =>
+class OptionTIOSpec extends BaseSpec with Discipline {
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
+
+  "OptionT" should {
+    "execute finalizers" in ticked { implicit ticker =>
+      type F[A] = OptionT[IO, A]
+
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        _ <- OptionT.none[IO, Unit].guarantee(gate1.complete(()).void).start
+        _ <- OptionT.some[IO](()).guarantee(gate2.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
+      } yield ()
+
+      test.value must completeAs(Some(()))
+    }
+
+    "execute finalizers when doubly nested" in ticked { implicit ticker =>
+      type F[A] = OptionT[OptionT[IO, *], A]
+
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        gate3 <- Deferred[F, Unit]
+        _ <- OptionT.none[OptionT[IO, *], Unit].guarantee(gate1.complete(()).void).start
+        _ <- OptionT.some[OptionT[IO, *]](()).guarantee(gate2.complete(()).void).start
+        _ <- OptionT.liftF(OptionT.none[IO, Unit]).guarantee(gate3.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
+        _ <- gate3.get
+      } yield ()
+
+      test.value.value must completeAs(Some(Some(())))
+    }
+  }
 
   implicit def ordOptionTIOFD(implicit ticker: Ticker): Order[OptionT[IO, FiniteDuration]] =
     Order by { ioaO => unsafeRun(ioaO.value).fold(None, _ => None, fa => fa) }

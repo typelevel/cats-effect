@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,21 +30,19 @@ trait RunnersPlatform extends BeforeAfterAll {
     val (blocking, blockDown) =
       IORuntime.createDefaultBlockingExecutionContext(threadPrefix =
         s"io-blocking-${getClass.getName}")
-    val (scheduler, schedDown) =
-      IORuntime.createDefaultScheduler(threadPrefix = s"io-scheduler-${getClass.getName}")
-    val (compute, compDown) =
-      IORuntime.createDefaultComputeThreadPool(
-        runtime0,
-        threadPrefix = s"io-compute-${getClass.getName}")
+    val (compute, poller, compDown) =
+      IORuntime.createWorkStealingComputeThreadPool(
+        threadPrefix = s"io-compute-${getClass.getName}",
+        blockerThreadPrefix = s"io-blocker-${getClass.getName}")
 
-    runtime0 = new IORuntime(
+    runtime0 = IORuntime(
       compute,
       blocking,
-      scheduler,
+      compute,
+      List(poller),
       { () =>
         compDown()
         blockDown()
-        schedDown()
       },
       IORuntimeConfig()
     )

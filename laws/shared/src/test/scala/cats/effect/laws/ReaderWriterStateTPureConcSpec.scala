@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,20 +19,17 @@ package laws
 
 import cats.{Eq, Monad}
 import cats.data.ReaderWriterStateT
-import cats.effect.kernel.testkit.{pure, PureConcGenerators}, pure._
-import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
+import cats.effect.kernel.testkit.PureConcGenerators
+import cats.effect.kernel.testkit.pure._
+import cats.laws.discipline.MiniInt
+import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.eq._
 
-import org.specs2.ScalaCheck
-import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
-
+import org.specs2.scalacheck.Parameters
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class ReaderWriterStateTPureConcSpec
-    extends Specification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
+class ReaderWriterStateTPureConcSpec extends Specification with Discipline with BaseSpec {
   import PureConcGenerators._
 
   implicit def rwstEq[F[_]: Monad, E, L, S, A](

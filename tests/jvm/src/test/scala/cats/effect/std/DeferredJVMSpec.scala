@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,17 @@
 package cats.effect
 package std
 
-import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import cats.effect.kernel.Deferred
-import java.util.concurrent.atomic.AtomicLong
-// import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import cats.effect.unsafe.IORuntime
+
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
-import scala.concurrent.duration._
+
 import scala.concurrent.ExecutionContext
-// import scala.concurrent.{CancellationException, ExecutionContext}
-import cats.effect.unsafe.IORuntime
+import scala.concurrent.duration._
+
+import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
+import java.util.concurrent.atomic.AtomicLong
 
 class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
 class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
@@ -46,7 +47,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
 
   implicit val runtime: IORuntime = IORuntime.global
 
-  def before =
+  def before: Any =
     service = Executors.newFixedThreadPool(
       parallelism,
       new ThreadFactory {
@@ -60,7 +61,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
       }
     )
 
-  def after = {
+  def after: Any = {
     service.shutdown()
     assert(service.awaitTermination(60, TimeUnit.SECONDS), "has active threads")
   }
@@ -109,7 +110,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
   //   for (_ <- 0 until iterations) {
   //     val cancelLoop = new AtomicBoolean(false)
   //     val unit = IO {
-  //       if (cancelLoop.get()) throw new CancellationException
+  //       if (cancelLoop.get()) throw new CancelationException
   //     }
 
   //     try {
@@ -177,8 +178,8 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
     success
   }
 
-  //TODO move this back to run on both JVM and JS once we have a better test
-  //setup than unsafeRunRealistic
+  // TODO move this back to run on both JVM and JS once we have a better test
+  // setup than unsafeRunRealistic
   "issue #380: complete doesn't block, test #2" in {
     def execute(times: Int): IO[Boolean] = {
       val task = for {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ package laws
 import cats.effect.kernel.Clock
 
 import org.scalacheck._
-
 import org.typelevel.discipline.Laws
 
 trait ClockTests[F[_]] extends Laws {
@@ -30,8 +29,8 @@ trait ClockTests[F[_]] extends Laws {
   def clock(implicit exec: F[Boolean] => Prop): RuleSet = {
     new RuleSet {
       val name = "clock"
-      val bases = Nil
-      val parents = Seq()
+      val bases: Seq[(String, Laws#RuleSet)] = Nil
+      val parents: Seq[RuleSet] = Seq()
 
       val props = Seq("monotonicity" -> exec(laws.monotonicity))
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,52 +16,66 @@
 
 package cats.effect
 
-import cats.data.{Ior, IorT}
 import cats.Order
-import cats.laws.discipline.arbitrary._
+import cats.data.{Ior, IorT, OptionT}
 import cats.effect.laws.AsyncTests
-import cats.implicits._
+import cats.effect.syntax.all._
+import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
-
-import org.specs2.ScalaCheck
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class IorTIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
-  outer =>
+class IorTIOSpec extends BaseSpec with Discipline {
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
 
-  implicit def ordIorTIOFD(implicit ticker: Ticker): Order[IorT[IO, Int, FiniteDuration]] =
-    Order by { ioaO => unsafeRun(ioaO.value).fold(None, _ => None, fa => fa) }
+  "IorT" should {
+    "execute finalizers" in ticked { implicit ticker =>
+      type F[A] = IorT[IO, String, A]
 
-  //TODO remove once https://github.com/typelevel/cats/pull/3555 is released
-  implicit def orderIor[A, B](
-      implicit A: Order[A],
-      B: Order[B],
-      AB: Order[(A, B)]): Order[Ior[A, B]] =
-    new Order[Ior[A, B]] {
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        gate3 <- Deferred[F, Unit]
+        _ <- IorT.leftT[IO, Unit]("boom").guarantee(gate1.complete(()).void).start
+        _ <- IorT.bothT[IO]("boom", ()).guarantee(gate2.complete(()).void).start
+        _ <- IorT.rightT[IO, String](()).guarantee(gate3.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
+        _ <- gate3.get
+      } yield ()
 
-      override def compare(x: Ior[A, B], y: Ior[A, B]): Int =
-        (x, y) match {
-          case (Ior.Left(a1), Ior.Left(a2)) => A.compare(a1, a2)
-          case (Ior.Left(_), _) => -1
-          case (Ior.Both(a1, b1), Ior.Both(a2, b2)) => AB.compare((a1, b1), (a2, b2))
-          case (Ior.Both(_, _), Ior.Left(_)) => 1
-          case (Ior.Both(_, _), Ior.Right(_)) => -1
-          case (Ior.Right(b1), Ior.Right(b2)) => B.compare(b1, b2)
-          case (Ior.Right(_), _) => 1
-        }
-
+      test.value must completeAs(Ior.right(()))
     }
 
-  //TODO remove once https://github.com/typelevel/cats/pull/3555 is released
-  implicit def orderIorT[F[_], A, B](implicit Ord: Order[F[Ior[A, B]]]): Order[IorT[F, A, B]] =
-    Order.by(_.value)
+    "execute finalizers when doubly nested" in ticked { implicit ticker =>
+      type F[A] = IorT[OptionT[IO, *], String, A]
+
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        gate3 <- Deferred[F, Unit]
+        gate4 <- Deferred[F, Unit]
+        _ <- IorT.leftT[OptionT[IO, *], Unit]("boom").guarantee(gate1.complete(()).void).start
+        _ <- IorT.bothT[OptionT[IO, *]]("boom", ()).guarantee(gate2.complete(()).void).start
+        _ <- IorT.rightT[OptionT[IO, *], String](()).guarantee(gate3.complete(()).void).start
+        _ <- IorT.liftF(OptionT.none[IO, Unit]).guarantee(gate4.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
+        _ <- gate3.get
+        _ <- gate4.get
+      } yield ()
+
+      test.value.value must completeAs(Some(Ior.right(())))
+    }
+  }
+
+  implicit def ordIorTIOFD(implicit ticker: Ticker): Order[IorT[IO, Int, FiniteDuration]] =
+    Order by { ioaO => unsafeRun(ioaO.value).fold(None, _ => None, fa => fa) }
 
   implicit def execIorT(sbool: IorT[IO, Int, Boolean])(implicit ticker: Ticker): Prop =
     Prop(

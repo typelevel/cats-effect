@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,34 +18,33 @@ package cats
 package effect
 package kernel
 
-import java.util.concurrent.atomic.AtomicReference
-
 import cats.effect.kernel.Deferred.TransformedDeferred
 import cats.syntax.all._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
 
+import java.util.concurrent.atomic.AtomicReference
+
 /**
- * A purely functional synchronization primitive which represents a single value
- * which may not yet be available.
+ * A purely functional synchronization primitive which represents a single value which may not
+ * yet be available.
  *
- * When created, a `Deferred` is empty. It can then be completed exactly once,
- * and never be made empty again.
+ * When created, a `Deferred` is empty. It can then be completed exactly once, and never be made
+ * empty again.
  *
- * `get` on an empty `Deferred` will block until the `Deferred` is completed.
- * `get` on a completed `Deferred` will always immediately return its content.
+ * `get` on an empty `Deferred` will block until the `Deferred` is completed. `get` on a
+ * completed `Deferred` will always immediately return its content.
  *
- * `complete(a)` on an empty `Deferred` will set it to `a`, and notify any and
- * all readers currently blocked on a call to `get`.
- * `complete(a)` on a `Deferred` that has already been completed will not modify
- * its content, and result in a failed `F`.
+ * `complete(a)` on an empty `Deferred` will set it to `a`, notify any and all readers currently
+ * blocked on a call to `get`, and return true. `complete(a)` on a `Deferred` that has already
+ * been completed will not modify its content, and return false.
  *
- * Albeit simple, `Deferred` can be used in conjunction with [[Ref]] to build
- * complex concurrent behaviour and data structures like queues and semaphores.
+ * Albeit simple, `Deferred` can be used in conjunction with [[Ref]] to build complex concurrent
+ * behaviour and data structures like queues and semaphores.
  *
- * Finally, the blocking mentioned above is semantic only, no actual threads are
- * blocked by the implementation.
+ * Finally, the blocking mentioned above is semantic only, no actual threads are blocked by the
+ * implementation.
  */
 abstract class Deferred[F[_], A] extends DeferredSource[F, A] with DeferredSink[F, A] {
 
@@ -59,20 +58,17 @@ abstract class Deferred[F[_], A] extends DeferredSource[F, A] with DeferredSink[
 object Deferred {
 
   /**
-   * Creates an unset Deferred.
-   * Every time you bind the resulting `F`, a new Deferred is created.
-   * If you want to share one, pass it as an argument and `flatMap`
-   * once.
+   * Creates an unset Deferred. Every time you bind the resulting `F`, a new Deferred is
+   * created. If you want to share one, pass it as an argument and `flatMap` once.
    */
   def apply[F[_], A](implicit F: GenConcurrent[F, _]): F[Deferred[F, A]] =
     F.deferred[A]
 
   /**
-   * Like `apply` but returns the newly allocated Deferred directly
-   * instead of wrapping it in `F.delay`.  This method is considered
-   * unsafe because it is not referentially transparent -- it
-   * allocates mutable state.
-   * In general, you should prefer `apply` and use `flatMap` to get state sharing.
+   * Like `apply` but returns the newly allocated Deferred directly instead of wrapping it in
+   * `F.delay`. This method is considered unsafe because it is not referentially transparent --
+   * it allocates mutable state. In general, you should prefer `apply` and use `flatMap` to get
+   * state sharing.
    */
   def unsafe[F[_]: Async, A]: Deferred[F, A] = new AsyncDeferred[F, A]
 
@@ -190,7 +186,7 @@ object Deferred {
             }
         }
 
-      F.defer(loop())
+      F.uncancelable(_ => F.defer(loop()))
     }
   }
 
@@ -217,11 +213,11 @@ object Deferred {
   }
 }
 
-trait DeferredSource[F[_], A] {
+trait DeferredSource[F[_], A] extends Serializable {
 
   /**
-   * Obtains the value of the `Deferred`, or waits until it has been completed.
-   * The returned value may be canceled.
+   * Obtains the value of the `Deferred`, or waits until it has been completed. The returned
+   * value may be canceled.
    */
   def get: F[A]
 
@@ -244,16 +240,15 @@ object DeferredSource {
     }
 }
 
-trait DeferredSink[F[_], A] {
+trait DeferredSink[F[_], A] extends Serializable {
 
   /**
-   * If this `Deferred` is empty, sets the current value to `a`, and notifies
-   * any and all readers currently blocked on a `get`. Returns true.
+   * If this `Deferred` is empty, sets the current value to `a`, and notifies any and all
+   * readers currently blocked on a `get`. Returns true.
    *
    * If this `Deferred` has already been completed, returns false.
    *
-   * Satisfies:
-   *   `Deferred[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
+   * Satisfies: `Deferred[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
    */
   def complete(a: A): F[Boolean]
 }

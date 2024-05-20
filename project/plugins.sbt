@@ -1,9 +1,12 @@
-libraryDependencies += "org.scala-js" %% "scalajs-env-selenium" % "1.1.0"
+libraryDependencies += "org.scala-js" %% "scalajs-env-selenium" % "1.1.1"
 
-addSbtPlugin("com.codecommit" % "sbt-spiewak-sonatype" % "0.20.4")
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.5.0")
-addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.0.0")
-addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.0")
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.2")
-addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.2.18")
-addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.4.3")
+addSbtPlugin("org.typelevel" % "sbt-typelevel" % "0.7.1")
+
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.16.0")
+addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.4.17")
+addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.7")
+addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.5.2")
+addSbtPlugin("com.lightbend.sbt" % "sbt-java-formatter" % "0.8.0")
+addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.12.0")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.12.1")
+addSbtPlugin("org.scalameta" % "sbt-native-image" % "0.3.4")

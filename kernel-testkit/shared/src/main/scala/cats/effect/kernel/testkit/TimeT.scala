@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,11 @@ package testkit
 import cats.{~>, Group, Monad, Monoid, Order}
 import cats.data.Kleisli
 import cats.syntax.all._
+
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import scala.concurrent.duration._
+
 import java.util.concurrent.TimeUnit
 
 /*
@@ -32,12 +34,13 @@ import java.util.concurrent.TimeUnit
  * race conditions on `now` since we ensure that `Time` instances are
  * unique per-fiber. Thus, a volatile var is sufficient.
  */
-final class Time private[effect] (@volatile private[effect] var now: FiniteDuration) {
+private[effect] final class Time private[effect] (
+    @volatile private[effect] var now: FiniteDuration) {
   private[effect] def fork(): Time =
     new Time(now)
 }
 
-object Time {
+private[effect] object Time {
 
   implicit def cogenTime: Cogen[Time] =
     Cogen[FiniteDuration].contramap(_.now)
@@ -47,7 +50,7 @@ object Time {
 
 }
 
-object TimeT {
+private[effect] object TimeT {
 
   def liftF[F[_], A](fa: F[A]): TimeT[F, A] =
     Kleisli.liftF(fa)
@@ -60,7 +63,7 @@ object TimeT {
   def run[F[_], A](tfa: TimeT[F, A]): F[A] =
     tfa.run(new Time(0.millis))
 
-  //THis possibly shouldn't be here but all the tests using TimeT import TimeT._ anyway
+  // This possibly shouldn't be here but all the tests using TimeT import TimeT._ anyway
   implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
     import TimeUnit._
 
@@ -71,6 +74,9 @@ object TimeT {
       genTU flatMap { u => Gen.posNum[Long].map(FiniteDuration(_, u)) }
     }
   }
+
+  implicit def cogenForTimeT[F[_], A](implicit F: Cogen[Time => F[A]]): Cogen[TimeT[F, A]] =
+    F.contramap(_.run)
 
   implicit def groupTimeT[F[_]: Monad, A](implicit A: Group[A]): Group[TimeT[F, A]] =
     new Group[TimeT[F, A]] {

@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "devDependencies": {
+    "source-map-support": "^0.5.19"
+  }
+}

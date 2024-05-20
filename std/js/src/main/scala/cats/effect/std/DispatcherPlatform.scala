@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,4 +16,27 @@
 
 package cats.effect.std
 
-private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] => }
+import scala.scalajs.js
+
+private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
+
+  /**
+   * Submits an effect to be executed, returning a `Promise` that holds the result of its
+   * evaluation.
+   */
+  def unsafeToPromise[A](fa: F[A]): js.Promise[A] =
+    new js.Promise[A]((resolve, reject) =>
+      unsafeRunAsync(fa) {
+        case Left(js.JavaScriptException(e)) =>
+          reject(e)
+          ()
+
+        case Left(e) =>
+          reject(e)
+          ()
+
+        case Right(value) =>
+          resolve(value)
+          ()
+      })
+}

@@ -9,16 +9,16 @@ This tutorial tries to help newcomers to cats-effect to get familiar with its
 main concepts by means of code examples, in a learn-by-doing fashion. Two small
 programs will be coded, each one in its own section. [The first
 one](#copyingfiles) copies the contents from one file to another, safely
-handling _resources_ and _cancellation_ in the process. That should help us to
+handling _resources_ and _cancelation_ in the process. That should help us to
 flex our muscles. [The second one](#producerconsumer) implements a solution to
 the producer-consumer problem to introduce cats-effect _fibers_.
 
-This tutorial assumes certain familiarity with functional programming. It is
-also a good idea to read cats-effect documentation prior to starting this
+This tutorial assumes some familiarity with functional programming. It is
+also a good idea to read the cats-effect documentation prior to starting this
 tutorial, at least the [Getting Started page](getting-started.md).
 
 Please read this tutorial as training material, not as a best-practices
-document. As you gain more experience with cats-effect, probably you will find
+document. As you gain more experience with cats-effect, you will probably find
 your own solutions to deal with the problems presented here. Also, bear in mind
 that using cats-effect for copying files or implementing basic concurrency
 patterns (such as the producer-consumer problem) is suitable for a 'getting
@@ -36,41 +36,39 @@ This [Github
 repo](https://github.com/lrodero/cats-effect-tutorial/tree/series/3.x) includes
 all the software that will be developed during this tutorial (branch
 `series/3.x`). It uses `sbt` as the build tool. To ease coding, compiling and
-running the code snippets in this tutorial it is recommended to use the same
+running the code snippets in this tutorial, it is recommended to use the same
 `build.sbt`, or at least one with the same dependencies and compilation options:
 
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.0.0-RC2"
+version := "3.5.4"
 
-scalaVersion := "2.13.4"
+scalaVersion := "2.13.13"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.0.0-RC2" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.5.4" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
   "-deprecation",
   "-unchecked",
-  "-language:postfixOps"
 )
 ```
-
-Also make sure that you use a recent version of `sbt`, at least `1.4.2`. You can
-set the `sbt` version in `project/build.properties` file:
+Also make sure that you use a recent version of `sbt`, _e.g._ `1.9.8`. You can set
+the `sbt` version in `project/build.properties` file:
 
 ```scala
-sbt.version=1.4.2
+sbt.version=1.9.8
 ```
 
 Almost all code snippets in this tutorial can be pasted and compiled right in
 the scala console of the project defined above (or any project with similar
 settings).
 
-## <a name="copyingfiles"></a>Copying files - basic concepts, resource handling and cancellation
+## <a name="copyingfiles"></a>Copying files - basic concepts, resource handling and cancelation
 
 Our goal is to create a program that copies files. First we will work on a
-function that carries such task, and then we will create a program that can be
+function that carries out such a task, and then we will create a program that can be
 invoked from the shell and uses that function.
 
 First of all we must code the function that copies the content from a file to
@@ -96,34 +94,39 @@ import java.io.File
 def copy(origin: File, destination: File): IO[Long] = ???
 ```
 
-Nothing scary, uh? As we said before, the function just returns an `IO`
+Nothing scary, eh? As we said before, the function just returns an `IO`
 instance. When run, all side-effects will be actually executed and the `IO`
 instance will return the bytes copied in a `Long` (note that `IO` is
 parameterized by the return type). Now, let's start implementing our function.
 First, we need to open two streams that will read and write file contents.
 
 ### Acquiring and releasing `Resource`s
-We consider opening a stream to be a side-effect action, so we have to
-encapsulate those actions in their own `IO` instances. For this, we will make
-use of cats-effect `Resource`, that allows to orderly create, use and then
-release resources. See this code:
+We consider opening a stream to be a side-effectful action, so we have to
+encapsulate those actions in their own `IO` instances. We can just embed the
+actions by calling `IO(action)`, but when dealing with input/output actions it
+is advised to use instead `IO.blocking(action)`. This way we help cats-effect to
+better plan how to assign threads to actions. We will return to this topic when
+we introduce _fibers_ later on in this tutorial.
+
+Also, we will make use of cats-effect `Resource`. It allows to orderly create,
+use and then release resources. See this code:
 
 ```scala mdoc:compile-only
 import cats.effect.{IO, Resource}
-import java.io._ 
+import java.io._
 
 def inputStream(f: File): Resource[IO, FileInputStream] =
   Resource.make {
-    IO(new FileInputStream(f))                         // build
+    IO.blocking(new FileInputStream(f))                         // build
   } { inStream =>
-    IO(inStream.close()).handleErrorWith(_ => IO.unit) // release
+    IO.blocking(inStream.close()).handleErrorWith(_ => IO.unit) // release
   }
 
 def outputStream(f: File): Resource[IO, FileOutputStream] =
   Resource.make {
-    IO(new FileOutputStream(f))                         // build 
+    IO.blocking(new FileOutputStream(f))                         // build
   } { outStream =>
-    IO(outStream.close()).handleErrorWith(_ => IO.unit) // release
+    IO.blocking(outStream.close()).handleErrorWith(_ => IO.unit) // release
   }
 
 def inputOutputStreams(in: File, out: File): Resource[IO, (InputStream, OutputStream)] =
@@ -148,7 +151,7 @@ that `.attempt.void` is used to get the same 'swallow and ignore errors'
 behavior.
 
 Optionally we could have used `Resource.fromAutoCloseable` to define our
-resources, that method creates `Resource` instances over objects that implement
+resources, that method creates `Resource` instances over objects that implement the
 `java.lang.AutoCloseable` interface without having to define how the resource is
 released. So our `inputStream` function would look like this:
 
@@ -157,7 +160,7 @@ import cats.effect.{IO, Resource}
 import java.io.{File, FileInputStream}
 
 def inputStream(f: File): Resource[IO, FileInputStream] =
-  Resource.fromAutoCloseable(IO(new FileInputStream(f)))
+  Resource.fromAutoCloseable(IO.blocking(new FileInputStream(f)))
 ```
 
 That code is way simpler, but with that code we would not have control over what
@@ -176,11 +179,11 @@ import java.io._
 def inputOutputStreams(in: File, out: File): Resource[IO, (InputStream, OutputStream)] = ???
 
 // transfer will do the real work
-def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
+def transfer(origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): IO[Long] = ???
 
-def copy(origin: File, destination: File): IO[Long] = 
-  inputOutputStreams(origin, destination).use { case (in, out) => 
-    transfer(in, out)
+def copy(origin: File, destination: File): IO[Long] =
+  inputOutputStreams(origin, destination).use { case (in, out) =>
+    transfer(in, out, new Array[Byte](1024 * 10), 0)
   }
 ```
 
@@ -196,7 +199,7 @@ is any issue opening the output file, then the input stream will be closed.
 Now, if you are familiar with cats-effect's `Bracket` you may be wondering why
 we are not using it as it looks so similar to `Resource` (and there is a good
 reason for that: `Resource` is based on `bracket`). Ok, before moving forward it
-is worth to take a look to `bracket`.
+is worth taking a look at `bracket`.
 
 There are three stages when using `bracket`: _resource acquisition_, _usage_,
 and _release_. Each stage is defined by an `IO` instance.  A fundamental
@@ -209,33 +212,33 @@ follows:
 
 ```scala mdoc:compile-only
 import cats.effect.IO
-import cats.syntax.all._ 
-import java.io._ 
+import cats.syntax.all._
+import java.io._
 
 // function inputOutputStreams not needed
 
 // transfer will do the real work
-def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
+def transfer(origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): IO[Long] = ???
 
 def copy(origin: File, destination: File): IO[Long] = {
-  val inIO: IO[InputStream]  = IO(new FileInputStream(origin))
-  val outIO:IO[OutputStream] = IO(new FileOutputStream(destination))
+  val inIO: IO[InputStream]  = IO.blocking(new FileInputStream(origin))
+  val outIO:IO[OutputStream] = IO.blocking(new FileOutputStream(destination))
 
-  (inIO, outIO)              // Stage 1: Getting resources 
+  (inIO, outIO)              // Stage 1: Getting resources
     .tupled                  // From (IO[InputStream], IO[OutputStream]) to IO[(InputStream, OutputStream)]
     .bracket{
       case (in, out) =>
-        transfer(in, out)    // Stage 2: Using resources (for copying data, in this case)
+        transfer(in, out, new Array[Byte](1024 * 10), 0L) // Stage 2: Using resources (for copying data, in this case)
     } {
       case (in, out) =>      // Stage 3: Freeing resources
         (IO(in.close()), IO(out.close()))
         .tupled              // From (IO[Unit], IO[Unit]) to IO[(Unit, Unit)]
-        .handleErrorWith(_ => IO.unit).void
+        .void.handleErrorWith(_ => IO.unit)
     }
 }
 ```
 
-New `copy` definition is more complex, even though the code as a whole is way
+The new `copy` definition is more complex, even though the code as a whole is way
 shorter as we do not need the `inputOutputStreams` function. But there is a
 catch in the code above.  When using `bracket`, if there is a problem when
 getting resources in the first stage, then the release stage will not be run.
@@ -251,38 +254,29 @@ But, in a way, that's precisely what we do when we `flatMap` instances of
 has its place, `Resource` is likely to be a better choice when dealing with
 multiple resources at once.
 
-### Copying data 
+### Copying data
 Finally we have our streams ready to go! We have to focus now on coding
 `transfer`. That function will have to define a loop that at each iteration
 reads data from the input stream into a buffer, and then writes the buffer
 contents into the output stream. At the same time, the loop will keep a counter
-of the bytes transferred. To reuse the same buffer we should define it outside
-the main loop, and leave the actual transmission of data to another function
-`transmit` that uses that loop. Something like:
+of the bytes transferred. 
 
 ```scala mdoc:compile-only
 import cats.effect.IO
-import cats.syntax.all._ 
-import java.io._ 
+import java.io._
 
-def transmit(origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): IO[Long] =
+def transfer(origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): IO[Long] =
   for {
-    amount <- IO.blocking(origin.read(buffer, 0, buffer.size))
-    count  <- if(amount > -1) IO.blocking(destination.write(buffer, 0, amount)) >> transmit(origin, destination, buffer, acc + amount)
-              else IO.pure(acc) // End of read stream reached (by java.io.InputStream contract), nothing to write
-  } yield count // Returns the actual amount of bytes transmitted
-
-def transfer(origin: InputStream, destination: OutputStream): IO[Long] =
-  for {
-    buffer <- IO(new Array[Byte](1024 * 10)) // Allocated only when the IO is evaluated
-    total  <- transmit(origin, destination, buffer, 0L)
-  } yield total
+    amount <- IO.blocking(origin.read(buffer, 0, buffer.length))
+    count <- if (amount > -1) IO.blocking(destination.write(buffer, 0, amount)) >> transfer(origin, destination, buffer, acc + amount)
+             else IO.pure(acc) // End of read stream reached (by java.io.InputStream contract), nothing to write
+  } yield count // Returns the actual amount of bytes transferred
 ```
 
-Take a look at `transmit`, observe that both input and output actions are
-created by invoking `IO.blocking` which return the actions encapsulated in a
+Take a look at `transfer`, observe that both input and output actions are
+created by invoking `IO.blocking` which return the actions encapsulated in
 (suspended in) `IO`. We can also just embed the actions by calling `IO(action)`,
-but when dealing with input/output actions it is advised to use instead
+but when dealing with input/output actions it is advised that you instead use
 `IO.blocking(action)`. This way we help cats-effect to better plan how to assign
 threads to actions. We will return to this topic when we introduce _fibers_
 later on in this tutorial.
@@ -293,109 +287,33 @@ the call to `read()` does not return a negative value that would signal that the
 end of the stream has been reached. `>>` is a Cats operator to sequence two
 operations where the output of the first is not needed by the second (_i.e._ it
 is equivalent to `first.flatMap(_ => second)`). In the code above that means
-that after each write operation we recursively call `transmit` again, but as
+that after each write operation we recursively call `transfer` again, but as
 `IO` is stack safe we are not concerned about stack overflow issues. At each
 iteration we increase the counter `acc` with the amount of bytes read at that
-iteration. 
+iteration.
 
 We are making progress, and already have a version of `copy` that can be used.
 If any exception is raised when `transfer` is running, then the streams will be
 automatically closed by `Resource`. But there is something else we have to take
-into account: `IO` instances execution can be **_canceled!_** And cancellation
+into account: `IO` instances execution can be **_canceled!_** And cancelation
 should not be ignored, as it is a key feature of cats-effect. We will discuss
-cancellation in the next section.
+cancelation in the next section.
 
-### Dealing with cancellation
-Cancellation is a powerful but non-trivial cats-effect feature. In cats-effect,
-some `IO` instances can be canceled ( _e.g._ by other `IO` instaces running
+### Dealing with cancelation
+Cancelation is a powerful but non-trivial cats-effect feature. In cats-effect,
+some `IO` instances can be canceled (_e.g._ by other `IO` instances running
 concurrently) meaning that their evaluation will be aborted. If the programmer is
-careful, an alternative `IO` task will be run under cancellation, for example to
+careful, an alternative `IO` task will be run under cancelation, for example to
 deal with potential cleaning up activities.
 
-Now, `IO`s created with `Resource.use` can be canceled. The cancellation will
-trigger the execution of the code that handles the closing of the resource. In
-our case, that would close both streams. So far so good! But what happens if
-cancellation happens _while_ the streams are being used? This could lead to data
-corruption as some thread is writing to the stream while at the same time
-another thread is trying to close it.
- 
-To prevent such data corruption we must use some concurrency control mechanism
-that ensures that no stream will be closed while the `IO` returned by `transfer`
-is being evaluated.  Cats-effect provides several constructs for controlling
-concurrency, for this case we will use a _semaphore_. A semaphore has a number
-of permits, its method `.acquire` 'blocks' if no permit is available until
-`release` is called on the same semaphore. It is important to remark that _there
-is no actual thread being really blocked_, the thread that finds the `.acquire`
-call will be immediately recycled by cats-effect. When the `release` method is
-invoked then cats-effect will look for some available thread to resume the
-execution of the code after `.acquire`.
- 
-We will use a semaphore with a single permit. The `.permit` method acquires one
-permit as a `Resource` instance that will acquire the single permit, runs the
-`IO` given and then releases the permit. We could also use `.acquire` and then
-`.release` on the semaphore explicitly, but `.permit` is more idiomatic and
-ensures that the permit is released even if the effect run fails.
-
-```scala mdoc:compile-only
-import cats.effect.{IO, Resource}
-import cats.effect.std.Semaphore
-import java.io._
-
-// transfer and transmit methods as defined before
-def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
-
-def inputStream(f: File, guard: Semaphore[IO]): Resource[IO, FileInputStream] =
-  Resource.make {
-    IO(new FileInputStream(f))
-  } { inStream => 
-    guard.permit.use { _ =>
-      IO(inStream.close()).handleErrorWith(_ => IO.unit)
-    }
-  }
-
-def outputStream(f: File, guard: Semaphore[IO]): Resource[IO, FileOutputStream] =
-  Resource.make {
-    IO(new FileOutputStream(f))
-  } { outStream =>
-    guard.permit.use { _ =>
-      IO(outStream.close()).handleErrorWith(_ => IO.unit)
-    }
-  }
-
-def inputOutputStreams(in: File, out: File, guard: Semaphore[IO]): Resource[IO, (InputStream, OutputStream)] =
-  for {
-    inStream  <- inputStream(in, guard)
-    outStream <- outputStream(out, guard)
-  } yield (inStream, outStream)
-
-def copy(origin: File, destination: File): IO[Long] = {
-  for {
-    guard <- Semaphore[IO](1)
-    count <- inputOutputStreams(origin, destination, guard).use { case (in, out) => 
-      guard.permit.use { _ =>
-        transfer(in, out)
-      }
-    }
-  } yield count
-}
-```
-
-Before calling to `transfer` we acquire the semaphore, which is not released
-until `transfer` is done. The `use` call ensures that the semaphore will be
-released under any circumstances, whatever the result of `transfer` (success,
-error, or cancellation). As the 'release' parts in the `Resource` instances are
-now blocked on the same semaphore, we can be sure that streams are closed only
-after `transfer` is over, _i.e._ we have implemented mutual exclusion of
-`transfer` execution and resources releasing.
-
-Mark that while the `IO` returned by `copy` is cancelable (because so are `IO`
-instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
-Trying to cancel it will not have any effect and that `IO` will run until the
-whole file is copied! That is an important limitation, in real world code you
-will probably want to make your functions cancelable.
-
-And that is it! We are done, now we can create a program that uses this
-`copy` function.
+Thankfully, `Resource` makes dealing with cancelation an easy task. If the `IO`
+inside a `Resource.use` is canceled, the release section of that resource is
+run. In our example this means the input and output streams will be properly
+closed. Also, cats-effect does not cancel code inside `IO.blocking` instances.
+In the case of our `transfer` function this means the execution would be
+interrupted only between two calls to `IO.blocking`. If we want the execution of
+an IO instance to be interrupted when canceled, without waiting for it to
+finish, we must instantiate it using `IO.interruptible`.
 
 ### `IOApp` for our final program
 
@@ -408,7 +326,7 @@ up to the program main function.
 coding an effectful `main` method we code a pure `run` function. When executing
 the class a `main` method defined in `IOApp` will call the `run` function we
 have coded. Any interruption (like pressing `Ctrl-c`) will be treated as a
-cancellation of the running `IO`.
+cancelation of the running `IO`.
 
 When coding `IOApp`, instead of a `main` function we have a `run` function,
 which creates the `IO` instance that forms the program. In our case, our `run`
@@ -425,8 +343,7 @@ object Main extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
-      _      <- if(args.length < 2) IO.raiseError(new IllegalArgumentException("Need origin and destination files"))
-                else IO.unit
+      _ <- IO.raiseWhen(args.length < 2)(new IllegalArgumentException("Need origin and destination files"))
       orig = new File(args(0))
       dest = new File(args(1))
       count <- copy(orig, dest)
@@ -437,8 +354,9 @@ object Main extends IOApp {
 
 Heed how `run` verifies the `args` list passed. If there are fewer than two
 arguments, an error is raised. As `IO` implements `MonadError` we can at any
-moment call to `IO.raiseError` to interrupt a sequence of `IO` operations. Log
-message is printed by means of handy `IO.println` method.
+moment call to `IO.raiseWhen` or `IO.raiseError` to interrupt a sequence of `IO`
+operations. The log message is printed by means of the handy `IO.println`
+method.
 
 #### Copy program code
 You can check the [final version of our copy program
@@ -447,7 +365,7 @@ here](https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/s
 The program can be run from `sbt` just by issuing this call:
 
 ```scala
-> runMain catseffecttutorial.CopyFile origin.txt destination.txt
+> runMain catseffecttutorial.copyfile.CopyFile origin.txt destination.txt
 ```
 
 It can be argued that using `IO{java.nio.file.Files.copy(...)}` would get an
@@ -457,12 +375,10 @@ at any time for example by pressing `Ctrl-c`, our code will deal with safe
 resource release (streams closing) even under such circumstances. The same will
 apply if the `copy` function is run from other modules that require its
 functionality. If the `IO` returned by this function is canceled while being
-run, still resources will be properly released. But recall what we commented
-before: this is because `use` returns `IO` instances that are cancelable, in
-contrast our `transfer` function is not cancelable.
+run, still resources will be properly released.
 
 ### Polymorphic cats-effect code
-There is an important characteristic of `IO` that we shall be aware of. `IO` is
+There is an important characteristic of `IO` that we should be aware of. `IO` is
 able to suspend side-effects asynchronously thanks to the existence of an
 instance of `Async[IO]`. Because `Async` extends `Sync`, `IO` can also suspend
 side-effects synchronously. On top of that `Async` extends typeclasses such as
@@ -483,46 +399,39 @@ import cats.effect.Sync
 import cats.syntax.all._
 import java.io._
 
-def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] =
+def transfer[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] =
   for {
     amount <- Sync[F].blocking(origin.read(buffer, 0, buffer.length))
-    count  <- if(amount > -1) Sync[F].blocking(destination.write(buffer, 0, amount)) >> transmit(origin, destination, buffer, acc + amount)
+    count  <- if(amount > -1) Sync[F].blocking(destination.write(buffer, 0, amount)) >> transfer(origin, destination, buffer, acc + amount)
               else Sync[F].pure(acc) // End of read stream reached (by java.io.InputStream contract), nothing to write
-  } yield count // Returns the actual amount of bytes transmitted
+  } yield count // Returns the actual amount of bytes transferred
 ```
 
 We leave as an exercise to code the polymorphic versions of `inputStream`,
-`outputStream`, `inputOutputStreams`, `transfer` and `copy` functions. You will
-find that transformation similar to the one shown for `transfer` in the snippet
-above, only that function `copy` requires `F[_]: Async` instead of `F[_]:
-Sync`. This is because it does not only suspend a side-effect, it uses
-functionality of semaphores that requires a `Concurrent` instance in (implicit)
-scope.  And `Sync` does _not_ extend `Concurrent` while `Async` does.
+`outputStream`, `inputOutputStreams` and `copy` functions.
 
 ```scala mdoc:compile-only
 import cats.effect._
-import cats.effect.std.Semaphore
 import java.io._
 
-def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] = ???
-def transfer[F[_]: Sync](origin: InputStream, destination: OutputStream): F[Long] = ???
-def inputStream[F[_]: Sync](f: File, guard: Semaphore[F]): Resource[F, FileInputStream] = ???
-def outputStream[F[_]: Sync](f: File, guard: Semaphore[F]): Resource[F, FileOutputStream] = ???
-def inputOutputStreams[F[_]: Sync](in: File, out: File, guard: Semaphore[F]): Resource[F, (InputStream, OutputStream)] = ???
-def copy[F[_]: Async](origin: File, destination: File): F[Long] = ???
+def transfer[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] = ???
+def inputStream[F[_]: Sync](f: File): Resource[F, FileInputStream] = ???
+def outputStream[F[_]: Sync](f: File): Resource[F, FileOutputStream] = ???
+def inputOutputStreams[F[_]: Sync](in: File, out: File): Resource[F, (InputStream, OutputStream)] = ???
+def copy[F[_]: Sync](origin: File, destination: File): F[Long] = ???
 ```
 
 Only in our `main` function we will set `IO` as the final `F` for our program.
-To do so, of course, an `Async[IO]` instance must be in scope, but that instance
+To do so, of course, a `Sync[IO]` instance must be in scope, but that instance
 is brought transparently by `IOApp` so we do not need to be concerned about it.
 
-During the remaining of this tutorial we will use polymorphic code, only falling
+During the remainder of this tutorial we will use polymorphic code, only falling
 to `IO` in the `run` method of our `IOApp`s. Polymorphic code is less
 restrictive, as functions are not tied to `IO` but are applicable to any `F[_]`
 as long as there is an instance of the type class required (`Sync[F[_]]` ,
 `Async[F[_]]`...) in scope. The type class to use will depend on the
 requirements of our code.
- 
+
 #### Copy program code, polymorphic version
 The polymorphic version of our copy program in full is available
 [here](https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/copyfile/CopyFilePolymorphic.scala).
@@ -534,14 +443,16 @@ your IO-kungfu:
 
 1. Modify the `IOApp` so it shows an error and abort the execution if the origin
    and destination files are the same, the origin file cannot be open for
-   reading or the destination file cannot be opened for writing. Also, if the
+   reading, or the destination file cannot be opened for writing. Also, if the
    destination file already exists, the program should ask for confirmation
    before overwriting that file.
-2. Modify `transmit` so the buffer size is not hardcoded but passed as
-   parameter.
-3. Use some other concurrency tool of cats-effect instead of `semaphore` to
-   ensure mutual exclusion of `transfer` execution and streams closing.
-4. Create a new program able to copy folders. If the origin folder has
+2. Test safe cancelation, checking that the streams are indeed being properly
+   closed. You can do that just by interrupting the program execution pressing
+   `Ctrl-c`. To make sure you have the time to interrupt the program, introduce
+   a delay of a few seconds in the `transfer` function (see `IO.sleep`). And to
+   ensure that the release functionality in the `Resource`s is run you can add
+   some log message there (see `IO.println`).
+3. Create a new program able to copy folders. If the origin folder has
    subfolders, then their contents must be recursively copied too. Of course the
    copying must be safely cancelable at any moment.
 
@@ -575,9 +486,9 @@ the other hand when the execution of some fiber is blocked _e.g._ because it
 must wait for a semaphore to be released, the thread running the fiber is
 recycled by cats-effect so it is available for other fibers. When the fiber
 execution can be resumed cats-effect will look for some free thread to continue
-the execution. The term "_semantically blocked_" is used sometimes to denote
+the execution. The term "_fiber blocking_" is used sometimes to denote
 that blocking the fiber does not involve halting any thread. Cats-effect also
-recycles threads of finished and canceled fibers.  But keep in mind that, in
+recycles threads of finished and canceled fibers. But keep in mind that, in
 contrast, if the fiber is truly blocked by some external action like waiting for
 some input from a TCP socket, then cats-effect has no way to recover back that
 thread until the action finishes. Such calls should be wrapped by `IO.blocking`
@@ -585,14 +496,28 @@ to signal that the wrapped code will block the thread.  Cats-effect uses that
 info as a hint to optimize `IO` scheduling.
 
 Another difference with threads is that fibers are very cheap entities. We can
-spawn millions of them at ease without impacting the performance. 
+spawn millions of them at ease without impacting the performance.
 
-Cats-effect implements some concurrency primitives to coordinate concurrent
-fibers: [Deferred](std/deferred.md), [Ref](std/ref.md), `Semaphore`
-(semaphores we already discussed in the first part of this tutorial)...
+A worthy note is that you do not have to explicitly shut down fibers. If you
+spawn a fiber and it finishes actively running its `IO` it will get cleaned up
+by the garbage collector unless there is some other active memory reference to
+it. So basically you can treat a fiber as any other regular object, except that
+when the fiber is _running_ (present tense), the cats-effect runtime itself
+keeps the fiber alive.
 
-Way more detailed info about concurrency in cats-effect can be found in [this
-other tutorial 'Concurrency in Scala with
+This has some interesting implications as well. Like if you create an `IO.async`
+node and register the callback with something, and you're in a fiber which has
+no strong object references anywhere else (i.e. you did some sort of
+fire-and-forget thing), then the callback itself is the only strong reference to
+the fiber. Meaning if the registration fails or the system you registered with
+throws it away, the fiber will just gracefully disappear.
+
+And a final hint: as with threads, often you will need to coordinate the work of
+concurrent fibers. Writing concurrent code is a difficult exercise, but
+cats-effect implements some concurrency primitives such as
+[Deferred](std/deferred.md), [Ref](std/ref.md), [Semaphore](std/semaphore.md)...
+that will help you in that task. Way more detailed info about concurrency in
+cats-effect can be found in [this other tutorial 'Concurrency in Scala with
 Cats-Effect'](https://github.com/slouc/concurrency-in-scala-with-ce).
 
 Ok, now we have briefly discussed fibers we can start working on our
@@ -606,39 +531,40 @@ integers (`1`, `2`, `3`...), consumer will just read that sequence.  Our shared
 queue will be an instance of an immutable `Queue[Int]`.
 
 Accesses to the queue can (and will!) be concurrent, thus we need some way to
-protect the queue so only one fiber at a time is handling it. The best way to
-ensure an ordered access to some shared data is [Ref](std/ref.md). A
-`Ref` instance wraps some given data and implements methods to manipulate that
-data in a safe manner. When some fiber is runnning one of those methods, any
-other call to any method of the `Ref` instance will be blocked.
+protect the queue so only one fiber at a time is handling it. A good way to
+ensure an ordered access to some shared data is [Ref](std/ref.md). A `Ref`
+instance wraps some given data and implements methods to manipulate that data in
+a safe manner.
 
 The `Ref` wrapping our queue will be `Ref[F, Queue[Int]]` (for some `F[_]`).
 
 Now, our `producer` method will be:
-
 ```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
-import collection.immutable.Queue
+import scala.collection.immutable.Queue
 
 def producer[F[_]: Sync: Console](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] =
   for {
-    _ <- if(counter % 10000 == 0) Console[F].println(s"Produced $counter items") else Sync[F].unit
+    _ <- Sync[F].whenA(counter % 10000 == 0)(Console[F].println(s"Produced $counter items"))
     _ <- queueR.getAndUpdate(_.enqueue(counter + 1))
     _ <- producer(queueR, counter + 1)
   } yield ()
 ```
 
-First line just prints some log message every `10000` items, so we know if it is
-'alive'. It uses type class `Console[_]`, which brings the capacity to print
-and read strings (`IO.println` just uses `Console[IO].println` underneath).
+First line just prints some log message every `10000` items, so we know if our
+producer is still 'alive'. We can as well do `if(cond) then Console... else
+Sync[F].unit` but this approach is more idiomatic. To print logs the code uses
+type class `Console[_]`, which brings the capacity to print and read strings
+(the `IO.println` call we used before just invokes `Console[IO].println` under
+the hood).
 
 Then our code calls `queueR.getAndUpdate` to add data into the queue. Note
 that `.getAndUpdate` provides the current queue, then we use `.enqueue` to
 insert the next value `counter+1`. This call returns a new queue with the value
 added that is stored by the ref instance. If some other fiber is accessing to
-`queueR` then the fiber is (semantically) blocked.
+`queueR` then the fiber (but no thread) is blocked.
 
 The `consumer` method is a bit different. It will try to read data from the
 queue but it must be aware that the queue can be empty:
@@ -647,14 +573,14 @@ queue but it must be aware that the queue can be empty:
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
-import collection.immutable.Queue
+import scala.collection.immutable.Queue
 
-def consumer[F[_] : Sync: Console](queueR: Ref[F, Queue[Int]]): F[Unit] =
+def consumer[F[_]: Sync: Console](queueR: Ref[F, Queue[Int]]): F[Unit] =
   for {
     iO <- queueR.modify{ queue =>
       queue.dequeueOption.fold((queue, Option.empty[Int])){case (i,queue) => (queue, Option(i))}
     }
-    _ <- if(iO.exists(_ % 10000 == 0)) Console[F].println(s"Consumed ${iO.get} items") else Sync[F].unit
+    _ <- Sync[F].whenA(iO.exists(_ % 10000 == 0))(Console[F].println(s"Consumed ${iO.get} items"))
     _ <- consumer(queueR)
   } yield ()
 ```
@@ -672,12 +598,12 @@ We can now create a program that instantiates our `queueR` and runs both
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
-import collection.immutable.Queue
+import scala.collection.immutable.Queue
 
 object InefficientProducerConsumer extends IOApp {
 
   def producer[F[_]: Sync](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] = ??? // As defined before
-  def consumer[F[_] : Sync](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
+  def consumer[F[_]: Sync](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
@@ -692,28 +618,25 @@ object InefficientProducerConsumer extends IOApp {
 }
 ```
 
-The full implementation of this naive producer consumer is available
-[here](https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/producerconsumer/InefficientProducerConsumer.scala).
-
 Our `run` function instantiates the shared queue wrapped in a `Ref` and boots
 the producer and consumer in parallel. To do to it uses `parMapN`, that creates
-and runs the fibers that will run the `IO`s passed as paremeter. Then it takes
-the output of each fiber and and applies a given function to them. In our case
-both producer and consumer shall run forever until user presses CTRL-C which
-will trigger a cancellation.
+and runs the fibers that will run the `IO`s passed as parameter. Then it takes
+the output of each fiber and applies a given function to them. In our case
+both producer and consumer shall run forever until the user presses CTRL-C which
+will trigger a cancelation.
 
-Alternatively we could have used `start` method to explicitely create new
+Alternatively we could have used `start` method to explicitly create new
 `Fiber` instances that will run the producer and consumer, then use `join` to
 wait for them to finish, something like:
 
 ```scala mdoc:compile-only
 import cats.effect._
-import collection.immutable.Queue
+import scala.collection.immutable.Queue
 
 object InefficientProducerConsumer extends IOApp {
 
   def producer[F[_]: Sync](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] = ??? // As defined before
-  def consumer[F[_] : Sync](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
+  def consumer[F[_]: Sync](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
 
   def run(args: List[String]): IO[ExitCode] =
     for {
@@ -726,35 +649,113 @@ object InefficientProducerConsumer extends IOApp {
 }
 ```
 
-Problem is, if there is an error in any of the fibers the `join` call will not
-hint it, nor it will return. In contrast `parMapN` does promote the error it
-finds to the caller. _In general, if possible, programmers should prefer to use
-higher level commands such as `parMapN` or `parSequence` to deal with fibers_.
+However in most situations it is not advisable to handle fibers manually as
+they are not trivial to work with. For example, if there is an error in a fiber
+the `join` call to that fiber will _not_ raise it, it will return normally and
+you must explicitly check the `Outcome` instance returned by the `.join` call
+to see if it errored. Also, the other fibers will keep running unaware of what
+happened.
+
+Cats Effect provides additional `joinWith` or `joinWithNever` methods to make
+sure at least that the error is raised with the usual `MonadError` semantics
+(_i.e._, short-circuiting).  Now that we are raising the error, we also need to
+cancel the other running fibers. We can easily get ourselves trapped in a
+tangled mess of fibers to keep an eye on.  On top of that the error raised by a
+fiber is not promoted until the call to `joinWith` or `.joinWithNever` is
+reached. So in our example above if `consumerFiber` raises an error then we
+have no way to observe that until the producer fiber has finished. Alarmingly,
+note that in our example the producer _never_ finishes and thus the error would
+_never_ be observed!  And even if the producer fiber did finish, it would have
+been consuming resources for nothing.
+
+In contrast `parMapN` does promote any error it finds to the caller _and_ takes
+care of canceling the other running fibers. As a result `parMapN` is simpler to
+use, more concise, and easier to reason about. _Because of that, unless you
+have some specific and unusual requirements you should prefer to use higher
+level commands such as `parMapN` or `parSequence` to work with fibers_.
 
 Ok, we stick to our implementation based on `.parMapN`. Are we done? Does it
-Work? Well, it works... but it is far from ideal. If we run it we will find that
-the producer runs faster than the consumer so the queue is constantly growing.
-And, even if that was not the case, we must realize that the consumer will be
-continually running regardless if there are elements in the queue, which is far
-from ideal. We will try to improve it in the next section by using
-[Deferred](std/deferred.md). Also we will use several consumers and
-producers to balance production and consumption rate.
+Work? Well, it works... but it is far from ideal.
+
+#### Issue 1: the producer outpaces the consumer
+Now, if you run the program you will notice that almost no consumer logs are
+shown, if any. This is a signal that the producer is running way faster than
+the consumer. And why is that? Well, this is because how `Ref.modify` works. It
+gets the current value, then it computes the update, and finally it tries to set
+the new value if the current one has not been changed (by some other fiber),
+otherwise it starts from the beginning. Unfortunately the producer is way faster
+running its `queueR.getAndUpdate` call than the consumer is running its
+`queueR.modify` call. So the consumer gets 'stuck' trying once and again to
+update the `queueR` content.
+
+Can we alleviate this? Sure! There are a few options you can implement:
+1. Making the producer artifically slower by introducing a call to `Async[F].sleep`
+   (_e.g._ for 1 microsecond). Truth is, in real world scenarios a producer will
+   not be as fast as in our example so this tweak is not that 'strange'. Note that
+   to be able to use `sleep` now `F` requires an implicit `Async[F]` instance. The
+   new producer will look like this:
+   ```scala mdoc:compile-only
+   import cats.effect._
+   import cats.effect.std.Console
+   import cats.syntax.all._
+   import scala.collection.immutable.Queue
+   import scala.concurrent.duration.DurationInt
+   
+   def producer[F[_]: Async: Console](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] =
+     for {
+       _ <- Async[F].whenA(counter % 10000 == 0)(Console[F].println(s"Produced $counter items"))
+       _ <- Async[F].sleep(1.microsecond) // To prevent overwhelming consumers
+       _ <- queueR.getAndUpdate(_.enqueue(counter + 1))
+       _ <- producer(queueR, counter + 1)
+     } yield ()
+   ```
+2. Replace `Ref` with `AtomicCell` to keep the `Queue` instance. `AtomicCell`,
+   like `Ref`, is a concurrent data structure to keep a reference to some data.
+   But unlike `Ref` it ensures that only one fiber can operate on that reference
+   at any given time. Thus the consumer won't have to try once and again to modify
+   its content. On the other hand `AtomicCell` is slower than `Ref`. This is
+   because `Ref` is nonblocking while `AtomicCell` will block calling fibers to
+   ensure only one operates on its content.
+3. Make the queue bound by size so producers are forced to wait for consumers to
+   extract data when the queue is full. We will do this later on in Section
+   [Producer consumer with bounded
+queue](#producer-consumer-with-bounded-queue).
+
+By the way, you may be tempted to speed up the `queueR.modify` call in the
+consumer by using a mutable `Queue` instance. Do not! `Ref` _must_ be used only
+with immutable data.
+
+#### Issue 2: consumer runs even if there are no elements in the queue
+The consumer will be continually running regardless if there are elements in the
+queue, which is far from ideal. If we have several consumers competing for the
+data the problem gets even worse. We will address this problem in the next
+section by using [Deferred](std/deferred.md).
+
+The full implementation of the naive producer consumer we have just created in
+this section is available 
+[here](https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/producerconsumer/InefficientProducerConsumer.scala).
 
 ### A more solid implementation of the producer/consumer problem
 In our producer/consumer code we already protect access to the queue (our shared
 resource) using a `Ref`. Now, instead of using `Option` to represent elements
 retrieved from a possibly empty queue, we should instead block the caller fiber
-somehow if queue is empty until some element can be returned. This will be done
-by creating and keeping instances of `Deferred`. A `Deferred[F, A]` instance can
-hold one single element of some type `A`. `Deferred` instances are created
-empty, and can be filled only once. If some fiber tries to read the element from
-an empty `Deferred` then it will be semantically blocked until some other fiber
-fills (completes) it.
+somehow if queue is empty until some element can be returned. This way we
+prevent having consumer fibers running even when there is no element to
+consume. This will be done by creating and keeping instances of `Deferred`. A
+`Deferred[F, A]` instance can hold one single element of some type `A`.
+`Deferred` instances are created empty, and can be filled only once. If some
+fiber tries to read the element from an empty `Deferred` then it will wait
+until some other fiber fills (completes) it. But recall that this waiting does
+not involve blocking any physical thread, that's the beauty of fibers! 
 
-Thus, alongside the queue of produced but not yet consumed elements, we have to
-keep track of the `Deferred` instances created when the queue was empty that are
-waiting for elements to be available. These instances will be kept in a new
-queue `takers`. We will keep both queues in a new type `State`:
+Also, we will step up our code so we can handle several producers and consumers
+in parallel.
+
+Ok, so, alongside the queue of produced but not yet consumed elements, we have
+to keep track of the `Deferred` instances (created because consumers found an
+emnpty queue) that are waiting for elements to be available. These instances
+will be kept in a new queue `takers`. We will keep both queues in a new type
+`State`:
 
 ```scala mdoc:compile-only
 import cats.effect.Deferred
@@ -766,7 +767,7 @@ Both producer and consumer will access the same shared state instance, which
 will be carried and safely modified by an instance of `Ref`. Consumer shall
 work as follows:
 1. If `queue` is not empty, it will extract and return its head. The new state
-   will keep the tail of the queue, not change on `takers` will be needed.
+   will keep the tail of the queue, no change on `takers` will be needed.
 2. If `queue` is empty it will use a new `Deferred` instance as a new `taker`,
    add it to the `takers` queue, and 'block' the caller by invoking `taker.get`
 
@@ -796,7 +797,7 @@ def consumer[F[_]: Async: Console](id: Int, stateR: Ref[F, State[F, Int]]): F[Un
 
   for {
     i <- take
-    _ <- if(i % 10000 == 0) Console[F].println(s"Consumer $id has reached $i items") else Async[F].unit
+    _ <- Async[F].whenA(i % 10000 == 0)(Console[F].println(s"Consumer $id has reached $i items"))
     _ <- consumer(id, stateR)
   } yield ()
 }
@@ -808,21 +809,22 @@ we will have now several producers and consumers running in parallel). The
 Note how it will block on `taker.get` when the queue is empty.
 
 The producer, for its part, will:
-1. If there are waiting `takers`, it will take the first in the queue and offer
-   it the newly produced element (`taker.complete`).
+1. If there are waiting `takers`, it will take the first one in the takers queue
+   and offer it the newly produced element (`taker.complete`).
 2. If no `takers` are present, it will just enqueue the produced element.
 
 Thus the producer will look like:
 
 ```scala mdoc:compile-only
-import cats.effect.{Deferred, Ref, Sync}
+import cats.effect.{Async, Deferred, Ref}
 import cats.effect.std.Console
 import cats.syntax.all._
 import scala.collection.immutable.Queue
+import scala.concurrent.duration.DurationInt
 
 case class State[F[_], A](queue: Queue[A], takers: Queue[Deferred[F,A]])
 
-def producer[F[_]: Sync: Console](id: Int, counterR: Ref[F, Int], stateR: Ref[F, State[F,Int]]): F[Unit] = {
+def producer[F[_]: Async: Console](id: Int, counterR: Ref[F, Int], stateR: Ref[F, State[F,Int]]): F[Unit] = {
 
   def offer(i: Int): F[Unit] =
     stateR.modify {
@@ -830,17 +832,21 @@ def producer[F[_]: Sync: Console](id: Int, counterR: Ref[F, Int], stateR: Ref[F,
         val (taker, rest) = takers.dequeue
         State(queue, rest) -> taker.complete(i).void
       case State(queue, takers) =>
-        State(queue.enqueue(i), takers) -> Sync[F].unit
+        State(queue.enqueue(i), takers) -> Async[F].unit
     }.flatten
 
   for {
     i <- counterR.getAndUpdate(_ + 1)
     _ <- offer(i)
-    _ <- if(i % 10000 == 0) Console[F].println(s"Producer $id has reached $i items") else Sync[F].unit
+    _ <- Async[F].whenA(i % 100000 == 0)(Console[F].println(s"Producer $id has reached $i items"))
+    _ <- Async[F].sleep(1.microsecond) // To prevent overwhelming consumers
     _ <- producer(id, counterR, stateR)
   } yield ()
 }
 ```
+
+As in the previous section we introduce an artificial delay in order not to
+overwhelm consumers. 
 
 Finally we modify our main program so it instantiates the counter and state
 `Ref`s. Also it will create several consumers and producers, 10 of each, and
@@ -889,18 +895,12 @@ are started in their own fiber by the call to `parSequence`, which will wait for
 all of them to finish and then return the value passed as parameter. As in the
 previous example this program shall run forever until the user presses CTRL-C.
 
-Having several consumers and producers improves the balance between consumers
-and producers... but still, on the long run, queue tends to grow in size. To
-fix this we will ensure the size of the queue is bounded, so whenever that max
-size is reached producers will block as consumers do when the queue is empty.
-
-
 ### Producer consumer with bounded queue
-Having a bounded queue implies that producers, when queue is full, will wait (be
-'semantically blocked') until there is some empty bucket available to be filled.
-So an implementation needs to keep track of these waiting producers. To do so we
-will add a new queue `offerers` that will be added to the `State` alongside
-`takers`.  For each waiting producer the `offerers` queue will keep a
+Having a bounded queue implies that producers, when the queue is full, will wait
+(be 'fiber blocked') until there is some empty bucket available to be
+filled.  So an implementation needs to keep track of these waiting producers. To
+do so we will add a new queue `offerers` that will be added to the `State`
+alongside `takers`.  For each waiting producer the `offerers` queue will keep a
 `Deferred[F, Unit]` that will be used to block the producer until the element it
 offers can be added to `queue` or directly passed to some consumer (`taker`).
 Alongside the `Deferred` instance we need to keep as well the actual element
@@ -914,14 +914,14 @@ case class State[F[_], A](queue: Queue[A], capacity: Int, takers: Queue[Deferred
 ```
 
 Of course both consumer and producer have to be modified to handle this new
-queue `offerers`. A consumer can find four escenarios, depending on if `queue`
-and `offerers` are each one empty or not. For each escenario a consumer shall:
+queue `offerers`. A consumer can find four scenarios, depending on if `queue`
+and `offerers` are each one empty or not. For each scenario a consumer shall:
 1. If `queue` is not empty:
     1. If `offerers` is empty then it will extract and return `queue`'s head.
     2. If `offerers` is not empty (there is some producer waiting) then things
        are more complicated. The `queue` head will be returned to the consumer.
        Now we have a free bucket available in `queue`. So the first waiting
-       offerer can use that bucket to add the element it offers. That element 
+       offerer can use that bucket to add the element it offers. That element
        will be added to `queue`, and the `Deferred` instance will be completed
        so the producer is released (unblocked).
 2. If `queue` is empty:
@@ -964,7 +964,7 @@ def consumer[F[_]: Async: Console](id: Int, stateR: Ref[F, State[F, Int]]): F[Un
 
   for {
     i <- take
-    _ <- if(i % 10000 == 0) Console[F].println(s"Consumer $id has reached $i items") else Async[F].unit
+    _ <- Async[F].whenA(i % 100000 == 0)(Console[F].println(s"Consumer $id has reached $i items"))
     _ <- consumer(id, stateR)
   } yield ()
 }
@@ -1007,14 +1007,21 @@ def producer[F[_]: Async: Console](id: Int, counterR: Ref[F, Int], stateR: Ref[F
   for {
     i <- counterR.getAndUpdate(_ + 1)
     _ <- offer(i)
-    _ <- if(i % 10000 == 0) Console[F].println(s"Producer $id has reached $i items") else Async[F].unit
+    _ <- Async[F].whenA(i % 100000 == 0)(Console[F].println(s"Producer $id has reached $i items"))
     _ <- producer(id, counterR, stateR)
   } yield ()
 }
 ```
 
+We have removed the `Async[F].sleep` call that we used to slow down producers
+because we do not need it any more. Even if producers could run faster than
+consumers they have to wait when the queue is full for consumers to extract data
+from the queue. So at the end of the day they will run at the same pace.
+
 As you see, producer and consumer are coded around the idea of keeping and
-modifying state, just as with unbounded queues.
+modifying state, just as with unbounded queues. Also we do not need to introduce
+an artificial delay in producers, as soon as the queue gets full they will be
+'blocked' thus giving a chance to consumers to read data.
 
 As the final step we must adapt the main program to use these new consumers and
 producers. Let's say we limit the queue size to `100`, then we have:
@@ -1057,8 +1064,8 @@ The full implementation of this producer consumer with bounded queue is
 available
 [here](https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/producerconsumer/ProducerConsumerBounded.scala).
 
-### Taking care of cancellation
-We shall ask ourselves, is this implementation cancellation-safe? That is, what
+### Taking care of cancelation
+We shall ask ourselves, is this implementation cancelation-safe? That is, what
 happens if the fiber running a consumer or a producer gets canceled? Does state
 become inconsistent? Let's check `producer` first. State is handled by its
 internal `offer`, so we will focus on it. And, for the sake of clarity in our
@@ -1075,10 +1082,10 @@ def offer[F[_]](i: Int): F[Unit] =
   } yield ()
 ```
 
-So far so good. Now, cancellation steps into action in each `.flatMap` in `F`,
+So far so good. Now, cancelation steps into action in each `.flatMap` in `F`,
 that is, in each step of our for-comprehension. If the fiber gets canceled right
 before or after the first step, well, that is not an issue. The `offerer` will
-be eventually garbage collected, that's all. But what if the cancellation
+be eventually garbage collected, that's all. But what if the cancelation
 happens right after the call to `modify`? Well, then `op` will not be run.
 Recall that, by the content of `modify`, that `op` can be
 `taker.complete(i).void`, `Sync[F].unit` or `offerer.get`. Cancelling after
@@ -1113,7 +1120,7 @@ This can be addressed using `Poll[F]`, which is passed as parameter by
 uncancelable region. So if the operation to run was `offerer.get` we will embed
 that call inside the `Poll[F]`, thus ensuring the blocked fiber can be canceled.
 Finally, we must also take care of cleaning up the state if there is indeed a
-cancellation. That cleaning up will have to remove the `offerer` from the list
+cancelation. That cleaning up will have to remove the `offerer` from the list
 of offerers kept in the state, as it shall never be completed. Our `offer`
 function has become:
 
@@ -1147,15 +1154,15 @@ def producer[F[_]: Async: Console](id: Int, counterR: Ref[F, Int], stateR: Ref[F
   for {
     i <- counterR.getAndUpdate(_ + 1)
     _ <- offer(i)
-    _ <- if(i % 10000 == 0) Console[F].println(s"Producer $id has reached $i items") else Async[F].unit
+    _ <- Async[F].whenA(i % 100000 == 0)(Console[F].println(s"Producer $id has reached $i items"))
     _ <- producer(id, counterR, stateR)
   } yield ()
 }
 ```
 
-The consumer part must deal with cancellation in the same way. It will use
-`poll` to enable cancellation on the blocking calls, but at the same time it
-will make sure to clean up the state when a cancellation occurs. In this case,
+The consumer part must deal with cancelation in the same way. It will use
+`poll` to enable cancelation on the blocking calls, but at the same time it
+will make sure to clean up the state when a cancelation occurs. In this case,
 the blocking call is `taker.get`, when such call is canceled the `taker` will
 be removed from the list of takers in the state. So our `consumer` is now:
 
@@ -1193,13 +1200,13 @@ def consumer[F[_]: Async: Console](id: Int, stateR: Ref[F, State[F, Int]]): F[Un
 
   for {
     i <- take
-    _ <- if(i % 10000 == 0) Console[F].println(s"Consumer $id has reached $i items") else Async[F].unit
+    _ <- Async[F].whenA(i % 100000 == 0)(Console[F].println(s"Consumer $id has reached $i items"))
     _ <- consumer(id, stateR)
   } yield ()
 }
 ```
 
-We have made our producer-consumer implementation able to handle cancellation.
+We have made our producer-consumer implementation able to handle cancelation.
 Notably, we have not needed to change the `producer` and `consumer` functions
 signatures. This last implementation is
 available

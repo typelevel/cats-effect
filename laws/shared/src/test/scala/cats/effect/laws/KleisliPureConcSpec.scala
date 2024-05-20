@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,15 +19,15 @@ package laws
 
 import cats.Order
 import cats.data.Kleisli
-import cats.effect.kernel.testkit.{pure, PureConcGenerators, Time, TimeT}, pure._, TimeT._
+import cats.effect.kernel.Outcome
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, Time, TimeT}
+import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.{arbitrary, MiniInt}
 
 import org.scalacheck.{Arbitrary, Cogen, Prop}
-
-import org.specs2.ScalaCheck
-import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
-
+import org.specs2.scalacheck.Parameters
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
@@ -35,17 +35,16 @@ import scala.concurrent.duration._
 class KleisliPureConcSpec
     extends Specification
     with Discipline
-    with ScalaCheck
     with BaseSpec
     with LowPriorityKleisliInstances {
   import PureConcGenerators._
   import arbitrary.{catsLawsArbitraryForKleisli => _, _}
 
-  //This is highly dubious
+  // This is highly dubious
   implicit def orderKleisli[F[_], A](implicit Ord: Order[F[A]]): Order[Kleisli[F, MiniInt, A]] =
     Order.by(_.run(MiniInt.unsafeFromInt(0)))
 
-  //This is highly dubious
+  // This is highly dubious
   implicit def exec(sbool: Kleisli[TimeT[PureConc[Int, *], *], MiniInt, Boolean]): Prop =
     Prop(
       pure
@@ -65,6 +64,20 @@ class KleisliPureConcSpec
       : Arbitrary[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, A]] =
     catsLawsArbitraryForKleisli[TimeT[PureConc[Int, *], *], MiniInt, A]
 
+  implicit def help_scala_2_12_cogenPureConc[A: Cogen]: Cogen[PureConc[Int, A]] =
+    cogenPureConc[Int, A]
+
+  implicit def help_scala_2_12_cogenTimeTPureConc[A: Cogen]: Cogen[TimeT[PureConc[Int, *], A]] =
+    cogenForTimeT[PureConc[Int, *], A]
+
+  implicit def help_scala_2_12_cogenKleisliTimeTPureConc[A: Cogen]
+      : Cogen[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, A]] =
+    cogenForKleisli[TimeT[PureConc[Int, *], *], MiniInt, A]
+
+  implicit def help_scala_2_12_cogenOutcomeKleisliTimeTPureConc[A: Cogen]
+      : Cogen[Outcome[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int, A]] =
+    OutcomeGenerators.cogenOutcome[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int, A]
+
   checkAll(
     "Kleisli[PureConc]",
     GenTemporalTests[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int]
@@ -82,4 +95,8 @@ private[laws] trait LowPriorityKleisliInstances {
       CA: Cogen[A],
       F: Arbitrary[F[B]]): Arbitrary[Kleisli[F, A, B]] =
     arbitrary.catsLawsArbitraryForKleisli[F, A, B]
+
+  implicit def cogenForKleisli[F[_], A, B](
+      implicit F: Cogen[A => F[B]]): Cogen[Kleisli[F, A, B]] =
+    F.contramap(_.run)
 }

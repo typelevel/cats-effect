@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,63 @@
 package cats.effect
 package unsafe
 
-abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
+import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.Try
 
+private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
+
+  // TODO make the cancelation and auto-yield properties have saner names
   protected final val Default: IORuntimeConfig = {
-    val cancellationCheckThreshold =
-      System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
+    val cancelationCheckThreshold =
+      Try(System.getProperty("cats.effect.cancelation.check.threshold").toInt).getOrElse(512)
+
+    val autoYieldThreshold =
+      Try(System.getProperty("cats.effect.auto.yield.threshold.multiplier").toInt)
+        .getOrElse(2) * cancelationCheckThreshold
+
+    val enhancedExceptions =
+      Try(System.getProperty("cats.effect.tracing.exceptions.enhanced").toBoolean)
+        .getOrElse(DefaultEnhancedExceptions)
+
+    val traceBufferSize =
+      Try(System.getProperty("cats.effect.tracing.buffer.size").toInt)
+        .getOrElse(DefaultTraceBufferSize)
+
+    val shutdownHookTimeout =
+      Try(System.getProperty("cats.effect.shutdown.hook.timeout"))
+        .map(Duration(_))
+        .getOrElse(DefaultShutdownHookTimeout)
+
+    val reportUnhandledFiberErrors =
+      Try(System.getProperty("cats.effect.report.unhandledFiberErrors").toBoolean)
+        .getOrElse(DefaultReportUnhandledFiberErrors)
+
+    val cpuStarvationCheckInterval =
+      Try(System.getProperty("cats.effect.cpu.starvation.check.interval"))
+        .map(Duration(_))
+        .flatMap { d => Try(d.asInstanceOf[FiniteDuration]) }
+        .getOrElse(DefaultCpuStarvationCheckInterval)
+
+    val cpuStarvationCheckInitialDelay =
+      Try(System.getProperty("cats.effect.cpu.starvation.check.initialDelay"))
+        .map(Duration(_))
+        .getOrElse(DefaultCpuStarvationCheckInitialDelay)
+
+    val cpuStarvationCheckThreshold =
+      Try(System.getProperty("cats.effect.cpu.starvation.check.threshold"))
+        .flatMap(p => Try(p.toDouble))
+        .getOrElse(DefaultCpuStarvationCheckThreshold)
 
     apply(
-      cancellationCheckThreshold,
-      System
-        .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
-        .toInt * cancellationCheckThreshold)
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout,
+      reportUnhandledFiberErrors,
+      cpuStarvationCheckInterval,
+      cpuStarvationCheckInitialDelay,
+      cpuStarvationCheckThreshold
+    )
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@ package cats.effect
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
-
 import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
 
-abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
+import scala.scalajs.js
+
+trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
   def platformSpecs =
     "platform" should {
@@ -31,6 +31,15 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
       "round trip through js.Promise" in ticked { implicit ticker =>
         forAll { (ioa: IO[Int]) =>
           ioa.eqv(IO.fromPromise(IO(ioa.unsafeToPromise())))
+        }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
+      }
+
+      "round trip through js.Promise via Async" in ticked { implicit ticker =>
+        def lossy[F[_]: Async, A](fa: F[A])(f: F[A] => js.Promise[A]): F[A] =
+          Async[F].fromPromise(Sync[F].delay(f(fa))).map(x => x)
+
+        forAll { (ioa: IO[Int]) =>
+          ioa.eqv(lossy(ioa)(_.unsafeToPromise()))
         }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
       }
 

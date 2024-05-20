@@ -1,0 +1,20 @@
+changelog:
+  categories:
+    - title: Enhancements
+      labels:
+        - ':mushroom: enhancement'
+    - title: Bug Fixes
+      labels:
+        - ':beetle: bug'
+    - title: Documentation
+      labels:
+        - ':books: docs'
+    - title: Behind the Scenes
+      labels:
+        - ':gear: infrastructure'
+        - ':robot:'
+        - ':art: backstage'
+    # Not for published notes, just to make sure we don't forget any accidentally unlabeled PRs
+    - title: Uncategorized
+      labels:
+        - '*'

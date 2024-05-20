@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,37 +16,31 @@
 
 package cats.effect.kernel
 
-import cats.{~>, Applicative}
+import cats.{~>, Applicative, Monoid, Semigroup}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
-import cats.{Monoid, Semigroup}
-import cats.syntax.all._
 import cats.effect.kernel.syntax.monadCancel._
+import cats.syntax.all._
 
 /**
- * A typeclass that characterizes monads which support spawning and racing of
- * fibers. [[GenSpawn]] extends the capabilities of [[MonadCancel]], so an
- * instance of this typeclass must also provide a lawful instance for
- * [[MonadCancel]].
+ * A typeclass that characterizes monads which support spawning and racing of fibers.
+ * [[GenSpawn]] extends the capabilities of [[MonadCancel]], so an instance of this typeclass
+ * must also provide a lawful instance for [[MonadCancel]].
  *
- * This documentation builds upon concepts introduced in the [[MonadCancel]]
- * documentation.
+ * This documentation builds upon concepts introduced in the [[MonadCancel]] documentation.
  *
  * ==Concurrency==
  *
- * [[GenSpawn]] introduces a notion of concurrency that enables fibers to
- * safely interact with each other via three special functions.
- * [[GenSpawn!.start start]] spawns a fiber that executes concurrently with the
- * spawning fiber. [[Fiber!.join join]] semantically blocks the joining fiber
- * until the joinee fiber terminates, after which the outcome of the joinee is
- * returned. [[Fiber!.cancel cancel]] requests a fiber to abnormally terminate,
- * and semantically blocks the canceller until the cancellee has completed
- * finalization.
+ * [[GenSpawn]] introduces a notion of concurrency that enables fibers to safely interact with
+ * each other via three special functions. [[GenSpawn!.start start]] spawns a fiber that
+ * executes concurrently with the spawning fiber. [[Fiber!.join join]] semantically blocks the
+ * joining fiber until the joinee fiber terminates, after which the [[Outcome]] of the joinee is
+ * returned. [[Fiber!.cancel cancel]] requests a fiber to abnormally terminate, and semantically
+ * blocks the canceller until the cancellee has completed finalization.
  *
- * Just like threads, fibers can execute concurrently with respect to
- * each other. This means that the effects of independent fibers may be
- * interleaved nondeterministically. This mode of concurrency reaps benefits
- * for modular program design; fibers that are described separately can execute
- * simultaneously without requiring programmers to explicitly yield back to the
+ * Just like threads, fibers can execute concurrently with respect to each other. This means
+ * that the effects of independent fibers may be interleaved nondeterministically. This mode of
+ * concurrency reaps benefits for modular program design; fibers that are described separately
+ * can execute simultaneously without requiring programmers to explicitly yield back to the
  * runtime system.
  *
  * The interleaving of effects is illustrated in the following program:
@@ -60,65 +54,57 @@ import cats.effect.kernel.syntax.monadCancel._
  *
  * }}}
  *
- * In this program, two fibers A and B are spawned concurrently. There are six
- * possible executions, each of which exhibits a different ordering of effects.
- * The observed output of each execution is shown below:
+ * In this program, two fibers A and B are spawned concurrently. There are six possible
+ * executions, each of which exhibits a different ordering of effects. The observed output of
+ * each execution is shown below:
  *
  *   1. A1, A2, B1, B2
- *   2. A1, B1, A2, B2
- *   3. A1, B1, B2, A2
- *   4. B1, B2, A1, A2
- *   5. B1, A1, B2, A2
- *   6. B1, A1, A2, B3
+ *   1. A1, B1, A2, B2
+ *   1. A1, B1, B2, A2
+ *   1. B1, B2, A1, A2
+ *   1. B1, A1, B2, A2
+ *   1. B1, A1, A2, B2
  *
- * Notice how every execution preserves sequential consistency of the effects
- * within each fiber: `A1` always prints before `A2`, and `B1` always prints
- * before `B2`. However, there are no guarantees around how the effects of
- * both fibers will be ordered with respect to each other; it is entirely
- * nondeterministic.
+ * Notice how every execution preserves sequential consistency of the effects within each fiber:
+ * `A1` always prints before `A2`, and `B1` always prints before `B2`. However, there are no
+ * guarantees around how the effects of both fibers will be ordered with respect to each other;
+ * it is entirely nondeterministic.
  *
- * ==Cancellation==
+ * ==Cancelation==
  *
- * [[MonadCancel]] introduces a simple means of cancellation, particularly
- * self-cancellation, where a fiber can request the abnormal termination of its
- * own execution. This is achieved by calling
- * [[MonadCancel!.canceled canceled]].
+ * [[MonadCancel]] introduces a simple means of cancelation, particularly self-cancelation,
+ * where a fiber can request the abnormal termination of its own execution. This is achieved by
+ * calling [[MonadCancel!.canceled canceled]].
  *
- * [[GenSpawn]] expands on the cancellation model described by [[MonadCancel]]
- * by introducing a means of external cancellation. With external cancellation,
- * a fiber can request the abnormal termination of another fiber by calling
- * [[Fiber!.cancel]].
+ * [[GenSpawn]] expands on the cancelation model described by [[MonadCancel]] by introducing a
+ * means of external cancelation. With external cancelation, a fiber can request the abnormal
+ * termination of another fiber by calling [[Fiber!.cancel]].
  *
- * The cancellation model dictates that external cancellation behaves
- * identically to self-cancellation. To guarantee consistent behavior between
- * the two, the following semantics are shared:
+ * The cancelation model dictates that external cancelation behaves identically to
+ * self-cancelation. To guarantee consistent behavior between the two, the following semantics
+ * are shared:
  *
- *   1. Masking: if a fiber is canceled while it is masked, cancellation is
- *      suppressed until it reaches a completely unmasked state. See
- *      [[MonadCancel]] documentation for more details.
- *   1. Backpressure: [[Fiber!.cancel cancel]] semantically blocks all callers
- *      until finalization is complete.
- *   1. Idempotency: once a fiber's cancellation has been requested, subsequent
- *      cancellations have no effect on cancellation status.
- *   1. Terminal: Cancellation of a fiber that has terminated immediately
- *      returns.
+ *   1. Masking: if a fiber is canceled while it is masked, cancelation is suppressed until it
+ *      reaches a completely unmasked state. See [[MonadCancel]] documentation for more details.
+ *   1. Backpressure: [[Fiber!.cancel cancel]] semantically blocks all callers until
+ *      finalization is complete.
+ *   1. Idempotency: once a fiber's cancelation has been requested, subsequent cancelations have
+ *      no effect on cancelation status.
+ *   1. Terminal: Cancelation of a fiber that has terminated immediately returns.
  *
- * External cancellation contrasts with self-cancellation in one aspect: the
- * former may require synchronization between multiple threads to communicate
- * a cancellation request. As a result, cancellation may not be immediately
- * observed by a fiber. Implementations are free to decide how and when this
- * synchronization takes place.
+ * External cancelation contrasts with self-cancelation in one aspect: the former may require
+ * synchronization between multiple threads to communicate a cancelation request. As a result,
+ * cancelation may not be immediately observed by a fiber. Implementations are free to decide
+ * how and when this synchronization takes place.
  *
- * ==Cancellation safety==
+ * ==Cancelation safety==
  *
- * A function or effect is considered to be cancellation-safe if it can be run
- * in the absence of masking without violating effectful lifecycles or leaking
- * resources. These functions require extra attention and care from users to
- * ensure safe usage.
+ * A function or effect is considered to be cancelation-safe if it can be run in the absence of
+ * masking without violating effectful lifecycles or leaking resources. These functions require
+ * extra attention and care from users to ensure safe usage.
  *
- * [[start]] and [[racePair]] are both considered to be cancellation-unsafe
- * effects because they return a [[Fiber]], which is a resource that has a
- * lifecycle.
+ * [[start]] and [[racePair]] are both considered to be cancelation-unsafe effects because they
+ * return a [[Fiber]], which is a resource that has a lifecycle.
  *
  * {{{
  *
@@ -130,20 +116,18 @@ import cats.effect.kernel.syntax.monadCancel._
  *
  * }}}
  *
- * In the above example, imagine the spawning fiber is canceled after it
- * starts the printing fiber, but before the latter is canceled. In this
- * situation, the printing fiber is not canceled and will continue executing
- * forever, contending with other fibers for system resources. Fiber leaks like
- * this typically happen because some fiber that holds a reference to a child
- * fiber is canceled before the child terminates; like threads, fibers will
- * not automatically be cleaned up.
+ * In the above example, imagine the spawning fiber is canceled after it starts the printing
+ * fiber, but before the latter is canceled. In this situation, the printing fiber is not
+ * canceled and will continue executing forever, contending with other fibers for system
+ * resources. Fiber leaks like this typically happen because some fiber that holds a reference
+ * to a child fiber is canceled before the child terminates; like threads, fibers will not
+ * automatically be cleaned up.
  *
- * Resource leaks like this are unfavorable when writing applications. In
- * the case of [[start]] and [[racePair]], it is recommended not to use
- * these methods; instead, use [[background]] and [[race]] respectively.
+ * Resource leaks like this are unfavorable when writing applications. In the case of [[start]]
+ * and [[racePair]], it is recommended not to use these methods; instead, use [[background]] and
+ * [[race]] respectively.
  *
- * The following example depicts a safer version of the [[start]] example
- * above:
+ * The following example depicts a safer version of the [[start]] example above:
  *
  * {{{
  *
@@ -157,32 +141,27 @@ import cats.effect.kernel.syntax.monadCancel._
  *
  * ==Scheduling==
  *
- * Fibers are commonly referred to as ''lightweight threads'' or
- * ''green threads''. This alludes to the nature by which fibers are scheduled
- * by runtime systems: many fibers are multiplexed onto one or more native
- * threads.
+ * Fibers are commonly referred to as ''lightweight threads'' or ''green threads''. This alludes
+ * to the nature by which fibers are scheduled by runtime systems: many fibers are multiplexed
+ * onto one or more native threads.
  *
- * For applications running on the JVM, the scheduler typically manages a thread
- * pool onto which fibers are scheduled. These fibers are executed
- * simultaneously by the threads in the pool, achieving both concurrency and
- * parallelism. For applications running on JavaScript platforms, all compute
- * is restricted to a single worker thread, so multiple fibers must share that
- * worker thread (dictated by fairness properties), achieving concurrency
- * without parallelism.
+ * For applications running on the JVM, the scheduler typically manages a thread pool onto which
+ * fibers are scheduled. These fibers are executed simultaneously by the threads in the pool,
+ * achieving both concurrency and parallelism. For applications running on JavaScript platforms,
+ * all compute is restricted to a single worker thread, so multiple fibers must share that
+ * worker thread (dictated by fairness properties), achieving concurrency without parallelism.
  *
- * [[cede]] is a special function that interacts directly with the underlying
- * scheduler. It is a means of cooperative multitasking by which a fiber
- * signals to the runtime system that it intends to pause execution and
- * resume at some later time at the discretion of the scheduler. This is in
- * contrast to preemptive multitasking, in which threads of control are forcibly
+ * [[cede]] is a special function that interacts directly with the underlying scheduler. It is a
+ * means of cooperative multitasking by which a fiber signals to the runtime system that it
+ * intends to pause execution and resume at some later time at the discretion of the scheduler.
+ * This is in contrast to preemptive multitasking, in which threads of control are forcibly
  * yielded after a well-defined time slice.
  *
- * Preemptive and cooperative multitasking are both features of runtime systems
- * that influence the fairness and throughput properties of an application.
- * These modes of scheduling are not necessarily mutually exclusive: a runtime
- * system may incorporate a blend of the two, where fibers can explicitly yield
- * back to the scheduler, but the runtime preempts a fiber if it has not
- * yielded for some time.
+ * Preemptive and cooperative multitasking are both features of runtime systems that influence
+ * the fairness and throughput properties of an application. These modes of scheduling are not
+ * necessarily mutually exclusive: a runtime system may incorporate a blend of the two, where
+ * fibers can explicitly yield back to the scheduler, but the runtime preempts a fiber if it has
+ * not yielded for some time.
  *
  * For more details on schedulers, see the following resources:
  *
@@ -197,28 +176,29 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   final def rootCancelScope: CancelScope = CancelScope.Cancelable
 
   /**
-   * A low-level primitive for starting the concurrent evaluation of a fiber.
-   * Returns a [[Fiber]] that can be used to wait for a fiber or cancel it.
+   * A low-level primitive for starting the concurrent evaluation of a fiber. Returns a
+   * [[Fiber]] that can be used to wait for a fiber or cancel it.
    *
-   * [[start]] is a cancellation-unsafe function; it is recommended to
-   * use the safer variant, [[background]], to spawn fibers.
+   * [[start]] is a cancelation-unsafe function; it is recommended to use the safer variant,
+   * [[background]], to spawn fibers.
    *
-   * @param fa the effect for the fiber
+   * @param fa
+   *   the effect for the fiber
    *
-   * @see [[background]] for the safer, recommended variant
+   * @see
+   *   [[background]] for the safer, recommended variant
    */
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
   /**
-   * Returns a [[Resource]] that manages the concurrent execution of a fiber.
-   * The inner effect can be used to wait on the outcome of the child fiber;
-   * it is effectively a [[Fiber!.join join]].
+   * Returns a [[Resource]] that manages the concurrent execution of a fiber. The inner effect
+   * can be used to wait on the outcome of the child fiber; it is effectively a
+   * [[Fiber!.join join]].
    *
-   * The child fiber is canceled in two cases: either the resource goes out
-   * of scope or the parent fiber is cancelled. If the child fiber terminates
-   * before one of these cases occurs, then cancellation is a no-op. This
-   * avoids fiber leaks because the child fiber is always canceled before
-   * the parent fiber drops the reference to it.
+   * The child fiber is canceled in two cases: either the resource goes out of scope or the
+   * parent fiber is canceled. If the child fiber terminates before one of these cases occurs,
+   * then cancelation is a no-op. This avoids fiber leaks because the child fiber is always
+   * canceled before the parent fiber drops the reference to it.
    *
    * {{{
    *
@@ -230,19 +210,71 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *
    * }}}
    *
-   * @param fa the effect for the spawned fiber
+   * @param fa
+   *   the effect for the spawned fiber
    */
   def background[A](fa: F[A]): Resource[F, F[Outcome[F, E, A]]] =
     Resource.make(start(fa))(_.cancel)(this).map(_.join)
 
   /**
-   * A non-terminating effect that never completes, which causes a fiber to
-   * semantically block indefinitely. This is the purely functional,
-   * asynchronous equivalent of an infinite while loop in Java, but no
-   * native threads are blocked.
+   * Given an effect which might be [[uncancelable]] and a finalizer, produce an effect which
+   * can be canceled by running the finalizer. This combinator is useful for handling scenarios
+   * in which an effect is inherently uncancelable but may be canceled through setting some
+   * external state. A trivial example of this might be the following (assuming an [[Async]]
+   * instance):
    *
-   * A fiber that is suspended in [[never]] can be canceled if it is
-   * completely unmasked before it suspends:
+   * {{{
+   *   val flag = new AtomicBoolean(false)
+   *   val fa = F blocking {
+   *     while (!flag.get()) {
+   *       Thread.sleep(10)
+   *     }
+   *   }
+   *
+   *   F.cancelable(fa, F.delay(flag.set(true)))
+   * }}}
+   *
+   * Without `cancelable`, effects constructed by `blocking`, `delay`, and similar are
+   * inherently uncancelable. Simply adding an `onCancel` to such effects is insufficient to
+   * resolve this, despite the fact that under *some* circumstances (such as the above), it is
+   * possible to enrich an otherwise-uncancelable effect with early termination. `cancelable`
+   * addresses this use-case.
+   *
+   * Note that there is no free lunch here. If an effect truly cannot be prematurely terminated,
+   * `cancelable` will not allow for cancelation. As an example, if you attempt to cancel
+   * `uncancelable(_ => never)`, the cancelation will hang forever (in other words, it will be
+   * itself equivalent to `never`). Applying `cancelable` will not change this in any way. Thus,
+   * attempting to cancel `cancelable(uncancelable(_ => never), unit)` will ''also'' hang
+   * forever. As in all cases, cancelation will only return when all finalizers have run and the
+   * fiber has fully terminated.
+   *
+   * If `fa` self-cancels and the `cancelable` itself is uncancelable, the resulting fiber will
+   * be equal to `never` (similar to [[race]]). Under normal circumstances, if `fa`
+   * self-cancels, that cancelation will be propagated to the calling context.
+   *
+   * @param fa
+   *   the effect to be canceled
+   * @param fin
+   *   an effect which orchestrates some external state which terminates `fa`
+   * @see
+   *   [[uncancelable]]
+   * @see
+   *   [[onCancel]]
+   */
+  def cancelable[A](fa: F[A], fin: F[Unit]): F[A] =
+    uncancelable { poll =>
+      start(fa) flatMap { fiber =>
+        poll(fiber.join).onCancel(fin *> fiber.cancel).flatMap(_.embed(poll(canceled *> never)))
+      }
+    }
+
+  /**
+   * A non-terminating effect that never completes, which causes a fiber to semantically block
+   * indefinitely. This is the purely functional, asynchronous equivalent of an infinite while
+   * loop in Java, but no native threads are blocked.
+   *
+   * A fiber that is suspended in [[never]] can be canceled if it is completely unmasked before
+   * it suspends:
    *
    * {{{
    *
@@ -251,8 +283,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *
    * }}}
    *
-   * However, if the fiber is masked, cancellers will be semantically blocked
-   * forever:
+   * However, if the fiber is masked, cancellers will be semantically blocked forever:
    *
    * {{{
    *
@@ -264,75 +295,106 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def never[A]: F[A]
 
   /**
-   * Introduces a fairness boundary that yields control back to the scheduler
-   * of the runtime system. This allows the carrier thread to resume execution
-   * of another waiting fiber.
+   * Introduces a fairness boundary that yields control back to the scheduler of the runtime
+   * system. This allows the carrier thread to resume execution of another waiting fiber.
    *
-   * Note that `cede` is merely a hint to the runtime system; implementations
-   * have the liberty to interpret this method to their liking as long as it
-   * obeys the respective laws. For example, a lawful, but atypical,
-   * implementation of this function is `F.unit`, in which case the fairness
-   * boundary is a no-op.
+   * This function is primarily useful when performing long-running computation that is outside
+   * of the monadic context. For example:
+   *
+   * {{{
+   *   fa.map(data => expensiveWork(data))
+   * }}}
+   *
+   * In the above, we're assuming that `expensiveWork` is a function which is entirely
+   * compute-bound but very long-running. A good rule of thumb is to consider a function
+   * "expensive" when its runtime is around three or more orders of magnitude higher than the
+   * overhead of the `map` function itself (which runs in around 5 nanoseconds on modern
+   * hardware). Thus, any `expensiveWork` function which requires around 10 microseconds or
+   * longer to execute should be considered "long-running".
+   *
+   * The danger is that these types of long-running actions outside of the monadic context can
+   * result in degraded fairness properties. The solution is to add an explicit `cede` both
+   * before and after the expensive operation:
+   *
+   * {{{
+   *   (fa <* F.cede).map(data => expensiveWork(data)).guarantee(F.cede)
+   * }}}
+   *
+   * Note that extremely long-running `expensiveWork` functions can still cause fairness issues,
+   * even when used with `cede`. This problem is somewhat fundamental to the nature of
+   * scheduling such computation on carrier threads. Whenever possible, it is best to break
+   * apart any such functions into multiple pieces invoked independently (e.g. via chained `map`
+   * calls) whenever the execution time exceeds five or six orders of magnitude beyond the
+   * overhead of `map` itself (around 1 millisecond on most hardware).
+   *
+   * Note that `cede` is merely a hint to the runtime system; implementations have the liberty
+   * to interpret this method to their liking as long as it obeys the respective laws. For
+   * example, a lawful, but atypical, implementation of this function is `F.unit`, in which case
+   * the fairness boundary is a no-op.
    */
   def cede: F[Unit]
 
   /**
-   * A low-level primitive for racing the evaluation of two fibers that returns
-   * the [[Outcome]] of the winner and the [[Fiber]] of the loser. The winner
-   * of the race is considered to be the first fiber that completes with an
-   * outcome.
+   * A low-level primitive for racing the evaluation of two fibers that returns the [[Outcome]]
+   * of the winner and the [[Fiber]] of the loser. The winner of the race is considered to be
+   * the first fiber that completes with an outcome.
    *
-   * [[racePair]] is a cancellation-unsafe function; it is recommended to use
-   * the safer variants.
+   * [[racePair]] is a cancelation-unsafe function; it is recommended to use the safer variants.
    *
-   * @param fa the effect for the first racing fiber
-   * @param fb the effect for the second racing fiber
+   * @param fa
+   *   the effect for the first racing fiber
+   * @param fb
+   *   the effect for the second racing fiber
    *
-   * @see [[raceOutcome]] and [[race]] for safer race variants.
+   * @see
+   *   [[raceOutcome]] and [[race]] for safer race variants.
    */
   def racePair[A, B](fa: F[A], fb: F[B])
       : F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
 
   /**
-   * Races the evaluation of two fibers that returns the [[Outcome]] of the
-   * winner. The winner of the race is considered to be the first fiber that
-   * completes with an outcome. The loser of the race is canceled before
-   * returning.
+   * Races the evaluation of two fibers that returns the [[Outcome]] of the winner. The winner
+   * of the race is considered to be the first fiber that completes with an outcome. The loser
+   * of the race is canceled before returning.
    *
-   * @param fa the effect for the first racing fiber
-   * @param fb the effect for the second racing fiber
+   * @param fa
+   *   the effect for the first racing fiber
+   * @param fb
+   *   the effect for the second racing fiber
    *
-   * @see [[race]] for a simpler variant that returns the successful outcome.
+   * @see
+   *   [[race]] for a simpler variant that returns the successful outcome.
    */
   def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
-    uncancelable { _ =>
-      racePair(fa, fb).flatMap {
+    uncancelable { poll =>
+      poll(racePair(fa, fb)).flatMap {
         case Left((oc, f)) => f.cancel.as(Left(oc))
         case Right((f, oc)) => f.cancel.as(Right(oc))
       }
     }
 
   /**
-   * Races the evaluation of two fibers that returns the result of the winner,
-   * except in the case of cancellation.
+   * Races the evaluation of two fibers that returns the result of the winner, except in the
+   * case of cancelation.
    *
    * The semantics of [[race]] are described by the following rules:
    *
-   *   1. If the winner completes with [[Outcome.Succeeded]], the race returns the
-   *   successful value. The loser is canceled before returning.
-   *   2. If the winner completes with [[Outcome.Errored]], the race raises the error.
-   *   The loser is canceled before returning.
-   *   3. If the winner completes with [[Outcome.Canceled]], the race returns the
-   *   result of the loser, consistent with the first two rules.
-   *   4. If both the winner and loser complete with [[Outcome.Canceled]], the race
-   *   is canceled.
-   *   8. If the race is masked and is canceled because both participants
-   *   canceled, the fiber will block indefinitely.
+   *   1. If the winner completes with [[Outcome.Succeeded]], the race returns the successful
+   *      value. The loser is canceled before returning. 2. If the winner completes with
+   *      [[Outcome.Errored]], the race raises the error. The loser is canceled before
+   *      returning. 3. If the winner completes with [[Outcome.Canceled]], the race returns the
+   *      result of the loser, consistent with the first two rules. 4. If both the winner and
+   *      loser complete with [[Outcome.Canceled]], the race is canceled. 8. If the race is
+   *      masked and is canceled because both participants canceled, the fiber will block
+   *      indefinitely.
    *
-   * @param fa the effect for the first racing fiber
-   * @param fb the effect for the second racing fiber
+   * @param fa
+   *   the effect for the first racing fiber
+   * @param fb
+   *   the effect for the second racing fiber
    *
-   * @see [[raceOutcome]] for a variant that returns the outcome of the winner.
+   * @see
+   *   [[raceOutcome]] for a variant that returns the outcome of the winner.
    */
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     uncancelable { poll =>
@@ -342,7 +404,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
             case Outcome.Succeeded(fa) => f.cancel *> fa.map(Left(_))
             case Outcome.Errored(ea) => f.cancel *> raiseError(ea)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fb) => fb.map(Right(_))
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => poll(canceled) *> never
@@ -353,7 +415,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
             case Outcome.Succeeded(fb) => f.cancel *> fb.map(Right(_))
             case Outcome.Errored(eb) => f.cancel *> raiseError(eb)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.cancel *> f.join flatMap {
                 case Outcome.Succeeded(fa) => fa.map(Left(_))
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => poll(canceled) *> never
@@ -363,19 +425,21 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     }
 
   /**
-   * Races the evaluation of two fibers and returns the [[Outcome]] of both. If
-   * the race is canceled before one or both participants complete, then
-   * then whichever ones are incomplete are canceled.
+   * Races the evaluation of two fibers and returns the [[Outcome]] of both. If the race is
+   * canceled before one or both participants complete, then then whichever ones are incomplete
+   * are canceled.
    *
-   * @param fa the effect for the first racing fiber
-   * @param fb the effect for the second racing fiber
+   * @param fa
+   *   the effect for the first racing fiber
+   * @param fb
+   *   the effect for the second racing fiber
    *
-   * @see [[both]] for a simpler variant that returns the results of both
-   * fibers.
+   * @see
+   *   [[both]] for a simpler variant that returns the results of both fibers.
    */
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     uncancelable { poll =>
-      racePair(fa, fb).flatMap {
+      poll(racePair(fa, fb)).flatMap {
         case Left((oc, f)) => poll(f.join).onCancel(f.cancel).tupleLeft(oc)
         case Right((f, oc)) => poll(f.join).onCancel(f.cancel).tupleRight(oc)
       }
@@ -386,26 +450,24 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *
    * The following rules describe the semantics of [[both]]:
    *
-   *   1. If the winner completes with [[Outcome.Succeeded]], the race waits for the
-   *   loser to complete.
-   *   2. If the winner completes with [[Outcome.Errored]], the race raises the error.
-   *   The loser is canceled.
-   *   3. If the winner completes with [[Outcome.Canceled]], the loser and the race
-   *   are canceled as well.
-   *   4. If the loser completes with [[Outcome.Succeeded]], the race returns the
-   *   successful value of both fibers.
-   *   5. If the loser completes with [[Outcome.Errored]], the race returns the error.
-   *   6. If the loser completes with [[Outcome.Canceled]], the race is canceled.
-   *   7. If the race is canceled before one or both participants complete,
-   *   then whichever ones are incomplete are canceled.
-   *   8. If the race is masked and is canceled because one or both
-   *   participants canceled, the fiber will block indefinitely.
+   *   1. If the winner completes with [[Outcome.Succeeded]], the race waits for the loser to
+   *      complete. 2. If the winner completes with [[Outcome.Errored]], the race raises the
+   *      error. The loser is canceled. 3. If the winner completes with [[Outcome.Canceled]],
+   *      the loser and the race are canceled as well. 4. If the loser completes with
+   *      [[Outcome.Succeeded]], the race returns the successful value of both fibers. 5. If the
+   *      loser completes with [[Outcome.Errored]], the race returns the error. 6. If the loser
+   *      completes with [[Outcome.Canceled]], the race is canceled. 7. If the race is canceled
+   *      before one or both participants complete, then whichever ones are incomplete are
+   *      canceled. 8. If the race is masked and is canceled because one or both participants
+   *      canceled, the fiber will block indefinitely.
    *
-   * @param fa the effect for the first racing fiber
-   * @param fb the effect for the second racing fiber
+   * @param fa
+   *   the effect for the first racing fiber
+   * @param fb
+   *   the effect for the second racing fiber
    *
-   * @see [[bothOutcome]] for a variant that returns the [[Outcome]] of both
-   * fibers.
+   * @see
+   *   [[bothOutcome]] for a variant that returns the [[Outcome]] of both fibers.
    */
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
     uncancelable { poll =>
@@ -450,42 +512,100 @@ object GenSpawn {
 
   implicit def genSpawnForOptionT[F[_], E](
       implicit F0: GenSpawn[F, E]): GenSpawn[OptionT[F, *], E] =
-    new OptionTGenSpawn[F, E] {
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForOptionT[F](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForOptionT[F, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForOptionT[F, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForOptionT(spawn)
+    }
 
+  private[kernel] def instantiateGenSpawnForOptionT[F[_], E](
+      F0: GenSpawn[F, E]): OptionTGenSpawn[F, E] =
+    new OptionTGenSpawn[F, E] {
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
   implicit def genSpawnForEitherT[F[_], E0, E](
       implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] =
-    new EitherTGenSpawn[F, E0, E] {
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E0](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForEitherT[F, E0, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForEitherT(spawn)
+    }
 
+  private[kernel] def instantiateGenSpawnForEitherT[F[_], E0, E](
+      F0: GenSpawn[F, E]): EitherTGenSpawn[F, E0, E] =
+    new EitherTGenSpawn[F, E0, E] {
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
   implicit def genSpawnForKleisli[F[_], R, E](
       implicit F0: GenSpawn[F, E]): GenSpawn[Kleisli[F, R, *], E] =
-    new KleisliGenSpawn[F, R, E] {
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForKleisli[F, R](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForKleisli[F, R, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForKleisli[F, R, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForKleisli(spawn)
+    }
 
+  private[kernel] def instantiateGenSpawnForKleisli[F[_], R, E](
+      F0: GenSpawn[F, E]): KleisliGenSpawn[F, R, E] =
+    new KleisliGenSpawn[F, R, E] {
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
   implicit def genSpawnForIorT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
       L0: Semigroup[L]): GenSpawn[IorT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForIorT[F, L](async, L0)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForIorT[F, L, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForIorT[F, L, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForIorT(spawn)
+    }
+
+  private[kernel] def instantiateGenSpawnForIorT[F[_], L, E](F0: GenSpawn[F, E])(
+      implicit L0: Semigroup[L]): IorTGenSpawn[F, L, E] =
     new IorTGenSpawn[F, L, E] {
-
       override implicit protected def F: GenSpawn[F, E] = F0
-
       override implicit protected def L: Semigroup[L] = L0
     }
 
   implicit def genSpawnForWriterT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
       L0: Monoid[L]): GenSpawn[WriterT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForWriterT[F, L](async, L0)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForWriterT[F, L, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForWriterT[F, L, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForWriterT(spawn)
+    }
+
+  private[kernel] def instantiateGenSpawnForWriterT[F[_], L, E](F0: GenSpawn[F, E])(
+      implicit L0: Monoid[L]): WriterTGenSpawn[F, L, E] =
     new WriterTGenSpawn[F, L, E] {
-
       override implicit protected def F: GenSpawn[F, E] = F0
-
       override implicit protected def L: Monoid[L] = L0
     }
 
@@ -685,7 +805,7 @@ object GenSpawn {
       Kleisli.liftF(F.unique)
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
-      Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
+      Kleisli { r => F.start(fa.run(r)).map(liftFiber) }
 
     def never[A]: Kleisli[F, R, A] = Kleisli.liftF(F.never)
 
@@ -699,7 +819,7 @@ object GenSpawn {
         (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
       Kleisli { r =>
         F.uncancelable(poll =>
-          poll((F.racePair(fa.run(r), fb.run(r))).map {
+          poll(F.racePair(fa.run(r), fb.run(r)).map {
             case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
             case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
           }))

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,20 +18,17 @@ package cats.effect
 package laws
 
 import cats.{Eq, Eval}
-import cats.effect.kernel.testkit.{freeEval, FreeSyncEq, FreeSyncGenerators, SyncTypeGenerators}
+import cats.effect.kernel.testkit.{FreeSyncEq, FreeSyncGenerators, SyncTypeGenerators}
+import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
 import cats.laws.discipline.arbitrary._
-import freeEval.{syncForFreeT, FreeEitherSync}
 
-import org.specs2.ScalaCheck
 import org.specs2.mutable._
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class FreeSyncSpec
     extends Specification
     with Discipline
-    with ScalaCheck
     with BaseSpec
     with LowPriorityImplicits {
   import FreeSyncGenerators._

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ package cats.effect.kernel.instances
 
 import cats.{~>, Align, Applicative, CommutativeApplicative, Functor, Monad, Parallel}
 import cats.data.Ior
-import cats.implicits._
 import cats.effect.kernel.{GenSpawn, ParallelF}
+import cats.implicits._
 
 trait GenSpawnInstances {
 
@@ -41,7 +41,6 @@ trait GenSpawnInstances {
         new (M ~> F) {
           def apply[A](ma: M[A]): F[A] = ParallelF[M, A](ma)
         }
-
     }
 
   implicit def commutativeApplicativeForParallelF[F[_], E](
@@ -51,10 +50,10 @@ trait GenSpawnInstances {
       final override def pure[A](a: A): ParallelF[F, A] = ParallelF(F.pure(a))
 
       final override def map2[A, B, Z](fa: ParallelF[F, A], fb: ParallelF[F, B])(
-          f: (A, B) => Z): ParallelF[F, Z] =
+          f: (A, B) => Z): ParallelF[F, Z] = {
         ParallelF(
-          F.both(ParallelF.value(fa), ParallelF.value(fb)).map { case (a, b) => f(a, b) }
-        )
+          F.both(ParallelF.value(fa), ParallelF.value(fb)).map { case (a, b) => f(a, b) })
+      }
 
       final override def ap[A, B](ff: ParallelF[F, A => B])(
           fa: ParallelF[F, A]): ParallelF[F, B] =
