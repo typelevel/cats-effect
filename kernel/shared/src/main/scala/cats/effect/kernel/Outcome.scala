@@ -229,8 +229,8 @@ object Outcome extends LowPriorityImplicits {
         }
 
       @tailrec
-      def tailRecM[A, B](a: A)(f: A => Outcome[F, E, Either[A, B]]): Outcome[F, E, B] =
-        f(a) match {
+      def tailRecM[A, B](a0: A)(f: A => Outcome[F, E, Either[A, B]]): Outcome[F, E, B] =
+        f(a0) match {
           case Succeeded(fa) =>
             Traverse[F].sequence[Either[A, *], B](fa) match { // Dotty can't infer this
               case Left(a) => tailRecM(a)(f)
