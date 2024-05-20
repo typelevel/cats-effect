@@ -1882,9 +1882,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "timeoutAndForget" should {
         "terminate on an uncancelable fiber" in real {
-          IO.never.uncancelable.timeoutAndForget(1.second).attempt flatMap { e =>
+          IO.never.uncancelable.timeoutAndForget(1.second).attempt flatMap { r =>
             IO {
-              e must beLike { case Left(e) => e must haveClass[TimeoutException] }
+              r must beLike { case Left(e) => e must haveClass[TimeoutException] }
             }
           }
         }
