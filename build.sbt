@@ -919,7 +919,7 @@ lazy val testsJVM = tests
   )
 
 /**
- * Implementations lof standard functionality (e.g. Semaphore, Console, Queue) purely in terms
+ * Implementations of standard functionality (e.g. Semaphore, Console, Queue) purely in terms
  * of the typeclasses, with no dependency on IO. In most cases, the *tests* for these
  * implementations will require IO, and thus those tests will be located within the core
  * project.
@@ -995,7 +995,12 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[MissingClassProblem](
           "cats.effect.std.Dispatcher$Mode$Parallel$"),
         ProblemFilters.exclude[MissingClassProblem](
-          "cats.effect.std.Dispatcher$Mode$Sequential$")
+          "cats.effect.std.Dispatcher$Mode$Sequential$"),
+        // #4052, private classes
+        ProblemFilters.exclude[MissingTypesProblem]("cats.effect.std.Dispatcher$RegState$Unstarted$"),
+        ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.std.Dispatcher#RegState#Unstarted.*"),
+        ProblemFilters.exclude[FinalMethodProblem]("cats.effect.std.Dispatcher#RegState#Unstarted.toString"),
+        ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.std.Dispatcher#Registration#Primary.*"),
       )
   )
   .jsSettings(

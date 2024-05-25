@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.{Applicative, MonadThrow}
+import cats.Applicative
 import cats.effect.kernel.{
   Async,
   Concurrent,
@@ -292,14 +292,14 @@ object Dispatcher {
                       throw new IllegalStateException("Dispatcher already closed")
                     }
 
-                    val stateR = new AtomicReference[RegState[F]](RegState.Unstarted)
+                    val stateR = new AtomicReference[RegState[F]] // empty for now, see below
 
                     // forward atomicity guarantees onto promise completion
                     val promisory = MonadCancel[F] uncancelable { poll =>
                       // invalidate the cancel action when we're done
                       val completeState = Sync[F].delay {
                         stateR.getAndSet(RegState.Completed) match {
-                          case st: RegState.CancelRequested[_] =>
+                          case st: RegState.CancelRequested =>
                             // we already have a cancel, must complete it:
                             st.latch.success(())
                             ()
@@ -311,10 +311,14 @@ object Dispatcher {
                             ()
                         }
                       }
-                      poll(fe.guarantee(completeState)).redeemWith(
-                        e => Sync[F].delay(result.failure(e)),
-                        a => Sync[F].delay(result.success(a)))
+                      poll(fe.guarantee(completeState))
+                        .redeemWith(
+                          e => Sync[F].delay(result.failure(e)),
+                          a => Sync[F].delay(result.success(a)))
+                        .void
                     }
+
+                    stateR.set(RegState.Unstarted(promisory))
 
                     val worker =
                       if (parallel)
@@ -323,25 +327,20 @@ object Dispatcher {
                         workers(0)
 
                     if (finalizer) {
-                      worker.queue.unsafeOffer(Registration.Finalizer(promisory.void))
+                      worker.queue.unsafeOffer(Registration.Finalizer(promisory))
 
                       // cannot cancel a cancel
                       () => Future.failed(new UnsupportedOperationException)
                     } else {
-                      val reg = new Registration.Primary(promisory.void, stateR)
+                      val reg = new Registration.Primary(stateR)
                       worker.queue.unsafeOffer(reg)
 
                       @tailrec
                       def cancel(): Future[Unit] = {
                         stateR.get() match {
-                          case RegState.Unstarted =>
+                          case u: RegState.Unstarted[_] =>
                             val latch = Promise[Unit]()
-
-                            reg.action = null.asInstanceOf[F[Unit]]
-
-                            if (stateR.compareAndSet(
-                                RegState.Unstarted,
-                                RegState.CancelRequested(latch))) {
+                            if (stateR.compareAndSet(u, RegState.CancelRequested(latch))) {
                               latch.future
                             } else {
                               cancel()
@@ -354,7 +353,7 @@ object Dispatcher {
                             val _ = inner(cancel, latch, true)
                             latch.future
 
-                          case r: RegState.CancelRequested[_] =>
+                          case r: RegState.CancelRequested =>
                             r.latch.future
 
                           case RegState.Completed =>
@@ -383,24 +382,22 @@ object Dispatcher {
   private sealed abstract class RegState[+F[_]] extends Product with Serializable
 
   private object RegState {
-    case object Unstarted extends RegState[Nothing]
+    final case class Unstarted[F[_]](action: F[Unit]) extends RegState[F]
     final case class Running[F[_]](cancel: F[Unit]) extends RegState[F]
-    final case class CancelRequested[F[_]](latch: Promise[Unit]) extends RegState[F]
+    final case class CancelRequested(latch: Promise[Unit]) extends RegState[Nothing]
     case object Completed extends RegState[Nothing]
   }
 
   private sealed abstract class Registration[F[_]]
 
   private object Registration {
-    final class Primary[F[_]](var action: F[Unit], val stateR: AtomicReference[RegState[F]])
-        extends Registration[F]
+    final class Primary[F[_]](val stateR: AtomicReference[RegState[F]]) extends Registration[F]
 
     final case class Finalizer[F[_]](action: F[Unit]) extends Registration[F]
 
     final case class PoisonPill[F[_]]() extends Registration[F]
   }
 
-  // the signal is just a skolem for the atomic references; we never actually run it
   private final class Worker[F[_]: Async](
       val queue: UnsafeAsyncQueue[F, Registration[F]],
       supervisor: Supervisor[F],
@@ -414,59 +411,35 @@ object Dispatcher {
         case reg: Registration.Primary[F] =>
           Sync[F] defer {
             reg.stateR.get() match {
-              case RegState.Unstarted =>
-                val action = reg.action
-
-                if (action == null) {
-                  // this corresponds to a memory race where we see action's write before stateR's
-                  val check = Spawn[F].cede *> Sync[F].delay(reg.stateR.get())
-                  check.iterateWhile(_ == RegState.Unstarted).flatMap {
-                    case cr @ RegState.CancelRequested(latch) =>
-                      Sync[F].delay {
-                        if (reg.stateR.compareAndSet(cr, RegState.Completed)) {
-                          latch.success(())
-                          ()
-                        } else {
-                          val s = reg.stateR.get()
-                          throw new AssertionError(s"d => $s")
-                        }
-                      }
-                    case s =>
-                      MonadThrow[F].raiseError[Unit](new AssertionError(s"a => $s"))
-                  }
-                } else {
-
-                  executor(action) { cancelF =>
-                    Sync[F] defer {
-                      if (reg
-                          .stateR
-                          .compareAndSet(RegState.Unstarted, RegState.Running(cancelF))) {
-                        Applicative[F].unit
-                      } else {
-                        reg.stateR.get() match {
-                          case cr @ RegState.CancelRequested(latch) =>
-                            if (reg.stateR.compareAndSet(cr, RegState.Running(cancelF))) {
-                              supervisor
-                                .supervise(cancelF.guarantee(Sync[F].delay {
-                                  latch.success(())
-                                  ()
-                                }))
-                                .void
-                            } else {
-                              reg.stateR.get() match {
-                                case RegState.Completed =>
-                                  Applicative[F].unit
-                                case s =>
-                                  throw new AssertionError(s"e => $s")
-                              }
+              case u @ RegState.Unstarted(action) =>
+                executor(action) { cancelF =>
+                  Sync[F] defer {
+                    if (reg.stateR.compareAndSet(u, RegState.Running(cancelF))) {
+                      Applicative[F].unit
+                    } else {
+                      reg.stateR.get() match {
+                        case cr @ RegState.CancelRequested(latch) =>
+                          if (reg.stateR.compareAndSet(cr, RegState.Running(cancelF))) {
+                            supervisor
+                              .supervise(cancelF.guarantee(Sync[F].delay {
+                                latch.success(())
+                                ()
+                              }))
+                              .void
+                          } else {
+                            reg.stateR.get() match {
+                              case RegState.Completed =>
+                                Applicative[F].unit
+                              case s =>
+                                throw new AssertionError(s"e => $s")
                             }
+                          }
 
-                          case RegState.Completed =>
-                            Applicative[F].unit
+                        case RegState.Completed =>
+                          Applicative[F].unit
 
-                          case s =>
-                            throw new AssertionError(s"b => $s")
-                        }
+                        case s =>
+                          throw new AssertionError(s"b => $s")
                       }
                     }
                   }
