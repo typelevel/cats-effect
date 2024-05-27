@@ -1,8 +1,8 @@
 package fix
 
-import org.scalatest.FunSuiteLike
+import org.scalatest.funsuite.AnyFunSuiteLike
 import scalafix.testkit.AbstractSemanticRuleSuite
 
-class CatsEffectTests extends AbstractSemanticRuleSuite with FunSuiteLike {
+class CatsEffectTests extends AbstractSemanticRuleSuite with AnyFunSuiteLike {
   runAllTests()
 }

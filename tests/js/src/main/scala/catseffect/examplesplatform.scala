@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,10 @@ package examples {
     register(Arguments)
     register(NonFatalError)
     register(FatalError)
+    register(RaiseFatalErrorAttempt)
+    register(RaiseFatalErrorHandle)
+    register(RaiseFatalErrorMap)
+    register(RaiseFatalErrorFlatMap)
     registerRaw(FatalErrorRaw)
     register(Canceled)
     registerLazy("catseffect.examples.GlobalRacingInit", GlobalRacingInit)

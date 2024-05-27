@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,6 +55,44 @@ package examples {
         IO(throw new OutOfMemoryError("Boom!")).attempt.flatMap(_ => IO.println("sadness"))
       action.unsafeToFuture()
       ()
+    }
+  }
+
+  object RaiseFatalErrorAttempt extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .attempt
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
+  object RaiseFatalErrorHandle extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .handleError(_ => ())
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
+  object RaiseFatalErrorMap extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .map(_ => ())
+        .handleError(_ => ())
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
+  object RaiseFatalErrorFlatMap extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.raiseError[Unit](new OutOfMemoryError("Boom!"))
+        .flatMap(_ => IO(()))
+        .handleError(_ => ())
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
     }
   }
 

@@ -4,7 +4,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 if [[ $# -ne 1 ]] || [[ "$1" == "--help" ]]; then
-  echo "usage: $0 new-version"
+  echo "usage: $0 new-tag"
   exit 1
 fi
 
@@ -14,6 +14,6 @@ fi
 #
 # this url should be considered a secret and handled with appropriate care
 
-data="{\"content\":\"https://github.com/typelevel/cats-effect/releases/tag/v$1\"}"
+data="{\"content\":\"https://github.com/typelevel/cats-effect/releases/tag/$1\"}"
 
 exec curl -H "Content-Type: application/json" -X POST -d "$data" "$DISCORD_WEBHOOK_URL"

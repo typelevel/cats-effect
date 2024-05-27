@@ -37,28 +37,25 @@ def rotating(n: Int): Resource[IO, Logger[IO]] =
       for {
         index <- Ref[IO].of(0)
         count <- Ref[IO].of(0)
-        //Open the initial log file
-        f <- hs.swap(file("0.log"))
-        logFile <- Ref[IO].of(f)
+        // Open the initial log file
+        _ <- hs.swap(file("0.log"))
       } yield new Logger[IO] {
         def log(msg: String): IO[Unit] =
           count.get.flatMap { currentCount =>
             if (msg.length() < n - currentCount)
-              for {
-                currentFile <- logFile.get
-                _ <- write(currentFile, msg)
-                _ <- count.update(_ + msg.length())
-              } yield ()
+              hs.get.use { currentFile =>
+                write(currentFile, msg) *>
+                  count.update(_ + msg.length())
+              }
             else
               for {
-                //Reset the log length counter
+                // Reset the log length counter
                 _ <- count.set(msg.length())
-                //Increment the counter for the log file name
+                // Increment the counter for the log file name
                 idx <- index.updateAndGet(_ + 1)
-                //Close the old log file and open the new one
-                f <- hs.swap(file(s"$idx.log"))
-                _ <- logFile.set(f)
-                _ <- write(f, msg)
+                // Close the old log file and open the new one
+                _ <- hs.swap(file(s"$idx.log"))
+                _ <- hs.get.use(write(_, msg))
               } yield ()
           }
       }

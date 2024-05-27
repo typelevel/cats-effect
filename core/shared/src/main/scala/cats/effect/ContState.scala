@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package cats.effect
 import cats.effect.unsafe.WeakBag
 
 import java.util.concurrent.atomic.AtomicReference
+
+import Platform.static
 
 /**
  * Possible states (held in the `AtomicReference`):
@@ -49,6 +51,6 @@ private object ContState {
    * important. It must be private (so that no user code can access it), and it mustn't be used
    * for any other purpose.
    */
-  private val waitingSentinel: Either[Throwable, Any] =
+  @static private val waitingSentinel: Either[Throwable, Any] =
     new Right(null)
 }

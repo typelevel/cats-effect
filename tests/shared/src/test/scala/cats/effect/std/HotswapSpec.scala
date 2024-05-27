@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -165,6 +165,15 @@ class HotswapSpec extends BaseSpec { outer =>
 
       TestControl.executeEmbed(go, IORuntimeConfig(1, 2)).replicateA_(1000) must completeAs(())
     }
-  }
 
+    "get should not acquire a lock when there is no resource present" in ticked {
+      implicit ticker =>
+        val go = Hotswap.create[IO, Unit].use { hs =>
+          hs.get.useForever.start *>
+            IO.sleep(2.seconds) *>
+            hs.swap(Resource.unit)
+        }
+        go must completeAs(())
+    }
+  }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.atomic.AtomicBoolean
+
+import Platform.static
 
 @annotation.implicitNotFound("""Could not find an implicit IORuntime.
 
@@ -110,9 +112,9 @@ object IORuntime extends IORuntimeCompanionPlatform {
   private[effect] def testRuntime(ec: ExecutionContext, scheduler: Scheduler): IORuntime =
     new IORuntime(ec, ec, scheduler, Nil, new NoOpFiberMonitor(), () => (), IORuntimeConfig())
 
-  private[effect] final val allRuntimes: ThreadSafeHashtable[IORuntime] =
+  @static private[effect] final val allRuntimes: ThreadSafeHashtable[IORuntime] =
     new ThreadSafeHashtable(4)
 
-  private[effect] final val globalFatalFailureHandled: AtomicBoolean =
+  @static private[effect] final val globalFatalFailureHandled: AtomicBoolean =
     new AtomicBoolean(false)
 }

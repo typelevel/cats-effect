@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing
+package cats.effect
+package tracing
+
+import Platform.static
 
 private[effect] final class RingBuffer private (logSize: Int) {
 
@@ -59,6 +62,6 @@ private[effect] final class RingBuffer private (logSize: Int) {
 }
 
 private[effect] object RingBuffer {
-  def empty(logSize: Int): RingBuffer =
+  @static def empty(logSize: Int): RingBuffer =
     new RingBuffer(logSize)
 }

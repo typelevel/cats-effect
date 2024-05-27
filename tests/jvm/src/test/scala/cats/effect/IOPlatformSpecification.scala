@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,12 +36,13 @@ import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
   CountDownLatch,
+  ExecutorService,
   Executors,
   ThreadLocalRandom
 }
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, AtomicReference}
 
-trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
+trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with ScalaCheck =>
 
   def platformSpecs = {
     "platform" should {
@@ -393,7 +394,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
         // we race a lot of "sleeps", it must not hang
         // (this includes inserting and cancelling
-        // a lot of callbacks into the skip list,
+        // a lot of callbacks into the heap,
         // thus hopefully stressing the data structure):
         List
           .fill(500) {
@@ -425,6 +426,16 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         }
 
         spin.as(ok)
+      }
+
+      "lots of externally-canceled timers" in real {
+        Resource
+          .make(IO(Executors.newSingleThreadExecutor()))(exec => IO(exec.shutdownNow()).void)
+          .map(ExecutionContext.fromExecutor(_))
+          .use { ec =>
+            IO.sleep(1.day).start.flatMap(_.cancel.evalOn(ec)).parReplicateA_(100000)
+          }
+          .as(ok)
       }
 
       "not lose cedeing threads from the bypass when blocker transitioning" in {
@@ -502,10 +513,10 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
             }
           }
 
-          def makeApi(register: (Poller => Unit) => Unit): DummySystem.Api =
+          def makeApi(access: (Poller => Unit) => Unit): DummySystem.Api =
             new DummyPoller {
               def poll = IO.async_[Unit] { cb =>
-                register { poller =>
+                access { poller =>
                   poller.getAndUpdate(cb :: _)
                   ()
                 }
@@ -531,6 +542,25 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
           runtime.shutdown()
         }
       }
+
+      if (javaMajorVersion >= 21)
+        "block in-place on virtual threads" in real {
+          val loomExec = classOf[Executors]
+            .getDeclaredMethod("newVirtualThreadPerTaskExecutor")
+            .invoke(null)
+            .asInstanceOf[ExecutorService]
+
+          val loomEc = ExecutionContext.fromExecutor(loomExec)
+
+          IO.blocking {
+            classOf[Thread]
+              .getDeclaredMethod("isVirtual")
+              .invoke(Thread.currentThread())
+              .asInstanceOf[Boolean]
+          }.evalOn(loomEc)
+        }
+      else
+        "block in-place on virtual threads" in skipped("virtual threads not supported")
     }
   }
 }

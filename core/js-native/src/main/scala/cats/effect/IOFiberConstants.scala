@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package cats.effect
+
+import org.typelevel.scalaccompat.annotation._
 
 // defined in Java for the JVM, Scala for ScalaJS (where object field access is faster)
 private object IOFiberConstants {
@@ -43,4 +45,7 @@ private object IOFiberConstants {
   final val CedeR = 6
   final val AutoCedeR = 7
   final val DoneR = 8
+
+  @nowarn212
+  @inline def isVirtualThread(t: Thread): Boolean = false
 }

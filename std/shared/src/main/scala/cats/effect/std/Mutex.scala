@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,6 +87,12 @@ object Mutex {
   )(
       implicit F: Concurrent[F]
   ) extends Mutex[F] {
+
+    // This is a variant of the Craig, Landin, and Hagersten
+    // (CLH) queue lock. Queue nodes (called cells below)
+    // are `Deferred`s, so fibers can suspend and wake up
+    // (instead of spinning, like in the original algorithm).
+
     // Awakes whoever is waiting for us with the next cell in the queue.
     private def awakeCell(
         ourCell: ConcurrentImpl.WaitingCell[F],

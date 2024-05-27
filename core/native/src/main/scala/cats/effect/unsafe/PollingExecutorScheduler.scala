@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
       type Poller = outer.type
       private[this] var needsPoll = true
       def close(): Unit = ()
-      def makeApi(register: (Poller => Unit) => Unit): Api = outer
+      def makeApi(access: (Poller => Unit) => Unit): Api = outer
       def makePoller(): Poller = outer
       def closePoller(poller: Poller): Unit = ()
       def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {

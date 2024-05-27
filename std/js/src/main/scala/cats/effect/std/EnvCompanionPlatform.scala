@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package cats.effect.std
 
 import cats.data.OptionT
 import cats.effect.kernel.Sync
-import cats.syntax.all._
 
 import scala.collection.immutable.Iterable
 import scala.scalajs.js

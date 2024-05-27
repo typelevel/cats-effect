@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ object SleepSystem extends PollingSystem {
 
   def close(): Unit = ()
 
-  def makeApi(register: (Poller => Unit) => Unit): Api = this
+  def makeApi(access: (Poller => Unit) => Unit): Api = this
 
   def makePoller(): Poller = this
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{Monoid, Semigroup, Traverse}
+import cats.{Foldable, Monoid, Semigroup, Traverse}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 import cats.effect.kernel.instances.spawn._
 import cats.effect.kernel.syntax.all._
@@ -124,6 +124,12 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
     parTraverseN(n)(tma)(identity)
 
   /**
+   * Like `Parallel.parSequence_`, but limits the degree of parallelism.
+   */
+  def parSequenceN_[T[_]: Foldable, A](n: Int)(tma: T[F[A]]): F[Unit] =
+    parTraverseN_(n)(tma)(identity)
+
+  /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism. Note that the semantics
    * of this operation aim to maximise fairness: when a spot to execute becomes available, every
    * task has a chance to claim it, and not only the next `n` tasks in `ta`
@@ -134,6 +140,19 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
     implicit val F: GenConcurrent[F, E] = this
 
     MiniSemaphore[F](n).flatMap { sem => ta.parTraverse { a => sem.withPermit(f(a)) } }
+  }
+
+  /**
+   * Like `Parallel.parTraverse_`, but limits the degree of parallelism. Note that the semantics
+   * of this operation aim to maximise fairness: when a spot to execute becomes available, every
+   * task has a chance to claim it, and not only the next `n` tasks in `ta`
+   */
+  def parTraverseN_[T[_]: Foldable, A, B](n: Int)(ta: T[A])(f: A => F[B]): F[Unit] = {
+    require(n >= 1, s"Concurrency limit should be at least 1, was: $n")
+
+    implicit val F: GenConcurrent[F, E] = this
+
+    MiniSemaphore[F](n).flatMap { sem => ta.parTraverse_ { a => sem.withPermit(f(a)) } }
   }
 
   override def racePair[A, B](fa: F[A], fb: F[B])
