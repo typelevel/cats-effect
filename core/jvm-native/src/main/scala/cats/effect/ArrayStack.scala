@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package cats.effect
+
+import Platform.static
 
 private final class ArrayStack[A <: AnyRef](
     private[this] var buffer: Array[AnyRef],
@@ -78,8 +80,8 @@ private final class ArrayStack[A <: AnyRef](
 
 private object ArrayStack {
 
-  def apply[A <: AnyRef](): ArrayStack[A] = new ArrayStack()
+  @static def apply[A <: AnyRef](): ArrayStack[A] = new ArrayStack()
 
-  def apply[A <: AnyRef](size: Int): ArrayStack[A] = new ArrayStack(size)
+  @static def apply[A <: AnyRef](size: Int): ArrayStack[A] = new ArrayStack(size)
 
 }

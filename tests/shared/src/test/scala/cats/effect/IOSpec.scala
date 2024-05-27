@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ import cats.~>
 import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.{CancellationException, ExecutionContext, TimeoutException}
+import scala.concurrent.{CancellationException, ExecutionContext, Promise, TimeoutException}
 import scala.concurrent.duration._
 
 import Prop.forAll
@@ -115,6 +115,26 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         (IO.pure(42) orElse IO.raiseError[Int](TestException)) must completeAs(42)
       }
 
+      "adaptError is a no-op for a successful effect" in ticked { implicit ticker =>
+        IO(42).adaptError { case x => x } must completeAs(42)
+      }
+
+      "adaptError is a no-op for a non-matching error" in ticked { implicit ticker =>
+        case object TestException1 extends RuntimeException
+        case object TestException2 extends RuntimeException
+        IO.raiseError[Unit](TestException1).adaptError {
+          case TestException2 => TestException2
+        } must failAs(TestException1)
+      }
+
+      "adaptError transforms the error in a failed effect" in ticked { implicit ticker =>
+        case object TestException1 extends RuntimeException
+        case object TestException2 extends RuntimeException
+        IO.raiseError[Unit](TestException1).adaptError {
+          case TestException1 => TestException2
+        } must failAs(TestException2)
+      }
+
       "attempt is redeem with Left(_) for recover and Right(_) for map" in ticked {
         implicit ticker =>
           forAll { (io: IO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
@@ -123,6 +143,12 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "attempt is flattened redeemWith" in ticked { implicit ticker =>
         forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
           io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
+        }
+      }
+
+      "attemptTap(f) is an alias for attempt.flatTap(f).rethrow" in ticked { implicit ticker =>
+        forAll { (io: IO[Int], f: Either[Throwable, Int] => IO[Int]) =>
+          io.attemptTap(f) eqv io.attempt.flatTap(f).rethrow
         }
       }
 
@@ -608,6 +634,17 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         test must completeAs(())
         outerR mustEqual 1
         innerR mustEqual 2
+      }
+
+      "be uncancelable if None finalizer" in ticked { implicit ticker =>
+        val t = IO.asyncCheckAttempt[Int] { _ => IO.pure(Left(None)) }
+        val test = for {
+          fib <- t.start
+          _ <- IO(ticker.ctx.tick())
+          _ <- fib.cancel
+        } yield ()
+
+        test must nonTerminate
       }
     }
 
@@ -1845,12 +1882,40 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "timeoutAndForget" should {
         "terminate on an uncancelable fiber" in real {
-          IO.never.uncancelable.timeoutAndForget(1.second).attempt flatMap { e =>
+          IO.never.uncancelable.timeoutAndForget(1.second).attempt flatMap { r =>
             IO {
-              e must beLike { case Left(e) => e must haveClass[TimeoutException] }
+              r must beLike { case Left(e) => e must haveClass[TimeoutException] }
             }
           }
         }
+      }
+
+      "no-op when canceling an expired timer 1" in realWithRuntime { rt =>
+        // this one excercises a timer removed via `TimerHeap#pollFirstIfTriggered`
+        IO(Promise[Unit]())
+          .flatMap { p =>
+            IO(rt.scheduler.sleep(1.nanosecond, () => p.success(()))).flatMap { cancel =>
+              IO.fromFuture(IO(p.future)) *> IO(cancel.run())
+            }
+          }
+          .as(ok)
+      }
+
+      "no-op when canceling an expired timer 2" in realWithRuntime { rt =>
+        // this one excercises a timer removed via `TimerHeap#insert`
+        IO(Promise[Unit]())
+          .flatMap { p =>
+            IO(rt.scheduler.sleep(1.nanosecond, () => p.success(()))).flatMap { cancel =>
+              IO.sleep(1.nanosecond) *> IO.fromFuture(IO(p.future)) *> IO(cancel.run())
+            }
+          }
+          .as(ok)
+      }
+
+      "no-op when canceling a timer twice" in realWithRuntime { rt =>
+        IO(rt.scheduler.sleep(1.day, () => ()))
+          .flatMap(cancel => IO(cancel.run()) *> IO(cancel.run()))
+          .as(ok)
       }
     }
 

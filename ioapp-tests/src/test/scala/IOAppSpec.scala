@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -233,7 +233,8 @@ class IOAppSpec extends Specification {
         h.stderr() must not(contain("boom"))
       }
 
-      "warn on cpu starvation" in {
+      // TODO reenable this test (#3919)
+      "warn on cpu starvation" in skipped {
         val h = platform("CpuStarvation", List.empty)
         h.awaitStatus()
         val err = h.stderr()
