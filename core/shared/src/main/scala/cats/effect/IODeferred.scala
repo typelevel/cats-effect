@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,6 @@ private final class IODeferred[A] extends Deferred[IO, A] {
   def complete(a: A): IO[Boolean] = IO {
     if (cell.compareAndSet(initial, IO.pure(a))) {
       val _ = callbacks(Right(a))
-      callbacks.clear() // avoid leaks
       true
     } else {
       false

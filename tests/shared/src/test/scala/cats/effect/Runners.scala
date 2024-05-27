@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,10 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
     Execution.result(test(Ticker(TestContext())))
 
   def real[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), executionTimeout))
+    Execution.withEnvAsync { _ =>
+      val (fut, cancel) = test.unsafeToFutureCancelable()(runtime())
+      timeout(fut, cancel, executionTimeout)
+    }
 
   /*
    * Hacky implementation of effectful property testing
@@ -53,7 +56,8 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
   def realWithRuntime[A: AsResult](test: IORuntime => IO[A]): Execution =
     Execution.withEnvAsync { _ =>
       val rt = runtime()
-      timeout(test(rt).unsafeToFuture()(rt), executionTimeout)
+      val (fut, cancel) = test(rt).unsafeToFutureCancelable()(rt)
+      timeout(fut, cancel, executionTimeout)
     }
 
   def completeAs[A: Eq: Show](expected: A)(implicit ticker: Ticker): Matcher[IO[A]] =
@@ -100,17 +104,29 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
     def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
   }
 
-  private def timeout[A](f: Future[A], duration: FiniteDuration): Future[A] = {
+  private def timeout[A](
+      f: Future[A],
+      cancel: () => Future[Unit],
+      duration: FiniteDuration): Future[A] = {
     val p = Promise[A]()
     val r = runtime()
     implicit val ec = r.compute
 
-    val cancel =
-      r.scheduler.sleep(duration, { () => p.tryFailure(new TestTimeoutException); () })
+    val cancelTimer =
+      r.scheduler
+        .sleep(
+          duration,
+          { () =>
+            if (p.tryFailure(new TestTimeoutException)) {
+              cancel()
+              ()
+            }
+          })
 
     f.onComplete { result =>
-      p.tryComplete(result)
-      cancel.run()
+      if (p.tryComplete(result)) {
+        cancelTimer.run()
+      }
     }
 
     p.future

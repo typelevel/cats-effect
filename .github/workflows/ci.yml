@@ -27,8 +27,8 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        scala: [3.3.1, 2.12.18, 2.13.12]
+        os: [ubuntu-latest, windows-latest, macos-14]
+        scala: [3.3.3, 2.12.19, 2.13.14]
         java:
           - temurin@8
           - temurin@11
@@ -37,38 +37,40 @@ jobs:
           - graalvm@17
         ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
-          - scala: 3.3.1
+          - scala: 3.3.3
             java: temurin@11
-          - scala: 3.3.1
+          - scala: 3.3.3
             java: temurin@21
-          - scala: 2.12.18
+          - scala: 2.12.19
             java: temurin@11
-          - scala: 2.12.18
+          - scala: 2.12.19
             java: temurin@17
-          - scala: 2.12.18
+          - scala: 2.12.19
             java: temurin@21
-          - scala: 2.12.18
+          - scala: 2.12.19
             java: graalvm@17
           - os: windows-latest
-            scala: 3.3.1
+            scala: 3.3.3
             ci: ciJVM
-          - os: macos-latest
-            scala: 3.3.1
+          - os: macos-14
+            scala: 3.3.3
             ci: ciJVM
           - os: windows-latest
-            scala: 2.12.18
+            scala: 2.12.19
             ci: ciJVM
-          - os: macos-latest
-            scala: 2.12.18
+          - os: macos-14
+            scala: 2.12.19
             ci: ciJVM
+          - os: macos-14
+            java: temurin@8
           - ci: ciFirefox
-            scala: 3.3.1
+            scala: 3.3.3
           - ci: ciChrome
-            scala: 3.3.1
+            scala: 3.3.3
           - ci: ciFirefox
-            scala: 2.12.18
+            scala: 2.12.19
           - ci: ciChrome
-            scala: 2.12.18
+            scala: 2.12.19
           - ci: ciJS
             java: temurin@11
           - ci: ciJS
@@ -79,7 +81,7 @@ jobs:
             java: graalvm@17
           - os: windows-latest
             ci: ciJS
-          - os: macos-latest
+          - os: macos-14
             ci: ciJS
           - ci: ciFirefox
             java: temurin@11
@@ -91,7 +93,7 @@ jobs:
             java: graalvm@17
           - os: windows-latest
             ci: ciFirefox
-          - os: macos-latest
+          - os: macos-14
             ci: ciFirefox
           - ci: ciChrome
             java: temurin@11
@@ -103,7 +105,7 @@ jobs:
             java: graalvm@17
           - os: windows-latest
             ci: ciChrome
-          - os: macos-latest
+          - os: macos-14
             ci: ciChrome
           - ci: ciNative
             java: temurin@11
@@ -115,14 +117,19 @@ jobs:
             java: graalvm@17
           - os: windows-latest
             ci: ciNative
-          - os: macos-latest
+          - os: macos-14
             ci: ciNative
-            scala: 2.12.18
+            scala: 2.12.19
           - os: windows-latest
             java: graalvm@17
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
+      - name: Install sbt
+        if: contains(runner.os, 'macos')
+        shell: bash
+        run: brew install sbt
+
       - name: Ignore line ending differences in git
         if: contains(runner.os, 'windows')
         shell: bash
@@ -232,24 +239,24 @@ jobs:
         run: sbt githubWorkflowCheck
 
       - name: Check that scalafix has been run on JVM
-        if: matrix.ci == 'ciJVM' && matrix.scala != '3.3.1' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
+        if: matrix.ci == 'ciJVM' && matrix.scala != '3.3.3' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootJVM/scalafixAll --check'
 
       - name: Check that scalafix has been run on JS
-        if: matrix.ci == 'ciJS' && matrix.scala != '3.3.1' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
+        if: matrix.ci == 'ciJS' && matrix.scala != '3.3.3' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootJS/scalafixAll --check'
 
       - name: Check that scalafix has been run on Native
-        if: matrix.ci == 'ciNative' && matrix.scala != '3.3.1' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
+        if: matrix.ci == 'ciNative' && matrix.scala != '3.3.3' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootNative/scalafixAll --check'
 
       - shell: bash
         run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.12' || matrix.scala == '3.3.1') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17'
+      - if: (matrix.scala == '2.13.14' || matrix.scala == '3.3.3') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' docs/mdoc
 
@@ -264,7 +271,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Test GraalVM Native Image
-        if: matrix.scala == '2.13.12' && matrix.java == 'graalvm@17' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.14' && matrix.java == 'graalvm@17' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
 
@@ -274,7 +281,7 @@ jobs:
         run: example/test-native.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.12' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.14' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix
@@ -307,6 +314,10 @@ jobs:
         java: [temurin@8]
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Install sbt
+        if: contains(runner.os, 'macos')
+        run: brew install sbt
+
       - name: Ignore line ending differences in git
         if: contains(runner.os, 'windows')
         run: git config --global core.autocrlf false
@@ -381,112 +392,112 @@ jobs:
         if: matrix.java == 'graalvm@17' && steps.setup-java-graalvm-17.outputs.cache-hit == 'false'
         run: sbt +update
 
-      - name: Download target directories (3.3.1, ciJVM)
+      - name: Download target directories (3.3.3, ciJVM)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.1-ciJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.3-ciJVM
 
-      - name: Inflate target directories (3.3.1, ciJVM)
+      - name: Inflate target directories (3.3.3, ciJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (3.3.1, ciNative)
+      - name: Download target directories (3.3.3, ciNative)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.1-ciNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.3-ciNative
 
-      - name: Inflate target directories (3.3.1, ciNative)
+      - name: Inflate target directories (3.3.3, ciNative)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (3.3.1, ciJS)
+      - name: Download target directories (3.3.3, ciJS)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.1-ciJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.3-ciJS
 
-      - name: Inflate target directories (3.3.1, ciJS)
+      - name: Inflate target directories (3.3.3, ciJS)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.12.18, ciJVM)
+      - name: Download target directories (2.12.19, ciJVM)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.19-ciJVM
 
-      - name: Inflate target directories (2.12.18, ciJVM)
+      - name: Inflate target directories (2.12.19, ciJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.12.18, ciNative)
+      - name: Download target directories (2.12.19, ciNative)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.19-ciNative
 
-      - name: Inflate target directories (2.12.18, ciNative)
+      - name: Inflate target directories (2.12.19, ciNative)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.12.18, ciJS)
+      - name: Download target directories (2.12.19, ciJS)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.18-ciJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.19-ciJS
 
-      - name: Inflate target directories (2.12.18, ciJS)
+      - name: Inflate target directories (2.12.19, ciJS)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.12, ciJVM)
+      - name: Download target directories (2.13.14, ciJVM)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.14-ciJVM
 
-      - name: Inflate target directories (2.13.12, ciJVM)
+      - name: Inflate target directories (2.13.14, ciJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.12, ciNative)
+      - name: Download target directories (2.13.14, ciNative)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.14-ciNative
 
-      - name: Inflate target directories (2.13.12, ciNative)
+      - name: Inflate target directories (2.13.14, ciNative)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.12, ciJS)
+      - name: Download target directories (2.13.14, ciJS)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.14-ciJS
 
-      - name: Inflate target directories (2.13.12, ciJS)
+      - name: Inflate target directories (2.13.14, ciJS)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.12, ciFirefox)
+      - name: Download target directories (2.13.14, ciFirefox)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciFirefox
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.14-ciFirefox
 
-      - name: Inflate target directories (2.13.12, ciFirefox)
+      - name: Inflate target directories (2.13.14, ciFirefox)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.12, ciChrome)
+      - name: Download target directories (2.13.14, ciChrome)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.12-ciChrome
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.14-ciChrome
 
-      - name: Inflate target directories (2.13.12, ciChrome)
+      - name: Inflate target directories (2.13.14, ciChrome)
         run: |
           tar xf targets.tar
           rm targets.tar
@@ -521,7 +532,7 @@ jobs:
       - name: Post release to Discord
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: scripts/post-release-discord ${{ github.ref }}
+        run: scripts/post-release-discord.sh ${{ github.ref }}
 
   dependency-submission:
     name: Submit Dependencies
@@ -532,6 +543,10 @@ jobs:
         java: [temurin@8]
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Install sbt
+        if: contains(runner.os, 'macos')
+        run: brew install sbt
+
       - name: Ignore line ending differences in git
         if: contains(runner.os, 'windows')
         run: git config --global core.autocrlf false
@@ -609,5 +624,5 @@ jobs:
       - name: Submit Dependencies
         uses: scalacenter/sbt-dependency-submission@v2
         with:
-          modules-ignore: cats-effect-benchmarks_3 cats-effect-benchmarks_2.12 cats-effect-benchmarks_2.13 cats-effect_3 cats-effect_2.12 cats-effect_2.13 cats-effect-stress-tests_3 cats-effect-stress-tests_2.12 cats-effect-stress-tests_2.13 cats-effect-example_sjs1_3 cats-effect-example_sjs1_2.12 cats-effect-example_sjs1_2.13 rootjs_3 rootjs_2.12 rootjs_2.13 ioapptestsnative_3 ioapptestsnative_2.12 ioapptestsnative_2.13 cats-effect-graalvm-example_3 cats-effect-graalvm-example_2.12 cats-effect-graalvm-example_2.13 cats-effect-tests_sjs1_3 cats-effect-tests_sjs1_2.12 cats-effect-tests_sjs1_2.13 rootjvm_3 rootjvm_2.12 rootjvm_2.13 rootnative_3 rootnative_2.12 rootnative_2.13 cats-effect-example_native0.4_3 cats-effect-example_native0.4_2.12 cats-effect-example_native0.4_2.13 cats-effect-example_3 cats-effect-example_2.12 cats-effect-example_2.13 cats-effect-tests_3 cats-effect-tests_2.12 cats-effect-tests_2.13 ioapptestsjvm_3 ioapptestsjvm_2.12 ioapptestsjvm_2.13 ioapptestsjs_3 ioapptestsjs_2.12 ioapptestsjs_2.13 cats-effect-tests_native0.4_3 cats-effect-tests_native0.4_2.12 cats-effect-tests_native0.4_2.13
+          modules-ignore: cats-effect-benchmarks_3 cats-effect-benchmarks_2.12 cats-effect-benchmarks_2.13 cats-effect_3 cats-effect_2.12 cats-effect_2.13 cats-effect-example_sjs1_3 cats-effect-example_sjs1_2.12 cats-effect-example_sjs1_2.13 rootjs_3 rootjs_2.12 rootjs_2.13 ioapptestsnative_3 ioapptestsnative_2.12 ioapptestsnative_2.13 cats-effect-graalvm-example_3 cats-effect-graalvm-example_2.12 cats-effect-graalvm-example_2.13 cats-effect-tests_sjs1_3 cats-effect-tests_sjs1_2.12 cats-effect-tests_sjs1_2.13 rootjvm_3 rootjvm_2.12 rootjvm_2.13 rootnative_3 rootnative_2.12 rootnative_2.13 cats-effect-example_native0.4_3 cats-effect-example_native0.4_2.12 cats-effect-example_native0.4_2.13 cats-effect-example_3 cats-effect-example_2.12 cats-effect-example_2.13 cats-effect-tests_3 cats-effect-tests_2.12 cats-effect-tests_2.13 ioapptestsjvm_3 ioapptestsjvm_2.12 ioapptestsjvm_2.13 ioapptestsjs_3 ioapptestsjs_2.12 ioapptestsjs_2.13 cats-effect-tests_native0.4_3 cats-effect-tests_native0.4_2.12 cats-effect-tests_native0.4_2.13
           configs-ignore: test scala-tool scala-doc-tool test-internal
