@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package cats.effect.kernel.syntax
 
-import cats.Traverse
+import cats.{Foldable, Traverse}
 import cats.effect.kernel.GenConcurrent
 
 trait GenConcurrentSyntax {
@@ -52,6 +52,11 @@ final class ConcurrentParTraverseNOps[T[_], A] private[syntax] (
       f: A => F[B]
   )(implicit T: Traverse[T], F: GenConcurrent[F, _]): F[T[B]] =
     F.parTraverseN(n)(wrapped)(f)
+
+  def parTraverseN_[F[_], B](n: Int)(
+      f: A => F[B]
+  )(implicit T: Foldable[T], F: GenConcurrent[F, _]): F[Unit] =
+    F.parTraverseN_(n)(wrapped)(f)
 }
 
 final class ConcurrentParSequenceNOps[T[_], F[_], A] private[syntax] (
@@ -59,4 +64,7 @@ final class ConcurrentParSequenceNOps[T[_], F[_], A] private[syntax] (
 ) extends AnyVal {
   def parSequenceN(n: Int)(implicit T: Traverse[T], F: GenConcurrent[F, _]): F[T[A]] =
     F.parSequenceN(n)(wrapped)
+
+  def parSequenceN_(n: Int)(implicit T: Foldable[T], F: GenConcurrent[F, _]): F[Unit] =
+    F.parSequenceN_(n)(wrapped)
 }

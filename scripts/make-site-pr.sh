@@ -7,15 +7,15 @@ cd "$(dirname $0)/.."
 primary_base="$(pwd)"
 
 if [[ $# -ne 2 ]] || [[ "$1" == "--help" ]]; then
-  echo "usage: $0 old-version new-version"
+  echo "usage: $0 old-tag new-tag"
   exit 1
 fi
 
-old_version="$1"
-new_version="$2"
+old_version="${1#v}"
+new_version="${2#v}"
 
 cd "$(mktemp -d)"
-git clone git@github.com:typelevel/cats-effect.git
+gh repo clone typelevel/cats-effect
 cd 'cats-effect'
 
 git checkout origin/docs

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,8 +47,18 @@ class SyntaxSpec extends Specification {
     }
 
     {
+      val result = List(1).parTraverseN_(3)(F.pure)
+      result: F[Unit]
+    }
+
+    {
       val result = List(target).parSequenceN(3)
       result: F[List[A]]
+    }
+
+    {
+      val result = List(target).parSequenceN_(3)
+      result: F[Unit]
     }
 
     {

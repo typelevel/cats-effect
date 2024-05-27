@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,10 @@
  */
 
 package cats.effect;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
 // defined in Java since Scala doesn't let us define static fields
 final class IOFiberConstants {
@@ -45,4 +49,28 @@ final class IOFiberConstants {
   static final byte DoneR = 8;
 
   static final boolean ioLocalPropagation = Boolean.getBoolean("cats.effect.ioLocalPropagation");
+
+  static boolean isVirtualThread(final Thread thread) {
+    try {
+      return (boolean) THREAD_IS_VIRTUAL_HANDLE.invokeExact(thread);
+    } catch (Throwable t) {
+      return false;
+    }
+  }
+
+  private static final MethodHandle THREAD_IS_VIRTUAL_HANDLE;
+
+  static {
+    final MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+    final MethodType mt = MethodType.methodType(boolean.class);
+    MethodHandle mh;
+    try {
+      mh = lookup.findVirtual(Thread.class, "isVirtual", mt);
+    } catch (Throwable t) {
+      mh =
+          MethodHandles.dropArguments(
+              MethodHandles.constant(boolean.class, false), 0, Thread.class);
+    }
+    THREAD_IS_VIRTUAL_HANDLE = mh;
+  }
 }

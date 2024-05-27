@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import scala.util.control.NonFatal
 
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
+
+import Platform.static
 
 /*
  * Rationale on memory barrier exploitation in this class...
@@ -85,7 +87,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
-  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
+  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack.of(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
   private[this] val runtime: IORuntime = rt
@@ -96,7 +98,7 @@ private final class IOFiber[A](
    * Ideally these would be on the stack, but they can't because we sometimes need to
    * relocate our runloop to another fiber.
    */
-  private[this] var conts: ByteStack = _
+  private[this] var conts: ByteStack.T = _
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0
@@ -173,15 +175,20 @@ private final class IOFiber[A](
   }
 
   /* this is swapped for an `IO.pure(outcome)` when we complete */
-  private[this] var _join: IO[OutcomeIO[A]] = IO.async { cb =>
+  private[this] var _join: IO[OutcomeIO[A]] = IO.asyncCheckAttempt { cb =>
     IO {
-      val stack = registerListener(oc => cb(Right(oc)))
+      if (outcome == null) {
+        val handle = callbacks.push(oc => cb(Right(oc)))
 
-      if (stack eq null)
-        Some(IO.unit) /* we were already invoked, so no `CallbackStack` needs to be managed */
-      else {
-        val handle = stack.currentHandle()
-        Some(IO(stack.clearCurrent(handle)))
+        /* double-check */
+        if (outcome != null) {
+          callbacks.clearHandle(handle)
+          Right(outcome)
+        } else {
+          Left(Some(IO { callbacks.clearHandle(handle); () }))
+        }
+      } else {
+        Right(outcome)
       }
     }
   }
@@ -254,7 +261,11 @@ private final class IOFiber[A](
 
         case 1 =>
           val cur = cur0.asInstanceOf[Error]
-          runLoop(failed(cur.t, 0), nextCancelation, nextAutoCede)
+          val ex = cur.t
+          if (!NonFatal(ex))
+            onFatalFailure(ex)
+
+          runLoop(failed(ex, 0), nextCancelation, nextAutoCede)
 
         case 2 =>
           val cur = cur0.asInstanceOf[Delay[Any]]
@@ -328,7 +339,11 @@ private final class IOFiber[A](
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextCancelation - 1, nextAutoCede)
+              val ex = error.t
+              if (!NonFatal(ex))
+                onFatalFailure(ex)
+
+              runLoop(failed(ex, 0), nextCancelation - 1, nextAutoCede)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
@@ -395,7 +410,11 @@ private final class IOFiber[A](
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextCancelation - 1, nextAutoCede)
+              val ex = error.t
+              if (!NonFatal(ex))
+                onFatalFailure(ex)
+
+              runLoop(failed(ex, 0), nextCancelation - 1, nextAutoCede)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
@@ -447,6 +466,8 @@ private final class IOFiber[A](
             case 1 =>
               val error = ioa.asInstanceOf[Error]
               val t = error.t
+              if (!NonFatal(t))
+                onFatalFailure(t)
               // We need to augment the exception here because it doesn't get
               // forwarded to the `failed` path.
               Tracing.augmentThrowable(runtime.enhancedExceptions, t, tracingEvents)
@@ -993,10 +1014,12 @@ private final class IOFiber[A](
             if (ec.isInstanceOf[WorkStealingThreadPool[_]]) {
               val wstp = ec.asInstanceOf[WorkStealingThreadPool[_]]
               if (wstp.canExecuteBlockingCode()) {
+                wstp.prepareForBlocking()
+
                 var error: Throwable = null
                 val r =
                   try {
-                    scala.concurrent.blocking(cur.thunk())
+                    cur.thunk()
                   } catch {
                     case t if NonFatal(t) =>
                       error = t
@@ -1005,10 +1028,25 @@ private final class IOFiber[A](
                   }
 
                 val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
-                runLoop(next, nextCancelation, nextAutoCede)
+                // reset auto-cede counter
+                runLoop(next, nextCancelation, runtime.autoYieldThreshold)
               } else {
                 blockingFallback(cur)
               }
+            } else if (isVirtualThread(Thread.currentThread())) {
+              var error: Throwable = null
+              val r =
+                try {
+                  cur.thunk()
+                } catch {
+                  case t if NonFatal(t) =>
+                    error = t
+                  case t: Throwable =>
+                    onFatalFailure(t)
+                }
+
+              val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
+              runLoop(next, nextCancelation, nextAutoCede)
             } else {
               blockingFallback(cur)
             }
@@ -1057,15 +1095,11 @@ private final class IOFiber[A](
 
     outcome = oc
 
-    try {
-      if (!callbacks(oc, false) && runtime.config.reportUnhandledFiberErrors) {
-        oc match {
-          case Outcome.Errored(e) => currentCtx.reportFailure(e)
-          case _ => ()
-        }
+    if (!callbacks(oc) && runtime.config.reportUnhandledFiberErrors) {
+      oc match {
+        case Outcome.Errored(e) => currentCtx.reportFailure(e)
+        case _ => ()
       }
-    } finally {
-      callbacks.clear() /* avoid leaks */
     }
 
     /*
@@ -1169,26 +1203,6 @@ private final class IOFiber[A](
    */
   private def setCallback(cb: OutcomeIO[A] => Unit): Unit = {
     callbacks.unsafeSetCallback(cb)
-  }
-
-  /* can return null, meaning that no CallbackStack needs to be later invalidated */
-  private[this] def registerListener(
-      listener: OutcomeIO[A] => Unit): CallbackStack[OutcomeIO[A]] = {
-    if (outcome == null) {
-      val back = callbacks.push(listener)
-
-      /* double-check */
-      if (outcome != null) {
-        back.clearCurrent(back.currentHandle())
-        listener(outcome) /* the implementation of async saves us from double-calls */
-        null
-      } else {
-        back
-      }
-    } else {
-      listener(outcome)
-      null
-    }
   }
 
   @tailrec
@@ -1554,12 +1568,12 @@ private final class IOFiber[A](
 
 private object IOFiber {
   /* prefetch */
-  private[IOFiber] val TypeBlocking = Sync.Type.Blocking
-  private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
-  private[effect] val RightUnit = Right(())
+  @static private[IOFiber] val TypeBlocking = Sync.Type.Blocking
+  @static private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
+  @static private[effect] val RightUnit = Right(())
 
-  private[this] val threadLocal = new ThreadLocal[IOFiber[_]]
-  def currentIOFiber(): IOFiber[_] = {
+  @static private[this] val threadLocal = new ThreadLocal[IOFiber[_]]
+  @static def currentIOFiber(): IOFiber[_] = {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread[_]])
       thread.asInstanceOf[WorkerThread[_]].currentIOFiber
@@ -1567,7 +1581,7 @@ private object IOFiber {
       threadLocal.get()
   }
 
-  private def setCurrentIOFiber(f: IOFiber[_]): Unit = {
+  @static private def setCurrentIOFiber(f: IOFiber[_]): Unit = {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread[_]])
       thread.asInstanceOf[WorkerThread[_]].currentIOFiber = f
@@ -1575,7 +1589,7 @@ private object IOFiber {
       threadLocal.set(f)
   }
 
-  def onFatalFailure(t: Throwable): Nothing = {
+  @static def onFatalFailure(t: Throwable): Nothing = {
     val interrupted = Thread.interrupted()
 
     if (IORuntime.globalFatalFailureHandled.compareAndSet(false, true)) {

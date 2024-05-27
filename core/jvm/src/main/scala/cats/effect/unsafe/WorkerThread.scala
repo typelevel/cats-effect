@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ private[effect] final class WorkerThread[P](
     private[this] val external: ScalQueue[AnyRef],
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
-    private[this] var sleepers: TimerSkipList,
+    private[this] var sleepers: TimerHeap,
     private[this] val system: PollingSystem.WithPoller[P],
     private[this] var _poller: P,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
@@ -109,6 +109,12 @@ private[effect] final class WorkerThread[P](
 
   private[effect] var currentIOFiber: IOFiber[_] = _
 
+  private[this] val RightUnit = Right(())
+  private[this] val noop = new Function0[Unit] with Runnable {
+    def apply() = ()
+    def run() = ()
+  }
+
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.getAndIncrement()
 
   // Constructor code.
@@ -157,20 +163,53 @@ private[effect] final class WorkerThread[P](
     }
   }
 
-  def sleep(
-      delay: FiniteDuration,
-      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+  private[this] def nanoTime(): Long = {
     // take the opportunity to update the current time, just in case other timers can benefit
     val _now = System.nanoTime()
     now = _now
+    _now
+  }
+
+  def sleep(
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable =
+    sleepImpl(nanoTime(), delay.toNanos, callback)
+
+  /**
+   * A sleep that is being scheduled "late"
+   */
+  def sleepLate(
+      scheduledAt: Long,
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+    val _now = nanoTime()
+    val newDelay = delay.toNanos - (_now - scheduledAt)
+    if (newDelay > 0) {
+      sleepImpl(_now, newDelay, callback)
+    } else {
+      callback(RightUnit)
+      noop
+    }
+  }
+
+  private[this] def sleepImpl(
+      now: Long,
+      delay: Long,
+      callback: Right[Nothing, Unit] => Unit): Function0[Unit] with Runnable = {
+    val out = new Array[Right[Nothing, Unit] => Unit](1)
 
     // note that blockers aren't owned by the pool, meaning we only end up here if !blocking
-    sleepers.insert(
-      now = _now,
-      delay = delay.toNanos,
+    val cancel = sleepers.insert(
+      now = now,
+      delay = delay,
       callback = callback,
-      tlr = random
+      out = out
     )
+
+    val cb = out(0)
+    if (cb ne null) cb(RightUnit)
+
+    cancel
   }
 
   /**
@@ -254,6 +293,9 @@ private[effect] final class WorkerThread[P](
     foreign.toMap
   }
 
+  private[unsafe] def ownsTimers(timers: TimerHeap): Boolean =
+    sleepers eq timers
+
   /**
    * The run loop of the [[WorkerThread]].
    */
@@ -261,7 +303,6 @@ private[effect] final class WorkerThread[P](
     val self = this
     random = ThreadLocalRandom.current()
     val rnd = random
-    val RightUnit = IOFiber.RightUnit
     val reportFailure = pool.reportFailure(_)
 
     /*
@@ -526,6 +567,8 @@ private[effect] final class WorkerThread[P](
             }
           }
 
+          // Clean up any externally canceled timers
+          sleepers.packIfNeeded()
           // give the polling system a chance to discover events
           system.poll(_poller, 0, reportFailure)
 
@@ -795,7 +838,7 @@ private[effect] final class WorkerThread[P](
   }
 
   /**
-   * A mechanism for executing support code before executing a blocking action.
+   * Support code that must be run before executing a blocking action on this thread.
    *
    * The current thread creates a replacement worker thread (or reuses a cached one) that will
    * take its place in the pool and does a complete transfer of ownership of the data structures
@@ -811,21 +854,11 @@ private[effect] final class WorkerThread[P](
    * continue, it will be cached for a period of time instead. Finally, the `blocking` flag is
    * useful when entering nested blocking regions. In this case, there is no need to spawn a
    * replacement worker thread.
-   *
-   * @note
-   *   There is no reason to enclose any code in a `try/catch` block because the only way this
-   *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
-  override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-    val rnd = random
-
-    pool.notifyParked(rnd)
-
+  def prepareForBlocking(): Unit = {
     if (blocking) {
-      // This `WorkerThread` is already inside an enclosing blocking region.
-      // There is no need to spawn another `WorkerThread`. Instead, directly
-      // execute the blocking action.
-      thunk
+      // This `WorkerThread` has already been prepared for blocking.
+      // There is no need to spawn another `WorkerThread`.
     } else {
       // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
@@ -838,7 +871,7 @@ private[effect] final class WorkerThread[P](
         cedeBypass = null
       }
 
-      // Logically enter the blocking region.
+      // Logically become a blocking thread.
       blocking = true
 
       val prefix = pool.blockerThreadPrefix
@@ -881,9 +914,19 @@ private[effect] final class WorkerThread[P](
         pool.blockedWorkerThreadCounter.incrementAndGet()
         clone.start()
       }
-
-      thunk
     }
+  }
+
+  /**
+   * A mechanism for executing support code before executing a blocking action.
+   *
+   * @note
+   *   There is no reason to enclose any code in a `try/catch` block because the only way this
+   *   code path can be exercised is through `IO.delay`, which already handles exceptions.
+   */
+  override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+    prepareForBlocking()
+    thunk
   }
 
   private[this] def init(newIdx: Int): Unit = {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,8 +46,8 @@ object KqueueSystem extends PollingSystem {
 
   def close(): Unit = ()
 
-  def makeApi(register: (Poller => Unit) => Unit): FileDescriptorPoller =
-    new FileDescriptorPollerImpl(register)
+  def makeApi(access: (Poller => Unit) => Unit): FileDescriptorPoller =
+    new FileDescriptorPollerImpl(access)
 
   def makePoller(): Poller = {
     val fd = kqueue()
@@ -67,7 +67,7 @@ object KqueueSystem extends PollingSystem {
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
   private final class FileDescriptorPollerImpl private[KqueueSystem] (
-      register: (Poller => Unit) => Unit
+      access: (Poller => Unit) => Unit
   ) extends FileDescriptorPoller {
     def registerFileDescriptor(
         fd: Int,
@@ -76,7 +76,7 @@ object KqueueSystem extends PollingSystem {
     ): Resource[IO, FileDescriptorPollHandle] =
       Resource.eval {
         (Mutex[IO], Mutex[IO]).mapN {
-          new PollHandle(register, fd, _, _)
+          new PollHandle(access, fd, _, _)
         }
       }
   }
@@ -86,7 +86,7 @@ object KqueueSystem extends PollingSystem {
     (filter.toLong << 32) | ident.toLong
 
   private final class PollHandle(
-      register: (Poller => Unit) => Unit,
+      access: (Poller => Unit) => Unit,
       fd: Int,
       readMutex: Mutex[IO],
       writeMutex: Mutex[IO]
@@ -101,7 +101,7 @@ object KqueueSystem extends PollingSystem {
             else
               IO.async[Unit] { kqcb =>
                 IO.async_[Option[IO[Unit]]] { cb =>
-                  register { kqueue =>
+                  access { kqueue =>
                     kqueue.evSet(fd, EVFILT_READ, EV_ADD.toUShort, kqcb)
                     cb(Right(Some(IO(kqueue.removeCallback(fd, EVFILT_READ)))))
                   }
@@ -121,7 +121,7 @@ object KqueueSystem extends PollingSystem {
             else
               IO.async[Unit] { kqcb =>
                 IO.async_[Option[IO[Unit]]] { cb =>
-                  register { kqueue =>
+                  access { kqueue =>
                     kqueue.evSet(fd, EVFILT_WRITE, EV_ADD.toUShort, kqcb)
                     cb(Right(Some(IO(kqueue.removeCallback(fd, EVFILT_WRITE)))))
                   }

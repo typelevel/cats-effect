@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,18 @@ final case class IORuntimeConfig private (
     val cpuStarvationCheckInterval: FiniteDuration,
     val cpuStarvationCheckInitialDelay: Duration,
     val cpuStarvationCheckThreshold: Double) {
+
+  require(autoYieldThreshold > 1, s"Auto yield threshold $autoYieldThreshold must be > 1")
+  require(
+    cancelationCheckThreshold > 0,
+    s"Cancelation check threshold $cancelationCheckThreshold must be > 0")
+  require(
+    (autoYieldThreshold % cancelationCheckThreshold) == 0,
+    s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold"
+  )
+  require(
+    cpuStarvationCheckThreshold > 0,
+    s"CPU starvation check threshold $cpuStarvationCheckThreshold must be > 0")
 
   private[unsafe] def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
     this(
@@ -224,25 +236,17 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       cpuStarvationCheckInitialDelay: Duration,
       cpuStarvationCheckThreshold: Double
   ): IORuntimeConfig = {
-    if (autoYieldThreshold % cancelationCheckThreshold == 0)
-      if (cpuStarvationCheckThreshold > 0)
-        new IORuntimeConfig(
-          cancelationCheckThreshold,
-          autoYieldThreshold,
-          enhancedExceptions,
-          1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
-          shutdownHookTimeout,
-          reportUnhandledFiberErrors,
-          cpuStarvationCheckInterval,
-          cpuStarvationCheckInitialDelay,
-          cpuStarvationCheckThreshold
-        )
-      else
-        throw new AssertionError(
-          s"CPU starvation check threshold $cpuStarvationCheckThreshold must be > 0")
-    else
-      throw new AssertionError(
-        s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
+    new IORuntimeConfig(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
+      shutdownHookTimeout,
+      reportUnhandledFiberErrors,
+      cpuStarvationCheckInterval,
+      cpuStarvationCheckInitialDelay,
+      cpuStarvationCheckThreshold
+    )
   }
 
   def apply(

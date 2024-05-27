@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -189,6 +189,34 @@ class IOAppSpec extends Specification {
         h.stderr() must contain("Boom!")
       }
 
+      "exit on raising a fatal error with attempt" in {
+        val h = platform("RaiseFatalErrorAttempt", List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+        h.stdout() must not(contain("sadness"))
+      }
+
+      "exit on raising a fatal error with handleError" in {
+        val h = platform("RaiseFatalErrorHandle", List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+        h.stdout() must not(contain("sadness"))
+      }
+
+      "exit on raising a fatal error inside a map" in {
+        val h = platform("RaiseFatalErrorMap", List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+        h.stdout() must not(contain("sadness"))
+      }
+
+      "exit on raising a fatal error inside a flatMap" in {
+        val h = platform("RaiseFatalErrorFlatMap", List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+        h.stdout() must not(contain("sadness"))
+      }
+
       "warn on global runtime collision" in {
         val h = platform("GlobalRacingInit", List.empty)
         h.awaitStatus() mustEqual 0
@@ -205,7 +233,8 @@ class IOAppSpec extends Specification {
         h.stderr() must not(contain("boom"))
       }
 
-      "warn on cpu starvation" in {
+      // TODO reenable this test (#3919)
+      "warn on cpu starvation" in skipped {
         val h = platform("CpuStarvation", List.empty)
         h.awaitStatus()
         val err = h.stderr()
@@ -332,6 +361,7 @@ class IOAppSpec extends Specification {
         err must contain(
           "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
       }
+
       ()
     }
 

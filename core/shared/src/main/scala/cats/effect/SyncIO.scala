@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.control.NonFatal
+
+import Platform.static
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -396,7 +398,8 @@ private[effect] trait SyncIOLowPriorityImplicits {
 
 object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
 
-  private[this] val Delay = Sync.Type.Delay
+  @static private[this] val Delay = Sync.Type.Delay
+  @static private[this] val _syncForSyncIO: Sync[SyncIO] = new SyncIOSync
 
   // constructors
 
@@ -576,48 +579,48 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     def functor: Functor[SyncIO] = Functor[SyncIO]
   }
 
-  private[this] val _syncForSyncIO: Sync[SyncIO] =
-    new Sync[SyncIO]
+  private[this] final class SyncIOSync
+      extends Sync[SyncIO]
       with StackSafeMonad[SyncIO]
       with MonadCancel.Uncancelable[SyncIO, Throwable] {
 
-      def pure[A](x: A): SyncIO[A] =
-        SyncIO.pure(x)
+    def pure[A](x: A): SyncIO[A] =
+      SyncIO.pure(x)
 
-      def raiseError[A](e: Throwable): SyncIO[A] =
-        SyncIO.raiseError(e)
+    def raiseError[A](e: Throwable): SyncIO[A] =
+      SyncIO.raiseError(e)
 
-      def handleErrorWith[A](fa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
-        fa.handleErrorWith(f)
+    def handleErrorWith[A](fa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
+      fa.handleErrorWith(f)
 
-      def flatMap[A, B](fa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
-        fa.flatMap(f)
+    def flatMap[A, B](fa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
+      fa.flatMap(f)
 
-      def monotonic: SyncIO[FiniteDuration] =
-        SyncIO.monotonic
+    def monotonic: SyncIO[FiniteDuration] =
+      SyncIO.monotonic
 
-      def realTime: SyncIO[FiniteDuration] =
-        SyncIO.realTime
+    def realTime: SyncIO[FiniteDuration] =
+      SyncIO.realTime
 
-      def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
-        Suspend(hint, () => thunk)
+    def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
+      Suspend(hint, () => thunk)
 
-      override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
-        fa.attempt
+    override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
+      fa.attempt
 
-      override def redeem[A, B](fa: SyncIO[A])(recover: Throwable => B, f: A => B): SyncIO[B] =
-        fa.redeem(recover, f)
+    override def redeem[A, B](fa: SyncIO[A])(recover: Throwable => B, f: A => B): SyncIO[B] =
+      fa.redeem(recover, f)
 
-      override def redeemWith[A, B](
-          fa: SyncIO[A])(recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
-        fa.redeemWith(recover, bind)
+    override def redeemWith[A, B](
+        fa: SyncIO[A])(recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
+      fa.redeemWith(recover, bind)
 
-      override def unit: SyncIO[Unit] =
-        SyncIO.unit
+    override def unit: SyncIO[Unit] =
+      SyncIO.unit
 
-      def forceR[A, B](fa: SyncIO[A])(fb: SyncIO[B]): SyncIO[B] =
-        fa.attempt.productR(fb)
-    }
+    def forceR[A, B](fa: SyncIO[A])(fb: SyncIO[B]): SyncIO[B] =
+      fa.attempt.productR(fb)
+  }
 
   implicit def syncForSyncIO: Sync[SyncIO] with MonadCancel[SyncIO, Throwable] = _syncForSyncIO
 

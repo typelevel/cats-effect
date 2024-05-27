@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
 
   def close(): Unit = ()
 
-  def makeApi(register: (Poller => Unit) => Unit): Selector =
-    new SelectorImpl(register, provider)
+  def makeApi(access: (Poller => Unit) => Unit): Selector =
+    new SelectorImpl(access, provider)
 
   def makePoller(): Poller = new Poller(provider.openSelector())
 
@@ -107,13 +107,13 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
   }
 
   final class SelectorImpl private[SelectorSystem] (
-      register: (Poller => Unit) => Unit,
+      access: (Poller => Unit) => Unit,
       val provider: SelectorProvider
   ) extends Selector {
 
     def select(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { selectCb =>
       IO.async_[CallbackNode] { cb =>
-        register { data =>
+        access { data =>
           try {
             val selector = data.selector
             val key = ch.keyFor(selector)

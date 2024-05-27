@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ private[effect] sealed abstract class WorkStealingThreadPool[P] private ()
       task: Runnable,
       fallback: Scheduler): Runnable
   private[effect] def canExecuteBlockingCode(): Boolean
+  private[effect] def prepareForBlocking(): Unit
   private[unsafe] def liveTraces(): (
       Map[Runnable, Trace],
       Map[WorkerThread[P], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
