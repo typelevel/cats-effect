@@ -916,7 +916,7 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
     scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
   .jvmSettings(
-    Test / fork := true
+    fork := true
   )
   .nativeSettings(
     Compile / mainClass := Some("catseffect.examples.NativeRunner")

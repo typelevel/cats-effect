@@ -97,6 +97,23 @@ class HotswapSpec extends BaseSpec { outer =>
       go must completeAs(())
     }
 
+    "not finalize Hotswap while resource is in use" in ticked { implicit ticker =>
+      val r = Resource.make(IO.ref(true))(_.set(false))
+      val go = Hotswap.create[IO, Ref[IO, Boolean]].allocated.flatMap {
+        case (hs, fin) =>
+          hs.swap(r) *> (IO.sleep(1.second) *> fin).background.surround {
+            hs.get.use {
+              case Some(ref) =>
+                val notReleased = ref.get.flatMap(b => IO(b must beTrue))
+                notReleased *> IO.sleep(2.seconds) *> notReleased.void
+              case None => IO(false must beTrue).void
+            }
+          }
+      }
+
+      go must completeAs(())
+    }
+
     "resource can be accessed concurrently" in ticked { implicit ticker =>
       val go = Hotswap.create[IO, Unit].use { hs =>
         hs.swap(Resource.unit) *>

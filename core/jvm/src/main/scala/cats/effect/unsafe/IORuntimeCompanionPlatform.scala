@@ -65,6 +65,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       runtimeBlockingExpiration,
       reportFailure,
       false,
+      1.second,
       SleepSystem
     )
     (pool, shutdown)
@@ -77,6 +78,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       runtimeBlockingExpiration: Duration = 60.seconds,
       reportFailure: Throwable => Unit = _.printStackTrace(),
       blockedThreadDetectionEnabled: Boolean = false,
+      shutdownTimeout: Duration = 1.second,
       pollingSystem: PollingSystem = SelectorSystem())
       : (WorkStealingThreadPool[_], pollingSystem.Api, () => Unit) = {
     val threadPool =
@@ -86,8 +88,10 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         blockerThreadPrefix,
         runtimeBlockingExpiration,
         blockedThreadDetectionEnabled && (threads > 1),
+        shutdownTimeout,
         pollingSystem,
-        reportFailure)
+        reportFailure
+      )
 
     val unregisterMBeans =
       if (isStackTracing) {

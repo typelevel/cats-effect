@@ -437,6 +437,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
             runtimeBlockingExpiration = 3.seconds,
             reportFailure0 = _.printStackTrace(),
             blockedThreadDetectionEnabled = false,
+            shutdownTimeout = 1.second,
             system = SleepSystem
           )
 
