@@ -21,7 +21,9 @@ import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, W
 import cats.effect.kernel.Sync
 import cats.kernel.Monoid
 
-import scala.jdk.CollectionConverters.PropertiesHasAsScala
+import org.typelevel.scalaccompat.annotation._
+
+import scala.collection.immutable.Map
 
 trait Prop[F[_]] { self =>
 
@@ -130,6 +132,11 @@ object Prop {
 
     def unset(key: String): F[Unit] = F.void(F.delay(System.clearProperty(key)))
 
-    def entries: F[Map[String, String]] = F.delay(Map.from(System.getProperties().asScala))
+    @nowarn213("cat=deprecation")
+    @nowarn3("cat=deprecation")
+    def entries: F[Map[String, String]] = {
+      import scala.collection.JavaConverters._
+      F.delay(Map.empty ++ System.getProperties().asScala)
+    }
   }
 }
