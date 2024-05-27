@@ -255,8 +255,6 @@ object IOLocal {
    */
   def apply[A](default: A): IO[IOLocal[A]] = IO(new IOLocalImpl(default))
 
-  private[effect] abstract class AbstractIOLocal[A] extends IOLocal[A] {}
-
   private final class IOLocalImpl[A](default: A) extends IOLocal[A] {
 
     def getOrDefault(state: IOLocalState): A =
