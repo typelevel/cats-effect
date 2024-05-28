@@ -110,7 +110,7 @@ ThisBuild / developers := List(
 
 val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
-val MacOS = "macos-latest"
+val MacOS = "macos-12"
 
 val Scala212 = "2.12.17"
 val Scala213 = "2.13.10"
