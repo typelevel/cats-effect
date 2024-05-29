@@ -156,11 +156,11 @@ object Queue {
     }
 
   /**
-   * Creates a new `Queue` subject to some `capacity` bound which supports a side-effecting
-   * `offer` function, allowing impure code to directly add values to the queue without
-   * indirecting through something like [[Dispatcher]]. This can improve performance
-   * significantly in some common cases. Note that the queue produced by this constructor can be
-   * used as a perfectly conventional [[Queue]] (as it is a subtype).
+   * Creates a new unbounded `Queue` which supports a side-effecting `offer` function, allowing
+   * impure code to directly add values to the queue without indirecting through something like
+   * [[Dispatcher]]. This can improve performance significantly in some common cases. Note that
+   * the queue produced by this constructor can be used as a perfectly conventional [[Queue]]
+   * (as it is a subtype).
    *
    * @return
    *   an empty unbounded queue
