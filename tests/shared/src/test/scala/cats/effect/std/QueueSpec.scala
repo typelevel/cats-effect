@@ -41,6 +41,29 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
     boundedQueueTests(Queue.bounded)
   }
 
+  "BoundedQueue (unsafe)" should {
+    "permit tryOffer when empty" in real {
+      Queue.unsafeBounded[IO, Int](1024) flatMap { q =>
+        for {
+          attempt <- IO(q.unsafeTryOffer(42))
+          _ <- IO(attempt must beTrue)
+          i <- q.take
+          _ <- IO(i mustEqual 42)
+        } yield ok
+      }
+    }
+
+    "forbid tryOffer when full" in real {
+      Queue.unsafeBounded[IO, Int](8) flatMap { q =>
+        for {
+          _ <- 0.until(8).toList.traverse_(q.offer(_))
+          attempt <- IO(q.unsafeTryOffer(42))
+          _ <- IO(attempt must beFalse)
+        } yield ok
+      }
+    }
+  }
+
   "BoundedQueue constructor" should {
     "not OOM" in real {
       Queue.bounded[IO, Unit](Int.MaxValue).as(true)
@@ -364,6 +387,18 @@ class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 
   "UnboundedQueue (async)" should {
     unboundedQueueTests(Queue.unboundedForAsync)
+  }
+
+  "UnboundedQueue (unsafe)" should {
+    "pass a value from unsafeOffer to take" in real {
+      Queue.unsafeUnbounded[IO, Int] flatMap { q =>
+        for {
+          _ <- IO(q.unsafeOffer(42))
+          i <- q.take
+          _ <- IO(i mustEqual 42)
+        } yield ok
+      }
+    }
   }
 
   "UnboundedQueue mapk" should {
