@@ -18,6 +18,8 @@ package cats.effect
 
 import cats.data.AndThen
 
+import IOFiberConstants.ioLocalPropagation
+
 /**
  * [[IOLocal]] provides a handy way of manipulating a context on different scopes.
  *
@@ -136,7 +138,7 @@ import cats.data.AndThen
  * @tparam A
  *   the type of the local value
  */
-sealed trait IOLocal[A] {
+sealed trait IOLocal[A] { self =>
 
   protected[effect] def getOrDefault(state: IOLocalState): A
 
@@ -238,6 +240,28 @@ sealed trait IOLocal[A] {
    */
   def lens[B](get: A => B)(set: A => B => A): IOLocal[B]
 
+  def unsafeToThreadLocal(): ThreadLocal[A] = new ThreadLocal[A] {
+    override def get(): A = if (ioLocalPropagation) {
+      val fiber = IOFiber.currentIOFiber()
+      val state = if (fiber ne null) fiber.getLocalState() else IOLocalState.empty
+      self.getOrDefault(state)
+    } else self.getOrDefault(IOLocalState.empty)
+
+    override def set(value: A): Unit = if (ioLocalPropagation) {
+      val fiber = IOFiber.currentIOFiber()
+      if (fiber ne null) {
+        fiber.setLocalState(self.set(fiber.getLocalState(), value))
+      }
+    }
+
+    override def remove(): Unit = if (ioLocalPropagation) {
+      val fiber = IOFiber.currentIOFiber()
+      if (fiber ne null) {
+        fiber.setLocalState(self.reset(fiber.getLocalState()))
+      }
+    }
+  }
+
 }
 
 object IOLocal {
@@ -254,6 +278,21 @@ object IOLocal {
    *   the type of the local value
    */
   def apply[A](default: A): IO[IOLocal[A]] = IO(new IOLocalImpl(default))
+
+  /**
+   * `true` if IOLocal-Threadlocal propagation is enabled
+   */
+  def isPropagating: Boolean = IOFiberConstants.ioLocalPropagation
+
+  private[effect] def getThreadLocalState() = {
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) fiber.getLocalState() else IOLocalState.empty
+  }
+
+  private[effect] def setThreadLocalState(state: IOLocalState) = {
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null) fiber.setLocalState(state)
+  }
 
   private final class IOLocalImpl[A](default: A) extends IOLocal[A] {
 

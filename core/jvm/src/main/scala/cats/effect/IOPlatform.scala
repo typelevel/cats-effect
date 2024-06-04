@@ -84,7 +84,7 @@ abstract private[effect] class IOPlatform[+A] extends Serializable { self: IO[A]
         None
     } finally {
       if (IOFiberConstants.ioLocalPropagation)
-        unsafe.IOLocals.setState(fiber.getLocalState())
+        IOLocal.setThreadLocalState(fiber.getLocalState())
     }
   }
 

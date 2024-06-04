@@ -21,61 +21,35 @@ class IOLocalsSpec extends BaseSpec {
 
   "IOLocals" should {
     "return a default value" in real {
-      IOLocal(42).flatMap(local => IO(IOLocals.get(local))).map(_ must beEqualTo(42))
+      IOLocal(42)
+        .flatMap(local => IO(local.unsafeToThreadLocal().get()))
+        .map(_ must beEqualTo(42))
     }
 
     "return a set value" in real {
-      IOLocal(42)
-        .flatMap(local => local.set(24) *> IO(IOLocals.get(local)))
-        .map(_ must beEqualTo(24))
+      for {
+        local <- IOLocal(42)
+        threadLocal <- IO(local.unsafeToThreadLocal())
+        _ <- local.set(24)
+        got <- IO(threadLocal.get())
+      } yield got must beEqualTo(24)
     }
 
     "unsafely set" in real {
       IOLocal(42).flatMap(local =>
-        IO(IOLocals.set(local, 24)) *> local.get.map(_ must beEqualTo(24)))
+        IO(local.unsafeToThreadLocal().set(24)) *> local.get.map(_ must beEqualTo(24)))
     }
 
     "unsafely reset" in real {
-      IOLocal(42)
-        .flatMap(local => local.set(24) *> IO(IOLocals.reset(local)) *> local.get)
-        .map(_ must beEqualTo(42))
+      for {
+        local <- IOLocal(42)
+        threadLocal <- IO(local.unsafeToThreadLocal())
+        _ <- local.set(24)
+        _ <- IO(threadLocal.remove())
+        got <- local.get
+      } yield got must beEqualTo(42)
     }
 
-    "unsafely update" in real {
-      IOLocal(42)
-        .flatMap(local => IO(IOLocals.update(local)(_ * 2)) *> local.get)
-        .map(_ must beEqualTo(84))
-    }
-
-    "unsafely modify" in real {
-      IOLocal(42)
-        .flatMap { local =>
-          IO {
-            IOLocals.modify(local)(x => (x * 2, x.toString)) must beEqualTo("42")
-          } *> local.get
-        }
-        .map(_ must beEqualTo(84))
-    }
-
-    "unsafely getAndSet" in real {
-      IOLocal(42)
-        .flatMap { local =>
-          IO {
-            IOLocals.getAndSet(local, 24) must beEqualTo(42)
-          } *> local.get
-        }
-        .map(_ must beEqualTo(24))
-    }
-
-    "unsafely getAndReset" in real {
-      IOLocal(42)
-        .flatMap { local =>
-          local.set(24) *> IO {
-            IOLocals.getAndReset(local) must beEqualTo(24)
-          } *> local.get
-        }
-        .map(_ must beEqualTo(42))
-    }
   }
 
 }
