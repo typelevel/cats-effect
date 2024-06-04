@@ -240,27 +240,33 @@ sealed trait IOLocal[A] { self =>
    */
   def lens[B](get: A => B)(set: A => B => A): IOLocal[B]
 
-  def unsafeToThreadLocal(): ThreadLocal[A] = new ThreadLocal[A] {
-    override def get(): A = if (ioLocalPropagation) {
-      val fiber = IOFiber.currentIOFiber()
-      val state = if (fiber ne null) fiber.getLocalState() else IOLocalState.empty
-      self.getOrDefault(state)
-    } else self.getOrDefault(IOLocalState.empty)
+  def unsafeToThreadLocal(): ThreadLocal[A] = if (ioLocalPropagation)
+    new ThreadLocal[A] {
+      override def get(): A = {
+        val fiber = IOFiber.currentIOFiber()
+        val state = if (fiber ne null) fiber.getLocalState() else IOLocalState.empty
+        self.getOrDefault(state)
+      }
 
-    override def set(value: A): Unit = if (ioLocalPropagation) {
-      val fiber = IOFiber.currentIOFiber()
-      if (fiber ne null) {
-        fiber.setLocalState(self.set(fiber.getLocalState(), value))
+      override def set(value: A): Unit = {
+        val fiber = IOFiber.currentIOFiber()
+        if (fiber ne null) {
+          fiber.setLocalState(self.set(fiber.getLocalState(), value))
+        }
+      }
+
+      override def remove(): Unit = {
+        val fiber = IOFiber.currentIOFiber()
+        if (fiber ne null) {
+          fiber.setLocalState(self.reset(fiber.getLocalState()))
+        }
       }
     }
-
-    override def remove(): Unit = if (ioLocalPropagation) {
-      val fiber = IOFiber.currentIOFiber()
-      if (fiber ne null) {
-        fiber.setLocalState(self.reset(fiber.getLocalState()))
-      }
-    }
-  }
+  else
+    throw new UnsupportedOperationException(
+      "IOLocal-ThreadLocal propagation is disabled.\n" +
+        "Enable by setting cats.effect.ioLocalPropagation=true."
+    )
 
 }
 
