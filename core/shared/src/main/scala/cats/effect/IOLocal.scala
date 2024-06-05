@@ -18,8 +18,6 @@ package cats.effect
 
 import cats.data.AndThen
 
-import IOFiberConstants.ioLocalPropagation
-
 /**
  * [[IOLocal]] provides a handy way of manipulating a context on different scopes.
  *
@@ -138,7 +136,7 @@ import IOFiberConstants.ioLocalPropagation
  * @tparam A
  *   the type of the local value
  */
-sealed trait IOLocal[A] { self =>
+sealed trait IOLocal[A] extends IOLocalPlatform[A] { self =>
 
   protected[effect] def getOrDefault(state: IOLocalState): A
 
@@ -239,39 +237,6 @@ sealed trait IOLocal[A] { self =>
    * }}}
    */
   def lens[B](get: A => B)(set: A => B => A): IOLocal[B]
-
-  /**
-   * Returns a [[java.lang.ThreadLocal]] that allows to unsafely get, set, and remove (aka
-   * reset) the value. The system property `cats.effect.ioLocalPropagation` must be `true`,
-   * otherwise throws an [[java.lang.UnsupportedOperationException]].
-   */
-  def unsafeToThreadLocal(): ThreadLocal[A] = if (ioLocalPropagation)
-    new ThreadLocal[A] {
-      override def get(): A = {
-        val fiber = IOFiber.currentIOFiber()
-        val state = if (fiber ne null) fiber.getLocalState() else IOLocalState.empty
-        self.getOrDefault(state)
-      }
-
-      override def set(value: A): Unit = {
-        val fiber = IOFiber.currentIOFiber()
-        if (fiber ne null) {
-          fiber.setLocalState(self.set(fiber.getLocalState(), value))
-        }
-      }
-
-      override def remove(): Unit = {
-        val fiber = IOFiber.currentIOFiber()
-        if (fiber ne null) {
-          fiber.setLocalState(self.reset(fiber.getLocalState()))
-        }
-      }
-    }
-  else
-    throw new UnsupportedOperationException(
-      "IOLocal-ThreadLocal propagation is disabled.\n" +
-        "Enable by setting cats.effect.ioLocalPropagation=true."
-    )
 
 }
 
