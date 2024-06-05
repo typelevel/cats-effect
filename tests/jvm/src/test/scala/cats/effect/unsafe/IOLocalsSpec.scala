@@ -22,14 +22,14 @@ class IOLocalsSpec extends BaseSpec {
   "IOLocals" should {
     "return a default value" in real {
       IOLocal(42)
-        .flatMap(local => IO(local.unsafeToThreadLocal().get()))
+        .flatMap(local => IO(local.unsafeThreadLocal().get()))
         .map(_ must beEqualTo(42))
     }
 
     "return a set value" in real {
       for {
         local <- IOLocal(42)
-        threadLocal <- IO(local.unsafeToThreadLocal())
+        threadLocal <- IO(local.unsafeThreadLocal())
         _ <- local.set(24)
         got <- IO(threadLocal.get())
       } yield got must beEqualTo(24)
@@ -37,13 +37,13 @@ class IOLocalsSpec extends BaseSpec {
 
     "unsafely set" in real {
       IOLocal(42).flatMap(local =>
-        IO(local.unsafeToThreadLocal().set(24)) *> local.get.map(_ must beEqualTo(24)))
+        IO(local.unsafeThreadLocal().set(24)) *> local.get.map(_ must beEqualTo(24)))
     }
 
     "unsafely reset" in real {
       for {
         local <- IOLocal(42)
-        threadLocal <- IO(local.unsafeToThreadLocal())
+        threadLocal <- IO(local.unsafeThreadLocal())
         _ <- local.set(24)
         _ <- IO(threadLocal.remove())
         got <- local.get

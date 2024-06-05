@@ -21,11 +21,12 @@ import IOFiberConstants.ioLocalPropagation
 private[effect] trait IOLocalPlatform[A] { self: IOLocal[A] =>
 
   /**
-   * Returns a [[java.lang.ThreadLocal]] that allows to unsafely get, set, and remove (aka
-   * reset) the value. The system property `cats.effect.ioLocalPropagation` must be `true`,
-   * otherwise throws an [[java.lang.UnsupportedOperationException]].
+   * Returns a [[java.lang.ThreadLocal]] view of this [[IOLocal]] that allows to unsafely get,
+   * set, and remove (aka reset) the value in the currently running fiber. The system property
+   * `cats.effect.ioLocalPropagation` must be `true`, otherwise throws an
+   * [[java.lang.UnsupportedOperationException]].
    */
-  def unsafeToThreadLocal(): ThreadLocal[A] = if (ioLocalPropagation)
+  def unsafeThreadLocal(): ThreadLocal[A] = if (ioLocalPropagation)
     new ThreadLocal[A] {
       override def get(): A = {
         val fiber = IOFiber.currentIOFiber()
