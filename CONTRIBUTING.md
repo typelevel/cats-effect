@@ -4,6 +4,18 @@ There's always lots to do! This is an incredibly exciting project used by countl
 
 Anything which is marked with [**good first issue**](https://github.com/typelevel/cats-effect/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) is something that the Cats Effect maintainers have evaluated and determined is likely to not require a significant amount of time or prior knowledge of the code in order to fix. If you want to take on one of these tasks, just leave a comment on the issue and we'll assign it to you! Additionally, whenever we mark issues with this label, we are committing to doing our best to be extra-responsive to questions and pull requests against the issue so as to best help you find your feet as a contributor.
 
+When creating a fork on GitHub, be sure to uncheck the box marked _Copy the <default-branch-name> branch only_, or you may have see the following error when running [sbt](https://github.com/sbt/sbt) due to missing git tags:
+```sbt
+[error] fatal: No names found, cannot describe anything.
+[error] Nonzero exit code (128) running git.
+```
+If you do encounter this error, make sure you have the `typelevel/cats-effect` repo as a remote with `git remote -v`. To add it as a remote, run one of the following:
+* `git remote add upstream git@github.com:typelevel/cats-effect.git` for ssh
+* `git remote add upstream https://github.com/typelevel/cats-effect.git` for https
+
+When you are done run `git fetch --tags <typelevel-remote-name>`, for the above case this would be `git fetch --tags upstream`.
+
+
 ## Tooling
 
 Cats Effect is built with [sbt](https://github.com/sbt/sbt), and you should be able to jump right in by running `sbt test`. I will note, however, that `sbt +test` takes about two hours on my laptop, so you probably *shouldn't* start there...
