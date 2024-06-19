@@ -52,6 +52,10 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
     }
 
     test("short-circuit on canceled") {
+      assertEquals(pure.run(F.canceled), Outcome.Canceled[Option, Int, Unit]())
+      assertEquals(
+        pure.run((F.never[Unit], F.canceled).parTupled),
+        Outcome.Canceled[Option, Int, (Unit, Unit)]())
       assert(
         pure.run((F.never[Unit], F.canceled).parTupled.start.flatMap(_.join)) === Outcome
           .Succeeded(Some(Outcome.canceled[F, Int, (Unit, Unit)])))
@@ -75,6 +79,91 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
       val fa = F.uncancelable { poll => F.onCancel(poll(F.unit), poll(F.unit)) }
 
       pure.run(fa.start.flatMap(_.cancel))
+    }
+  }
+
+  {
+    import cats.effect.kernel.{GenConcurrent, Outcome}
+    import cats.effect.kernel.implicits._
+    import cats.syntax.all._
+
+    type F[A] = PureConc[Int, A]
+    val F = GenConcurrent[F]
+
+    test("run finalizers when canceling never") {
+      val t = for {
+        c <- F.ref(0)
+        latch <- F.deferred[Unit]
+        fib <- F.start((latch.complete(()) *> F.never[Unit]).onCancel(c.update(_ + 1)))
+        _ <- latch.get
+        _ <- fib.cancel
+        v <- c.get
+      } yield v
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
+    }
+
+    test("run finalizers when canceling Deferred#get") {
+      val t = for {
+        c <- F.ref(0)
+        latch <- F.deferred[Unit]
+        hang <- F.deferred[Unit]
+        fib <- F.start((latch.complete(()) *> hang.get).onCancel(c.update(_ + 1)))
+        _ <- latch.get
+        _ <- fib.cancel
+        v <- c.get
+      } yield v
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
+    }
+
+    test("run finalizers when canceling Fiber#join") {
+      val t = for {
+        c <- F.ref(0)
+        latch <- F.deferred[Unit]
+        hang <- F.start(F.never[Unit])
+        fib <- F.start((latch.complete(()) *> hang.join).onCancel(c.update(_ + 1)))
+        _ <- latch.get
+        _ <- fib.cancel
+        v <- c.get
+      } yield v
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
+    }
+
+    test("hang when canceling uncancelable never") {
+      val t = for {
+        latch <- F.deferred[Unit]
+        f <- F.start((latch.complete(()) *> F.never[Unit]).uncancelable)
+        _ <- latch.get
+        _ <- f.cancel
+      } yield ()
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Unit](None))
+    }
+
+    test("hang when canceling uncancelable Deferred#get") {
+      val t = for {
+        latch <- F.deferred[Unit]
+        hang <- F.deferred[Unit]
+        f <- F.start((latch.complete(()) *> hang.get).uncancelable)
+        _ <- latch.get
+        _ <- f.cancel
+      } yield ()
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Unit](None))
+    }
+
+    test("hang when canceling uncancelable Fiber#join") {
+      val t = for {
+        latch <- F.deferred[Unit]
+        hang <- F.start(F.never[Unit])
+        f <- F.start((latch.complete(()) *> hang.join).uncancelable)
+        _ <- latch.get
+        _ <- f.cancel
+      } yield ()
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Unit](None))
     }
   }
 

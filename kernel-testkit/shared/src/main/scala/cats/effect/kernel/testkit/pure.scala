@@ -17,7 +17,7 @@
 package cats.effect.kernel
 package testkit
 
-import cats.{~>, Defer, Eq, Functor, Id, Monad, MonadError, Order, Show}
+import cats.{~>, Applicative, Defer, Eq, Functor, Id, Monad, MonadError, Order, Show}
 import cats.data.{Kleisli, State, WriterT}
 import cats.effect.kernel._
 import cats.free.FreeT
@@ -97,45 +97,48 @@ object pure {
       type Main[X] = MVarR[ResolvedPC[E, *], X]
 
       MVar.empty[Main, Outcome[PureConc[E, *], E, A]].flatMap { state0 =>
-        val state = state0[Main]
+        MVar.empty[Main, Unit] flatMap { canceled0 =>
+          val state = state0[Main]
+          val fiber = new PureFiber[E, A](state0, canceled0)
 
-        val fiber = new PureFiber[E, A](state0)
+          val identified = canceled mapF { ta =>
+            val fk = new (FiberR[E, *] ~> IdOC[E, *]) {
+              def apply[a](ke: FiberR[E, a]) =
+                ke.run(FiberCtx(fiber))
+            }
 
-        val identified = canceled mapF { ta =>
-          val fk = new (FiberR[E, *] ~> IdOC[E, *]) {
-            def apply[a](ke: FiberR[E, a]) =
-              ke.run(FiberCtx(fiber))
+            ta.mapK(fk)
           }
 
-          ta.mapK(fk)
-        }
+          import Outcome._
 
-        import Outcome._
+          val body = identified flatMap { a =>
+            state.tryPut(Succeeded(a.pure[PureConc[E, *]]))
+          } handleErrorWith { e => state.tryPut(Errored(e)) }
 
-        val body = identified flatMap { a =>
-          state.tryPut(Succeeded(a.pure[PureConc[E, *]]))
-        } handleErrorWith { e => state.tryPut(Errored(e)) }
+          val results = state.read.flatMap {
+            case Canceled() => (Outcome.Canceled(): IdOC[E, A]).pure[Main]
+            case Errored(e) => (Outcome.Errored(e): IdOC[E, A]).pure[Main]
 
-        val results = state.read.flatMap {
-          case Canceled() => (Outcome.Canceled(): IdOC[E, A]).pure[Main]
-          case Errored(e) => (Outcome.Errored(e): IdOC[E, A]).pure[Main]
+            case Succeeded(fa) =>
+              val identifiedCompletion = fa.mapF { ta =>
+                val fk = new (FiberR[E, *] ~> IdOC[E, *]) {
+                  def apply[a](ke: FiberR[E, a]) =
+                    ke.run(FiberCtx(fiber))
+                }
 
-          case Succeeded(fa) =>
-            val identifiedCompletion = fa.mapF { ta =>
-              val fk = new (FiberR[E, *] ~> IdOC[E, *]) {
-                def apply[a](ke: FiberR[E, a]) =
-                  ke.run(FiberCtx(fiber))
+                ta.mapK(fk)
               }
 
-              ta.mapK(fk)
-            }
+              identifiedCompletion.map(a => Succeeded[Id, E, A](a): IdOC[E, A]) handleError {
+                e => Errored(e)
+              }
+          }
 
-            identifiedCompletion.map(a => Succeeded[Id, E, A](a): IdOC[E, A]) handleError { e =>
-              Errored(e)
-            }
+          Kleisli.ask[ResolvedPC[E, *], MVar.Universe].map { u =>
+            ApplicativeThread[ResolvedPC[E, *]].start(body.run(u)) >> results.run(u)
+          }
         }
-
-        Kleisli.ask[ResolvedPC[E, *], MVar.Universe].map { u => body.run(u) >> results.run(u) }
       }
     }
 
@@ -164,8 +167,9 @@ object pure {
       case (List(results), _) => results.mapK(optLift)
       case (_, false) => Outcome.Succeeded(None)
 
-      // we could make a writer that only receives one object, but that seems meh. just pretend we deadlocked
-      case _ => Outcome.Succeeded(None)
+      // in the case of never and such, we are awaiting the async cancel monitor
+      // this scenario only arises if the main fiber self cancels
+      case _ => Outcome.Canceled()
     }
   }
 
@@ -197,20 +201,16 @@ object pure {
         }
 
       def canceled: PureConc[E, Unit] =
-        Thread.annotate("canceled") {
-          withCtx { ctx =>
-            if (ctx.masks.isEmpty)
-              uncancelable(_ => ctx.self.cancel >> ctx.finalizers.sequence_ >> Thread.done)
-            else
-              ctx.self.cancel
-          }
-        }
+        Thread.annotate("canceled")(withCtx(_.self.cancelAndRealize.ifM(Thread.done, unit)))
 
       def cede: PureConc[E, Unit] =
         Thread.cede
 
       def never[A]: PureConc[E, A] =
-        Thread.annotate("never")(Thread.done[A])
+        withCtx[E, A] { ctx =>
+          // we monitor for asynchronous cancelation. if we're masked, this won't cancel and we hang
+          Thread.annotate("never")(ctx.self.awaitCancelation *> Thread.done)
+        }
 
       def ref[A](a: A): PureConc[E, Ref[PureConc[E, *], A]] =
         MVar[PureConc[E, *], A](a).flatMap(mVar => Kleisli.pure(unsafeRef(mVar)))
@@ -273,7 +273,19 @@ object pure {
 
       private def unsafeDeferred[A](mVar: MVar[A]): Deferred[PureConc[E, *], A] =
         new Deferred[PureConc[E, *], A] {
-          override def get: PureConc[E, A] = mVar.read[PureConc[E, *]]
+          override def get: PureConc[E, A] =
+            withCtx { ctx =>
+              // we need to race cancelation against reading the mvar
+              // if cancelation wins, we shut down the thread
+              MVar.empty[PureConc[E, *], Option[A]] flatMap { signal =>
+                val left = Thread.start(ctx.self.awaitCancelation.ifM(signal.tryPut[PureConc[E, *]](None).void, unit))
+                val right = Thread.start(mVar.read[PureConc[E, *]].flatMap(a => signal.tryPut[PureConc[E, *]](Some(a))))
+
+                left *>
+                  right *>
+                  signal.read[PureConc[E, *]].flatMap(_.map(_.pure[PureConc[E, *]]).getOrElse(Thread.done))
+              }
+            }
 
           override def complete(a: A): PureConc[E, Boolean] = mVar.tryPut[PureConc[E, *]](a)
 
@@ -283,12 +295,14 @@ object pure {
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, *], E, A]] =
         Thread.annotate("start", true) {
           MVar.empty[PureConc[E, *], Outcome[PureConc[E, *], E, A]].flatMap { state =>
-            val fiber = new PureFiber[E, A](state)
+            MVar.empty[PureConc[E, *], Unit] flatMap { canceled =>
+              val fiber = new PureFiber[E, A](state, canceled)
 
-            // the tryPut here is interesting: it encodes first-wins semantics on cancelation/completion
-            val body = guaranteeCase(fa)(state.tryPut[PureConc[E, *]](_).void)
-            val identified = localCtx(FiberCtx(fiber), body)
-            Thread.start(identified.attempt.void).as(fiber)
+              // the tryPut here is interesting: it encodes first-wins semantics on cancelation/completion
+              val body = guaranteeCase(fa)(state.tryPut[PureConc[E, *]](_).void)
+              val identified = localCtx(FiberCtx(fiber), body)
+              Thread.start(identified.attempt.void).as(fiber)
+            }
           }
         }
 
@@ -363,14 +377,16 @@ object pure {
     }
 
   // todo: MVar is not Serializable, release then update here
-  final class PureFiber[E, A](val state0: MVar[Outcome[PureConc[E, *], E, A]])
+  final class PureFiber[E, A](
+      val state0: MVar[Outcome[PureConc[E, *], E, A]],
+      val canceled0: MVar[Unit])
       extends Fiber[PureConc[E, *], E, A]
       with Serializable {
 
     private[this] val state = state0[PureConc[E, *]]
 
     private[pure] val canceled: PureConc[E, Boolean] =
-      state.tryRead.map(_.map(_.fold(true, _ => false, _ => false)).getOrElse(false))
+      canceled0.tryRead[PureConc[E, *]].map(_.as(true).getOrElse(false))
 
     private[pure] val realizeCancelation: PureConc[E, Boolean] =
       withCtx { ctx =>
@@ -379,7 +395,10 @@ object pure {
         checkM.ifM(
           canceled.ifM(
             // if unmasked and canceled, finalize
-            allocateForPureConc[E].uncancelable(_ => ctx.finalizers.sequence_.as(true)),
+            allocateForPureConc[E] uncancelable { _ =>
+              ctx.finalizers.sequence_.as(true) <* state0.tryPut[PureConc[E, *]](
+                Outcome.Canceled())
+            },
             // if unmasked but not canceled, ignore
             false.pure[PureConc[E, *]]
           ),
@@ -388,9 +407,27 @@ object pure {
         )
       }
 
-    val cancel: PureConc[E, Unit] = state.tryPut(Outcome.Canceled()).void
+    private[pure] val awaitCancelation: PureConc[E, Boolean] =
+      canceled0.read[PureConc[E, *]] *> realizeCancelation
 
-    val join: PureConc[E, Outcome[PureConc[E, *], E, A]] =
-      state.read
+    private[pure] val cancelAndRealize: PureConc[E, Boolean] =
+      canceled0.tryPut[PureConc[E, *]](()) *> realizeCancelation
+
+    val join: PureConc[E, Outcome[PureConc[E, *], E, A]] = {
+      val Thread = ApplicativeThread[PureConc[E, *]]
+
+      withCtx { ctx =>
+        // this is exactly like Deferred#get
+        MVar.empty[PureConc[E, *], Option[Outcome[PureConc[E, *], E, A]]] flatMap { signal =>
+          // note we must read our *own* canceled, not the target fiber's
+          val left = Thread.start(ctx.self.awaitCancelation.ifM(signal.tryPut[PureConc[E, *]](None).void, Applicative[PureConc[E, *]].unit))
+          val right = Thread.start(state.read.flatMap(oc => signal.tryPut[PureConc[E, *]](Some(oc))))
+
+          left *> right *> signal.read[PureConc[E, *]].flatMap(_.map(_.pure[PureConc[E, *]]).getOrElse(Thread.done))
+        }
+      }
+    }
+
+    val cancel: PureConc[E, Unit] = canceled0.tryPut[PureConc[E, *]](()) *> join.void
   }
 }
