@@ -17,12 +17,10 @@
 package cats.effect
 package unsafe
 
-import scala.concurrent.ExecutionContext
-import scala.util.chaining._
+import cats.effect.Platform.static
 
 import java.util.concurrent.atomic.AtomicBoolean
-
-import Platform.static
+import scala.concurrent.ExecutionContext
 
 @annotation.implicitNotFound("""Could not find an implicit IORuntime.
 
@@ -58,7 +56,10 @@ final class IORuntime private[unsafe] (
   private[effect] val traceBufferLogSize: Int = config.traceBufferLogSize
 
   val shutdown: () => Unit =
-    (() => IORuntime.allRuntimes.remove(this, this.hashCode())).pipe(_ => defaultShutdown)
+    () => {
+      IORuntime.allRuntimes.remove(this, this.hashCode())
+      defaultShutdown()
+    }
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
