@@ -18,6 +18,7 @@ package cats.effect
 package unsafe
 
 import scala.concurrent.ExecutionContext
+import scala.util.chaining._
 
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -42,7 +43,7 @@ final class IORuntime private[unsafe] (
     val scheduler: Scheduler,
     private[effect] val pollers: List[Any],
     private[effect] val fiberMonitor: FiberMonitor,
-    val shutdown: () => Unit,
+    defaultShutdown: () => Unit,
     val config: IORuntimeConfig
 ) {
 
@@ -55,6 +56,9 @@ final class IORuntime private[unsafe] (
   private[effect] val autoYieldThreshold: Int = config.autoYieldThreshold
   private[effect] val enhancedExceptions: Boolean = config.enhancedExceptions
   private[effect] val traceBufferLogSize: Int = config.traceBufferLogSize
+
+  val shutdown: () => Unit =
+    (() => IORuntime.allRuntimes.remove(this, this.hashCode())).pipe(_ => defaultShutdown)
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
