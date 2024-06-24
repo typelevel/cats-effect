@@ -19,8 +19,9 @@ package unsafe
 
 import cats.effect.Platform.static
 
-import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.ExecutionContext
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 @annotation.implicitNotFound("""Could not find an implicit IORuntime.
 
