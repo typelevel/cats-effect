@@ -42,7 +42,7 @@ final class IORuntime private[unsafe] (
     val scheduler: Scheduler,
     private[effect] val pollers: List[Any],
     private[effect] val fiberMonitor: FiberMonitor,
-    defaultShutdown: () => Unit,
+    val shutdown: () => Unit,
     val config: IORuntimeConfig
 ) {
 
@@ -55,12 +55,6 @@ final class IORuntime private[unsafe] (
   private[effect] val autoYieldThreshold: Int = config.autoYieldThreshold
   private[effect] val enhancedExceptions: Boolean = config.enhancedExceptions
   private[effect] val traceBufferLogSize: Int = config.traceBufferLogSize
-
-  val shutdown: () => Unit =
-    () => {
-      IORuntime.allRuntimes.remove(this, this.hashCode())
-      defaultShutdown()
-    }
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
@@ -76,12 +70,13 @@ object IORuntime extends IORuntimeCompanionPlatform {
       config: IORuntimeConfig): IORuntime = {
     val fiberMonitor = FiberMonitor(compute)
     val unregister = registerFiberMonitorMBean(fiberMonitor)
-    val unregisterAndShutdown = () => {
+    def unregisterAndShutdown: () => Unit = () => {
       unregister()
       shutdown()
+      allRuntimes.remove(runtime, runtime.hashCode())
     }
 
-    val runtime =
+    lazy val runtime =
       new IORuntime(
         compute,
         blocking,
