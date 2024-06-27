@@ -17,11 +17,11 @@
 package cats.effect
 package unsafe
 
+import cats.effect.Platform.static
+
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.atomic.AtomicBoolean
-
-import Platform.static
 
 @annotation.implicitNotFound("""Could not find an implicit IORuntime.
 
@@ -70,12 +70,13 @@ object IORuntime extends IORuntimeCompanionPlatform {
       config: IORuntimeConfig): IORuntime = {
     val fiberMonitor = FiberMonitor(compute)
     val unregister = registerFiberMonitorMBean(fiberMonitor)
-    val unregisterAndShutdown = () => {
+    def unregisterAndShutdown: () => Unit = () => {
       unregister()
       shutdown()
+      allRuntimes.remove(runtime, runtime.hashCode())
     }
 
-    val runtime =
+    lazy val runtime =
       new IORuntime(
         compute,
         blocking,
