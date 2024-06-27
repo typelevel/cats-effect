@@ -70,7 +70,7 @@ object IORuntime extends IORuntimeCompanionPlatform {
       config: IORuntimeConfig): IORuntime = {
     val fiberMonitor = FiberMonitor(compute)
     val unregister = registerFiberMonitorMBean(fiberMonitor)
-    def unregisterAndShutdown(): Unit = {
+    def unregisterAndShutdown: () => Unit = () => {
       unregister()
       shutdown()
       allRuntimes.remove(runtime, runtime.hashCode())
