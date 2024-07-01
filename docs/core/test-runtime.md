@@ -59,25 +59,30 @@ This is *exactly* the sort of functionality for which `TestControl` was built to
 
 The first sort of test we will attempt to write comes in the form of a *complete* execution. This is generally the most common scenario, in which most of the power of `TestControl` is unnecessary and the only purpose to the mock runtime is to achieve deterministic and fast time:
 
-```scala
-test("retry at least 3 times until success") {
-  case object TestException extends RuntimeException
+```scala mdoc
+import munit.CatsEffectSuite
+import cats.effect.testkit.TestControl
 
-  var attempts = 0
-  val action = IO {
-    attempts += 1
+class TestSuite extends CatsEffectSuite {
+  test("retry at least 3 times until success") {
+    case object TestException extends RuntimeException
 
-    if (attempts != 3)
-      throw TestException
-    else
-      "success!"
+    var attempts = 0
+    val action = IO {
+      attempts += 1
+
+      if (attempts != 3)
+        throw TestException
+      else
+        "success!"
+    }
+
+    val program = Random.scalaUtilRandom[IO] flatMap { random =>
+      retry(action, 1.minute, 5, random)
+    }
+
+    TestControl.executeEmbed(program).assertEquals("success!")
   }
-
-  val program = Random.scalaUtilRandom[IO] flatMap { random =>
-    retry(action, 1.minute, 5, random)
-  }
-
-  TestControl.executeEmbed(program).assertEquals("success!")
 }
 ```
 
@@ -95,33 +100,38 @@ For more advanced cases, `executeEmbed` may not be enough to properly measure th
 
 Fortunately, `TestControl` provides a more general function, `execute`, which provides precisely the functionality needed to handle such cases:
 
-```scala
-test("backoff appropriately between attempts") {
-  case object TestException extends RuntimeException
+```scala mdoc:nest
+import cats.syntax.all._
+import cats.effect.Outcome
 
-  val action = IO.raiseError(TestException)
-  val program = Random.scalaUtilRandom[IO] flatMap { random =>
-    retry(action, 1.minute, 5, random)
-  }
+class TestSuite extends CatsEffectSuite {
+  test("backoff appropriately between attempts") {
+    case object TestException extends RuntimeException
 
-  TestControl.execute(program) flatMap { control =>
-    for {
-      _ <- control.results.assertEquals(None)
-      _ <- control.tick
+    val action = IO.raiseError(TestException)
+    val program = Random.scalaUtilRandom[IO] flatMap { random =>
+      retry(action, 1.minute, 5, random)
+    }
 
-      _ <- 0.until(4) traverse { i =>
-        for {
-          _ <- control.results.assertEquals(None)
+    TestControl.execute(program) flatMap { control: TestControl[Random[IO]] =>
+      for {
+        _ <- control.results.assertEquals(None)
+        _ <- control.tick
 
-          interval <- control.nextInterval
-          _ <- IO(assert(interval >= 0.nanos))
-          _ <- IO(assert(interval < (1 << i).minute))
-          _ <- control.advanceAndTick(interval)
-        } yield ()
-      }
+        _ <- List.range(0, 4) traverse { i =>
+          for {
+            _ <- control.results.assertEquals(None)
 
-      _ <- control.results.assertEquals(Some(Outcome.failed(TestException)))
-    } yield ()
+            interval <- control.nextInterval
+            _ <- IO(assert(interval >= 0.nanos))
+            _ <- IO(assert(interval < (1 << i).minute))
+            _ <- control.advanceAndTick(interval)
+          } yield ()
+        }
+
+        _ <- control.results.assertEquals(Some(Outcome.errored[cats.Id, Throwable, Random[IO]](TestException)))
+      } yield ()
+    }
   }
 }
 ```
@@ -172,12 +182,17 @@ We finally have `results`, since the `program` will have terminated with an exce
 
 As you might now expect, `executeEmbed` is actually implemented in terms of `execute`:
 
-```scala
+```scala mdoc
+import cats.effect.unsafe.IORuntimeConfig
+import cats.{Id, ~>}
+import scala.concurrent.CancellationException
+import TestControl.NonTerminationException 
+
 def executeEmbed[A](
     program: IO[A],
     config: IORuntimeConfig = IORuntimeConfig(),
     seed: Option[String] = None): IO[A] =
-  execute(program, config = config, seed = seed) flatMap { c =>
+  TestControl.execute(program, config = config, seed = seed) flatMap { c =>
     val nt = new (Id ~> IO) { def apply[E](e: E) = IO.pure(e) }
 
     val onCancel = IO.defer(IO.raiseError(new CancellationException()))
@@ -196,7 +211,7 @@ It is very important to remember that `TestControl` is a *mock* runtime, and thu
 
 To give an intuition for the type of program which behaves strangely under `TestControl`, consider the following pathological example:
 
-```scala
+```scala mdoc
 IO.cede.foreverM.start flatMap { fiber =>
   IO.sleep(1.second) *> fiber.cancel
 }
@@ -208,23 +223,25 @@ Under `TestControl`, this program will execute forever and never terminate. What
 
 Another common pitfall with `TestControl` is the fact that you need to be careful to *not* advance time *before* a `IO.sleep` happens! Or rather, you are perfectly free to do this, but it probably won't do what you think it will do. Consider the following:
 
-```scala
+```scala mdoc
+import munit.CatsEffectAssertions._
+
 TestControl.execute(IO.sleep(1.second) >> IO.realTime) flatMap { control =>
   for {
     _ <- control.advanceAndTick(1.second)
-    _ <- control.results.assertEquals(Some(Outcome.succeeded(1.second)))
+    _ <- control.results.assertEquals(Some(Outcome.succeeded[Id, Throwable, FiniteDuration](1.second)))
   } yield ()
 }
 ```
 
 The above is very intuitive! Unfortunately, it is also wrong. The problem becomes a little clearer if we desugar `advanceAndTick`:
 
-```scala
+```scala mdoc
 TestControl.execute(IO.sleep(1.second) >> IO.realTime) flatMap { control =>
   for {
     _ <- control.advance(1.second)
     _ <- control.tick
-    _ <- control.results.assertEquals(Some(Outcome.succeeded(1.second)))
+    _ <- control.results.assertEquals(Some(Outcome.succeeded[Id, Throwable, FiniteDuration](1.second)))
   } yield ()
 }
 ```
@@ -233,13 +250,13 @@ We're instructing `TestControl` to advance the clock *before* we `sleep`, and th
 
 The solution is to add an additional `tick` to execute the "beginning" of the program (from the start up until the `sleep`(s)):
 
-```scala
+```scala mdoc
 TestControl.execute(IO.sleep(1.second) >> IO.realTime) flatMap { control =>
   for {
     _ <- control.tick
     _ <- control.advance(1.second)
     _ <- control.tick
-    _ <- control.results.assertEquals(Some(Outcome.succeeded(1.second)))
+    _ <- control.results.assertEquals(Some(Outcome.succeeded[Id, Throwable, FiniteDuration](1.second)))
   } yield ()
 }
 ```
