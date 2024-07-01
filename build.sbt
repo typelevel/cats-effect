@@ -1099,6 +1099,9 @@ lazy val benchmarks = project
 
 lazy val docs = project
   .in(file("site-docs"))
-  .dependsOn(core.jvm)
+  .dependsOn(core.jvm, testkit.jvm)
   .enablePlugins(MdocPlugin)
+  .settings(
+    libraryDependencies += "org.typelevel" %% "munit-cats-effect" % "2.0.0"
+  )
   .settings(tlFatalWarnings := { if (tlIsScala3.value) false else tlFatalWarnings.value })
