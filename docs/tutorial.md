@@ -689,7 +689,7 @@ running its `queueR.getAndUpdate` call than the consumer is running its
 update the `queueR` content.
 
 Can we alleviate this? Sure! There are a few options you can implement:
-1. Making the producer artifically slower by introducing a call to `Async[F].sleep`
+1. Making the producer artificially slower by introducing a call to `Async[F].sleep`
    (_e.g._ for 1 microsecond). Truth is, in real world scenarios a producer will
    not be as fast as in our example so this tweak is not that 'strange'. Note that
    to be able to use `sleep` now `F` requires an implicit `Async[F]` instance. The

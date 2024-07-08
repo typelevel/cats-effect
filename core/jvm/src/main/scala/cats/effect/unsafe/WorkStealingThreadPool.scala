@@ -424,7 +424,7 @@ private[effect] final class WorkStealingThreadPool[P](
    * Updates the internal state to mark the given worker thread as parked.
    *
    * @note
-   *   This method is intentionally duplicated, to accomodate the unconditional code paths in
+   *   This method is intentionally duplicated, to accommodate the unconditional code paths in
    *   the [[WorkerThread]] runloop.
    */
   private[unsafe] def transitionWorkerToParked(): Unit = {
