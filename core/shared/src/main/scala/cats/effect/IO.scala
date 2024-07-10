@@ -1354,7 +1354,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * }
    * }}}
    *
-   * Note that `async` is uncancelable during its registration.
+   * @note
+   *   `async` is always uncancelable during its registration. The created effect will be
+   *   uncancelable during its execution if the registration callback provides no finalizer
+   *   (i.e. evaluates to `None`). If you need the created task to be cancelable, return a
+   *   finalizer effect upon the registration. In a rare case when there's nothing to finalize,
+   *   you can return `Some(IO.unit)` for that.
    *
    * @see
    *   [[async_]] for a simplified variant without a finalizer
@@ -1407,7 +1412,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * This function can be thought of as a safer, lexically-constrained version of `Promise`,
    * where `IO` is like a safer, lazy version of `Future`.
    *
-   * Also, note that `async` is uncancelable during its registration.
+   * @note
+   *   `async_` is uncancelable during both its registration and execution. If you need an
+   *   asyncronous effect to be cancelable, consider using `async` instead.
    *
    * @see
    *   [[async]] for more generic version providing a finalizer
@@ -1425,6 +1432,24 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     IOCont(body, Tracing.calculateTracingEvent(k))
   }
 
+  /**
+   * An effect that requests self-cancelation on the current fiber.
+   *
+   * `canceled` has a return type of `IO[Unit]` instead of `IO[Nothing]` due to execution
+   * continuing in a masked region. In the following example, the fiber requests
+   * self-cancelation in a masked region, so cancelation is suppressed until the fiber is
+   * completely unmasked. `fa` will run but `fb` will not. If `canceled` had a return type of
+   * `IO[Nothing]`, then it would not be possible to continue execution to `fa` (there would be
+   * no `Nothing` value to pass to the `flatMap`).
+   *
+   * {{{
+   *
+   *   IO.uncancelable { _ =>
+   *     IO.canceled *> fa
+   *   } *> fb
+   *
+   * }}}
+   */
   def canceled: IO[Unit] = Canceled
 
   /**
