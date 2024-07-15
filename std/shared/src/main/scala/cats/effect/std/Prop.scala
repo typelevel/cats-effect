@@ -128,7 +128,7 @@ object Prop {
       F.delay(Option(System.getProperty(key))) // thread-safe
 
     def set(key: String, value: String): F[Unit] =
-      F.void(F.delay(System.setProperty(key, value)))
+      F.void(F.blocking(System.setProperty(key, value)))
 
     def unset(key: String): F[Unit] = F.void(F.delay(System.clearProperty(key)))
 
