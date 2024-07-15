@@ -134,9 +134,13 @@ object Prop {
 
     @nowarn213("cat=deprecation")
     @nowarn3("cat=deprecation")
-    def entries: F[Map[String, String]] = {
-      import scala.collection.JavaConverters._
-      F.delay(Map.empty ++ System.getProperties().asScala)
-    }
+    def entries: F[Map[String, String]] =
+      F.blocking {
+        import scala.collection.JavaConverters._
+        val props = System.getProperties
+        val back = new java.util.HashMap[String, String](props.size())
+        props.putAll(back)
+        Map.empty ++ back.asScala
+      }
   }
 }
