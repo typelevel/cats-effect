@@ -131,7 +131,7 @@ import cats.syntax.all._
  *
  * {{{
  *
- *   // Starts a fiber that continously prints "A".
+ *   // Starts a fiber that continuously prints "A".
  *   // After 10 seconds, the resource scope exits so the fiber is canceled.
  *   F.background(F.delay(println("A")).foreverM).use { _ =>
  *     F.sleep(10.seconds)
@@ -202,7 +202,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *
    * {{{
    *
-   *   // Starts a fiber that continously prints "A".
+   *   // Starts a fiber that continuously prints "A".
    *   // After 10 seconds, the resource scope exits so the fiber is canceled.
    *   F.background(F.delay(println("A")).foreverM).use { _ =>
    *     F.sleep(10.seconds)

@@ -603,7 +603,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       "propagate the exit case" in {
         import Resource.ExitCase
 
-        "use succesfully, test left" >> ticked { implicit ticker =>
+        "use successfully, test left" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
           r.both(Resource.unit).use(_ => IO.unit) must completeAs(())
@@ -725,7 +725,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       "propagate the exit case" in {
         import Resource.ExitCase
 
-        "use succesfully, test left" >> ticked { implicit ticker =>
+        "use successfully, test left" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
           r.combineK(Resource.unit).use(_ => IO.unit) must completeAs(())

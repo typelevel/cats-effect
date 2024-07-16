@@ -117,7 +117,12 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * The effect returns `Option[F[Unit]]` which is an optional finalizer to be run in the event
    * that the fiber running `async(k)` is canceled.
    *
-   * Also, note that `async` is uncancelable during its registration.
+   * @note
+   *   `async` is always uncancelable during its registration. The created effect will be
+   *   uncancelable during its execution if the registration callback provides no finalizer
+   *   (i.e. evaluates to `None`). If you need the created task to be cancelable, return a
+   *   finalizer effect upon the registration. In a rare case when there's nothing to finalize,
+   *   you can return `Some(F.unit)` for that.
    *
    * @see
    *   [[async_]] for a simplified variant without a finalizer
@@ -139,7 +144,9 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * This function can be thought of as a safer, lexically-constrained version of `Promise`,
    * where `IO` is like a safer, lazy version of `Future`.
    *
-   * Also, note that `async_` is uncancelable during its registration.
+   * @note
+   *   `async_` is uncancelable during both its registration and execution. If you need an
+   *   asyncronous effect to be cancelable, consider using `async` instead.
    *
    * @see
    *   [[async]] for more generic version providing a finalizer

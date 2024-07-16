@@ -577,7 +577,7 @@ private final class WorkerThread[P](
             // The dequeued element was a batch of fibers. Enqueue the whole
             // batch on the local queue and execute the first fiber.
 
-            // Make room for the batch if the local queue cannot accomodate
+            // Make room for the batch if the local queue cannot accommodate
             // all of the fibers as is.
             queue.drainBatch(external, rnd)
 
