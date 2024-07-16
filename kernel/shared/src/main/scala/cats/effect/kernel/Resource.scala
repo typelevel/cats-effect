@@ -763,7 +763,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
       val fa2 = F.uncancelable { poll =>
         poll(allocatedCase).flatMap { case (a, r) => release.update(r :: _).as(a) }
       }
-      Resource.makeCaseFull[F, F[B]](poll => poll(F.memoize(fa2).map(_.widen))) { (_, exit) =>
+      Resource.makeCaseFull[F, F[B]](poll => poll(F.memoize(fa2)).map(_.widen)) { (_, exit) =>
         release.get.flatMap(_.foldMapM(_(exit)))
       }
     }
