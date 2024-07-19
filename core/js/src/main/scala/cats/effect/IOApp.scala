@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.metrics.{CpuStarvationWarningMetrics, JsCpuStarvationMetrics}
+import cats.effect.metrics.CpuStarvationWarningMetrics
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
 
@@ -260,7 +260,7 @@ trait IOApp {
     val fiber = Spawn[IO]
       .raceOutcome[ExitCode, Nothing](
         CpuStarvationCheck
-          .run(runtimeConfig, JsCpuStarvationMetrics(), onCpuStarvationWarn)
+          .run(runtimeConfig, runtime.metrics.cpuStarvationSampler, onCpuStarvationWarn)
           .background
           .surround(run(argList)),
         keepAlive)

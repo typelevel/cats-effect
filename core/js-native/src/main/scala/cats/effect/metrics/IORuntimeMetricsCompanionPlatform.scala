@@ -14,25 +14,17 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect.metrics
 
-import cats.effect.BaseSpec
+private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
+  this: IORuntimeMetrics.type =>
 
-class IORuntimeSpec extends BaseSpec {
+  private[effect] def apply(): IORuntimeMetrics =
+    new IORuntimeMetrics {
+      private[effect] val cpuStarvationSampler: CpuStarvationSampler =
+        CpuStarvationSampler()
 
-  "IORuntimeSpec" should {
-    "cleanup allRuntimes collection on shutdown" in {
-      val (defaultScheduler, closeScheduler) = Scheduler.createDefaultScheduler()
-
-      val runtime = IORuntime(null, null, defaultScheduler, closeScheduler, IORuntimeConfig())
-
-      IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime) must beEqualTo(Some(runtime))
-
-      val _ = runtime.shutdown()
-
-      IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime) must beEqualTo(None)
+      val cpuStarvation: CpuStarvationMetrics =
+        CpuStarvationMetrics(cpuStarvationSampler)
     }
-
-  }
-
 }

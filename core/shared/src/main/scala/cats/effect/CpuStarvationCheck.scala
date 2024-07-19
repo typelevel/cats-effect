@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.metrics.{CpuStarvationMetrics, CpuStarvationWarningMetrics}
+import cats.effect.metrics.{CpuStarvationSampler, CpuStarvationWarningMetrics}
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
@@ -27,7 +27,7 @@ private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
 
   def run(
       runtimeConfig: IORuntimeConfig,
-      metrics: CpuStarvationMetrics,
+      sampler: CpuStarvationSampler,
       onCpuStarvationWarn: CpuStarvationWarningMetrics => IO[Unit]): IO[Nothing] = {
     import runtimeConfig._
 
@@ -37,7 +37,7 @@ private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
       IO.sleep(cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
         val delta = now - initial
 
-        metrics.recordClockDrift(delta - cpuStarvationCheckInterval) >>
+        sampler.recordClockDrift(delta - cpuStarvationCheckInterval) >>
           IO.realTime
             .flatMap(fd =>
               (onCpuStarvationWarn(
@@ -45,7 +45,7 @@ private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
                   fd,
                   delta - cpuStarvationCheckInterval,
                   cpuStarvationCheckThreshold,
-                  cpuStarvationCheckInterval)) *> metrics.incCpuStarvationCount)
+                  cpuStarvationCheckInterval)) *> sampler.incCpuStarvationCount)
                 .whenA(delta >= threshold)) >> go(now)
       }
 

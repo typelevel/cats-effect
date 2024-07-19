@@ -16,16 +16,23 @@
 
 package cats.effect.metrics
 
-import cats.effect.IO
+/**
+ * The runtime-specific metrics.
+ */
+trait IORuntimeMetrics extends IORuntimeMetricsPlatform {
 
-import scala.concurrent.duration.FiniteDuration
+  /**
+   * Returns starvation-specific metrics.
+   *
+   * @example
+   *   {{{
+   * val runtime: IORuntime = ???
+   * val maxDrift = runtime.metrics.cpuStarvation.clockDriftMax()
+   *   }}}
+   */
+  def cpuStarvation: CpuStarvationMetrics
 
-private[effect] class JsCpuStarvationMetrics extends CpuStarvationMetrics {
-  override def incCpuStarvationCount: IO[Unit] = IO.unit
-
-  override def recordClockDrift(drift: FiniteDuration): IO[Unit] = IO.unit
+  private[effect] def cpuStarvationSampler: CpuStarvationSampler
 }
 
-private[effect] object JsCpuStarvationMetrics {
-  private[effect] def apply(): CpuStarvationMetrics = new JsCpuStarvationMetrics
-}
+object IORuntimeMetrics extends IORuntimeMetricsCompanionPlatform

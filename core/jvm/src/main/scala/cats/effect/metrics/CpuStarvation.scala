@@ -16,42 +16,15 @@
 
 package cats.effect.metrics
 
-import cats.effect.IO
+private final class CpuStarvation(sampler: CpuStarvationSampler) extends CpuStarvationMBean {
+  def getCpuStarvationCount(): Long =
+    sampler.cpuStarvationCount()
 
-import scala.concurrent.duration.FiniteDuration
+  def getMaxClockDriftMs(): Long =
+    sampler.clockDriftMaxMs()
 
-import java.util.concurrent.atomic.AtomicLong
-
-private[metrics] class CpuStarvation private (
-    counter: AtomicLong,
-    currentClockDrift: AtomicLong,
-    maxClockDrift: AtomicLong)
-    extends CpuStarvationMBean {
-
-  override def getCpuStarvationCount(): Long = counter.get()
-
-  override def getMaxClockDriftMs(): Long = maxClockDrift.get()
-
-  override def getCurrentClockDriftMs(): Long = currentClockDrift.get()
-
-  def incStarvationCount: IO[Unit] = IO.delay(counter.incrementAndGet()).void
-
-  def recordDrift(drift: FiniteDuration): IO[Unit] = {
-    val driftMs = drift.toMillis
-
-    val maxDrift =
-      if (driftMs > 0) IO.delay(maxClockDrift.updateAndGet(math.max(_, driftMs))).void
-      else IO.unit
-
-    IO.delay(currentClockDrift.set(driftMs)) >> maxDrift
-  }
-
+  def getCurrentClockDriftMs(): Long =
+    sampler.clockDriftCurrentMs()
 }
 
-private[metrics] object CpuStarvation {
-  private[metrics] def apply(): IO[CpuStarvation] = for {
-    counter <- IO.delay(new AtomicLong(0))
-    currentClockDrift <- IO.delay(new AtomicLong(0))
-    maxClockDrift <- IO.delay(new AtomicLong(0))
-  } yield new CpuStarvation(counter, currentClockDrift, maxClockDrift)
-}
+private object CpuStarvation

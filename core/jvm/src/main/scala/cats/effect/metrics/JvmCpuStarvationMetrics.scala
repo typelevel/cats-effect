@@ -18,20 +18,12 @@ package cats.effect.metrics
 
 import cats.effect.{IO, Resource}
 import cats.effect.std.Console
-
-import scala.concurrent.duration.FiniteDuration
+import cats.syntax.functor._
 
 import java.io.{PrintWriter, StringWriter}
 import java.lang.management.ManagementFactory
 
 import javax.management.{MBeanServer, ObjectName}
-
-private[effect] class JvmCpuStarvationMetrics private (mbean: CpuStarvation)
-    extends CpuStarvationMetrics {
-  override def incCpuStarvationCount: IO[Unit] = mbean.incStarvationCount
-
-  override def recordClockDrift(drift: FiniteDuration): IO[Unit] = mbean.recordDrift(drift)
-}
 
 private[effect] object JvmCpuStarvationMetrics {
   private[this] val mBeanObjectName = new ObjectName("cats.effect.metrics:type=CpuStarvation")
@@ -46,28 +38,18 @@ private[effect] object JvmCpuStarvationMetrics {
        |""".stripMargin
   }
 
-  private[this] class NoOpCpuStarvationMetrics extends CpuStarvationMetrics {
-    override def incCpuStarvationCount: IO[Unit] = IO.unit
-
-    override def recordClockDrift(drift: FiniteDuration): IO[Unit] = IO.unit
-  }
-
-  private[effect] def apply(): Resource[IO, CpuStarvationMetrics] = {
-    val acquire: IO[(MBeanServer, JvmCpuStarvationMetrics)] = for {
+  private[effect] def apply(metrics: CpuStarvationSampler): Resource[IO, Unit] = {
+    val acquire: IO[MBeanServer] = for {
       mBeanServer <- IO.delay(ManagementFactory.getPlatformMBeanServer)
-      mBean <- CpuStarvation()
+      mBean <- IO.pure(new CpuStarvation(metrics))
       // To allow user-defined program to use the compute pool from the beginning,
       // here we use `IO.delay` rather than `IO.blocking`.
       _ <- IO.delay(mBeanServer.registerMBean(mBean, mBeanObjectName))
-    } yield (mBeanServer, new JvmCpuStarvationMetrics(mBean))
+    } yield mBeanServer
 
     Resource
-      .make(acquire) {
-        case (mbeanServer, _) => IO.blocking(mbeanServer.unregisterMBean(mBeanObjectName))
-      }
-      .map(_._2)
-      .handleErrorWith[CpuStarvationMetrics, Throwable] { th =>
-        Resource.eval(Console[IO].errorln(warning(th))).map(_ => new NoOpCpuStarvationMetrics)
-      }
+      .make(acquire)(mbeanServer => IO.blocking(mbeanServer.unregisterMBean(mBeanObjectName)))
+      .void
+      .handleErrorWith[Unit, Throwable](th => Resource.eval(Console[IO].errorln(warning(th))))
   }
 }

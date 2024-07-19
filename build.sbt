@@ -676,7 +676,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.unsafe.IORuntimeBuilder.this"),
       // introduced by #3695, which enabled fiber dumps on native
       ProblemFilters.exclude[MissingClassProblem](
-        "cats.effect.unsafe.FiberMonitorCompanionPlatform")
+        "cats.effect.unsafe.FiberMonitorCompanionPlatform"),
+      // internal API change, makes CpuStarvationMetrics available on all platforms
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.JvmCpuStarvationMetrics$NoOpCpuStarvationMetrics")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -843,7 +846,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[Problem]("cats.effect.CallbackStackOps.*"),
         // introduced by #3695, which ported fiber monitoring to Native
         // internal API change
-        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.ES2021FiberMonitor")
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.ES2021FiberMonitor"),
+        // internal API change, makes CpuStarvationMetrics available on all platforms
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.metrics.JsCpuStarvationMetrics"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.metrics.JsCpuStarvationMetrics$")
       )
     },
     mimaBinaryIssueFilters ++= {
@@ -878,7 +886,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem](
         "cats.effect.unsafe.PollingExecutorScheduler$SleepTask"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler$"),
+      // internal API change, makes CpuStarvationMetrics available on all platforms
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.NativeCpuStarvationMetrics"),
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.metrics.NativeCpuStarvationMetrics$")
     )
   )
 

@@ -16,12 +16,47 @@
 
 package cats.effect.metrics
 
-import cats.effect.IO
+import scala.concurrent.duration._
 
-import scala.concurrent.duration.FiniteDuration
+sealed trait CpuStarvationMetrics {
 
-private[effect] trait CpuStarvationMetrics {
-  def incCpuStarvationCount: IO[Unit]
+  /**
+   * Returns the current number of times CPU starvation has occurred.
+   *
+   * @note
+   *   the value may differ between invocations
+   */
+  def starvationCount(): Long
 
-  def recordClockDrift(drift: FiniteDuration): IO[Unit]
+  /**
+   * Returns the current (last) observed clock drift.
+   *
+   * @note
+   *   the value may differ between invocations
+   */
+  def clockDriftCurrent(): FiniteDuration
+
+  /**
+   * Returns the maximum clock drift observed since the launch.
+   *
+   * @note
+   *   the value may differ between invocations
+   */
+  def clockDriftMax(): FiniteDuration
+}
+
+object CpuStarvationMetrics {
+
+  private[metrics] def apply(sampler: CpuStarvationSampler): CpuStarvationMetrics =
+    new CpuStarvationMetrics {
+      def starvationCount(): Long =
+        sampler.cpuStarvationCount()
+
+      def clockDriftCurrent(): FiniteDuration =
+        sampler.clockDriftCurrentMs().millis
+
+      def clockDriftMax(): FiniteDuration =
+        sampler.clockDriftMaxMs().millis
+    }
+
 }
