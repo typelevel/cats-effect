@@ -45,3 +45,19 @@ private[metrics] trait CpuStarvationMBean {
    */
   def getCurrentClockDriftMs(): Long
 }
+
+private[metrics] object CpuStarvationMBean {
+
+  private[metrics] def apply(metrics: CpuStarvationSampler): CpuStarvationMBean =
+    new CpuStarvationMBean {
+      def getCpuStarvationCount(): Long =
+        metrics.cpuStarvationCount()
+
+      def getMaxClockDriftMs(): Long =
+        metrics.clockDriftMaxMs()
+
+      def getCurrentClockDriftMs(): Long =
+        metrics.clockDriftCurrentMs()
+    }
+
+}

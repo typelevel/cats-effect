@@ -14,25 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect.metrics
 
-import cats.effect.BaseSpec
+private[metrics] trait IORuntimeMetricsPlatform { this: IORuntimeMetrics =>
 
-class IORuntimeSpec extends BaseSpec {
-
-  "IORuntimeSpec" should {
-    "cleanup allRuntimes collection on shutdown" in {
-      val (defaultScheduler, closeScheduler) = Scheduler.createDefaultScheduler()
-
-      val runtime = IORuntime(null, null, defaultScheduler, closeScheduler, IORuntimeConfig())
-
-      IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime) must beEqualTo(Some(runtime))
-
-      val _ = runtime.shutdown()
-
-      IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime) must beEqualTo(None)
-    }
-
-  }
+  def workStealingThreadPool: Option[WorkStealingPoolMetrics]
 
 }

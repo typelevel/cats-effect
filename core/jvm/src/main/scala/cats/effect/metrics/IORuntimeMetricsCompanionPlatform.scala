@@ -14,25 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect.metrics
 
-import cats.effect.BaseSpec
+import scala.concurrent.ExecutionContext
 
-class IORuntimeSpec extends BaseSpec {
+private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
+  this: IORuntimeMetrics.type =>
 
-  "IORuntimeSpec" should {
-    "cleanup allRuntimes collection on shutdown" in {
-      val (defaultScheduler, closeScheduler) = Scheduler.createDefaultScheduler()
+  private[effect] def apply(ec: ExecutionContext): IORuntimeMetrics =
+    new IORuntimeMetrics {
+      private[effect] val cpuStarvationSampler: CpuStarvationSampler =
+        CpuStarvationSampler()
 
-      val runtime = IORuntime(null, null, defaultScheduler, closeScheduler, IORuntimeConfig())
+      val cpuStarvation: CpuStarvationMetrics =
+        CpuStarvationMetrics(cpuStarvationSampler)
 
-      IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime) must beEqualTo(Some(runtime))
-
-      val _ = runtime.shutdown()
-
-      IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime) must beEqualTo(None)
+      val workStealingThreadPool: Option[WorkStealingPoolMetrics] =
+        WorkStealingPoolMetrics(ec)
     }
-
-  }
 
 }

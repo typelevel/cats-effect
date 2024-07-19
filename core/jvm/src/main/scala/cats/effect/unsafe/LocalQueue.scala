@@ -119,7 +119,7 @@ import java.util.concurrent.ThreadLocalRandom
  * `Unsafe`. And `Unsafe` is only really needed on JVM 8. JVM 9+ introduce much richer and
  * better APIs and tools for building high-performance concurrent systems (e.g. `VarHandle`).
  */
-private final class LocalQueue extends LocalQueuePadding {
+private[effect] final class LocalQueue extends LocalQueuePadding {
 
   import LocalQueueConstants._
   import TracingConstants._

@@ -80,7 +80,7 @@ private[effect] final class WorkStealingThreadPool[P](
    * References to worker threads and their local queues.
    */
   private[this] val workerThreads: Array[WorkerThread[P]] = new Array(threadCount)
-  private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
+  private[effect] val localQueues: Array[LocalQueue] = new Array(threadCount)
   private[unsafe] val sleepers: Array[TimerHeap] = new Array(threadCount)
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
@@ -769,7 +769,7 @@ private[effect] final class WorkStealingThreadPool[P](
    * @return
    *   the number of worker threads backing the compute pool
    */
-  private[unsafe] def getWorkerThreadCount(): Int =
+  private[effect] def getWorkerThreadCount(): Int =
     threadCount
 
   /**
@@ -779,7 +779,7 @@ private[effect] final class WorkStealingThreadPool[P](
    * @return
    *   the number of active worker threads
    */
-  private[unsafe] def getActiveThreadCount(): Int = {
+  private[effect] def getActiveThreadCount(): Int = {
     val st = state.get()
     (st & UnparkMask) >>> UnparkShift
   }
@@ -791,7 +791,7 @@ private[effect] final class WorkStealingThreadPool[P](
    * @return
    *   the number of worker threads searching for work
    */
-  private[unsafe] def getSearchingThreadCount(): Int = {
+  private[effect] def getSearchingThreadCount(): Int = {
     val st = state.get()
     st & SearchMask
   }
@@ -803,7 +803,7 @@ private[effect] final class WorkStealingThreadPool[P](
    * @return
    *   the number of blocked worker threads
    */
-  private[unsafe] def getBlockedWorkerThreadCount(): Int =
+  private[effect] def getBlockedWorkerThreadCount(): Int =
     blockedWorkerThreadCounter.get()
 
   /**
@@ -812,7 +812,7 @@ private[effect] final class WorkStealingThreadPool[P](
    * @return
    *   the total number of fibers enqueued on all local queues
    */
-  private[unsafe] def getLocalQueueFiberCount(): Long =
+  private[effect] def getLocalQueueFiberCount(): Long =
     localQueues.map(_.size().toLong).sum
 
   /**
@@ -825,7 +825,7 @@ private[effect] final class WorkStealingThreadPool[P](
    * @return
    *   the number of asynchronously suspended fibers
    */
-  private[unsafe] def getSuspendedFiberCount(): Long =
+  private[effect] def getSuspendedFiberCount(): Long =
     workerThreads.map(_.getSuspendedFiberCount().toLong).sum
 }
 

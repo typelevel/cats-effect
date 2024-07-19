@@ -16,16 +16,19 @@
 
 package cats.effect.metrics
 
-import cats.effect.IO
+import scala.concurrent.ExecutionContext
 
-import scala.concurrent.duration.FiniteDuration
+private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
+  this: IORuntimeMetrics.type =>
 
-private[effect] class JsCpuStarvationMetrics extends CpuStarvationMetrics {
-  override def incCpuStarvationCount: IO[Unit] = IO.unit
+  private[effect] def apply(ec: ExecutionContext): IORuntimeMetrics = {
+    val _ = ec
+    new IORuntimeMetrics {
+      private[effect] val cpuStarvationSampler: CpuStarvationSampler =
+        CpuStarvationSampler()
 
-  override def recordClockDrift(drift: FiniteDuration): IO[Unit] = IO.unit
-}
-
-private[effect] object JsCpuStarvationMetrics {
-  private[effect] def apply(): CpuStarvationMetrics = new JsCpuStarvationMetrics
+      val cpuStarvation: CpuStarvationMetrics =
+        CpuStarvationMetrics(cpuStarvationSampler)
+    }
+  }
 }
