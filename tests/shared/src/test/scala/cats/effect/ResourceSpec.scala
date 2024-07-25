@@ -1172,30 +1172,31 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    "does not leak if canceled right after delayed acquire is canceled" in ticked { implicit ticker =>
-      (IO(new AtomicBoolean), IO.ref(false), IO.ref(false)).flatMapN { (acquired, used, released) =>
-        val go = for {
-          fiber <- Resource
-            .eval(IO(acquired.set(true)))
-            .memoizedAcquire
-            .use(_ *> used.set(true))
-            .start
-          _ <- IO.cede.untilM_(IO(acquired.get))
-          _ <- fiber.cancel
-          _ <- fiber.join
-        } yield ()
-        TestControl
-          .executeEmbed(go, IORuntimeConfig(1, 2))
-          .flatMap { _ =>
-            for {
-              acquireRun <- IO(acquired.get)
-              useRun <- used.get
-              releaseRun <- released.get
-            } yield acquireRun && releaseRun
-          }
-          .replicateA(1000)
-          .map(_.forall(identity(_)))
-      } must completeAs(true)
+    "does not leak if canceled right after delayed acquire is canceled" in ticked {
+      implicit ticker =>
+        (IO(new AtomicBoolean), IO.ref(false), IO.ref(false)).flatMapN {
+          (acquired, used, released) =>
+            val go = for {
+              fiber <- Resource
+                .make(IO(acquired.set(true)))(_ => released.set(true))
+                .memoizedAcquire
+                .use(_ *> used.set(true))
+                .start
+              _ <- IO.cede.untilM_(IO(acquired.get))
+              _ <- fiber.cancel
+            } yield ()
+            TestControl
+              .executeEmbed(go, IORuntimeConfig(1, 2))
+              .flatMap { _ =>
+                for {
+                  acquireRun <- IO(acquired.get)
+                  useRun <- used.get
+                  releaseRun <- released.get
+                } yield acquireRun && releaseRun
+              }
+              .replicateA(1000)
+              .map(_.forall(identity(_)))
+        } must completeAs(true)
     }
   }
 
