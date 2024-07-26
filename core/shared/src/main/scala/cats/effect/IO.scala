@@ -44,6 +44,7 @@ import cats.effect.std.{
   Backpressure,
   Console,
   Env,
+  Retry,
   SecureRandom,
   Supervisor,
   SystemProperties,
@@ -645,6 +646,45 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     (OutcomeIO[A @uncheckedVariance], FiberIO[B]),
     (FiberIO[A @uncheckedVariance], OutcomeIO[B])]] =
     IO.racePair(this, that)
+
+  /**
+   * Evaluates the current IO with the given retry `policy`.
+   *
+   * @example
+   *   {{{
+   * val policy = Retry.exponentialBackoff[IO, Throwable](1.second).withMaxRetries(10)
+   * io.retry(policy)
+   *   }}}
+   *
+   * @param policy
+   *   the policy to use
+   */
+  def retry(policy: Retry[IO, Throwable]): IO[A] =
+    Retry.retry(policy)(this)
+
+  /**
+   * Evaluates the current IO with the given retry `policy`.
+   *
+   * @example
+   *   {{{
+   * val policy = Retry.exponentialBackoff[IO, Throwable](1.second).withMaxRetries(10)
+   * io.retry(
+   *   policy,
+   *   (status, err, decision) => IO.println(s"Attempt $${status.retriesTotal}, error: $${err.getMessage}, next: $$decision")
+   * )
+   *   }}}
+   *
+   * @param policy
+   *   the policy to use
+   *
+   * @param onRetry
+   *   the effect to invoke on every retry decision
+   */
+  def retry(
+      policy: Retry[IO, Throwable],
+      onRetry: (Retry.Status, Throwable, Retry.Decision) => IO[Unit]
+  ): IO[A] =
+    Retry.retry(policy, onRetry)(this)
 
   /**
    * Inverse of `attempt`

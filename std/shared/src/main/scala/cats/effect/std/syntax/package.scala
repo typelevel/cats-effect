@@ -22,4 +22,6 @@ package object syntax {
 
   object supervisor extends SupervisorSyntax
 
+  object retry extends RetrySyntax
+
 }
