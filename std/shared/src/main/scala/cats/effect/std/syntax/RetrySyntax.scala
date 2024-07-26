@@ -14,14 +14,25 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect.std.syntax
 
-package object syntax {
+import cats.effect.kernel.GenTemporal
+import cats.effect.std.Retry
 
-  object all extends AllSyntax
+trait RetrySyntax {
+  implicit def retryOps[F[_], A](wrapped: F[A]): RetryOps[F, A] =
+    new RetryOps(wrapped)
+}
 
-  object supervisor extends SupervisorSyntax
+final class RetryOps[F[_], A] private[syntax] (private val fa: F[A]) extends AnyVal {
 
-  object retry extends RetrySyntax
+  def retry[E](policy: Retry[F, E])(implicit F: GenTemporal[F, E]): F[A] =
+    Retry.retry(policy)(fa)
+
+  def retry[E](
+      policy: Retry[F, E],
+      onRetry: (Retry.Status, E, Retry.Decision) => F[Unit]
+  )(implicit F: GenTemporal[F, E]): F[A] =
+    Retry.retry(policy, onRetry)(fa)
 
 }
