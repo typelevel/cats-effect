@@ -31,8 +31,8 @@ final class RetryOps[F[_], A] private[syntax] (private val fa: F[A]) extends Any
 
   def retry[E](
       policy: Retry[F, E],
-      onRetry: (Retry.Status, E, Retry.Decision) => F[Unit]
+      onError: (Retry.Status, E, Retry.Decision) => F[Unit]
   )(implicit F: GenTemporal[F, E]): F[A] =
-    Retry.retry(policy, onRetry)(fa)
+    Retry.retry(policy, onError)(fa)
 
 }
