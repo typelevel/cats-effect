@@ -19,6 +19,7 @@ package cats.effect.std
 import cats.{Hash, Show}
 import cats.effect.{BaseSpec, IO, Ref}
 import cats.syntax.applicative._
+import cats.syntax.functor._
 import cats.syntax.semigroup._
 
 import scala.concurrent.duration._
@@ -27,6 +28,7 @@ class RetrySpec extends BaseSpec {
   import Retry.{Decision, Status}
 
   private class Error1 extends RuntimeException
+  private class Error2 extends RuntimeException
 
   private val error: Throwable = new RuntimeException("oops")
   private val errorIO: IO[Unit] = IO.raiseError(error)
@@ -38,9 +40,7 @@ class RetrySpec extends BaseSpec {
       val policy = Retry.constantDelay[IO, Throwable](delay)
 
       def action(attempts: Ref[IO, Int]) =
-        attempts.getAndUpdate(_ + 1).flatMap { total =>
-          IO.raiseError(new RuntimeException("oops")).whenA(total < 3)
-        }
+        attempts.getAndUpdate(_ + 1).flatMap(total => errorIO.whenA(total < 3))
 
       val io =
         for {
@@ -57,23 +57,36 @@ class RetrySpec extends BaseSpec {
     "retry until the policy chooses to give up" in ticked { implicit ticker =>
       val maxRetries = 2
       val policy = Retry.maxRetries[IO, Throwable](maxRetries)
-      val io = IO.raiseError(new RuntimeException("oops"))
 
-      run(policy)(io) must completeAs((Duration.Zero, maxRetries + 1))
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.retry(Duration.Zero)),
+        RetryAttempt(Status(1, Duration.Zero), Decision.retry(Duration.Zero)),
+        RetryAttempt(Status(2, Duration.Zero), Decision.giveUp)
+      )
+
+      run(policy)(errorIO) must completeAs(expected)
     }
 
     "withErrorMatcher - retry only on matched errors" in ticked { implicit ticker =>
       val maxRetries = 5
       val delay = 1.second
 
+      val error = new Error1
       val policy =
         Retry.constantDelay[IO, Throwable](delay).withMaxRetries(maxRetries).withErrorMatcher {
           case _: Error1 => IO.pure(true)
         }
 
-      val io = IO.raiseError(new Error1)
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.retry(delay), error),
+        RetryAttempt(Status(1, 1.second), Decision.retry(delay), error),
+        RetryAttempt(Status(2, 2.seconds), Decision.retry(delay), error),
+        RetryAttempt(Status(3, 3.seconds), Decision.retry(delay), error),
+        RetryAttempt(Status(4, 4.seconds), Decision.retry(delay), error),
+        RetryAttempt(Status(5, 5.seconds), Decision.giveUp, error)
+      )
 
-      run(policy)(io) must completeAs((maxRetries * delay, maxRetries + 1))
+      run(policy)(IO.raiseError(error)) must completeAs(expected)
     }
 
     "withErrorMatcher - give up on mismatched errors" in ticked { implicit ticker =>
@@ -85,9 +98,51 @@ class RetrySpec extends BaseSpec {
           case _: Error1 => IO.pure(true)
         }
 
-      val io = IO.raiseError(new RuntimeException("oops"))
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.giveUp)
+      )
 
-      run(policy)(io) must completeAs((Duration.Zero, 1))
+      run(policy)(errorIO) must completeAs(expected)
+    }
+
+    "withErrorMatcher - keep the last matcher - give up on mismatched" in ticked { implicit t =>
+      val delay = 1.second
+      val maxRetries = 1
+
+      val policy =
+        Retry
+          .constantDelay[IO, Throwable](delay)
+          .withMaxRetries(maxRetries)
+          .withErrorMatcher { case _: Error1 => IO.pure(true) }
+          .withErrorMatcher { case _: Error2 => IO.pure(true) }
+
+      val error = new Error1
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.giveUp, error)
+      )
+
+      run(policy)(IO.raiseError(error)) must completeAs(expected)
+    }
+
+    "withErrorMatcher - keep the last matcher" in ticked { implicit ticker =>
+      val delay = 1.second
+      val maxRetries = 2
+
+      val policy =
+        Retry
+          .constantDelay[IO, Throwable](delay)
+          .withMaxRetries(maxRetries)
+          .withErrorMatcher { case _: Error1 => IO.pure(true) }
+          .withErrorMatcher { case _: Error2 => IO.pure(true) }
+
+      val error = new Error2
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.retry(delay), error),
+        RetryAttempt(Status(1, 1.second), Decision.retry(delay), error),
+        RetryAttempt(Status(2, 2.seconds), Decision.giveUp, error)
+      )
+
+      run(policy)(IO.raiseError(error)) must completeAs(expected)
     }
 
     "withCappedDelay - cap the individual delay" in ticked { implicit ticker =>
@@ -101,15 +156,15 @@ class RetrySpec extends BaseSpec {
           .withCappedDelay(capDelay)
           .withMaxRetries(maxRetries)
 
-      val expected: List[(Status, Decision)] = {
+      val expected = {
         val retries = List.tabulate(maxRetries) { i =>
-          (Status(i, capDelay * i.toLong.toLong), Decision.retry(capDelay))
+          RetryAttempt(Status(i, capDelay * i.toLong), Decision.retry(capDelay))
         }
 
-        retries :+ (Status(maxRetries, maxRetries * capDelay) -> Decision.giveUp)
+        retries :+ RetryAttempt(Status(maxRetries, maxRetries * capDelay), Decision.giveUp)
       }
 
-      runWithAttempts(policy)(errorIO) must completeAs((maxRetries * capDelay, expected))
+      run(policy)(errorIO) must completeAs(expected)
     }
 
     "withMaxRetries - give up once max retries are reached" in ticked { implicit ticker =>
@@ -119,15 +174,15 @@ class RetrySpec extends BaseSpec {
       val policy =
         Retry.constantDelay[IO, Throwable](delay).withMaxRetries(maxRetries)
 
-      val expected: List[(Status, Decision)] = {
+      val expected = {
         val retries = List.tabulate(maxRetries) { i =>
-          (Status(i, delay * i.toLong), Decision.retry(delay))
+          RetryAttempt(Status(i, delay * i.toLong), Decision.retry(delay))
         }
 
-        retries :+ (Status(maxRetries, maxRetries * delay) -> Decision.giveUp)
+        retries :+ RetryAttempt(Status(maxRetries, maxRetries * delay), Decision.giveUp)
       }
 
-      runWithAttempts(policy)(errorIO) must completeAs((maxRetries * delay, expected))
+      run(policy)(errorIO) must completeAs(expected)
     }
 
     "withMaxDelay - give up once max individual delay is reached" in ticked { implicit ticker =>
@@ -139,22 +194,21 @@ class RetrySpec extends BaseSpec {
           IO.pure(Decision.retry(status.retriesTotal * delay))
         }.withMaxDelay(maxDelay)
 
-      val expected: List[(Status, Decision)] = {
+      val expected = {
         val numRetries = (maxDelay.toSeconds / delay.toSeconds).toInt
 
         val retries = List.tabulate(numRetries) { i =>
           val cumulativeDelay =
             Range(0, i).map(_ * delay).reduceOption(_ + _).getOrElse(Duration.Zero)
 
-          (Status(i, cumulativeDelay), Decision.retry(i * delay))
+          RetryAttempt(Status(i, cumulativeDelay), Decision.retry(i * delay))
         }
 
-        val cumulativeDelay = retries.map(_._1.cumulativeDelay).reduce(_ + _)
-        retries :+ (Status(numRetries, cumulativeDelay) -> Decision.giveUp)
+        val cumulativeDelay = retries.map(_.status.cumulativeDelay).reduce(_ + _)
+        retries :+ RetryAttempt(Status(numRetries, cumulativeDelay), Decision.giveUp)
       }
-      val totalDelay = expected.map(_._1.cumulativeDelay).last
 
-      runWithAttempts(policy)(errorIO) must completeAs((totalDelay, expected))
+      run(policy)(errorIO) must completeAs(expected)
     }
 
     "withMaxCumulativeDelay - cap the max cumulative (total) delay" in ticked { implicit t =>
@@ -165,15 +219,15 @@ class RetrySpec extends BaseSpec {
       val policy =
         Retry.constantDelay[IO, Throwable](delay).withMaxCumulativeDelay(maxDelay)
 
-      val expected: List[(Status, Decision)] = {
+      val expected = {
         val retries = List.tabulate(maxRetries) { i =>
-          (Status(i, delay * i.toLong), Decision.retry(delay))
+          RetryAttempt(Status(i, delay * i.toLong), Decision.retry(delay))
         }
 
-        retries :+ (Status(maxRetries, delay * maxRetries.toLong) -> Decision.giveUp)
+        retries :+ RetryAttempt(Status(maxRetries, delay * maxRetries.toLong), Decision.giveUp)
       }
 
-      runWithAttempts(policy)(errorIO) must completeAs((maxRetries * delay, expected))
+      run(policy)(errorIO) must completeAs(expected)
     }
 
     "&& (and) - give up when one policy is decided to give up" in ticked { implicit ticker =>
@@ -230,7 +284,7 @@ class RetrySpec extends BaseSpec {
         multiplier: Double,
         factor: Double,
         maxDelay: Option[FiniteDuration] = None
-    ): List[(Status, Decision)] = {
+    ): List[RetryAttempt] = {
 
       // per step delay = rand_factor * random_double [0:1] * (base_delay * multiplier ^ retry)
       def stepDelay(retry: Int) =
@@ -242,19 +296,19 @@ class RetrySpec extends BaseSpec {
         }
 
       @annotation.tailrec
-      def loop(retry: Int, output: List[(Status, Decision)]): List[(Status, Decision)] = {
+      def loop(retry: Int, output: List[RetryAttempt]): List[RetryAttempt] = {
         val cumulative = output
-          .collect { case (_, r: Decision.Retry) => r.delay }
+          .collect { case RetryAttempt(_, r: Decision.Retry, _) => r.delay }
           .reduceOption(_ + _)
           .getOrElse(Duration.Zero)
 
         val status = Status(retry, cumulative)
 
         if (retry < maxRetries) {
-          val next = (status, Decision.retry(stepDelay(retry)))
+          val next = RetryAttempt(status, Decision.retry(stepDelay(retry)))
           loop(retry + 1, output :+ next)
         } else {
-          output :+ (status -> Decision.giveUp)
+          output :+ RetryAttempt(status, Decision.giveUp)
         }
       }
 
@@ -266,15 +320,14 @@ class RetrySpec extends BaseSpec {
       val maxRetries = 3
       val policy = Retry.exponentialBackoff[IO, Throwable](baseDelay).withMaxRetries(maxRetries)
 
-      val expected: List[(Status, Decision)] = calculateExpected(
+      val expected = calculateExpected(
         baseDelay = baseDelay,
         maxRetries = maxRetries,
         multiplier = 2.0,
         factor = 0.5
       )
-      val delayTotal = expected.map(_._1.cumulativeDelay).last
 
-      runWithAttempts(policy)(errorIO) must completeAs((delayTotal, expected))
+      run(policy)(errorIO) must completeAs(expected)
     }
 
     "use the given multiplier (1.0) and randomization factor (1.0)" in ticked { implicit t =>
@@ -288,15 +341,14 @@ class RetrySpec extends BaseSpec {
         )
         .withMaxRetries(maxRetries)
 
-      val expected: List[(Status, Decision)] = calculateExpected(
+      val expected = calculateExpected(
         baseDelay = baseDelay,
         maxRetries = maxRetries,
         multiplier = 1.0,
         factor = 1.0
       )
-      val delayTotal = expected.map(_._1.cumulativeDelay).last
 
-      runWithAttempts(policy)(errorIO) must completeAs((delayTotal, expected))
+      run(policy)(errorIO) must completeAs(expected)
     }
 
     "cap the delay at the specific max" in ticked { implicit ticker =>
@@ -308,16 +360,15 @@ class RetrySpec extends BaseSpec {
         .withCappedDelay(maxDelay)
         .withMaxRetries(maxRetries)
 
-      val expected: List[(Status, Decision)] = calculateExpected(
+      val expected = calculateExpected(
         baseDelay = baseDelay,
         maxRetries = maxRetries,
         multiplier = 2.0,
         factor = 0.5,
         maxDelay = Some(maxDelay)
       )
-      val delayTotal = expected.map(_._1.cumulativeDelay).last
 
-      runWithAttempts(policy)(errorIO) must completeAs((delayTotal, expected))
+      run(policy)(errorIO) must completeAs(expected)
     }
 
     "respect the max number of retries" in ticked { implicit ticker =>
@@ -329,41 +380,44 @@ class RetrySpec extends BaseSpec {
         .withCappedDelay(maxDelay)
         .withMaxRetries(maxRetries)
 
-      val expected: List[(Status, Decision)] = calculateExpected(
+      val expected = calculateExpected(
         baseDelay = baseDelay,
         maxRetries = maxRetries,
         multiplier = 2.0,
         factor = 0.5,
         maxDelay = Some(maxDelay)
       )
-      val delayTotal = expected.map(_._1.cumulativeDelay).last
 
-      runWithAttempts(policy)(errorIO) must completeAs((delayTotal, expected))
+      run(policy)(errorIO) must completeAs(expected)
     }
 
   }
 
-  private def run[A](policy: Retry[IO, Throwable])(io: IO[A]): IO[(FiniteDuration, Int)] =
+  private def run[A](policy: Retry[IO, Throwable])(io: IO[A]): IO[List[RetryAttempt]] =
     for {
-      counter <- IO.ref(0)
-      result <- io.retry(policy, (_, _: Throwable, _) => counter.update(_ + 1)).attempt.timed
-      attempts <- counter.get
-    } yield (result._1, attempts)
-
-  private def runWithAttempts[A](policy: Retry[IO, Throwable])(
-      io: IO[A]
-  ): IO[(FiniteDuration, List[(Status, Decision)])] =
-    for {
-      ref <- IO.ref(List.empty[(Status, Decision)])
-      result <- io
-        .retry(policy, (s, _: Throwable, d) => ref.update(_ :+ (s -> d)))
+      ref <- IO.ref(List.empty[RetryAttempt])
+      time <- io
+        .retry(policy, (s, e: Throwable, d) => ref.update(_ :+ RetryAttempt(s, d, e)))
         .attempt
         .timed
+        ._1F
       attempts <- ref.get
-    } yield (result._1, attempts)
+    } yield {
+      if (time > Duration.Zero && attempts.nonEmpty) { // ensure sleep time == cumulative delay
+        assert(attempts.last.status.cumulativeDelay == time)
+      }
 
-  private implicit val statusOrder: Hash[Status] = Hash.fromUniversalHashCode
-  private implicit val statusShow: Show[Status] = Show.fromToString
-  private implicit val decisionOrder: Hash[Decision] = Hash.fromUniversalHashCode
+      attempts
+    }
+
+  private case class RetryAttempt(
+      status: Status,
+      decision: Decision,
+      error: Throwable = error
+  )
+
+  private implicit val retryAttemptHash: Hash[RetryAttempt] = Hash.fromUniversalHashCode
+  private implicit val retryAttemptShow: Show[RetryAttempt] = Show.fromToString
+  private implicit val decisionHash: Hash[Decision] = Hash.fromUniversalHashCode
   private implicit val decisionShow: Show[Decision] = Show.fromToString
 }
