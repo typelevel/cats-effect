@@ -31,6 +31,49 @@ import scala.reflect.{classTag, ClassTag}
  * Glossary:
  *   - individual delay - the delay between retries
  *   - cumulative delay - the total delay accumulated across all retries
+ *
+ * ==Usage==
+ *
+ * ===Retry on all errors===
+ *
+ * {{{
+ * val policy = Retry
+ *   .exponentialBackoff[IO, Throwable](1.second)
+ *   .withMaxRetries(10)
+ *
+ * // retries 10 times at most using an exponential backoff strategy
+ * IO.raiseError(new RuntimeException("oops")).retry(policy)
+ * }}}
+ *
+ * ===Retry on some errors (e.g. TimeoutException)===
+ *
+ * {{{
+ * val policy = Retry
+ *   .exponentialBackoff[IO, Throwable](1.second)
+ *   .withMaxRetries(10)
+ *   .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[TimeoutException])
+ *
+ * // retries 10 times at most using an exponential backoff strategy
+ * IO.raiseError(new TimeoutException("timeout")).retry(policy)
+ *
+ * // gives up immediately
+ * IO.raiseError(new RuntimeException("oops")).retry(policy)
+ * }}}
+ *
+ * ===Retry on all errors except the TimeoutException===
+ *
+ * {{{
+ * val policy = Retry
+ *   .exponentialBackoff[IO, Throwable](1.second)
+ *   .withMaxRetries(10)
+ *   .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[TimeoutException])
+ *
+ * // retries 10 times at most using an exponential backoff strategy
+ * IO.raiseError(new RuntimeException("oops")).retry(policy)
+ *
+ * // gives up immediately
+ * IO.raiseError(new TimeoutException("timeout")).retry(policy)
+ * }}}
  */
 sealed trait Retry[F[_], E] {
   import Retry.{Decision, ErrorMatcher, Status}

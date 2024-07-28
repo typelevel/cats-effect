@@ -510,7 +510,7 @@ class RetrySpec extends BaseSpec {
           result <- mtlRetry[F, Errors, Unit](
             io,
             policy,
-            (s, e: Errors, d) => EitherT.liftF(ref.update(_ :+ (s, d, e)))
+            (s, e: Errors, d) => EitherT.liftF(ref.update(_ :+ ((s, d, e))))
           ).value
           attempts <- ref.get
         } yield (result, attempts)
@@ -544,7 +544,7 @@ class RetrySpec extends BaseSpec {
           result <- mtlRetry[F, Errors, Unit](
             io,
             policy,
-            (s, e: Errors, d) => EitherT.liftF(ref.update(_ :+ (s, d, e)))
+            (s, e: Errors, d) => EitherT.liftF(ref.update(_ :+ ((s, d, e))))
           ).value
           attempts <- ref.get
         } yield (result, attempts)
