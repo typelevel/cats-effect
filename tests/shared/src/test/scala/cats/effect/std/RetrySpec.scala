@@ -67,84 +67,6 @@ class RetrySpec extends BaseSpec {
       run(policy)(errorIO) must completeAs(expected)
     }
 
-    "withErrorMatcher - retry only on matched errors" in ticked { implicit ticker =>
-      val maxRetries = 5
-      val delay = 1.second
-
-      val error = new Error1
-      val policy =
-        Retry.constantDelay[IO, Throwable](delay).withMaxRetries(maxRetries).withErrorMatcher {
-          case _: Error1 => IO.pure(true)
-        }
-
-      val expected = List(
-        RetryAttempt(Status(0, Duration.Zero), Decision.retry(delay), error),
-        RetryAttempt(Status(1, 1.second), Decision.retry(delay), error),
-        RetryAttempt(Status(2, 2.seconds), Decision.retry(delay), error),
-        RetryAttempt(Status(3, 3.seconds), Decision.retry(delay), error),
-        RetryAttempt(Status(4, 4.seconds), Decision.retry(delay), error),
-        RetryAttempt(Status(5, 5.seconds), Decision.giveUp, error)
-      )
-
-      run(policy)(IO.raiseError(error)) must completeAs(expected)
-    }
-
-    "withErrorMatcher - give up on mismatched errors" in ticked { implicit ticker =>
-      val maxRetries = 5
-      val delay = 1.second
-
-      val policy =
-        Retry.constantDelay[IO, Throwable](delay).withMaxRetries(maxRetries).withErrorMatcher {
-          case _: Error1 => IO.pure(true)
-        }
-
-      val expected = List(
-        RetryAttempt(Status(0, Duration.Zero), Decision.giveUp)
-      )
-
-      run(policy)(errorIO) must completeAs(expected)
-    }
-
-    "withErrorMatcher - keep the last matcher - give up on mismatched" in ticked { implicit t =>
-      val delay = 1.second
-      val maxRetries = 1
-
-      val policy =
-        Retry
-          .constantDelay[IO, Throwable](delay)
-          .withMaxRetries(maxRetries)
-          .withErrorMatcher { case _: Error1 => IO.pure(true) }
-          .withErrorMatcher { case _: Error2 => IO.pure(true) }
-
-      val error = new Error1
-      val expected = List(
-        RetryAttempt(Status(0, Duration.Zero), Decision.giveUp, error)
-      )
-
-      run(policy)(IO.raiseError(error)) must completeAs(expected)
-    }
-
-    "withErrorMatcher - keep the last matcher" in ticked { implicit ticker =>
-      val delay = 1.second
-      val maxRetries = 2
-
-      val policy =
-        Retry
-          .constantDelay[IO, Throwable](delay)
-          .withMaxRetries(maxRetries)
-          .withErrorMatcher { case _: Error1 => IO.pure(true) }
-          .withErrorMatcher { case _: Error2 => IO.pure(true) }
-
-      val error = new Error2
-      val expected = List(
-        RetryAttempt(Status(0, Duration.Zero), Decision.retry(delay), error),
-        RetryAttempt(Status(1, 1.second), Decision.retry(delay), error),
-        RetryAttempt(Status(2, 2.seconds), Decision.giveUp, error)
-      )
-
-      run(policy)(IO.raiseError(error)) must completeAs(expected)
-    }
-
     "withCappedDelay - cap the individual delay" in ticked { implicit ticker =>
       val maxRetries = 5
       val delay = 2.second
@@ -266,6 +188,144 @@ class RetrySpec extends BaseSpec {
         val expected = Decision.retry(1.second)
 
         (delay1 || delay2).decide(Status.initial, error) must completeAs(expected)
+    }
+
+  }
+
+  "Retry#withErrorMatcher" should {
+
+    "retry only on matched errors" in ticked { implicit ticker =>
+      val maxRetries = 2
+      val delay = 1.second
+
+      val error = new Error1
+      val policy =
+        Retry
+          .constantDelay[IO, Throwable](delay)
+          .withMaxRetries(maxRetries)
+          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
+
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.retry(delay), error),
+        RetryAttempt(Status(1, 1.second), Decision.retry(delay), error),
+        RetryAttempt(Status(2, 2.seconds), Decision.giveUp, error)
+      )
+
+      run(policy)(IO.raiseError(error)) must completeAs(expected)
+    }
+
+    "give up on mismatched errors" in ticked { implicit ticker =>
+      val maxRetries = 5
+      val delay = 1.second
+
+      val policy =
+        Retry
+          .constantDelay[IO, Throwable](delay)
+          .withMaxRetries(maxRetries)
+          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
+
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.giveUp)
+      )
+
+      run(policy)(errorIO) must completeAs(expected)
+    }
+
+    "keep the last matcher - give up on mismatched" in ticked { implicit ticker =>
+      val delay = 1.second
+      val maxRetries = 1
+
+      val policy =
+        Retry
+          .constantDelay[IO, Throwable](delay)
+          .withMaxRetries(maxRetries)
+          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
+          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error2])
+
+      val error = new Error1
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.giveUp, error)
+      )
+
+      run(policy)(IO.raiseError(error)) must completeAs(expected)
+    }
+
+    "keep the last matcher - retry on matching errors" in ticked { implicit ticker =>
+      val delay = 1.second
+      val maxRetries = 2
+
+      val policy =
+        Retry
+          .constantDelay[IO, Throwable](delay)
+          .withMaxRetries(maxRetries)
+          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
+          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error2])
+
+      val error = new Error2
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.retry(delay), error),
+        RetryAttempt(Status(1, 1.second), Decision.retry(delay), error),
+        RetryAttempt(Status(2, 2.seconds), Decision.giveUp, error)
+      )
+
+      run(policy)(IO.raiseError(error)) must completeAs(expected)
+    }
+
+    "ErrorMatcher.except - give up on 'excepted' errors" in ticked { implicit ticker =>
+      val maxRetries = 2
+      val delay = 1.second
+
+      val error = new Error1
+      val policy =
+        Retry
+          .constantDelay[IO, Throwable](delay)
+          .withMaxRetries(maxRetries)
+          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[Error1])
+
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.giveUp, error)
+      )
+
+      run(policy)(IO.raiseError(error)) must completeAs(expected)
+    }
+
+    "ErrorMatcher.except - give up on subtypes" in ticked { implicit ticker =>
+      val maxRetries = 2
+      val delay = 1.second
+
+      val error = new Error1
+      val policy =
+        Retry
+          .constantDelay[IO, Throwable](delay)
+          .withMaxRetries(maxRetries)
+          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[RuntimeException])
+
+      val expected = List(
+        RetryAttempt(Status(0, Duration.Zero), Decision.giveUp, error)
+      )
+
+      run(policy)(IO.raiseError(error)) must completeAs(expected)
+    }
+
+    "ErrorMatcher.except - recover on all errors but the 'excepted' one" in ticked {
+      implicit ticker =>
+        val maxRetries = 2
+        val delay = 1.second
+
+        val error = new Error2
+        val policy =
+          Retry
+            .constantDelay[IO, Throwable](delay)
+            .withMaxRetries(maxRetries)
+            .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[Error1])
+
+        val expected = List(
+          RetryAttempt(Status(0, Duration.Zero), Decision.retry(delay), error),
+          RetryAttempt(Status(1, 1.second), Decision.retry(delay), error),
+          RetryAttempt(Status(2, 2.seconds), Decision.giveUp, error)
+        )
+
+        run(policy)(IO.raiseError(error)) must completeAs(expected)
     }
 
   }
