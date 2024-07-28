@@ -381,7 +381,7 @@ object Retry {
      * Creates an error matcher that matches all errors.
      */
     def all[F[_]: Applicative, E]: ErrorMatcher[F, E] =
-      new Impl[F, E]({ (_: E) => Applicative[F].pure(true) })
+      new Impl[F, E]({ case _ => Applicative[F].pure(true) })
 
     /**
      * Creates an error matcher using the given `matcher` under the hood.
@@ -486,7 +486,7 @@ object Retry {
    * @param policy
    *   the policy to use
    *
-   * @param onRetry
+   * @param onError
    *   the effect to invoke on every retry decision
    *
    * @param fa
@@ -494,9 +494,9 @@ object Retry {
    */
   def retry[F[_], A, E](
       policy: Retry[F, E],
-      onRetry: (Status, E, Decision) => F[Unit]
+      onError: (Status, E, Decision) => F[Unit]
   )(fa: F[A])(implicit F: GenTemporal[F, E]): F[A] =
-    doRetry(policy, Some(onRetry))(fa)
+    doRetry(policy, Some(onError))(fa)
 
   /**
    * The return policy that always gives up.

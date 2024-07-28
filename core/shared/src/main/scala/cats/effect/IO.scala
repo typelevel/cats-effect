@@ -662,14 +662,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param policy
    *   the policy to use
    *
-   * @param onRetry
+   * @param onError
    *   the effect to invoke on every retry decision
    */
   def retry(
       policy: Retry[IO, Throwable],
-      onRetry: (Retry.Status, Throwable, Retry.Decision) => IO[Unit]
+      onError: (Retry.Status, Throwable, Retry.Decision) => IO[Unit]
   ): IO[A] =
-    Retry.retry(policy, onRetry)(this)
+    Retry.retry(policy, onError)(this)
 
   /**
    * Inverse of `attempt`

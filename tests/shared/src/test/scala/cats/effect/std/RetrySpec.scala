@@ -17,8 +17,11 @@
 package cats.effect.std
 
 import cats.{Hash, Show}
-import cats.effect.{BaseSpec, IO, Ref}
+import cats.data.EitherT
+import cats.effect.{BaseSpec, IO, Ref, Temporal}
+import cats.mtl.Handle
 import cats.syntax.applicative._
+import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.semigroup._
 
@@ -72,11 +75,10 @@ class RetrySpec extends BaseSpec {
       val delay = 2.second
       val capDelay = 1.second
 
-      val policy =
-        Retry
-          .constantDelay[IO, Throwable](delay)
-          .withCappedDelay(capDelay)
-          .withMaxRetries(maxRetries)
+      val policy = Retry
+        .constantDelay[IO, Throwable](delay)
+        .withCappedDelay(capDelay)
+        .withMaxRetries(maxRetries)
 
       val expected = {
         val retries = List.tabulate(maxRetries) { i =>
@@ -199,11 +201,10 @@ class RetrySpec extends BaseSpec {
       val delay = 1.second
 
       val error = new Error1
-      val policy =
-        Retry
-          .constantDelay[IO, Throwable](delay)
-          .withMaxRetries(maxRetries)
-          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
+      val policy = Retry
+        .constantDelay[IO, Throwable](delay)
+        .withMaxRetries(maxRetries)
+        .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
 
       val expected = List(
         RetryAttempt(Status(0, Duration.Zero), Decision.retry(delay), error),
@@ -218,11 +219,10 @@ class RetrySpec extends BaseSpec {
       val maxRetries = 5
       val delay = 1.second
 
-      val policy =
-        Retry
-          .constantDelay[IO, Throwable](delay)
-          .withMaxRetries(maxRetries)
-          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
+      val policy = Retry
+        .constantDelay[IO, Throwable](delay)
+        .withMaxRetries(maxRetries)
+        .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
 
       val expected = List(
         RetryAttempt(Status(0, Duration.Zero), Decision.giveUp)
@@ -235,12 +235,11 @@ class RetrySpec extends BaseSpec {
       val delay = 1.second
       val maxRetries = 1
 
-      val policy =
-        Retry
-          .constantDelay[IO, Throwable](delay)
-          .withMaxRetries(maxRetries)
-          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
-          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error2])
+      val policy = Retry
+        .constantDelay[IO, Throwable](delay)
+        .withMaxRetries(maxRetries)
+        .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
+        .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error2])
 
       val error = new Error1
       val expected = List(
@@ -254,12 +253,11 @@ class RetrySpec extends BaseSpec {
       val delay = 1.second
       val maxRetries = 2
 
-      val policy =
-        Retry
-          .constantDelay[IO, Throwable](delay)
-          .withMaxRetries(maxRetries)
-          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
-          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error2])
+      val policy = Retry
+        .constantDelay[IO, Throwable](delay)
+        .withMaxRetries(maxRetries)
+        .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error1])
+        .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].only[Error2])
 
       val error = new Error2
       val expected = List(
@@ -276,11 +274,10 @@ class RetrySpec extends BaseSpec {
       val delay = 1.second
 
       val error = new Error1
-      val policy =
-        Retry
-          .constantDelay[IO, Throwable](delay)
-          .withMaxRetries(maxRetries)
-          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[Error1])
+      val policy = Retry
+        .constantDelay[IO, Throwable](delay)
+        .withMaxRetries(maxRetries)
+        .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[Error1])
 
       val expected = List(
         RetryAttempt(Status(0, Duration.Zero), Decision.giveUp, error)
@@ -294,11 +291,10 @@ class RetrySpec extends BaseSpec {
       val delay = 1.second
 
       val error = new Error1
-      val policy =
-        Retry
-          .constantDelay[IO, Throwable](delay)
-          .withMaxRetries(maxRetries)
-          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[RuntimeException])
+      val policy = Retry
+        .constantDelay[IO, Throwable](delay)
+        .withMaxRetries(maxRetries)
+        .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[RuntimeException])
 
       val expected = List(
         RetryAttempt(Status(0, Duration.Zero), Decision.giveUp, error)
@@ -313,11 +309,10 @@ class RetrySpec extends BaseSpec {
         val delay = 1.second
 
         val error = new Error2
-        val policy =
-          Retry
-            .constantDelay[IO, Throwable](delay)
-            .withMaxRetries(maxRetries)
-            .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[Error1])
+        val policy = Retry
+          .constantDelay[IO, Throwable](delay)
+          .withMaxRetries(maxRetries)
+          .withErrorMatcher(Retry.ErrorMatcher[IO, Throwable].except[Error1])
 
         val expected = List(
           RetryAttempt(Status(0, Duration.Zero), Decision.retry(delay), error),
@@ -449,6 +444,112 @@ class RetrySpec extends BaseSpec {
       )
 
       run(policy)(errorIO) must completeAs(expected)
+    }
+
+  }
+
+  "Retry MTL" should {
+
+    sealed trait Errors
+    final class Error1 extends Errors
+    final class Error2 extends Errors
+
+    type RetryAttempt = (Status, Decision, Errors)
+
+    def mtlRetry[F[_], E, A](
+        action: F[A],
+        policy: Retry[F, E],
+        onRetry: (Status, E, Decision) => F[Unit]
+    )(implicit F: Temporal[F], H: Handle[F, E]): F[A] =
+      F.tailRecM(Status.initial) { status =>
+        H.attempt(action).flatMap {
+          case Left(error) =>
+            policy
+              .decide(status, error)
+              .flatTap(decision => onRetry(status, error, decision))
+              .flatMap {
+                case retry: Decision.Retry =>
+                  F.delayBy(F.pure(Left(status.withRetry(retry.delay))), retry.delay)
+
+                case _: Decision.GiveUp =>
+                  H.raise(error)
+              }
+
+          case Right(success) =>
+            F.pure(Right(success))
+        }
+      }
+
+    implicit val outputHash: Hash[(Either[Errors, Unit], List[RetryAttempt])] =
+      Hash.fromUniversalHashCode
+
+    implicit val outputShow: Show[(Either[Errors, Unit], List[RetryAttempt])] =
+      Show.fromToString
+
+    "give up on mismatched errors" in ticked { implicit ticker =>
+      type F[A] = EitherT[IO, Errors, A]
+
+      val maxRetries = 2
+      val delay = 1.second
+
+      val error = new Error2
+      val policy = Retry
+        .constantDelay[F, Errors](delay)
+        .withMaxRetries(maxRetries)
+        .withErrorMatcher(Retry.ErrorMatcher[F, Errors].only[Error1])
+
+      val expected: List[RetryAttempt] = List(
+        (Status(0, Duration.Zero), Decision.giveUp, error)
+      )
+
+      val io: F[Unit] = Handle[F, Errors].raise[Errors, Unit](error)
+
+      val run =
+        for {
+          ref <- IO.ref(List.empty[RetryAttempt])
+          result <- mtlRetry[F, Errors, Unit](
+            io,
+            policy,
+            (s, e: Errors, d) => EitherT.liftF(ref.update(_ :+ (s, d, e)))
+          ).value
+          attempts <- ref.get
+        } yield (result, attempts)
+
+      run must completeAs((Left(error), expected))
+    }
+
+    "retry only on matching errors" in ticked { implicit ticker =>
+      type F[A] = EitherT[IO, Errors, A]
+
+      val maxRetries = 2
+      val delay = 1.second
+
+      val error = new Error1
+      val policy = Retry
+        .constantDelay[F, Errors](delay)
+        .withMaxRetries(maxRetries)
+        .withErrorMatcher(Retry.ErrorMatcher[F, Errors].only[Error1])
+
+      val expected: List[RetryAttempt] = List(
+        (Status(0, Duration.Zero), Decision.retry(delay), error),
+        (Status(1, 1.second), Decision.retry(delay), error),
+        (Status(2, 2.seconds), Decision.giveUp, error)
+      )
+
+      val io: F[Unit] = Handle[F, Errors].raise[Errors, Unit](error)
+
+      val run =
+        for {
+          ref <- IO.ref(List.empty[RetryAttempt])
+          result <- mtlRetry[F, Errors, Unit](
+            io,
+            policy,
+            (s, e: Errors, d) => EitherT.liftF(ref.update(_ :+ (s, d, e)))
+          ).value
+          attempts <- ref.get
+        } yield (result, attempts)
+
+      run must completeAs((Left(error), expected))
     }
 
   }
