@@ -557,7 +557,7 @@ object Retry {
    *   the function to decide whether to continue
    */
   def named[F[_]: Monad, E](name: String)(decider: (Status, E) => F[Decision]): Retry[F, E] =
-    RetryImpl(name, decider)
+    RetryImpl(name, decider, { _: E => Monad[F].pure(true) })
 
   implicit def retrySemigroup[F[_], E]: Semigroup[Retry[F, E]] =
     (x, y) => x && y
@@ -592,11 +592,14 @@ object Retry {
 
   private final case class RetryImpl[F[_]: Monad, E](
       name: String,
-      decider: (Status, E) => F[Decision]
+      decider: (Status, E) => F[Decision],
+      errorMatcher: PartialFunction[E, F[Boolean]]
   ) extends Retry[F, E] {
 
     def decide(status: Status, error: E): F[Decision] =
-      decider(status, error)
+      errorMatcher
+        .applyOrElse(error, (_: E) => Monad[F].pure(false))
+        .ifM(decider(status, error), Monad[F].pure(Decision.giveUp))
 
     def and(other: Retry[F, E]): Retry[F, E] =
       Retry.named(s"($name && ${other.name})") { (status, error) =>
@@ -617,11 +620,7 @@ object Retry {
       }
 
     def withErrorMatcher(matcher: PartialFunction[E, F[Boolean]]): Retry[F, E] =
-      copy(decider = { (status, error) =>
-        matcher
-          .applyOrElse(error, (_: E) => Monad[F].pure(false))
-          .ifM(decider(status, error), Monad[F].pure(Decision.giveUp))
-      })
+      copy(errorMatcher = matcher)
 
     def withName(name: String): Retry[F, E] =
       copy(name = name)
