@@ -17,6 +17,8 @@
 package cats.effect
 package std
 
+import scala.jdk.CollectionConverters._
+
 class PropSpec extends BaseSpec {
 
   "Prop" should {
@@ -38,7 +40,8 @@ class PropSpec extends BaseSpec {
       for {
         _ <- Prop[IO].set("some property", "the value")
         props <- Prop[IO].entries
-        assertion <- IO(props mustEqual System.getProperties())
+        expected <- IO(Map.empty ++ System.getProperties.asScala)
+        assertion <- IO(props mustEqual expected)
       } yield assertion
     }
   }
