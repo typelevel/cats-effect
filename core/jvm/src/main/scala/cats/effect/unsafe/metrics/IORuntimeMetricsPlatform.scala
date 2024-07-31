@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
-private[metrics] trait IORuntimeMetricsPlatform { this: IORuntimeMetrics => }
+private[metrics] trait IORuntimeMetricsPlatform { this: IORuntimeMetrics =>
+  def workStealingThreadPool: Option[WorkStealingPoolMetrics]
+}

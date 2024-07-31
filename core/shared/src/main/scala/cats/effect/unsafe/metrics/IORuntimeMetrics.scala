@@ -14,17 +14,25 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
-private final class CpuStarvation(sampler: CpuStarvationSampler) extends CpuStarvationMBean {
-  def getCpuStarvationCount(): Long =
-    sampler.cpuStarvationCount()
+/**
+ * The runtime-specific metrics.
+ */
+trait IORuntimeMetrics extends IORuntimeMetricsPlatform {
 
-  def getMaxClockDriftMs(): Long =
-    sampler.clockDriftMaxMs()
+  /**
+   * Returns starvation-specific metrics.
+   *
+   * @example
+   *   {{{
+   * val runtime: IORuntime = ???
+   * val maxDrift = runtime.metrics.cpuStarvation.clockDriftMax()
+   *   }}}
+   */
+  def cpuStarvation: CpuStarvationMetrics
 
-  def getCurrentClockDriftMs(): Long =
-    sampler.clockDriftCurrentMs()
+  private[effect] def cpuStarvationSampler: CpuStarvationSampler
 }
 
-private object CpuStarvation
+object IORuntimeMetrics extends IORuntimeMetricsCompanionPlatform

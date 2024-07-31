@@ -14,25 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
-/**
- * The runtime-specific metrics.
- */
-trait IORuntimeMetrics extends IORuntimeMetricsPlatform {
+import scala.concurrent.ExecutionContext
 
-  /**
-   * Returns starvation-specific metrics.
-   *
-   * @example
-   *   {{{
-   * val runtime: IORuntime = ???
-   * val maxDrift = runtime.metrics.cpuStarvation.clockDriftMax()
-   *   }}}
-   */
-  def cpuStarvation: CpuStarvationMetrics
+private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
+  this: IORuntimeMetrics.type =>
 
-  private[effect] def cpuStarvationSampler: CpuStarvationSampler
+  private[unsafe] def apply(ec: ExecutionContext): IORuntimeMetrics =
+    new IORuntimeMetrics {
+      private[effect] val cpuStarvationSampler: CpuStarvationSampler =
+        CpuStarvationSampler()
+
+      val cpuStarvation: CpuStarvationMetrics =
+        CpuStarvationMetrics(cpuStarvationSampler)
+
+      val workStealingThreadPool: Option[WorkStealingPoolMetrics] =
+        WorkStealingPoolMetrics(ec)
+    }
+
 }
-
-object IORuntimeMetrics extends IORuntimeMetricsCompanionPlatform

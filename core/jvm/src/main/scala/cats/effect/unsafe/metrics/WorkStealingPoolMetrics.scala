@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
-
-import cats.effect.unsafe.{LocalQueue, WorkStealingThreadPool}
+package cats.effect.unsafe
+package metrics
 
 import scala.concurrent.ExecutionContext
 

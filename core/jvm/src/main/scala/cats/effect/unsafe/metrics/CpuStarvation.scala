@@ -14,23 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
-import scala.concurrent.ExecutionContext
+private[effect] final class CpuStarvation(
+    sampler: CpuStarvationSampler
+) extends CpuStarvationMBean {
 
-private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
-  this: IORuntimeMetrics.type =>
+  def getCpuStarvationCount(): Long =
+    sampler.cpuStarvationCount()
 
-  private[effect] def apply(ec: ExecutionContext): IORuntimeMetrics =
-    new IORuntimeMetrics {
-      private[effect] val cpuStarvationSampler: CpuStarvationSampler =
-        CpuStarvationSampler()
+  def getMaxClockDriftMs(): Long =
+    sampler.clockDriftMaxMs()
 
-      val cpuStarvation: CpuStarvationMetrics =
-        CpuStarvationMetrics(cpuStarvationSampler)
-
-      val workStealingThreadPool: Option[WorkStealingPoolMetrics] =
-        WorkStealingPoolMetrics(ec)
-    }
-
+  def getCurrentClockDriftMs(): Long =
+    sampler.clockDriftCurrentMs()
 }

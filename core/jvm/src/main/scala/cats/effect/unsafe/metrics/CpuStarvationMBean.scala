@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
 /**
  * An MBean interfaces for monitoring when CPU starvation occurs.
  */
-private[metrics] trait CpuStarvationMBean {
+private[unsafe] trait CpuStarvationMBean {
 
   /**
    * Returns the number of times CPU starvation has occurred.
@@ -44,20 +44,4 @@ private[metrics] trait CpuStarvationMBean {
    *   the current clock drift in milliseconds.
    */
   def getCurrentClockDriftMs(): Long
-}
-
-private[metrics] object CpuStarvationMBean {
-
-  private[metrics] def apply(metrics: CpuStarvationSampler): CpuStarvationMBean =
-    new CpuStarvationMBean {
-      def getCpuStarvationCount(): Long =
-        metrics.cpuStarvationCount()
-
-      def getMaxClockDriftMs(): Long =
-        metrics.clockDriftMaxMs()
-
-      def getCurrentClockDriftMs(): Long =
-        metrics.clockDriftCurrentMs()
-    }
-
 }

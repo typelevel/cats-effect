@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
 import scala.concurrent.ExecutionContext
 
 private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
   this: IORuntimeMetrics.type =>
 
-  private[effect] def apply(ec: ExecutionContext): IORuntimeMetrics = {
+  private[unsafe] def apply(ec: ExecutionContext): IORuntimeMetrics = {
     val _ = ec
     new IORuntimeMetrics {
       private[effect] val cpuStarvationSampler: CpuStarvationSampler =
@@ -31,4 +31,5 @@ private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
         CpuStarvationMetrics(cpuStarvationSampler)
     }
   }
+
 }
