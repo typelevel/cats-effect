@@ -17,5 +17,15 @@
 package cats.effect.unsafe.metrics
 
 private[metrics] trait IORuntimeMetricsPlatform { this: IORuntimeMetrics =>
+
+  /**
+   * Returns work-stealing thread pool metrics.
+   *
+   * @example
+   *   {{{
+   * val runtime: IORuntime = ???
+   * val totalWorkers = runtime.metrics.workStealingThreadPool.map(_.compute.workerThreadCount())
+   *   }}}
+   */
   def workStealingThreadPool: Option[WorkStealingPoolMetrics]
 }

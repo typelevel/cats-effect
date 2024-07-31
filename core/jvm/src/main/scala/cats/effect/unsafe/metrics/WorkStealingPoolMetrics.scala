@@ -19,36 +19,185 @@ package metrics
 
 import scala.concurrent.ExecutionContext
 
+/**
+ * Represents metrics associated with a work-stealing thread pool.
+ */
 sealed trait WorkStealingPoolMetrics {
+
+  /**
+   * The hash code of the instrumented work-stealing thread pool. This hash uniquely identifies
+   * the specific thread pool.
+   */
   def hash: String
 
+  /**
+   * Compute-specific metrics of the work-stealing thread pool.
+   */
   def compute: WorkStealingPoolMetrics.ComputeMetrics
 
+  /**
+   * The list of queue-specific metrics of the work-stealing thread pool.
+   */
   def localQueues: List[WorkStealingPoolMetrics.LocalQueueMetrics]
 }
 
 object WorkStealingPoolMetrics {
 
+  /**
+   * The compute metrics of the work-stealing thread pool (WSTP).
+   */
   sealed trait ComputeMetrics {
+
+    /**
+     * The number of worker thread instances backing the work-stealing thread pool (WSTP).
+     *
+     * @note
+     *   this is a fixed value, as the WSTP has a fixed number of worker threads.
+     */
     def workerThreadCount(): Int
+
+    /**
+     * The number of active worker thread instances currently executing fibers on the compute
+     * thread pool.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def activeThreadCount(): Int
+
+    /**
+     * The number of worker thread instances currently searching for fibers to steal from other
+     * worker threads.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def searchingThreadCount(): Int
+
+    /**
+     * The number of worker thread instances that can run blocking actions on the compute thread
+     * pool.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def blockedWorkerThreadCount(): Int
+
+    /**
+     * The total number of fibers enqueued on all local queues.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def localQueueFiberCount(): Long
+
+    /**
+     * The number of fibers which are currently asynchronously suspended.
+     *
+     * @note
+     *   This counter is not synchronized due to performance reasons and might be reporting
+     *   out-of-date numbers.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def suspendedFiberCount(): Long
   }
 
+  /**
+   * The metrics of the local queue.
+   */
   sealed trait LocalQueueMetrics {
+
+    /**
+     * The index of the LocalQueue.
+     */
     def index: Int
+
+    /**
+     * The current number of enqueued fibers.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def fiberCount(): Int
-    def headIndex(): Int
-    def tailIndex(): Int
+
+    /**
+     * The total number of fibers enqueued during the lifetime of the local queue.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def totalFiberCount(): Long
+
+    /**
+     * The total number of fibers spilt over to the external queue.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def totalSpilloverCount(): Long
+
+    /**
+     * The total number of successful steal attempts by other worker threads.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def successfulStealAttemptCount(): Long
+
+    /**
+     * The total number of stolen fibers by other worker threads.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def stolenFiberCount(): Long
+
+    /**
+     * The index that represents the head of the queue.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
+    def headIndex(): Int
+
+    /**
+     * The index that represents the tail of the queue.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
+    def tailIndex(): Int
+
+    /**
+     * The "real" value of the head of the local queue. This value represents the state of the
+     * head which is valid for the owner worker thread. This is an unsigned 16 bit integer.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def realHeadTag(): Int
+
+    /**
+     * The "steal" tag of the head of the local queue. This value represents the state of the
+     * head which is valid for any worker thread looking to steal work from this local queue.
+     * This is an unsigned 16 bit integer.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def stealHeadTag(): Int
+
+    /**
+     * The "tail" tag of the tail of the local queue. This value represents the state of the
+     * tail which is valid for the owner worker thread, used for enqueuing fibers into the local
+     * queue, as well as any other worker thread looking to steal work from this local queue,
+     * used for calculating how many fibers to steal. This is an unsigned 16 bit integer.
+     *
+     * @note
+     *   the value may differ between invocations
+     */
     def tailTag(): Int
   }
 
@@ -88,12 +237,12 @@ object WorkStealingPoolMetrics {
     new LocalQueueMetrics {
       def index: Int = idx
       def fiberCount(): Int = queue.getFiberCount()
-      def headIndex(): Int = queue.getHeadIndex()
-      def tailIndex(): Int = queue.getTailIndex()
       def totalFiberCount(): Long = queue.getTotalFiberCount()
       def totalSpilloverCount(): Long = queue.getTotalSpilloverCount()
       def successfulStealAttemptCount(): Long = queue.getSuccessfulStealAttemptCount()
       def stolenFiberCount(): Long = queue.getStolenFiberCount()
+      def headIndex(): Int = queue.getHeadIndex()
+      def tailIndex(): Int = queue.getTailIndex()
       def realHeadTag(): Int = queue.getRealHeadTag()
       def stealHeadTag(): Int = queue.getStealHeadTag()
       def tailTag(): Int = queue.getTailTag()
