@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
 private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
   this: IORuntimeMetrics.type =>
 
-  private[effect] def apply(): IORuntimeMetrics =
+  private[unsafe] def apply(): IORuntimeMetrics =
     new IORuntimeMetrics {
       private[effect] val cpuStarvationSampler: CpuStarvationSampler =
         CpuStarvationSampler()
@@ -27,5 +27,4 @@ private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
       val cpuStarvation: CpuStarvationMetrics =
         CpuStarvationMetrics(cpuStarvationSampler)
     }
-
 }

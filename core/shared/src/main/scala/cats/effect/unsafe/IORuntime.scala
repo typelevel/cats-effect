@@ -18,7 +18,7 @@ package cats.effect
 package unsafe
 
 import cats.effect.Platform.static
-import cats.effect.metrics.IORuntimeMetrics
+import cats.effect.unsafe.metrics.IORuntimeMetrics
 
 import scala.concurrent.ExecutionContext
 

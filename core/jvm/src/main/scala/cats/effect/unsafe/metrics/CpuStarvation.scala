@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
-private final class CpuStarvation(sampler: CpuStarvationSampler) extends CpuStarvationMBean {
+private[effect] final class CpuStarvation(
+    sampler: CpuStarvationSampler
+) extends CpuStarvationMBean {
+
   def getCpuStarvationCount(): Long =
     sampler.cpuStarvationCount()
 
@@ -26,5 +29,3 @@ private final class CpuStarvation(sampler: CpuStarvationSampler) extends CpuStar
   def getCurrentClockDriftMs(): Long =
     sampler.clockDriftCurrentMs()
 }
-
-private object CpuStarvation

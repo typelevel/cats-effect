@@ -14,6 +14,25 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
-private[metrics] trait IORuntimeMetricsPlatform { this: IORuntimeMetrics => }
+/**
+ * The runtime-specific metrics.
+ */
+trait IORuntimeMetrics extends IORuntimeMetricsPlatform {
+
+  /**
+   * Returns starvation-specific metrics.
+   *
+   * @example
+   *   {{{
+   * val runtime: IORuntime = ???
+   * val maxDrift = runtime.metrics.cpuStarvation.clockDriftMax()
+   *   }}}
+   */
+  def cpuStarvation: CpuStarvationMetrics
+
+  private[effect] def cpuStarvationSampler: CpuStarvationSampler
+}
+
+object IORuntimeMetrics extends IORuntimeMetricsCompanionPlatform

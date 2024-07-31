@@ -18,6 +18,7 @@ package cats.effect.metrics
 
 import cats.effect.{IO, Resource}
 import cats.effect.std.Console
+import cats.effect.unsafe.metrics.{CpuStarvation, CpuStarvationSampler}
 import cats.syntax.functor._
 
 import java.io.{PrintWriter, StringWriter}
