@@ -19,8 +19,9 @@ package unsafe
 
 import scala.util.control.NonFatal
 
-import java.nio.channels.SelectableChannel
+import java.nio.channels.{ClosedSelectorException, SelectableChannel}
 import java.nio.channels.spi.{AbstractSelector, SelectorProvider}
+import java.util.ConcurrentModificationException
 
 import SelectorSystem._
 
@@ -63,7 +64,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
         } catch {
           case ex if NonFatal(ex) =>
             error = ex
-            readyOps = -1 // interest all waiters
+            readyOps = -1 // notify all waiters
         }
 
         val value = if (error ne null) Left(error) else Right(readyOps)
@@ -96,6 +97,61 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
 
       polled
     } else false
+  }
+
+  def steal(poller: Poller, reportFailure: Throwable => Unit): Boolean = {
+    val selector = poller.selector
+
+    val keys =
+      try {
+        if (selector.isOpen()) {
+          selector.selectNow()
+          selector.selectedKeys()
+        } else return false
+      } catch { // selector closed concurrently
+        case _: ClosedSelectorException => return false
+      }
+
+    var polled = false
+    val ready = keys.iterator()
+
+    try {
+      while (ready.hasNext()) {
+        val key = ready.next()
+
+        var readyOps = 0
+        var error: Throwable = null
+        try {
+          readyOps = key.readyOps()
+        } catch {
+          case ex if NonFatal(ex) =>
+            error = ex
+            readyOps = -1 // notify all waiters
+        }
+
+        val value = if (error ne null) Left(error) else Right(readyOps)
+
+        var node = key.attachment().asInstanceOf[CallbackNode]
+        while (node ne null) {
+          val next = node.next
+
+          if ((node.interest & readyOps) != 0) { // execute callback
+            val cb = node.callback
+            if (cb != null) {
+              cb(value)
+              polled = true
+            }
+          }
+
+          node = next
+        }
+      }
+    } catch {
+      case _: ConcurrentModificationException =>
+      // owner thread concurrently processing selected keys, so suppress and exit loop
+    }
+
+    polled
   }
 
   def needsPoll(poller: Poller): Boolean =
