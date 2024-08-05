@@ -513,6 +513,8 @@ trait IOPlatformSpecification extends DetectPlatform { self: BaseSpec with Scala
             }
           }
 
+          def steal(poller: Poller, reportFailure: Throwable => Unit) = false
+
           def makeApi(access: (Poller => Unit) => Unit): DummySystem.Api =
             new DummyPoller {
               def poll = IO.async_[Unit] { cb =>
