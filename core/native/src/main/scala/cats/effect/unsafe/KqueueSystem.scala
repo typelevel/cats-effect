@@ -61,6 +61,8 @@ object KqueueSystem extends PollingSystem {
   def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
     poller.poll(nanos)
 
+  def steal(poller: Poller, reportFailure: Throwable => Unit): Boolean = false
+
   def needsPoll(poller: Poller): Boolean =
     poller.needsPoll()
 
