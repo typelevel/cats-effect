@@ -138,8 +138,7 @@ object Prop {
       F.blocking {
         import scala.collection.JavaConverters._
         val props = System.getProperties
-        val back = new java.util.HashMap[String, String](props.size())
-        props.putAll(back)
+        val back = props.clone().asInstanceOf[java.util.Map[String, String]]
         Map.empty ++ back.asScala
       }
   }
