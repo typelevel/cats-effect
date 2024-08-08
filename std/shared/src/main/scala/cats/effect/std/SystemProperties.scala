@@ -61,7 +61,8 @@ object SystemProperties {
   def apply[F[_]](implicit ev: SystemProperties[F]): ev.type = ev
 
   /**
-   * Constructs a `SystemProperties` instance for `F` data types that are [[cats.effect.kernel.Sync]].
+   * Constructs a `SystemProperties` instance for `F` data types that are
+   * [[cats.effect.kernel.Sync]].
    */
   def make[F[_]](implicit F: Sync[F]): SystemProperties[F] = new SyncSystemProperties[F]
 
@@ -69,28 +70,32 @@ object SystemProperties {
    * [[Prop]] instance built for `cats.data.EitherT` values initialized with any `F` data type
    * that also implements `Prop`.
    */
-  implicit def catsEitherTSystemProperties[F[_]: SystemProperties: Functor, L]: SystemProperties[EitherT[F, L, *]] =
+  implicit def catsEitherTSystemProperties[F[_]: SystemProperties: Functor, L]
+      : SystemProperties[EitherT[F, L, *]] =
     SystemProperties[F].mapK(EitherT.liftK)
 
   /**
    * [[Prop]] instance built for `cats.data.Kleisli` values initialized with any `F` data type
    * that also implements `Prop`.
    */
-  implicit def catsKleisliSystemProperties[F[_]: SystemProperties, R]: SystemProperties[Kleisli[F, R, *]] =
+  implicit def catsKleisliSystemProperties[F[_]: SystemProperties, R]
+      : SystemProperties[Kleisli[F, R, *]] =
     SystemProperties[F].mapK(Kleisli.liftK)
 
   /**
    * [[Prop]] instance built for `cats.data.OptionT` values initialized with any `F` data type
    * that also implements `Prop`.
    */
-  implicit def catsOptionTSystemProperties[F[_]: SystemProperties: Functor]: SystemProperties[OptionT[F, *]] =
+  implicit def catsOptionTSystemProperties[F[_]: SystemProperties: Functor]
+      : SystemProperties[OptionT[F, *]] =
     SystemProperties[F].mapK(OptionT.liftK)
 
   /**
    * [[Prop]] instance built for `cats.data.StateT` values initialized with any `F` data type
    * that also implements `Prop`.
    */
-  implicit def catsStateTSystemProperties[F[_]: SystemProperties: Applicative, S]: SystemProperties[StateT[F, S, *]] =
+  implicit def catsStateTSystemProperties[F[_]: SystemProperties: Applicative, S]
+      : SystemProperties[StateT[F, S, *]] =
     SystemProperties[F].mapK(StateT.liftK)
 
   /**
@@ -107,7 +112,8 @@ object SystemProperties {
    * [[Prop]] instance built for `cats.data.IorT` values initialized with any `F` data type that
    * also implements `Prop`.
    */
-  implicit def catsIorTSystemProperties[F[_]: SystemProperties: Functor, L]: SystemProperties[IorT[F, L, *]] =
+  implicit def catsIorTSystemProperties[F[_]: SystemProperties: Functor, L]
+      : SystemProperties[IorT[F, L, *]] =
     SystemProperties[F].mapK(IorT.liftK)
 
   /**
@@ -122,7 +128,8 @@ object SystemProperties {
   ]: SystemProperties[ReaderWriterStateT[F, E, L, S, *]] =
     SystemProperties[F].mapK(ReaderWriterStateT.liftK)
 
-  private[std] final class SyncSystemProperties[F[_]](implicit F: Sync[F]) extends SystemProperties[F] {
+  private[std] final class SyncSystemProperties[F[_]](implicit F: Sync[F])
+      extends SystemProperties[F] {
 
     def get(key: String): F[Option[String]] =
       F.delay(Option(System.getProperty(key))) // thread-safe
