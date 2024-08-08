@@ -40,7 +40,7 @@ import cats.data.Ior
 import cats.effect.instances.spawn
 import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleDuration
-import cats.effect.std.{Backpressure, Console, Env, Prop, Supervisor, UUIDGen}
+import cats.effect.std.{Backpressure, Console, Env, Supervisor, SystemProperties, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.effect.unsafe.IORuntime
 import cats.syntax._
@@ -2108,7 +2108,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
   implicit val envForIO: Env[IO] = Env.make
 
-  implicit val propForIO: Prop[IO] = Prop.make
+  implicit val systemPropertiesForIO: SystemProperties[IO] = SystemProperties.make
 
   // This is cached as a val to save allocations, but it uses ops from the Async
   // instance which is also cached as a val, and therefore needs to appear

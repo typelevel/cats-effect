@@ -17,27 +17,30 @@
 package cats.effect
 package std
 
-class PropSpec extends BaseSpec {
+import org.typelevel.scalaccompat.annotation._
 
-  "Prop" should {
+class SystemPropertiesSpec extends BaseSpec {
+
+  "SystemProperties" should {
     "retrieve a property just set" in real {
       Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
-        Prop[IO].set(key, "bar") *> Prop[IO].get(key).flatMap(x => IO(x mustEqual Some("bar")))
+        SystemProperties[IO].set(key, "bar") *>
+          SystemProperties[IO].get(key).flatMap(x => IO(x mustEqual Some("bar")))
       }
     }
     "return none for a non-existent property" in real {
-      Prop[IO].get("MADE_THIS_UP").flatMap(x => IO(x must beNone))
+      SystemProperties[IO].get("MADE_THIS_UP").flatMap(x => IO(x must beNone))
     }
     "unset" in real {
       Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
-        Prop[IO].set(key, "bar") *> Prop[IO]
-          .unset(key) *> Prop[IO].get(key).flatMap(x => IO(x must beNone))
+        SystemProperties[IO].set(key, "bar") *> SystemProperties[IO].unset(key) *>
+          SystemProperties[IO].get(key).flatMap(x => IO(x must beNone))
       }
     }
     "retrieve the system properties" in real {
       for {
-        _ <- Prop[IO].set("some property", "the value")
-        props <- Prop[IO].entries
+        _ <- SystemProperties[IO].set("some property", "the value")
+        props <- SystemProperties[IO].entries
         expected <- IO {
           import scala.collection.JavaConverters._
           Map.empty ++ System.getProperties.asScala

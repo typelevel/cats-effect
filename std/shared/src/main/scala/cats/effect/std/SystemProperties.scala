@@ -25,7 +25,7 @@ import org.typelevel.scalaccompat.annotation._
 
 import scala.collection.immutable.Map
 
-trait Prop[F[_]] { self =>
+trait SystemProperties[F[_]] { self =>
 
   /**
    * Retrieves the value for the specified key.
@@ -45,7 +45,7 @@ trait Prop[F[_]] { self =>
 
   def entries: F[Map[String, String]]
 
-  def mapK[G[_]](f: F ~> G): Prop[G] = new Prop[G] {
+  def mapK[G[_]](f: F ~> G): SystemProperties[G] = new SystemProperties[G] {
     def get(key: String): G[Option[String]] = f(self.get(key))
     def set(key: String, value: String): G[Unit] = f(self.set(key, value))
     def unset(key: String) = f(self.unset(key))
@@ -53,76 +53,76 @@ trait Prop[F[_]] { self =>
   }
 }
 
-object Prop {
+object SystemProperties {
 
   /**
-   * Summoner method for `Prop` instances.
+   * Summoner method for `SystemProperties` instances.
    */
-  def apply[F[_]](implicit ev: Prop[F]): ev.type = ev
+  def apply[F[_]](implicit ev: SystemProperties[F]): ev.type = ev
 
   /**
-   * Constructs a `Prop` instance for `F` data types that are [[cats.effect.kernel.Sync]].
+   * Constructs a `SystemProperties` instance for `F` data types that are [[cats.effect.kernel.Sync]].
    */
-  def make[F[_]](implicit F: Sync[F]): Prop[F] = new SyncProp[F]
+  def make[F[_]](implicit F: Sync[F]): SystemProperties[F] = new SyncSystemProperties[F]
 
   /**
    * [[Prop]] instance built for `cats.data.EitherT` values initialized with any `F` data type
    * that also implements `Prop`.
    */
-  implicit def catsEitherTProp[F[_]: Prop: Functor, L]: Prop[EitherT[F, L, *]] =
-    Prop[F].mapK(EitherT.liftK)
+  implicit def catsEitherTSystemProperties[F[_]: SystemProperties: Functor, L]: SystemProperties[EitherT[F, L, *]] =
+    SystemProperties[F].mapK(EitherT.liftK)
 
   /**
    * [[Prop]] instance built for `cats.data.Kleisli` values initialized with any `F` data type
    * that also implements `Prop`.
    */
-  implicit def catsKleisliProp[F[_]: Prop, R]: Prop[Kleisli[F, R, *]] =
-    Prop[F].mapK(Kleisli.liftK)
+  implicit def catsKleisliSystemProperties[F[_]: SystemProperties, R]: SystemProperties[Kleisli[F, R, *]] =
+    SystemProperties[F].mapK(Kleisli.liftK)
 
   /**
    * [[Prop]] instance built for `cats.data.OptionT` values initialized with any `F` data type
    * that also implements `Prop`.
    */
-  implicit def catsOptionTProp[F[_]: Prop: Functor]: Prop[OptionT[F, *]] =
-    Prop[F].mapK(OptionT.liftK)
+  implicit def catsOptionTSystemProperties[F[_]: SystemProperties: Functor]: SystemProperties[OptionT[F, *]] =
+    SystemProperties[F].mapK(OptionT.liftK)
 
   /**
    * [[Prop]] instance built for `cats.data.StateT` values initialized with any `F` data type
    * that also implements `Prop`.
    */
-  implicit def catsStateTProp[F[_]: Prop: Applicative, S]: Prop[StateT[F, S, *]] =
-    Prop[F].mapK(StateT.liftK)
+  implicit def catsStateTSystemProperties[F[_]: SystemProperties: Applicative, S]: SystemProperties[StateT[F, S, *]] =
+    SystemProperties[F].mapK(StateT.liftK)
 
   /**
    * [[Prop]] instance built for `cats.data.WriterT` values initialized with any `F` data type
    * that also implements `Prop`.
    */
-  implicit def catsWriterTProp[
-      F[_]: Prop: Applicative,
+  implicit def catsWriterTSystemProperties[
+      F[_]: SystemProperties: Applicative,
       L: Monoid
-  ]: Prop[WriterT[F, L, *]] =
-    Prop[F].mapK(WriterT.liftK)
+  ]: SystemProperties[WriterT[F, L, *]] =
+    SystemProperties[F].mapK(WriterT.liftK)
 
   /**
    * [[Prop]] instance built for `cats.data.IorT` values initialized with any `F` data type that
    * also implements `Prop`.
    */
-  implicit def catsIorTProp[F[_]: Prop: Functor, L]: Prop[IorT[F, L, *]] =
-    Prop[F].mapK(IorT.liftK)
+  implicit def catsIorTSystemProperties[F[_]: SystemProperties: Functor, L]: SystemProperties[IorT[F, L, *]] =
+    SystemProperties[F].mapK(IorT.liftK)
 
   /**
    * [[Prop]] instance built for `cats.data.ReaderWriterStateT` values initialized with any `F`
    * data type that also implements `Prop`.
    */
-  implicit def catsReaderWriterStateTProp[
-      F[_]: Prop: Applicative,
+  implicit def catsReaderWriterStateTSystemProperties[
+      F[_]: SystemProperties: Applicative,
       E,
       L: Monoid,
       S
-  ]: Prop[ReaderWriterStateT[F, E, L, S, *]] =
-    Prop[F].mapK(ReaderWriterStateT.liftK)
+  ]: SystemProperties[ReaderWriterStateT[F, E, L, S, *]] =
+    SystemProperties[F].mapK(ReaderWriterStateT.liftK)
 
-  private[std] final class SyncProp[F[_]](implicit F: Sync[F]) extends Prop[F] {
+  private[std] final class SyncSystemProperties[F[_]](implicit F: Sync[F]) extends SystemProperties[F] {
 
     def get(key: String): F[Option[String]] =
       F.delay(Option(System.getProperty(key))) // thread-safe
