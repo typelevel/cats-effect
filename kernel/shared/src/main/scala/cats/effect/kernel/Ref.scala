@@ -19,7 +19,7 @@ package effect
 package kernel
 
 import cats.data.State
-import cats.effect.kernel.Ref.TransformedRef
+import cats.effect.kernel.Ref.{TransformedRef, TransformedRef2}
 import cats.syntax.all._
 
 /**
@@ -186,8 +186,12 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
   /**
    * Modify the context `F` using transformation `f`.
    */
-  def mapK[G[_]](f: F ~> G)(implicit F: Functor[F]): Ref[G, A] =
-    new TransformedRef(this, f)
+  def mapK[G[_]](f: F ~> G)(implicit G: Functor[G], dummy: DummyImplicit): Ref[G, A] =
+    new TransformedRef2(this, f)
+
+  @deprecated("Use mapK with Functor[G] constraint", "3.6.0")
+  def mapK[G[_]](f: F ~> G, F: Functor[F]): Ref[G, A] =
+    new TransformedRef(this, f)(F)
 }
 
 object Ref {
@@ -361,6 +365,27 @@ object Ref {
     def empty[A: Monoid]: F[Ref[F, A]] = of(Monoid[A].empty)
   }
 
+  final private[kernel] class TransformedRef2[F[_], G[_], A](
+      underlying: Ref[F, A],
+      trans: F ~> G)(
+      implicit G: Functor[G]
+  ) extends Ref[G, A] {
+    override def get: G[A] = trans(underlying.get)
+    override def set(a: A): G[Unit] = trans(underlying.set(a))
+    override def getAndSet(a: A): G[A] = trans(underlying.getAndSet(a))
+    override def tryUpdate(f: A => A): G[Boolean] = trans(underlying.tryUpdate(f))
+    override def tryModify[B](f: A => (A, B)): G[Option[B]] = trans(underlying.tryModify(f))
+    override def update(f: A => A): G[Unit] = trans(underlying.update(f))
+    override def modify[B](f: A => (A, B)): G[B] = trans(underlying.modify(f))
+    override def tryModifyState[B](state: State[A, B]): G[Option[B]] =
+      trans(underlying.tryModifyState(state))
+    override def modifyState[B](state: State[A, B]): G[B] = trans(underlying.modifyState(state))
+
+    override def access: G[(A, A => G[Boolean])] =
+      G.compose[(A, *)].compose[A => *].map(trans(underlying.access))(trans(_))
+  }
+
+  @deprecated("Use TransformedRef2 with Functor[G] constraint", "3.6.0")
   final private[kernel] class TransformedRef[F[_], G[_], A](
       underlying: Ref[F, A],
       trans: F ~> G)(
