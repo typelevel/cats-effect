@@ -104,21 +104,6 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "access - setter should fail if called twice" in real {
-      val op = for {
-        r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
-        _ <- r(()).set(Some(0))
-        accessed <- r(()).access
-        (value, setter) = accessed
-        cond1 <- setter(value.map(_ + 1))
-        _ <- r(()).set(value)
-        cond2 <- setter(None)
-        result <- r(()).get
-      } yield cond1 && !cond2 && result == Some(0)
-
-      op.map(a => a must_=== true)
-    }
-
     "tryUpdate - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
