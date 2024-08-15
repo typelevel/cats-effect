@@ -1145,6 +1145,17 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         } must completeAs(())
       }
 
+      "cancelable waits for termination if finalizer errors" in ticked { implicit ticker =>
+        val test = IO.never.uncancelable.cancelable(IO.raiseError(new Exception))
+        test.start.flatMap(IO.sleep(1.second) *> _.cancel) must nonTerminate
+      }
+
+      "cancelable waits for termination if finalizer self-cancels" in ticked {
+        implicit ticker =>
+          val test = IO.never.uncancelable.cancelable(IO.canceled)
+          test.start.flatMap(IO.sleep(1.second) *> _.cancel) must nonTerminate
+      }
+
       "only unmask within current fiber" in ticked { implicit ticker =>
         var passed = false
         val test = IO uncancelable { poll =>
