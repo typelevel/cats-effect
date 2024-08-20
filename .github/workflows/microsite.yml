@@ -6,54 +6,35 @@ on:
   push:
     branches: [docs]
 
-env:
-  JABBA_INDEX: 'https://github.com/typelevel/jdk-index/raw/main/index.json'
-
 jobs:
   build:
     name: Generate Microsite
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current branch (fast)
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: true
 
       - name: Setup Java
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 11
+          cache: sbt
 
-      - name: Install NodeJS 14
-        uses: actions/setup-node@v2
+      - name: Install Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '14'
-
-      - name: Cache sbt
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.sbt
-            ~/.ivy2/cache
-            ~/.coursier/cache/v1
-            ~/.cache/coursier/v1
-          key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('**/project/build.properties') }}
-
-      - name: Cache yarn
-        uses: actions/cache@v2
-        with:
-          path: |
-            website/yarn.lock
-            **/node_modules
-          key: ${{ runner.os }}-yarn-cache-v2-${{ hashFiles('website/package.json') }}
+          cache: 'npm'
+          cache-dependency-path: 'website/package-lock.json'
 
       - name: Build
         run: ./build.sh
 
       - name: Publish
         if: github.event_name == 'push'
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./website/build/cats-effect
