@@ -152,7 +152,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
     (
       threadPool,
-      pollingSystem.makeApi(threadPool.register),
+      pollingSystem.makeApi(threadPool.accessPoller),
       { () =>
         unregisterMBeans()
         threadPool.shutdown()

@@ -87,7 +87,7 @@ private[effect] final class WorkStealingThreadPool[P](
   private[unsafe] val pollers: Array[P] =
     new Array[AnyRef](threadCount).asInstanceOf[Array[P]]
 
-  private[unsafe] def register(cb: P => Unit): Unit = {
+  private[unsafe] def accessPoller(cb: P => Unit): Unit = {
 
     // figure out where we are
     val thread = Thread.currentThread()
@@ -97,8 +97,8 @@ private[effect] final class WorkStealingThreadPool[P](
       if (worker.isOwnedBy(pool)) // we're good
         cb(worker.poller())
       else // possibly a blocking worker thread, possibly on another wstp
-        scheduleExternal(() => register(cb))
-    } else scheduleExternal(() => register(cb))
+        scheduleExternal(() => accessPoller(cb))
+    } else scheduleExternal(() => accessPoller(cb))
   }
 
   /**
