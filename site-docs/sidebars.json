@@ -44,6 +44,7 @@
       "std/dispatcher",
       "std/env",
       "std/hotswap",
+      "std/mapref",
       "std/mutex",
       "std/pqueue",
       "std/queue",
