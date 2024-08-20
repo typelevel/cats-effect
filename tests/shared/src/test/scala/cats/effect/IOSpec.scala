@@ -1145,6 +1145,29 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         } must completeAs(())
       }
 
+      "cancelable waits for termination" in ticked { implicit ticker =>
+        def test(fin: IO[Unit]) = {
+          val go = IO.never.uncancelable.cancelable(fin)
+          go.start.flatMap(IO.sleep(1.second) *> _.cancel)
+        }
+
+        test(IO.unit) must nonTerminate
+        test(IO.raiseError(new Exception)) must nonTerminate
+        test(IO.canceled) must nonTerminate
+      }
+
+      "cancelable cancels task" in ticked { implicit ticker =>
+        def test(fin: IO[Unit]) =
+          IO.deferred[Unit].flatMap { latch =>
+            val go = IO.never[Unit].onCancel(latch.complete(()).void).cancelable(fin)
+            go.start.flatMap(IO.sleep(1.second) *> _.cancel) *> latch.get
+          }
+
+        test(IO.unit) must completeAs(())
+        test(IO.raiseError(new Exception)) must completeAs(())
+        test(IO.canceled) must completeAs(())
+      }
+
       "only unmask within current fiber" in ticked { implicit ticker =>
         var passed = false
         val test = IO uncancelable { poll =>

@@ -264,7 +264,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def cancelable[A](fa: F[A], fin: F[Unit]): F[A] =
     uncancelable { poll =>
       start(fa) flatMap { fiber =>
-        poll(fiber.join).onCancel(fin *> fiber.cancel).flatMap(_.embed(poll(canceled *> never)))
+        poll(fiber.join)
+          .onCancel(fin.guarantee(fiber.cancel))
+          .flatMap(_.embed(poll(canceled *> never)))
       }
     }
 
