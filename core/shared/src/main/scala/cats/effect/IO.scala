@@ -492,8 +492,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       val handled = finalizer handleErrorWith { t =>
         IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
       }
-
-      poll(this).onCancel(finalizer).onError { case _ => handled }.flatTap(_ => finalizer)
+      val onError: PartialFunction[Throwable, IO[Unit]] = { case _ => handled }
+      poll(this).onCancel(finalizer).onError(onError).flatTap(_ => finalizer)
     }
 
   /**
@@ -519,13 +519,13 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def guaranteeCase(finalizer: OutcomeIO[A @uncheckedVariance] => IO[Unit]): IO[A] =
     IO.uncancelable { poll =>
       val finalized = poll(this).onCancel(finalizer(Outcome.canceled))
-      val handled = finalized.onError {
+      val onError: PartialFunction[Throwable, IO[Unit]] = {
         case e =>
-          finalizer(Outcome.errored(e)).handleErrorWith { t =>
+          finalizer(Outcome.errored(e)).handleErrorWith { (t: Throwable) =>
             IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
           }
       }
-      handled.flatTap(a => finalizer(Outcome.succeeded(IO.pure(a))))
+      finalized.onError(onError).flatTap { (a: A) => finalizer(Outcome.succeeded(IO.pure(a))) }
     }
 
   def handleError[B >: A](f: Throwable => B): IO[B] =
