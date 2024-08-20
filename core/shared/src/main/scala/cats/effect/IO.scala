@@ -588,8 +588,18 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
 
+  @deprecated("Use onError with PartialFunction argument", "3.6.0")
   def onError(f: Throwable => IO[Unit]): IO[A] =
     handleErrorWith(t => f(t).voidError *> IO.raiseError(t))
+
+  /**
+   * Execute a callback on certain errors, then rethrow them. Any non matching error is rethrown
+   * as well.
+   *
+   * Implements `ApplicativeError.onError`.
+   */
+  def onError(pf: PartialFunction[Throwable, IO[Unit]]): IO[A] =
+    handleErrorWith(t => pf.applyOrElse(t, (_: Throwable) => IO.unit) *> IO.raiseError(t))
 
   /**
    * Like `Parallel.parProductL`
