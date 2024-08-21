@@ -590,8 +590,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.OnCancel(this, fin)
 
   @deprecated("Use onError with PartialFunction argument", "3.6.0")
-  def onError(f: Throwable => IO[Unit]): IO[A] =
-    handleErrorWith(t => f(t).voidError *> IO.raiseError(t))
+  def onError(f: Throwable => IO[Unit]): IO[A] = {
+    val pf: PartialFunction[Throwable, IO[Unit]] = { case t => f(t) }
+    onError(pf)
+  }
 
   /**
    * Execute a callback on certain errors, then rethrow them. Any non matching error is rethrown
