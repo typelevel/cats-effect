@@ -24,16 +24,16 @@ import java.nio.channels.spi.{AbstractSelector, SelectorProvider}
 
 import SelectorSystem._
 
-final class SelectorSystem private (provider: SelectorProvider) extends PollingSystem {
+final class SelectorSystem private (selectorProvider: SelectorProvider) extends PollingSystem {
 
   type Api = Selector
 
   def close(): Unit = ()
 
-  def makeApi(access: (Poller => Unit) => Unit): Selector =
-    new SelectorImpl(access, provider)
+  def makeApi(provider: PollerProvider[Poller]): Selector =
+    new SelectorImpl(provider, selectorProvider)
 
-  def makePoller(): Poller = new Poller(provider.openSelector())
+  def makePoller(): Poller = new Poller(selectorProvider.openSelector())
 
   def closePoller(poller: Poller): Unit =
     poller.selector.close()
@@ -107,15 +107,15 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
   }
 
   final class SelectorImpl private[SelectorSystem] (
-      access: (Poller => Unit) => Unit,
+      poller: PollerProvider[Poller],
       val provider: SelectorProvider
   ) extends Selector {
 
     def select(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { selectCb =>
       IO.async_[CallbackNode] { cb =>
-        access { data =>
+        poller.accessPoller { poller =>
           try {
-            val selector = data.selector
+            val selector = poller.selector
             val key = ch.keyFor(selector)
 
             val node = if (key eq null) { // not yet registered on this selector

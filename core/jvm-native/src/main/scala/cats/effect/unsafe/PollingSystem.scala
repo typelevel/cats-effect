@@ -50,13 +50,8 @@ abstract class PollingSystem {
 
   /**
    * Creates a new instance of the user-facing interface.
-   *
-   * @param access
-   *   callback to obtain a thread-local `Poller`.
-   * @return
-   *   an instance of the user-facing interface `Api`.
    */
-  def makeApi(access: (Poller => Unit) => Unit): Api
+  def makeApi(provider: PollerProvider[Poller]): Api
 
   /**
    * Creates a new instance of the thread-local data structure used for polling.
@@ -109,7 +104,20 @@ abstract class PollingSystem {
 
 }
 
-private object PollingSystem {
+trait PollerProvider[P] {
+
+  /**
+   * Register a callback to obtain a thread-local `Poller`
+   */
+  def accessPoller(cb: P => Unit): Unit
+
+  /**
+   * Returns `true` if it is safe to interact with this `Poller`
+   */
+  def ownPoller(poller: P): Boolean
+}
+
+object PollingSystem {
 
   /**
    * Type alias for a `PollingSystem` that has a specified `Poller` type.
