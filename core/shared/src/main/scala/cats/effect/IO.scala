@@ -585,7 +585,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   @deprecated("Use onError with PartialFunction argument", "3.6.0")
   def onError(f: Throwable => IO[Unit]): IO[A] = {
-    val pf: PartialFunction[Throwable, IO[Unit]] = { case t => f(t) }
+    val pf: PartialFunction[Throwable, IO[Unit]] = { case t => f(t).reportError }
     onError(pf)
   }
 
@@ -596,8 +596,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Implements `ApplicativeError.onError`.
    */
   def onError(pf: PartialFunction[Throwable, IO[Unit]]): IO[A] =
-    handleErrorWith(t =>
-      pf.applyOrElse(t, (_: Throwable) => IO.unit).reportError *> IO.raiseError(t))
+    handleErrorWith(t => pf.applyOrElse(t, (_: Throwable) => IO.unit) *> IO.raiseError(t))
 
   /**
    * Like `Parallel.parProductL`
