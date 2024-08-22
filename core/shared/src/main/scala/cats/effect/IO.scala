@@ -602,7 +602,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Implements `ApplicativeError.onError`.
    */
   def onError(pf: PartialFunction[Throwable, IO[Unit]]): IO[A] =
-    handleErrorWith(t => pf.applyOrElse(t, (_: Throwable) => IO.unit) *> IO.raiseError(t))
+    handleErrorWith(t =>
+      pf.applyOrElse(t, (_: Throwable) => IO.unit).reportError *> IO.raiseError(t))
 
   /**
    * Like `Parallel.parProductL`
@@ -941,6 +942,19 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def void: IO[Unit] =
     map(_ => ())
 
+  /**
+   * Similar to [[IO.voidError]], but also reports the error.
+   */
+  private[effect] def reportError(implicit ev: A <:< Unit): IO[Unit] = {
+    val _ = ev
+    asInstanceOf[IO[Unit]].handleErrorWith { t =>
+      IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+    }
+  }
+
+  /**
+   * Discard any error raised by the source.
+   */
   def voidError(implicit ev: A <:< Unit): IO[Unit] = {
     val _ = ev
     asInstanceOf[IO[Unit]].handleError(_ => ())
