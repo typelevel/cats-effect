@@ -489,10 +489,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def guarantee(finalizer: IO[Unit]): IO[A] =
     // this is a little faster than the default implementation, which helps Resource
     IO uncancelable { poll =>
-      val handled = finalizer handleErrorWith { t =>
-        IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
-      }
-      val onError: PartialFunction[Throwable, IO[Unit]] = { case _ => handled }
+      val onError: PartialFunction[Throwable, IO[Unit]] = { case _ => finalizer.reportError }
       poll(this).onCancel(finalizer).onError(onError).flatTap(_ => finalizer)
     }
 
@@ -520,10 +517,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.uncancelable { poll =>
       val finalized = poll(this).onCancel(finalizer(Outcome.canceled))
       val onError: PartialFunction[Throwable, IO[Unit]] = {
-        case e =>
-          finalizer(Outcome.errored(e)).handleErrorWith { (t: Throwable) =>
-            IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
-          }
+        case e => finalizer(Outcome.errored(e)).reportError
       }
       finalized.onError(onError).flatTap { (a: A) => finalizer(Outcome.succeeded(IO.pure(a))) }
     }
