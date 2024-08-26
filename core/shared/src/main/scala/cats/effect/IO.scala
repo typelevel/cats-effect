@@ -1995,6 +1995,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     override def handleError[A](fa: IO[A])(f: Throwable => A): IO[A] =
       fa.handleError(f)
 
+    override def onError[A](fa: IO[A])(pf: PartialFunction[Throwable, IO[Unit]]): IO[A] =
+      fa.onError(pf)
+
     override def timeout[A](fa: IO[A], duration: FiniteDuration)(
         implicit ev: TimeoutException <:< Throwable): IO[A] = {
       fa.timeout(duration)
