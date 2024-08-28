@@ -31,7 +31,7 @@ Fiber B lifecycle |
 +---------------------+
 ```
 
-`Spawn[F]#background:`
+`Spawn[F]#background`:
 ```
 Fiber A lifecycle
 +------------------------+
