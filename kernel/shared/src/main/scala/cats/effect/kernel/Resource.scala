@@ -700,7 +700,9 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
       }
     }
 
-  def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
+  @deprecated("Use overload with MonadCancelThrow", "3.6.0")
+  def attempt[E](F: ApplicativeError[F, E]): Resource[F, Either[E, A]] = {
+    implicit val x: ApplicativeError[F, E] = F
     this match {
       case Allocate(resource) =>
         Resource.applyFull { poll =>
@@ -710,19 +712,28 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
           }
         }
       case Bind(source, f) =>
-        Resource.unit.flatMap(_ => source.attempt).flatMap {
+        Resource.unit.flatMap(_ => source.attempt(F)).flatMap {
           case Left(error) => Resource.pure(error.asLeft)
-          case Right(s) => f(s).attempt
+          case Right(s) => f(s).attempt(F)
         }
       case p @ Pure(_) =>
         Resource.pure(p.a.asRight)
       case e @ Eval(_) =>
         Resource.eval(e.fa.attempt)
     }
+  }
+
+  def attempt(implicit F: MonadCancelThrow[F]): Resource[F, Either[Throwable, A]] =
+    Resource.applyCase[F, Either[Throwable, A]] {
+      allocatedCase.attempt.map {
+        case Left(error) => (error.asLeft[A], _ => ().pure[F])
+        case Right((a, r)) => (a.asRight[Throwable], r)
+      }
+    }
 
   def handleErrorWith[B >: A, E](f: E => Resource[F, B])(
       implicit F: ApplicativeError[F, E]): Resource[F, B] =
-    attempt.flatMap {
+    attempt(F).flatMap {
       case Right(a) => Resource.pure(a)
       case Left(e) => f(e)
     }
@@ -1462,7 +1473,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
   implicit protected def F: MonadError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-    fa.attempt
+    fa.attempt(F)
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
     fa.handleErrorWith(f)
