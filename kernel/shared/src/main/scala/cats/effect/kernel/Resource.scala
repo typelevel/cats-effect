@@ -724,8 +724,8 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   }
 
   def attempt(implicit F: MonadCancelThrow[F]): Resource[F, Either[Throwable, A]] =
-    Resource.applyCase[F, Either[Throwable, A]] {
-      allocatedCase.attempt.map {
+    Resource.applyFull[F, Either[Throwable, A]] { poll =>
+      poll(allocatedCase).attempt.map {
         case Left(error) => (error.asLeft[A], _ => ().pure[F])
         case Right((a, r)) => (a.asRight[Throwable], r)
       }
