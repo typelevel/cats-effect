@@ -66,7 +66,7 @@ private[effect] object JvmCpuStarvationMetrics {
         case (mbeanServer, _) => IO.blocking(mbeanServer.unregisterMBean(mBeanObjectName))
       }
       .map(_._2)
-      .handleErrorWith[CpuStarvationMetrics, Throwable] { th =>
+      .handleErrorWith[CpuStarvationMetrics] { th =>
         Resource.eval(Console[IO].errorln(warning(th))).map(_ => new NoOpCpuStarvationMetrics)
       }
   }

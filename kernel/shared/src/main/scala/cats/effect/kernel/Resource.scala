@@ -731,8 +731,16 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
       }
     }
 
+  @deprecated("Use overload with MonadCancelThrow", "3.6.0")
   def handleErrorWith[B >: A, E](f: E => Resource[F, B])(
-      implicit F: ApplicativeError[F, E]): Resource[F, B] =
+      F: ApplicativeError[F, E]): Resource[F, B] =
+    attempt(F).flatMap {
+      case Right(a) => Resource.pure(a)
+      case Left(e) => f(e)
+    }
+
+  def handleErrorWith[B >: A](f: Throwable => Resource[F, B])(
+      implicit F: MonadCancelThrow[F]): Resource[F, B] =
     attempt(F).flatMap {
       case Right(a) => Resource.pure(a)
       case Left(e) => f(e)
