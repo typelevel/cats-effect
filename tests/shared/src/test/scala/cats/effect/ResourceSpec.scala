@@ -1188,7 +1188,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       val sleep = IO.sleep(1.second)
       val timeout = 500.millis
       IO.ref(false).flatMap { ref =>
-        val r = Resource.makeFull[IO, Unit] { poll => poll(sleep).onCancel(ref.set(true)) }(_ => IO.unit)
+        val r = Resource.makeFull[IO, Unit] { poll => poll(sleep).onCancel(ref.set(true)) }(_ =>
+          IO.unit)
         r.attempt.timeout(timeout).attempt.use_ *> ref.get
       } must completeAs(true)
     }
