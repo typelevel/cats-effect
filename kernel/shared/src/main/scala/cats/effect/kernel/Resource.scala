@@ -1349,9 +1349,18 @@ abstract private[effect] class ResourceFOInstances1 {
 }
 
 abstract private[effect] class ResourceMonadCancel[F[_]]
-    extends ResourceMonadError[F, Throwable]
+    extends ResourceMonad[F]
     with MonadCancel[Resource[F, *], Throwable] {
   implicit protected def F: MonadCancel[F, Throwable]
+
+  override def attempt[A](fa: Resource[F, A]): Resource[F, Either[Throwable, A]] =
+    fa.attempt(F)
+
+  def handleErrorWith[A](fa: Resource[F, A])(f: Throwable => Resource[F, A]): Resource[F, A] =
+    fa.handleErrorWith(f)
+
+  def raiseError[A](e: Throwable): Resource[F, A] =
+    Resource.raiseError[F, A, Throwable](e)
 
   def canceled: Resource[F, Unit] = Resource.canceled
 
@@ -1474,6 +1483,7 @@ abstract private[effect] class ResourceAsync[F[_]]
     Resource.executionContext
 }
 
+@deprecated("Use ResourceMonadCancel", "3.6.0")
 abstract private[effect] class ResourceMonadError[F[_], E]
     extends ResourceMonad[F]
     with MonadError[Resource[F, *], E] {
@@ -1484,7 +1494,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
     fa.attempt(F)
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
-    fa.handleErrorWith(f)
+    fa.handleErrorWith(f)(F)
 
   def raiseError[A](e: E): Resource[F, A] =
     Resource.raiseError[F, A, E](e)
