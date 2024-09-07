@@ -703,7 +703,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   @deprecated("Use overload with MonadCancelThrow", "3.6.0")
   def attempt[E](F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
     F match {
-      case x: Sync[_] =>
+      case x: Sync[F] =>
         attempt(x).asInstanceOf[Resource[F, Either[E, A]]]
       case _ =>
         implicit val x: ApplicativeError[F, E] = F
@@ -1302,7 +1302,8 @@ private[effect] trait ResourceHOInstances3 extends ResourceHOInstances4 {
 }
 
 private[effect] trait ResourceHOInstances4 extends ResourceHOInstances5 {
-  implicit def catsEffectMonadErrorForResource[F[_], E](
+  @deprecated("Use MonadCancelThrow instances", "3.6.0")
+  def catsEffectMonadErrorForResource[F[_], E](
       implicit F0: MonadError[F, E]): MonadError[Resource[F, *], E] =
     new ResourceMonadError[F, E] {
       def F = F0
