@@ -731,7 +731,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
     Resource.applyFull[F, Either[Throwable, A]] { poll =>
       poll(allocatedCase).attempt.map {
         case Right((a, r)) => (a.asRight[Throwable], r)
-        case error => (error, _ => F.unit)
+        case error => (error.asInstanceOf[Either[Throwable, A]], _ => F.unit)
       }
     }
 
