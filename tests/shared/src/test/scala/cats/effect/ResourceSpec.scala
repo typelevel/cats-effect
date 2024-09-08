@@ -1179,7 +1179,9 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         .flatMap { ref =>
           val resource = Resource.make(ref.update(_ + 1))(_ => ref.update(_ + 1))
           val error = Resource.raiseError[IO, Unit, Throwable](new Exception)
-          (resource *> error).attempt.use { _ => ref.get.map { _ must be_==(2) } }
+          (resource *> error).attempt.use { r =>
+            IO(r must beLeft) *> ref.get.map { _ must be_==(2) }
+          }
         }
         .void must completeAs(())
     }
