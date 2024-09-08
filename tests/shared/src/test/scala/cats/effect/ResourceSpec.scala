@@ -1185,7 +1185,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "acquire is interruptible" in ticked { implicit ticker =>
-      val sleep = IO.sleep(1.second)
+      val sleep = IO.never
       val timeout = 500.millis
       IO.ref(false).flatMap { ref =>
         val r = Resource.makeFull[IO, Unit] { poll => poll(sleep).onCancel(ref.set(true)) }(_ =>

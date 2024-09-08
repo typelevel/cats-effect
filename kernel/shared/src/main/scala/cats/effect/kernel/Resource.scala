@@ -730,8 +730,8 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   def attempt(implicit F: MonadCancelThrow[F]): Resource[F, Either[Throwable, A]] =
     Resource.applyFull[F, Either[Throwable, A]] { poll =>
       poll(allocatedCase).attempt.map {
-        case Left(error) => (error.asLeft[A], _ => ().pure[F])
         case Right((a, r)) => (a.asRight[Throwable], r)
+        case error => (error, _ => F.unit)
       }
     }
 
@@ -745,7 +745,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
 
   def handleErrorWith[B >: A](f: Throwable => Resource[F, B])(
       implicit F: MonadCancelThrow[F]): Resource[F, B] =
-    attempt(F).flatMap {
+    attempt.flatMap {
       case Right(a) => Resource.pure(a)
       case Left(e) => f(e)
     }
@@ -1359,7 +1359,7 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
   implicit protected def F: MonadCancel[F, Throwable]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[Throwable, A]] =
-    fa.attempt(F)
+    fa.attempt
 
   def handleErrorWith[A](fa: Resource[F, A])(f: Throwable => Resource[F, A]): Resource[F, A] =
     fa.handleErrorWith(f)
