@@ -68,10 +68,11 @@ trait Fiber[F[_], E, A] extends Serializable {
    *
    * If the fiber completes with [[Outcome.Succeeded]], the successful value is returned. If the
    * fiber completes with [[Outcome.Errored]], the error is raised. If the fiber completes with
-   * [[Outcome.Canceled]], the caller is indefinitely suspended without termination.
+   * [[Outcome.Canceled]], attempt to self-cancel, and if the self-cancelation fails, the caller
+   * is indefinitely suspended without termination.
    */
   def joinWithNever(implicit F: GenSpawn[F, E]): F[A] =
-    joinWith(F.never)
+    joinWith(F.canceled >> F.never)
 
   /**
    * Awaits the completion of the bound fiber and returns its result once it completes.
