@@ -11,6 +11,38 @@ title: Supervisor
 
 `Spawn[F]#background`: ties the lifecycle of the spawned fiber to that of the fiber that invoked `background`
 
+The following diagrams illustrate the lifecycle of the spawned fiber in both cases.
+In each example, some fiber A is spawning another fiber B.
+Each box represents the lifecycle of a fiber.
+If a box is enclosed within another box, it means that the lifecycle of the former is confined within the lifecycle of the latter.
+In other words, if an outer fiber terminates, the inner fibers are guaranteed to be terminated as well.
+
+`Spawn[F]#start`:
+```
+Fiber A lifecycle
++---------------------+
+|                 |   |
++-----------------|---+
+                  |
+                  |A starts B
+Fiber B lifecycle |
++-----------------|---+
+|                 +   |
++---------------------+
+```
+
+`Spawn[F]#background`:
+```
+Fiber A lifecycle
++------------------------+
+|                    |   |
+| Fiber B lifecycle  |A starts B
+| +------------------|-+ |
+| |                  | | |
+| +--------------------+ |
++------------------------+
+```
+
 But what if we want to spawn a fiber that should outlive the scope that created
 it, but we still want to control its lifecycle?
 
@@ -30,6 +62,25 @@ object Supervisor {
 
 Any fibers created via the supervisor will be finalized when the supervisor itself
 is finalized via `Resource#use`.
+
+The lifecycle of fibers spawned with `Supervisor` can be illustrated in the same style as above:
+
+```
+Supervisor lifecycle
++---------------------+
+| Fiber B lifecycle   |
+| +-----------------+ |
+| |               + | |
+| +---------------|-+ |
++-----------------|---+
+                  |
+                  | A starts B
+Fiber A lifecycle |
++-----------------|---+
+|                 |   |
++---------------------+
+```
+
 
 There are two finalization strategies according to the `await` parameter of the constructor:
 - `true` - wait for the completion of the active fibers
