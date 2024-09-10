@@ -58,6 +58,33 @@
 <p><a href="/cats-effect/docs/typeclasses/spawn">Spawn</a> provides multiple ways to spawn a <a href="/cats-effect/docs/concepts#fibers">fiber</a> to run an action:</p>
 <p><code>Spawn[F]#start</code>: start and forget, no lifecycle management for the spawned fiber</p>
 <p><code>Spawn[F]#background</code>: ties the lifecycle of the spawned fiber to that of the fiber that invoked <code>background</code></p>
+<p>The following diagrams illustrate the lifecycle of the spawned fiber in both cases.
+In each example, some fiber A is spawning another fiber B.
+Each box represents the lifecycle of a fiber.
+If a box is enclosed within another box, it means that the lifecycle of the former is confined within the lifecycle of the latter.
+In other words, if an outer fiber terminates, the inner fibers are guaranteed to be terminated as well.</p>
+<p><code>Spawn[F]#start</code>:</p>
+<pre><code class="hljs">Fiber A lifecycle
++---------------------+
+|                 |   |
++-----------------|---+
+                  |
+                  |A starts B
+Fiber B lifecycle |
++-----------------|---+
+|                 +   |
++---------------------+
+</code></pre>
+<p><code>Spawn[F]#background</code>:</p>
+<pre><code class="hljs">Fiber A lifecycle
++------------------------+
+|                    |   |
+| Fiber B lifecycle  |A starts B
+| +------------------|-+ |
+| |                  | | |
+| +--------------------+ |
++------------------------+
+</code></pre>
 <p>But what if we want to spawn a fiber that should outlive the scope that created
 it, but we still want to control its lifecycle?</p>
 <h2><a class="anchor" aria-hidden="true" id="supervisor"></a><a href="#supervisor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Supervisor</h2>
@@ -72,6 +99,21 @@ it, but we still want to control its lifecycle?</p>
 </code></pre>
 <p>Any fibers created via the supervisor will be finalized when the supervisor itself
 is finalized via <code>Resource#use</code>.</p>
+<p>The lifecycle of fibers spawned with <code>Supervisor</code> can be illustrated in the same style as above:</p>
+<pre><code class="hljs">Supervisor lifecycle
++---------------------+
+| Fiber B lifecycle   |
+| +-----------------+ |
+| |               + | |
+| +---------------|-+ |
++-----------------|---+
+                  |
+                  | A starts B
+Fiber A lifecycle |
++-----------------|---+
+|                 |   |
++---------------------+
+</code></pre>
 <p>There are two finalization strategies according to the <code>await</code> parameter of the constructor:</p>
 <ul>
 <li><code>true</code> - wait for the completion of the active fibers</li>
