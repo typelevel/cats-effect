@@ -21,6 +21,7 @@ import scala.util.control.NonFatal
 
 import java.nio.channels.SelectableChannel
 import java.nio.channels.spi.{AbstractSelector, SelectorProvider}
+import java.util.Iterator
 
 import SelectorSystem._
 
@@ -68,29 +69,21 @@ final class SelectorSystem private (selectorProvider: SelectorProvider) extends 
 
         val value = if (error ne null) Left(error) else Right(readyOps)
 
-        var head: CallbackNode = null
-        var prev: CallbackNode = null
-        var node = key.attachment().asInstanceOf[CallbackNode]
-        while (node ne null) {
-          val next = node.next
+        val callbacks = key.attachment().asInstanceOf[Callbacks]
+        val iter = callbacks.iterator()
+        while (iter.hasNext()) {
+          val node = iter.next()
 
-          if ((node.interest & readyOps) != 0) { // execute callback and drop this node
+          if ((node.interest & readyOps) != 0) { // drop this node and execute callback
+            node.remove()
             val cb = node.callback
             if (cb != null) {
               cb(value)
               polled = true
             }
-            if (prev ne null) prev.next = next
-          } else { // keep this node
-            prev = node
-            if (head eq null)
-              head = node
           }
-
-          node = next
         }
 
-        key.attach(head) // if key was canceled this will null attachment
         ()
       }
 
@@ -107,41 +100,37 @@ final class SelectorSystem private (selectorProvider: SelectorProvider) extends 
   }
 
   final class SelectorImpl private[SelectorSystem] (
-      poller: PollerProvider[Poller],
+      pollerProvider: PollerProvider[Poller],
       val provider: SelectorProvider
   ) extends Selector {
 
     def select(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { selectCb =>
-      IO.async_[CallbackNode] { cb =>
-        poller.accessPoller { poller =>
+      IO.async_[Option[IO[Unit]]] { cb =>
+        pollerProvider.accessPoller { poller =>
           try {
             val selector = poller.selector
             val key = ch.keyFor(selector)
 
             val node = if (key eq null) { // not yet registered on this selector
-              val node = new CallbackNode(ops, selectCb, null)
-              ch.register(selector, ops, node)
-              node
+              val cbs = new Callbacks
+              ch.register(selector, ops, cbs)
+              cbs.append(ops, selectCb)
             } else { // existing key
               // mixin the new interest
               key.interestOps(key.interestOps() | ops)
-              val node =
-                new CallbackNode(ops, selectCb, key.attachment().asInstanceOf[CallbackNode])
-              key.attach(node)
-              node
+              val cbs = key.attachment().asInstanceOf[Callbacks]
+              cbs.append(ops, selectCb)
             }
 
-            cb(Right(node))
+            val cancel = IO {
+              if (pollerProvider.ownPoller(poller))
+                node.remove()
+              else
+                node.clear()
+            }
+
+            cb(Right(Some(cancel)))
           } catch { case ex if NonFatal(ex) => cb(Left(ex)) }
-        }
-      }.map { node =>
-        Some {
-          IO {
-            // set all interest bits
-            node.interest = -1
-            // clear for gc
-            node.callback = null
-          }
         }
       }
     }
@@ -161,9 +150,55 @@ object SelectorSystem {
 
   def apply(): SelectorSystem = apply(SelectorProvider.provider())
 
-  private final class CallbackNode(
-      var interest: Int,
-      var callback: Either[Throwable, Int] => Unit,
-      var next: CallbackNode
-  )
+  private final class Callbacks {
+
+    private var head: Node = null
+    private var last: Node = null
+
+    def append(interest: Int, callback: Either[Throwable, Int] => Unit): Node = {
+      val node = new Node(interest, callback)
+      if (last ne null) {
+        last.next = node
+        node.prev = last
+      } else {
+        head = node
+      }
+      last = node
+      node
+    }
+
+    def iterator(): Iterator[Node] = new Iterator[Node] {
+      private var _next = head
+
+      def hasNext() = _next ne null
+
+      def next() = {
+        val next = _next
+        _next = next.next
+        next
+      }
+    }
+
+    final class Node(
+        var interest: Int,
+        var callback: Either[Throwable, Int] => Unit
+    ) {
+      var prev: Node = null
+      var next: Node = null
+
+      def remove(): Unit = {
+        if (prev ne null) prev.next = next
+        else head = next
+
+        if (next ne null) next.prev = prev
+        else last = prev
+      }
+
+      def clear(): Unit = {
+        interest = -1 // set all interest bits
+        callback = null // clear for gc
+      }
+    }
+  }
+
 }
