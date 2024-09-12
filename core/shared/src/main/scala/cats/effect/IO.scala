@@ -16,24 +16,7 @@
 
 package cats.effect
 
-import cats.{
-  Align,
-  Alternative,
-  Applicative,
-  CommutativeApplicative,
-  Eval,
-  Functor,
-  Id,
-  Monad,
-  Monoid,
-  Now,
-  Parallel,
-  Semigroup,
-  SemigroupK,
-  Show,
-  StackSafeMonad,
-  Traverse
-}
+import cats.{Align, Alternative, CommutativeApplicative, Eval, Functor, Id, Monad, Monoid, Now, Parallel, Semigroup, SemigroupK, Show, StackSafeMonad, Traverse}
 import cats.data.Ior
 import cats.effect.instances.spawn
 import cats.effect.kernel.CancelScope
