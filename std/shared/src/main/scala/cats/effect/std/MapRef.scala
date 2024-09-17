@@ -60,12 +60,6 @@ object MapRef extends MapRefCompanionPlatform {
   }
 
   /**
-   * the default Constructor for MapRef with a default value.
-   */
-  def apply[F[_]: Concurrent, K, V: Eq](default: V): F[MapRef[F, K, V]] =
-    apply[F, K, V].map(defaultedMapRef(_, default))
-
-  /**
    * Creates a sharded map ref to reduce atomic contention on the Map, given an efficient and
    * equally distributed hash, the contention should allow for interaction like a general
    * datastructure.
@@ -542,5 +536,8 @@ object MapRef extends MapRefCompanionPlatform {
           val (set, out) = f(v)
           (set.some, out.some)
       }
+
+    def withDefaultValue(default: V)(implicit E: Eq[V], F: Functor[F]): MapRef[F, K, V] =
+      defaultedMapRef(mRef, default)
   }
 }
