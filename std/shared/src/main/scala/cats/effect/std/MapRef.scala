@@ -46,8 +46,8 @@ trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 object MapRef extends MapRefCompanionPlatform {
 
   /**
-   * the default Constructor for MapRef.
-   * If Async is available, it will use a ConcurrentHashMap, otherwise it will use a sharded immutable map.
+   * the default Constructor for MapRef. If Async is available, it will use a ConcurrentHashMap,
+   * otherwise it will use a sharded immutable map.
    */
   def apply[F[_]: Concurrent, K, V](): F[MapRef[F, K, Option[V]]] = {
 
