@@ -46,6 +46,22 @@ trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 object MapRef extends MapRefCompanionPlatform {
 
   /**
+   * the default Constructor for MapRef.
+   * If Async is available, it will use a ConcurrentHashMap, otherwise it will use a sharded immutable map.
+   */
+  def apply[F[_]: Concurrent, K, V](): F[MapRef[F, K, Option[V]]] = {
+
+    Concurrent[F] match {
+      case a: Async[_] =>
+        implicit val async: Async[F] = a
+        ofConcurrentHashMap()
+      case _ =>
+        ofShardedImmutableMap[F, K, V](Runtime.getRuntime.availableProcessors())
+    }
+
+  }
+
+  /**
    * Creates a sharded map ref to reduce atomic contention on the Map, given an efficient and
    * equally distributed hash, the contention should allow for interaction like a general
    * datastructure.
