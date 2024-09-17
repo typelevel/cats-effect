@@ -49,14 +49,12 @@ object MapRef extends MapRefCompanionPlatform {
    * the default Constructor for MapRef. If Async is available, it will use a ConcurrentHashMap,
    * otherwise it will use a sharded immutable map.
    */
-  def apply[F[_]: Concurrent, K, V](): F[MapRef[F, K, Option[V]]] = {
-
+  def apply[F[_]: Concurrent, K, V]: F[MapRef[F, K, Option[V]]] = {
     Concurrent[F] match {
-      case a: Async[_] =>
-        implicit val async: Async[F] = a
-        ofConcurrentHashMap()
+      case s: Sync[F] =>
+        ofConcurrentHashMap()(s)
       case _ =>
-        ofShardedImmutableMap[F, K, V](Runtime.getRuntime.availableProcessors())
+        ofShardedImmutableMap[F, K, V](shardCount = Runtime.getRuntime.availableProcessors())
     }
 
   }
