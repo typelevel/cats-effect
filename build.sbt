@@ -1063,4 +1063,12 @@ lazy val stressTests = project
   )
   .enablePlugins(NoPublishPlugin, JCStressPlugin)
 
-lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
+lazy val docs = project
+  .in(file("site-docs"))
+  .dependsOn(core.jvm, testkit.jvm)
+  .enablePlugins(MdocPlugin)
+  .settings(
+    libraryDependencies += "org.typelevel" %% "munit-cats-effect" % "2.0.0"
+  )
+  
+
