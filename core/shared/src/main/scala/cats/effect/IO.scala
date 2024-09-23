@@ -19,7 +19,6 @@ package cats.effect
 import cats.{
   Align,
   Alternative,
-  Applicative,
   CommutativeApplicative,
   Eval,
   Functor,
@@ -1620,7 +1619,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *   [[IO.raiseWhen]] for conditionally raising an error
    */
   def whenA(cond: Boolean)(action: => IO[Unit]): IO[Unit] =
-    Applicative[IO].whenA(cond)(action)
+    if (cond) action else IO.unit
 
   /**
    * Returns the given argument if `cond` is false, otherwise `IO.Unit`
@@ -1631,7 +1630,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *   [[IO.raiseWhen]] for conditionally raising an error
    */
   def unlessA(cond: Boolean)(action: => IO[Unit]): IO[Unit] =
-    Applicative[IO].unlessA(cond)(action)
+    whenA(!cond)(action)
 
   /**
    * Returns `raiseError` when the `cond` is true, otherwise `IO.unit`
