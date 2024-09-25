@@ -418,7 +418,11 @@ class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 class DroppingQueueSpec extends BaseSpec with QueueTests[Queue] {
   sequential
 
-  "DroppingQueue" should {
+  "DroppingQueue (concurrent)" should {
+    droppingQueueTests(i => if (i < 1) Queue.dropping(i) else Queue.droppingForConcurrent(i))
+  }
+
+  "DroppingQueue (async)" should {
     droppingQueueTests(Queue.dropping)
   }
 
