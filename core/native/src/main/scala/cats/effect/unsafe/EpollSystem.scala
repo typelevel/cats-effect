@@ -185,7 +185,7 @@ object EpollSystem extends PollingSystem {
 
     private[EpollSystem] def poll(timeout: Long): Boolean = {
 
-      val events = stackalloc[epoll_event](MaxEvents.toLong)
+      val events = stackalloc[epoll_event](MaxEvents.toULong)
       var polled = false
 
       @tailrec

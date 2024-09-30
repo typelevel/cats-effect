@@ -69,7 +69,7 @@ class FileDescriptorPollerSpec extends BaseSpec {
     Resource
       .make {
         IO {
-          val fd = stackalloc[CInt](2)
+          val fd = stackalloc[CInt](2.toULong)
           if (unistd.pipe(fd) != 0)
             throw new IOException(fromCString(strerror(errno)))
           (fd(0), fd(1))

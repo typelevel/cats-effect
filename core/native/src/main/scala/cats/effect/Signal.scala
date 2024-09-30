@@ -34,7 +34,7 @@ import java.io.IOException
 private object Signal {
 
   private[this] def mkPipe() = if (isLinux || isMac) {
-    val fd = stackalloc[CInt](2)
+    val fd = stackalloc[CInt](2.toULong)
     if (pipe(fd) != 0)
       throw new IOException(fromCString(strerror(errno)))
 
