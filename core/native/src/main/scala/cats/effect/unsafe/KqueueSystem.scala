@@ -170,7 +170,7 @@ object KqueueSystem extends PollingSystem {
 
     private[KqueueSystem] def poll(timeout: Long): Boolean = {
 
-      val eventlist = stackalloc[kevent64_s](MaxEvents.toLong)
+      val eventlist = stackalloc[kevent64_s](MaxEvents.toULong)
       var polled = false
 
       @tailrec
