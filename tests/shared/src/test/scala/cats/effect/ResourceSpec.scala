@@ -986,7 +986,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
             case Left(()) =>
               acquiredRight.get.ifM(loserReleased.get.map(_ must beRight[Unit]), IO.pure(ok))
             case Right(()) =>
-              acquiredLeft.get.ifM(loserReleased.get.map(_ must beLeft[Unit]).void, IO.pure(ok))
+              acquiredLeft.get.ifM(loserReleased.get.map(_ must beLeft[Unit]), IO.pure(ok))
           }
         }
 
