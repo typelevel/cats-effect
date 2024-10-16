@@ -104,6 +104,7 @@ object KqueueSystem extends PollingSystem {
                   access { kqueue =>
                     kqueue.evSet(fd, EVFILT_READ, EV_ADD.toUShort, kqcb)
                     cb(Right(Some(IO(kqueue.removeCallback(fd, EVFILT_READ)))))
+                    ()
                   }
                 }
 
@@ -124,6 +125,7 @@ object KqueueSystem extends PollingSystem {
                   access { kqueue =>
                     kqueue.evSet(fd, EVFILT_WRITE, EV_ADD.toUShort, kqcb)
                     cb(Right(Some(IO(kqueue.removeCallback(fd, EVFILT_WRITE)))))
+                    ()
                   }
                 }
               }
@@ -140,13 +142,13 @@ object KqueueSystem extends PollingSystem {
       changelistArray.atUnsafe(0).asInstanceOf[Ptr[kevent64_s]]
     private[this] var changeCount = 0
 
-    private[this] val callbacks = new LongMap[Either[Throwable, Unit] => Unit]()
+    private[this] val callbacks = new LongMap[Either[Throwable, Unit] => Boolean]()
 
     private[KqueueSystem] def evSet(
         ident: Int,
         filter: Short,
         flags: CUnsignedShort,
-        cb: Either[Throwable, Unit] => Unit
+        cb: Either[Throwable, Unit] => Boolean
     ): Unit = {
       val change = changelist + changeCount.toLong
 
@@ -197,12 +199,14 @@ object KqueueSystem extends PollingSystem {
             val cb = callbacks.getOrNull(kevent)
             callbacks -= kevent
 
-            if (cb ne null)
+            if (cb ne null) {
               cb(
                 if ((event.flags.toLong & EV_ERROR) != 0)
                   Left(new IOException(fromCString(strerror(event.data.toInt))))
                 else Either.unit
               )
+              ()
+            }
 
             i += 1
             event += 1

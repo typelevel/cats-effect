@@ -31,8 +31,9 @@ import cats.~>
  * `Deferred` instead, depending on the use case.
  *
  * It can be understood as providing an operation to resume an `F` asynchronously, of type
- * `Either[Throwable, A] => Unit`, and an (interruptible) operation to semantically block until
- * resumption, of type `F[A]`. We will refer to the former as `resume`, and the latter as `get`.
+ * `Either[Throwable, A] => Boolean`, and an (interruptible) operation to semantically block
+ * until resumption, of type `F[A]`. We will refer to the former as `resume`, and the latter as
+ * `get`.
  *
  * These two operations capture the essence of fiber blocking, and can be used to build `async`,
  * which in turn can be used to build `Fiber`, `start`, `Deferred` and so on.
@@ -45,7 +46,7 @@ import cats.~>
  * trait Async[F[_]] {
  *   ...
  *
- *   def cont[A]: F[(Either[Throwable, A] => Unit, F[A])]
+ *   def cont[A]: F[(Either[Throwable, A] => Boolean, F[A])]
  * }
  * }}}
  *
@@ -62,5 +63,5 @@ import cats.~>
 trait Cont[F[_], K, R] extends Serializable {
   def apply[G[_]](
       implicit
-      G: MonadCancel[G, Throwable]): (Either[Throwable, K] => Unit, G[K], F ~> G) => G[R]
+      G: MonadCancel[G, Throwable]): (Either[Throwable, K] => Boolean, G[K], F ~> G) => G[R]
 }

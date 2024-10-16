@@ -17,7 +17,7 @@ As a general orientation, though, Cats Effect should be considered as living in 
 
 Note that all of the above libraries have significant differences and conceptual mismatches with Cats Effect. Tokio and Vert.x are probably the closest counterparts, though both are more vertically integrated (meaning they take a more *framework* oriented approach), while Cats Effect prescriptively defines itself as a library which enables a broad composable ecosystem. Additionally, in many places, Cats Effect defines features and functionality which simply doesn't exist in these ecosystems. As an example, neither Akka (via `Future`), Netty, nor Vert.x have any support for asynchronous cancelation (also known as "interruption"), meaning that basic functionality such as timeouts and concurrent error handling can result in resource leaks in a running application. Another example of functionality mismatch is the fiber-aware work-stealing runtime, which is present in Tokio and (to a lesser extent) Akka, but not in Netty or Vert.x. As a final example, asynchronous tracing is present to a limited degree in Vert.x and Akka, but absent from all other frameworks, and neither of these provide a version of this functionality which is performant enough for production use (unlike Cats Effect).
 
-Despite the differences, it is generally helpful to understand that Cats Effect fundamentally solves many of the same problems as other frameworks in this space: it is a foundational runtime layer which makes it easy to build and scale complex high-performance asynchronous and parallel software on the JVM and on JavaScript. 
+Despite the differences, it is generally helpful to understand that Cats Effect fundamentally solves many of the same problems as other frameworks in this space: it is a foundational runtime layer which makes it easy to build and scale complex high-performance asynchronous and parallel software on the JVM and on JavaScript.
 
 ## Fibers
 
@@ -34,7 +34,7 @@ Each step in a thread is a *statement*, and those statements are defined in sequ
 ```scala mdoc:silent
 import cats.effect._
 
-IO.println("Hello") flatMap { _ => 
+IO.println("Hello") flatMap { _ =>
   IO.println("World")
 }
 ```
@@ -128,7 +128,7 @@ val scheduler = Executors.newScheduledThreadPool(1)
 
 IO.async_[Unit] { cb =>
   scheduler.schedule(new Runnable {
-    def run = cb(Right(()))
+    def run = { cb(Right(())); () }
   }, 500, TimeUnit.MILLISECONDS)
 
   ()

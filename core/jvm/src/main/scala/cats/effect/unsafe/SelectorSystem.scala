@@ -132,7 +132,8 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
             }
 
             cb(Right(node))
-          } catch { case ex if NonFatal(ex) => cb(Left(ex)) }
+            ()
+          } catch { case ex if NonFatal(ex) => cb(Left(ex)); () }
         }
       }.map { node =>
         Some {
@@ -163,7 +164,7 @@ object SelectorSystem {
 
   private final class CallbackNode(
       var interest: Int,
-      var callback: Either[Throwable, Int] => Unit,
+      var callback: Either[Throwable, Int] => Boolean,
       var next: CallbackNode
   )
 }

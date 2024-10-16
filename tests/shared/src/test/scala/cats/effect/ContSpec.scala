@@ -45,16 +45,38 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
 
   type Cancelable[F[_]] = MonadCancel[F, Throwable]
 
-  "get resumes" in real {
-    val io = cont {
+  "register resumes" in real {
+    def io(ref: Ref[IO, Boolean]) = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(resume(Right(42)))) >> get.map(_.toString)
+          lift(IO(resume(Right(42))).flatMap(ref.set)) >> get.map(_.toString)
         }
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual "42"))
+    val test = IO.ref(false).flatMap { ref =>
+      io(ref).flatMap(r => IO(r mustEqual "42")) >> ref.get.flatMap { flag =>
+        IO(flag mustEqual true)
+      }
+    }
+
+    execute(test, iterations)
+  }
+
+  "register resumes, but no get" in real {
+    def io(ref: Ref[IO, Boolean]) = cont {
+      new Cont[IO, Int, String] {
+        def apply[F[_]: Cancelable] = { (resume, _, lift) =>
+          lift(IO(resume(Right(42))).flatMap(ref.set)) >> lift(IO.pure("foo"))
+        }
+      }
+    }
+
+    val test = IO.ref(false).flatMap { ref =>
+      io(ref).flatMap(r => IO(r mustEqual "foo")) >> ref.get.flatMap { flag =>
+        IO(flag mustEqual true) // FIXME: but why?
+      }
+    }
 
     execute(test, iterations)
   }
@@ -63,10 +85,9 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(rt.scheduler.sleep(10.millis, () => resume(Right(42))))) >>
+          lift(IO(rt.scheduler.sleep(10.millis, () => { resume(Right(42)); () }))) >>
             get.map(_.toString)
         }
-
       }
     }
 
@@ -118,7 +139,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
           cont {
             new Cont[IO, Unit, Unit] {
               def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                lift(IO(rt.scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
+                lift(IO(rt.scheduler.sleep(2.seconds, () => { resume(().asRight); () }))) >>
                   get.onCancel {
                     lift(start.set(true)) >> get >> lift(end.set(true))
                   }
@@ -139,7 +160,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
           cont {
             new Cont[IO, Unit, Unit] {
               def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                lift(IO(rt.scheduler.sleep(2.seconds, () => resume(().asRight)))) >>
+                lift(IO(rt.scheduler.sleep(2.seconds, () => { resume(().asRight); () }))) >>
                   get.onCancel {
                     lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
                   }
@@ -155,7 +176,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val test = cont {
       new Cont[IO, Unit, Unit] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(rt.scheduler.sleep(1.second, () => resume(().asRight)))) >>
+          lift(IO(rt.scheduler.sleep(1.second, () => { resume(().asRight); () }))) >>
             lift(IO.never).onCancel(get)
         }
       }
@@ -182,10 +203,9 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(rt.scheduler.sleep(10.millis, () => resume(Right(42))))) >> get >>
+          lift(IO(rt.scheduler.sleep(10.millis, () => { resume(Right(42)); () }))) >> get >>
             get.map(_.toString)
         }
-
       }
     }
 

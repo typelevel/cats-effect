@@ -1274,7 +1274,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * The given function `k` will be invoked during evaluation of the `IO` to:
    *   - check if result is already available;
    *   - "schedule" the asynchronous callback, where the callback of type `Either[Throwable, A]
-   *     \=> Unit` is the parameter passed to that function. Only the ''first'' invocation of
+   *     \=> Boolean` is the parameter passed to that function. Only the ''first'' invocation of
    *     the callback will be effective! All subsequent invocations will be silently dropped.
    *
    * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
@@ -1323,7 +1323,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    *   [[async]] for a simplified variant without an option for immediate result
    */
   def asyncCheckAttempt[A](
-      k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] = {
+      k: (Either[Throwable, A] => Boolean) => IO[Either[Option[IO[Unit]], A]]): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
         G.uncancelable { poll =>
@@ -1343,7 +1343,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * Suspends an asynchronous side effect in `IO`.
    *
    * The given function `k` will be invoked during evaluation of the `IO` to "schedule" the
-   * asynchronous callback, where the callback of type `Either[Throwable, A] => Unit` is the
+   * asynchronous callback, where the callback of type `Either[Throwable, A] => Boolean` is the
    * parameter passed to that function. Only the ''first'' invocation of the callback will be
    * effective! All subsequent invocations will be silently dropped.
    *
@@ -1387,7 +1387,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    *   [[asyncCheckAttempt]] for more generic version providing an optional immediate result of
    *   computation
    */
-  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
+  def async[A](k: (Either[Throwable, A] => Boolean) => IO[Option[IO[Unit]]]): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
         G.uncancelable { poll =>
@@ -1442,7 +1442,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    *   [[asyncCheckAttempt]] for more generic version providing an optional immediate result of
    *   computation and a finalizer
    */
-  def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
+  def async_[A](k: (Either[Throwable, A] => Boolean) => Unit): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
         G.uncancelable(_ => lift(IO.delay(k(resume))).flatMap(_ => get))
@@ -1798,7 +1798,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO.uncancelable { poll =>
-      acquire(poll).flatMap { a => IO.defer(poll(use(a))).guaranteeCase(release(a, _)) }
+      // the `IO.unit *>` below adds a chance to
+      // observe cancellation before `use`; this is
+      // for compatibility with the default impl
+      // in `MonadCancel`:
+      acquire(poll).flatMap { a =>
+        IO.defer(poll(IO.unit *> use(a))).guaranteeCase(release(a, _))
+      }
     }
 
   /*
@@ -1965,13 +1971,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   private[this] final class IOAsync extends kernel.Async[IO] with StackSafeMonad[IO] {
 
     override def asyncCheckAttempt[A](
-        k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
+        k: (Either[Throwable, A] => Boolean) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
       IO.asyncCheckAttempt(k)
 
-    override def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
+    override def async[A](k: (Either[Throwable, A] => Boolean) => IO[Option[IO[Unit]]]): IO[A] =
       IO.async(k)
 
-    override def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
+    override def async_[A](k: (Either[Throwable, A] => Boolean) => Unit): IO[A] =
       IO.async_(k)
 
     override def as[A, B](ioa: IO[A], b: B): IO[B] =

@@ -94,10 +94,10 @@ object EpollSystem extends PollingSystem {
   ) extends FileDescriptorPollHandle {
 
     private[this] var readReadyCounter = 0
-    private[this] var readCallback: Either[Throwable, Int] => Unit = null
+    private[this] var readCallback: Either[Throwable, Int] => Boolean = null
 
     private[this] var writeReadyCounter = 0
-    private[this] var writeCallback: Either[Throwable, Int] => Unit = null
+    private[this] var writeCallback: Either[Throwable, Int] => Boolean = null
 
     def notify(events: Int): Unit = {
       if ((events & EPOLLIN) != 0) {
@@ -105,14 +105,20 @@ object EpollSystem extends PollingSystem {
         readReadyCounter = counter
         val cb = readCallback
         readCallback = null
-        if (cb ne null) cb(Right(counter))
+        if (cb ne null) {
+          cb(Right(counter))
+          ()
+        }
       }
       if ((events & EPOLLOUT) != 0) {
         val counter = writeReadyCounter + 1
         writeReadyCounter = counter
         val cb = writeCallback
         writeCallback = null
-        if (cb ne null) cb(Right(counter))
+        if (cb ne null) {
+          cb(Right(counter))
+          ()
+        }
       }
     }
 
@@ -226,7 +232,7 @@ object EpollSystem extends PollingSystem {
         reads: Boolean,
         writes: Boolean,
         handle: PollHandle,
-        cb: Either[Throwable, (PollHandle, IO[Unit])] => Unit
+        cb: Either[Throwable, (PollHandle, IO[Unit])] => Boolean
     ): Unit = {
       val event = stackalloc[epoll_event]()
       event.events =
@@ -247,6 +253,7 @@ object EpollSystem extends PollingSystem {
         }
 
       cb(result)
+      ()
     }
 
     @alwaysinline private[this] def toPtr(handle: PollHandle): Ptr[Byte] =

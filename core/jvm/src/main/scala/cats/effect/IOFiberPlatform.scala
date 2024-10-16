@@ -47,7 +47,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
     IO.async[Any] { nextCb =>
       for {
         done <- IO(new AtomicBoolean(false))
-        cb <- IO(new AtomicReference[Either[Throwable, Unit] => Unit](null))
+        cb <- IO(new AtomicReference[Either[Throwable, Unit] => Boolean](null))
 
         canInterrupt <- IO(new juc.Semaphore(0))
         manyDone <- IO(new AtomicBoolean(false))
@@ -100,12 +100,14 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                     val cb0 = cb.getAndSet(null)
                     if (cb0 != null) {
                       cb0(RightUnit)
+                      ()
                     }
                   }
                 }
 
               if (result != null) {
                 nextCb(result)
+                ()
               }
             }
 
@@ -170,6 +172,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                 if (done.get() && cb.get() != null) {
                   // this indicates that the blocking action completed *before* we registered the callback
                   finCb(RightUnit) // ...so we just complete cancelation ourselves
+                  ()
                 }
               }
             }

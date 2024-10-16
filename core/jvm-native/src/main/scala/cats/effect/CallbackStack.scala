@@ -24,8 +24,8 @@ import CallbackStack.Handle
 import CallbackStack.Node
 import Platform.static
 
-private final class CallbackStack[A](private[this] var callback: A => Unit)
-    extends AtomicReference[Node[A]] {
+private final class CallbackStack[A, B](private[this] var callback: A => B)
+    extends AtomicReference[Node[A, B]] {
   head =>
 
   private[this] val allowedToPack = new AtomicBoolean(true)
@@ -34,11 +34,11 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
    * Pushes a callback to the top of the stack. Returns a handle that can be used with
    * [[clearHandle]] to clear the callback.
    */
-  def push(cb: A => Unit): Handle[A] = {
+  def push(cb: A => B): Handle[A, B] = {
     val newHead = new Node(cb)
 
     @tailrec
-    def loop(): Handle[A] = {
+    def loop(): Handle[A, B] = {
       val currentHead = head.get()
       newHead.setNext(currentHead)
 
@@ -51,7 +51,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
     loop()
   }
 
-  def unsafeSetCallback(cb: A => Unit): Unit = {
+  def unsafeSetCallback(cb: A => B): Unit = {
     callback = cb
   }
 
@@ -103,7 +103,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
    * Removes the callback referenced by a handle. Returns `true` if the data structure was
    * cleaned up immediately, `false` if a subsequent call to [[pack]] is required.
    */
-  def clearHandle(handle: CallbackStack.Handle[A]): Boolean = {
+  def clearHandle(handle: CallbackStack.Handle[A, B]): Boolean = {
     handle.clear()
     false
   }
@@ -156,23 +156,23 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
 }
 
 private object CallbackStack {
-  @static def of[A](cb: A => Unit): CallbackStack[A] =
+  @static def of[A, B](cb: A => B): CallbackStack[A, B] =
     new CallbackStack(cb)
 
-  sealed abstract class Handle[A] {
+  sealed abstract class Handle[A, B] {
     private[CallbackStack] def clear(): Unit
   }
 
-  private[CallbackStack] final class Node[A](
-      private[this] var callback: A => Unit
-  ) extends Handle[A] {
-    private[this] var next: Node[A] = _
+  private[CallbackStack] final class Node[A, B](
+      private[this] var callback: A => B
+  ) extends Handle[A, B] {
+    private[this] var next: Node[A, B] = _
 
-    def getCallback(): A => Unit = callback
+    def getCallback(): A => B = callback
 
-    def getNext(): Node[A] = next
+    def getNext(): Node[A, B] = next
 
-    def setNext(next: Node[A]): Unit = {
+    def setNext(next: Node[A, B]): Unit = {
       this.next = next
     }
 
@@ -184,7 +184,7 @@ private object CallbackStack {
      * Packs this head node
      */
     @tailrec
-    def packHead(bound: Int, removed: Int, root: CallbackStack[A]): Int = {
+    def packHead(bound: Int, removed: Int, root: CallbackStack[A, B]): Int = {
       val next = this.next // local copy
 
       if (callback == null) {
@@ -224,7 +224,7 @@ private object CallbackStack {
      * Packs this non-head node
      */
     @tailrec
-    private def packTail(bound: Int, removed: Int, prev: Node[A]): Int = {
+    private def packTail(bound: Int, removed: Int, prev: Node[A, B]): Int = {
       val next = this.next // local copy
 
       if (callback == null) {
