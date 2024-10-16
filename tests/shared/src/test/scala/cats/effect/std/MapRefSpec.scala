@@ -133,6 +133,18 @@ class MapRefSpec extends BaseSpec {
 
       op.map(a => a must_=== true)
     }
+
+    "snapshot - return currently available key-value pairs" in real {
+      val entries = Map("key_1" -> "value_1", "key_2" -> "value_2")
+
+      val op = for {
+        r <- MapRef.ofSingleImmutableMap[IO, String, String]()
+        _ <- entries.toSeq.traverse_ { case (k, v) => r(k).set(Some(v)) }
+        snapshot <- r.snapshot
+      } yield snapshot
+
+      op.map(a => a must_=== entries)
+    }
   }
 
   "MapRef.ofShardedImmutableMapRef" should {
@@ -159,6 +171,18 @@ class MapRefSpec extends BaseSpec {
       } yield out
 
       test.map(a => a must_=== Some(expect))
+    }
+
+    "snapshot - return currently available key-value pairs" in real {
+      val entries = Map("key_1" -> "value_1", "key_2" -> "value_2")
+
+      val op = for {
+        r <- MapRef.ofShardedImmutableMap[IO, String, String](8)
+        _ <- entries.toSeq.traverse_ { case (k, v) => r(k).set(Some(v)) }
+        snapshot <- r.snapshot
+      } yield snapshot
+
+      op.map(a => a must_=== entries)
     }
   }
 
@@ -281,6 +305,18 @@ class MapRefSpec extends BaseSpec {
       } yield result == Some(1)
 
       op.map(a => a must_=== true)
+    }
+
+    "snapshot - return currently available key-value pairs" in real {
+      val entries = Map("key_1" -> "value_1", "key_2" -> "value_2")
+
+      val op = for {
+        r <- MapRef.ofConcurrentHashMap[IO, String, String]()
+        _ <- entries.toSeq.traverse_ { case (k, v) => r(k).set(Some(v)) }
+        snapshot <- r.snapshot
+      } yield snapshot
+
+      op.map(a => a must_=== entries)
     }
   }
 

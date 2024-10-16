@@ -45,6 +45,14 @@ trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 
 object MapRef extends MapRefCompanionPlatform {
 
+  trait Snapshot[F[_], K, V] {
+
+    /**
+     * Returns the current snapshot of the available keys and values.
+     */
+    def snapshot: F[Map[K, V]]
+  }
+
   /**
    * Creates a sharded map ref to reduce atomic contention on the Map, given an efficient and
    * equally distributed hash, the contention should allow for interaction like a general
@@ -54,7 +62,7 @@ object MapRef extends MapRefCompanionPlatform {
    */
   def ofShardedImmutableMap[F[_]: Concurrent, K, V](
       shardCount: Int
-  ): F[MapRef[F, K, Option[V]]] = {
+  ): F[MapRef[F, K, Option[V]] with Snapshot[F, K, V]] = {
     assert(shardCount >= 1, "MapRef.sharded should have at least 1 shard")
     List
       .fill(shardCount)(())
@@ -71,7 +79,7 @@ object MapRef extends MapRefCompanionPlatform {
    */
   def inShardedImmutableMap[G[_]: Sync, F[_]: Sync, K, V](
       shardCount: Int
-  ): G[MapRef[F, K, Option[V]]] = Sync[G].defer {
+  ): G[MapRef[F, K, Option[V]] with Snapshot[F, K, V]] = Sync[G].defer {
     assert(shardCount >= 1, "MapRef.sharded should have at least 1 shard")
     List
       .fill(shardCount)(())
@@ -84,8 +92,33 @@ object MapRef extends MapRefCompanionPlatform {
    *
    * This uses universal hashCode and equality on K.
    */
-  def fromSeqRefs[F[_]: Functor, K, V](
+  def fromSeqRefs[F[_]: Applicative, K, V](
       seq: scala.collection.immutable.Seq[Ref[F, Map[K, V]]]
+  ): MapRef[F, K, Option[V]] with Snapshot[F, K, V] = {
+    val array = seq.toArray
+    val shardCount = seq.size
+    val refFunction = { (k: K) =>
+      val location = Math.abs(k.## % shardCount)
+      array(location)
+    }
+    new MapRef[F, K, Option[V]] with Snapshot[F, K, V] {
+      def apply(k: K): Ref[F, Option[V]] =
+        fromSingleImmutableMapRef(refFunction(k)).apply(k)
+
+      def snapshot: F[Map[K, V]] =
+        seq.traverse(_.get).map(_.flatten.toMap)
+    }
+  }
+
+  /**
+   * Creates a sharded map ref from a sequence of refs.
+   *
+   * This uses universal hashCode and equality on K.
+   */
+  @deprecated("Use overload with Applicative constraint", "3.6.0")
+  def fromSeqRefs[F[_], K, V](
+      seq: scala.collection.immutable.Seq[Ref[F, Map[K, V]]],
+      F: Functor[F]
   ): MapRef[F, K, Option[V]] = {
     val array = seq.toArray
     val shardCount = seq.size
@@ -93,7 +126,7 @@ object MapRef extends MapRefCompanionPlatform {
       val location = Math.abs(k.## % shardCount)
       array(location)
     }
-    k => fromSingleImmutableMapRef(refFunction(k)).apply(k)
+    k => fromSingleImmutableMapRef(refFunction(k))(F).apply(k)
   }
 
   /**
@@ -102,7 +135,7 @@ object MapRef extends MapRefCompanionPlatform {
    * This uses universal hashCode and equality on K.
    */
   def ofSingleImmutableMap[F[_]: Concurrent, K, V](
-      map: Map[K, V] = Map.empty[K, V]): F[MapRef[F, K, Option[V]]] =
+      map: Map[K, V] = Map.empty[K, V]): F[MapRef[F, K, Option[V]] with Snapshot[F, K, V]] =
     Concurrent[F].ref(map).map(fromSingleImmutableMapRef[F, K, V](_))
 
   /**
@@ -111,7 +144,7 @@ object MapRef extends MapRefCompanionPlatform {
    * This uses universal hashCode and equality on K.
    */
   def inSingleImmutableMap[G[_]: Sync, F[_]: Sync, K, V](
-      map: Map[K, V] = Map.empty[K, V]): G[MapRef[F, K, Option[V]]] =
+      map: Map[K, V] = Map.empty[K, V]): G[MapRef[F, K, Option[V]] with Snapshot[F, K, V]] =
     Ref.in[G, F, Map[K, V]](map).map(fromSingleImmutableMapRef[F, K, V](_))
 
   /**
@@ -121,11 +154,18 @@ object MapRef extends MapRefCompanionPlatform {
    * This uses universal hashCode and equality on K.
    */
   def fromSingleImmutableMapRef[F[_]: Functor, K, V](
-      ref: Ref[F, Map[K, V]]): MapRef[F, K, Option[V]] =
-    k => Ref.lens(ref)(_.get(k), m => _.fold(m - k)(v => m + (k -> v)))
+      ref: Ref[F, Map[K, V]]): MapRef[F, K, Option[V]] with Snapshot[F, K, V] =
+    new MapRef[F, K, Option[V]] with Snapshot[F, K, V] {
+      def apply(k: K): Ref[F, Option[V]] =
+        Ref.lens(ref)(_.get(k), m => _.fold(m - k)(v => m + (k -> v)))
+
+      def snapshot: F[Map[K, V]] =
+        ref.get
+    }
 
   private class ConcurrentHashMapImpl[F[_], K, V](chm: ConcurrentHashMap[K, V], sync: Sync[F])
-      extends MapRef[F, K, Option[V]] {
+      extends MapRef[F, K, Option[V]]
+      with Snapshot[F, K, V] {
     private implicit def syncF: Sync[F] = sync
 
     val fnone0: F[None.type] = sync.pure(None)
@@ -237,6 +277,12 @@ object MapRef extends MapRefCompanionPlatform {
     }
 
     def apply(k: K): Ref[F, Option[V]] = new HandleRef(k)
+
+    def snapshot: F[Map[K, V]] = sync.delay {
+      val builder = Map.newBuilder[K, V]
+      chm.forEach((k, v) => builder.addOne((k, v)))
+      builder.result()
+    }
   }
 
   /**
@@ -245,7 +291,7 @@ object MapRef extends MapRefCompanionPlatform {
    * This uses universal hashCode and equality on K.
    */
   def fromConcurrentHashMap[F[_]: Sync, K, V](
-      map: ConcurrentHashMap[K, V]): MapRef[F, K, Option[V]] =
+      map: ConcurrentHashMap[K, V]): MapRef[F, K, Option[V]] with Snapshot[F, K, V] =
     new ConcurrentHashMapImpl[F, K, V](map, Sync[F])
 
   /**
@@ -262,7 +308,7 @@ object MapRef extends MapRefCompanionPlatform {
       initialCapacity: Int = 16,
       loadFactor: Float = 0.75f,
       concurrencyLevel: Int = 16
-  ): G[MapRef[F, K, Option[V]]] =
+  ): G[MapRef[F, K, Option[V]] with Snapshot[F, K, V]] =
     Sync[G]
       .delay(new ConcurrentHashMap[K, V](initialCapacity, loadFactor, concurrencyLevel))
       .map(fromConcurrentHashMap[F, K, V])
@@ -281,7 +327,7 @@ object MapRef extends MapRefCompanionPlatform {
       initialCapacity: Int = 16,
       loadFactor: Float = 0.75f,
       concurrencyLevel: Int = 16
-  ): F[MapRef[F, K, Option[V]]] =
+  ): F[MapRef[F, K, Option[V]] with Snapshot[F, K, V]] =
     Sync[F]
       .delay(new ConcurrentHashMap[K, V](initialCapacity, loadFactor, concurrencyLevel))
       .map(fromConcurrentHashMap[F, K, V])
@@ -290,13 +336,14 @@ object MapRef extends MapRefCompanionPlatform {
    * Takes a scala.collection.concurrent.Map, giving you access to the mutable state from the
    * constructor.
    */
-  def fromScalaConcurrentMap[F[_]: Sync, K, V](
-      map: scala.collection.concurrent.Map[K, V]): MapRef[F, K, Option[V]] =
+  def fromScalaConcurrentMap[F[_]: Sync, K, V](map: scala.collection.concurrent.Map[K, V])
+      : MapRef[F, K, Option[V]] with Snapshot[F, K, V] =
     new ScalaConcurrentMapImpl[F, K, V](map)
 
   private class ScalaConcurrentMapImpl[F[_], K, V](map: scala.collection.concurrent.Map[K, V])(
       implicit sync: Sync[F])
-      extends MapRef[F, K, Option[V]] {
+      extends MapRef[F, K, Option[V]]
+      with Snapshot[F, K, V] {
 
     val fnone0: F[None.type] = sync.pure(None)
     def fnone[A]: F[Option[A]] = fnone0.widen[Option[A]]
@@ -409,6 +456,7 @@ object MapRef extends MapRefCompanionPlatform {
      */
     def apply(k: K): Ref[F, Option[V]] = new HandleRef(k)
 
+    def snapshot: F[Map[K, V]] = sync.delay(Map.from(map))
   }
 
   implicit def mapRefInvariant[F[_]: Functor, K]: Invariant[MapRef[F, K, *]] =
