@@ -161,11 +161,6 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     name = Some("Install jsdom and source-map-support"),
     cond = Some("matrix.ci == 'ciJS'")
   ),
-  WorkflowStep.Run(
-    List("gu install native-image"),
-    name = Some("Install GraalVM Native Image"),
-    cond = Some(s"matrix.java == '${GraalVM.render}'")
-  ),
   WorkflowStep.Use(
     UseRef.Public(
       "al-cheb",
