@@ -139,7 +139,7 @@ val LatestJava = JavaSpec.temurin("17")
 val LoomJava = JavaSpec.temurin("21")
 val ScalaJSJava = OldGuardJava
 val ScalaNativeJava = OldGuardJava
-val GraalVM = JavaSpec.graalvm("17")
+val GraalVM = JavaSpec.graalvm("21")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(
   OldGuardJava,

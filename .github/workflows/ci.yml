@@ -34,7 +34,7 @@ jobs:
           - temurin@11
           - temurin@17
           - temurin@21
-          - graalvm@17
+          - graalvm@21
         ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
           - scala: 3.3.4
@@ -48,7 +48,7 @@ jobs:
           - scala: 2.12.20
             java: temurin@21
           - scala: 2.12.20
-            java: graalvm@17
+            java: graalvm@21
           - os: windows-latest
             scala: 3.3.4
             ci: ciJVM
@@ -78,7 +78,7 @@ jobs:
           - ci: ciJS
             java: temurin@21
           - ci: ciJS
-            java: graalvm@17
+            java: graalvm@21
           - os: windows-latest
             ci: ciJS
           - os: macos-14
@@ -90,7 +90,7 @@ jobs:
           - ci: ciFirefox
             java: temurin@21
           - ci: ciFirefox
-            java: graalvm@17
+            java: graalvm@21
           - os: windows-latest
             ci: ciFirefox
           - os: macos-14
@@ -102,7 +102,7 @@ jobs:
           - ci: ciChrome
             java: temurin@21
           - ci: ciChrome
-            java: graalvm@17
+            java: graalvm@21
           - os: windows-latest
             ci: ciChrome
           - os: macos-14
@@ -114,14 +114,14 @@ jobs:
           - ci: ciNative
             java: temurin@21
           - ci: ciNative
-            java: graalvm@17
+            java: graalvm@21
           - os: windows-latest
             ci: ciNative
           - os: macos-14
             ci: ciNative
             scala: 2.12.20
           - os: windows-latest
-            java: graalvm@17
+            java: graalvm@21
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -194,17 +194,17 @@ jobs:
         shell: bash
         run: sbt +update
 
-      - name: Setup Java (graalvm@17)
-        id: setup-java-graalvm-17
-        if: matrix.java == 'graalvm@17'
+      - name: Setup Java (graalvm@21)
+        id: setup-java-graalvm-21
+        if: matrix.java == 'graalvm@21'
         uses: actions/setup-java@v4
         with:
           distribution: graalvm
-          java-version: 17
+          java-version: 21
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'graalvm@17' && steps.setup-java-graalvm-17.outputs.cache-hit == 'false'
+        if: matrix.java == 'graalvm@21' && steps.setup-java-graalvm-21.outputs.cache-hit == 'false'
         shell: bash
         run: sbt +update
 
@@ -220,7 +220,7 @@ jobs:
         run: npm install
 
       - name: Install GraalVM Native Image
-        if: matrix.java == 'graalvm@17'
+        if: matrix.java == 'graalvm@21'
         shell: bash
         run: gu install native-image
 
@@ -269,7 +269,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Test GraalVM Native Image
-        if: matrix.scala == '2.13.15' && matrix.java == 'graalvm@17' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.15' && matrix.java == 'graalvm@21' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
 
@@ -376,17 +376,17 @@ jobs:
         if: matrix.java == 'temurin@21' && steps.setup-java-temurin-21.outputs.cache-hit == 'false'
         run: sbt +update
 
-      - name: Setup Java (graalvm@17)
-        id: setup-java-graalvm-17
-        if: matrix.java == 'graalvm@17'
+      - name: Setup Java (graalvm@21)
+        id: setup-java-graalvm-21
+        if: matrix.java == 'graalvm@21'
         uses: actions/setup-java@v4
         with:
           distribution: graalvm
-          java-version: 17
+          java-version: 21
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'graalvm@17' && steps.setup-java-graalvm-17.outputs.cache-hit == 'false'
+        if: matrix.java == 'graalvm@21' && steps.setup-java-graalvm-21.outputs.cache-hit == 'false'
         run: sbt +update
 
       - name: Download target directories (3.3.4, ciJVM)
@@ -604,17 +604,17 @@ jobs:
         if: matrix.java == 'temurin@21' && steps.setup-java-temurin-21.outputs.cache-hit == 'false'
         run: sbt +update
 
-      - name: Setup Java (graalvm@17)
-        id: setup-java-graalvm-17
-        if: matrix.java == 'graalvm@17'
+      - name: Setup Java (graalvm@21)
+        id: setup-java-graalvm-21
+        if: matrix.java == 'graalvm@21'
         uses: actions/setup-java@v4
         with:
           distribution: graalvm
-          java-version: 17
+          java-version: 21
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'graalvm@17' && steps.setup-java-graalvm-17.outputs.cache-hit == 'false'
+        if: matrix.java == 'graalvm@21' && steps.setup-java-graalvm-21.outputs.cache-hit == 'false'
         run: sbt +update
 
       - name: Submit Dependencies
