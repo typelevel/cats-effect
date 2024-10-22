@@ -43,6 +43,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
             poller.poll(nanos.nanos)
         true
       }
+      def steal(poller: Poller, reportFailure: Throwable => Unit): Boolean = false
       def needsPoll(poller: Poller) = needsPoll
       def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
     }
