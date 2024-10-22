@@ -36,6 +36,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import java.util.concurrent.atomic.AtomicBoolean
+import cats.effect.unsafe.IORuntimeConfig
 
 class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   // We need this for testing laws: prop runs can interfere with each other
@@ -1169,6 +1170,33 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           } *> acquiredMustBe(1) *> releasedMustBe(1)
         }.void must completeAs(())
       }
+    }
+
+    "does not leak if canceled right after delayed acquire is canceled" in ticked {
+      implicit ticker =>
+        (IO(new AtomicBoolean), IO.ref(false), IO.ref(false)).flatMapN {
+          (acquired, used, released) =>
+            val go = for {
+              fiber <- Resource
+                .make(IO(acquired.set(true)))(_ => released.set(true))
+                .memoizedAcquire
+                .use(_ *> used.set(true))
+                .start
+              _ <- IO.cede.untilM_(IO(acquired.get))
+              _ <- fiber.cancel
+            } yield ()
+            TestControl
+              .executeEmbed(go, IORuntimeConfig(1, 2))
+              .flatMap { _ =>
+                for {
+                  acquireRun <- IO(acquired.get)
+                  useRun <- used.get
+                  releaseRun <- released.get
+                } yield acquireRun && releaseRun
+              }
+              .replicateA(1000)
+              .map(_.forall(identity(_)))
+        } must completeAs(true)
     }
   }
 
