@@ -19,7 +19,7 @@ package cats.effect.unsafe.metrics
 /**
  * An MBean interface for triggering live fiber snapshots.
  */
-private[unsafe] trait LiveFiberSnapshotTriggerMBean {
+sealed trait LiveFiberSnapshotTriggerMBean {
 
   /**
    * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
@@ -30,3 +30,6 @@ private[unsafe] trait LiveFiberSnapshotTriggerMBean {
    */
   def liveFiberSnapshot(): Array[String]
 }
+
+private[unsafe] trait UnsealedLiveFiberSnapshotTriggerMBean
+    extends LiveFiberSnapshotTriggerMBean

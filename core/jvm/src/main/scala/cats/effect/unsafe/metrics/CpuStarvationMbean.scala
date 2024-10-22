@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
 /**
  * An MBean interfaces for monitoring when CPU starvation occurs.
  */
-private[metrics] trait CpuStarvationMBean {
+sealed trait CpuStarvationMBean {
 
   /**
    * Returns the number of times CPU starvation has occurred.
@@ -45,3 +45,5 @@ private[metrics] trait CpuStarvationMBean {
    */
   def getCurrentClockDriftMs(): Long
 }
+
+private[unsafe] trait UnsealedCpuStarvationMBean extends CpuStarvationMBean
