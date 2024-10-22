@@ -1853,6 +1853,23 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         "non-terminate on an uncancelable fiber" in ticked { implicit ticker =>
           IO.never.uncancelable.timeout(1.second) must nonTerminate
         }
+
+        "propagate successful result from a completed effect" in real {
+          IO.pure(true).delayBy(50.millis).uncancelable.timeout(10.millis).map { res =>
+            res must beTrue
+          }
+        }
+
+        "propagate error from a completed effect" in real {
+          IO.raiseError(new RuntimeException)
+            .delayBy(50.millis)
+            .uncancelable
+            .timeout(10.millis)
+            .attempt
+            .map { res =>
+              res must beLike { case Left(e) => e must haveClass[RuntimeException] }
+            }
+        }
       }
 
       "timeoutTo" should {

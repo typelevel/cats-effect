@@ -18,15 +18,15 @@ package cats
 package effect
 package laws
 
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.{Outcome, Temporal}
 import cats.effect.kernel.testkit.TimeT
 import cats.effect.kernel.testkit.pure._
 import cats.syntax.all._
 
 import org.specs2.mutable.Specification
 
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
-// import scala.concurrent.TimeoutException
 
 class GenTemporalSpec extends Specification { outer =>
 
@@ -43,6 +43,40 @@ class GenTemporalSpec extends Specification { outer =>
         val fa = F.pure(true)
         F.timeout(fa, Duration.Inf) mustEqual fa
       }
+
+      "succeed on a fast action" in {
+        val fa: TimeT[F, Boolean] = F.pure(true)
+        val op = F.timeout(fa, Duration.Zero)
+
+        run(TimeT.run(op)) mustEqual Outcome.Succeeded(Some(true))
+      }
+
+      "error out on a slow action" in {
+        val fa: TimeT[F, Boolean] = F.never *> F.pure(true)
+        val op = F.timeout(fa, Duration.Zero)
+
+        run(TimeT.run(op)) must beLike {
+          case Outcome.Errored(e) => e must haveClass[TimeoutException]
+        }
+      }
+
+      "propagate successful outcome of uncancelable action" in {
+        val fa = F.uncancelable(_ => F.sleep(50.millis) *> F.pure(true))
+        val op = F.timeout(fa, Duration.Zero)
+
+        run(TimeT.run(op)) mustEqual Outcome.Succeeded(Some(true))
+      }
+
+      "propagate errors from uncancelable action" in {
+        val fa = F.uncancelable { _ =>
+          F.sleep(50.millis) *> F.raiseError(new RuntimeException("fa failed")) *> F.pure(true)
+        }
+        val op = F.timeout(fa, Duration.Zero)
+
+        run(TimeT.run(op)) must beLike {
+          case Outcome.Errored(e: RuntimeException) => e.getMessage mustEqual "fa failed"
+        }
+      }
     }
 
     "timeoutTo" should {
@@ -50,6 +84,44 @@ class GenTemporalSpec extends Specification { outer =>
         val fa: TimeT[F, Boolean] = F.pure(true)
         val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
         F.timeoutTo(fa, Duration.Inf, fallback) mustEqual fa
+      }
+
+      "succeed on a fast action" in {
+        val fa: TimeT[F, Boolean] = F.pure(true)
+        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+        val op = F.timeoutTo(fa, Duration.Zero, fallback)
+
+        run(TimeT.run(op)) mustEqual Outcome.Succeeded(Some(true))
+      }
+
+      "error out on a slow action" in {
+        val fa: TimeT[F, Boolean] = F.never *> F.pure(true)
+        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+        val op = F.timeoutTo(fa, Duration.Zero, fallback)
+
+        run(TimeT.run(op)) must beLike {
+          case Outcome.Errored(e) => e must haveClass[RuntimeException]
+        }
+      }
+
+      "propagate successful outcome of uncancelable action" in {
+        val fa = F.uncancelable(_ => F.sleep(50.millis) *> F.pure(true))
+        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+        val op = F.timeoutTo(fa, Duration.Zero, fallback)
+
+        run(TimeT.run(op)) mustEqual Outcome.Succeeded(Some(true))
+      }
+
+      "propagate errors from uncancelable action" in {
+        val fa = F.uncancelable { _ =>
+          F.sleep(50.millis) *> F.raiseError(new RuntimeException("fa failed")) *> F.pure(true)
+        }
+        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+        val op = F.timeoutTo(fa, Duration.Zero, fallback)
+
+        run(TimeT.run(op)) must beLike {
+          case Outcome.Errored(e: RuntimeException) => e.getMessage mustEqual "fa failed"
+        }
       }
     }
 
@@ -63,13 +135,6 @@ class GenTemporalSpec extends Specification { outer =>
 
   // TODO enable these tests once Temporal for TimeT is fixed
   /*"temporal" should {
-    "timeout" should {
-      "succeed" in {
-        val op = F.timeout(F.pure(true), 10.seconds)
-
-        run(TimeT.run(op)) mustEqual Succeeded(Some(true))
-      }.pendingUntilFixed
-
       "cancel a loop" in {
         val op: TimeT[F, Either[Throwable, Unit]] = F.timeout(loop, 5.millis).attempt
 
@@ -80,12 +145,6 @@ class GenTemporalSpec extends Specification { outer =>
     }
 
     "timeoutTo" should {
-      "succeed" in {
-        val op: TimeT[F, Boolean] = F.timeoutTo(F.pure(true), 5.millis, F.raiseError(new RuntimeException))
-
-        run(TimeT.run(op)) mustEqual Succeeded(Some(true))
-      }.pendingUntilFixed
-
       "use fallback" in {
         val op: TimeT[F, Boolean] = F.timeoutTo(loop >> F.pure(false), 5.millis, F.pure(true))
 
