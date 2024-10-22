@@ -447,10 +447,10 @@ trait IOApp {
     val queue = this.queue
 
     val fiber =
-      JvmCpuStarvationMetrics()
-        .flatMap { cpuStarvationMetrics =>
+      JvmCpuStarvationMetrics(runtime.metrics.cpuStarvationSampler)
+        .flatMap { _ =>
           CpuStarvationCheck
-            .run(runtimeConfig, cpuStarvationMetrics, onCpuStarvationWarn)
+            .run(runtimeConfig, runtime.metrics.cpuStarvationSampler, onCpuStarvationWarn)
             .background
         }
         .surround(ioa)

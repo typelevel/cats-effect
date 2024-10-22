@@ -14,14 +14,6 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
-import cats.effect.IO
-
-import scala.concurrent.duration.FiniteDuration
-
-private[effect] trait CpuStarvationMetrics {
-  def incCpuStarvationCount: IO[Unit]
-
-  def recordClockDrift(drift: FiniteDuration): IO[Unit]
-}
+private[metrics] trait IORuntimeMetricsPlatform { this: IORuntimeMetrics => }
