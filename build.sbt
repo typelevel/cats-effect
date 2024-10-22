@@ -137,7 +137,7 @@ val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
 val ScalaNativeJava = OldGuardJava
-val GraalVM = JavaSpec.graalvm("17")
+val GraalVM = JavaSpec.graalvm("17.0.12")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
@@ -153,11 +153,6 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     List("npm install"),
     name = Some("Install jsdom and source-map-support"),
     cond = Some("matrix.ci == 'ciJS'")
-  ),
-  WorkflowStep.Run(
-    List("gu install native-image"),
-    name = Some("Install GraalVM Native Image"),
-    cond = Some(s"matrix.java == '${GraalVM.render}'")
   ),
   WorkflowStep.Use(
     UseRef.Public(
