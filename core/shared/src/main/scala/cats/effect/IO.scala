@@ -860,6 +860,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   private[effect] def timeoutAndForget(duration: FiniteDuration): IO[A] =
     timeoutAndForget(duration: Duration)
 
+  def timed(implicit env: A <:< Unit) : IO[FiniteDuration] =
+    timed.map(_._1)
+
   def timed: IO[(FiniteDuration, A)] =
     Clock[IO].timed(this)
 
