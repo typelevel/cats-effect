@@ -62,4 +62,10 @@ final class GenSpawnOps[F[_], A, E] private[syntax] (private val wrapped: F[A]) 
       implicit F: GenSpawn[F, E]
   ): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     F.bothOutcome(wrapped, another)
+
+  def cedeMap[B](f: A => B)(implicit F: GenSpawn[F, E]): F[B] =
+    F.cedeMap(wrapped)(f)
+
+  def intercede(implicit F: GenSpawn[F, E]): F[A] =
+    F.intercede(wrapped)
 }
