@@ -112,7 +112,9 @@ trait PollerProvider[P] {
   def accessPoller(cb: P => Unit): Unit
 
   /**
-   * Returns `true` if it is safe to interact with this `Poller`
+   * Returns `true` if it is safe to interact with this `Poller`. Implementors of this method
+   * may be best-effort: it is always safe to return `false`, so callers must have an adequate
+   * fallback for the non-owning case.
    */
   def ownPoller(poller: P): Boolean
 }
