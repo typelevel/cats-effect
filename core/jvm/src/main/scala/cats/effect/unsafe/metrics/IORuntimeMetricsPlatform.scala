@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
-import cats.effect.IO
+private[metrics] trait IORuntimeMetricsPlatform { this: IORuntimeMetrics =>
 
-import scala.concurrent.duration.FiniteDuration
-
-private[effect] class NativeCpuStarvationMetrics extends CpuStarvationMetrics {
-  override def incCpuStarvationCount: IO[Unit] = IO.unit
-
-  override def recordClockDrift(drift: FiniteDuration): IO[Unit] = IO.unit
-}
-
-private[effect] object NativeCpuStarvationMetrics {
-  private[effect] def apply(): CpuStarvationMetrics = new NativeCpuStarvationMetrics
+  /**
+   * Returns work-stealing thread pool metrics.
+   *
+   * @example
+   *   {{{
+   * val runtime: IORuntime = ???
+   * val totalWorkers = runtime.metrics.workStealingThreadPool.map(_.compute.workerThreadCount())
+   *   }}}
+   */
+  def workStealingThreadPool: Option[WorkStealingPoolMetrics]
 }

@@ -18,6 +18,7 @@ package cats.effect
 package unsafe
 
 import cats.effect.Platform.static
+import cats.effect.unsafe.metrics.IORuntimeMetrics
 
 import scala.concurrent.ExecutionContext
 
@@ -43,7 +44,8 @@ final class IORuntime private[unsafe] (
     private[effect] val pollers: List[Any],
     private[effect] val fiberMonitor: FiberMonitor,
     val shutdown: () => Unit,
-    val config: IORuntimeConfig
+    val config: IORuntimeConfig,
+    val metrics: IORuntimeMetrics
 ) {
 
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
@@ -70,6 +72,7 @@ object IORuntime extends IORuntimeCompanionPlatform {
       config: IORuntimeConfig): IORuntime = {
     val fiberMonitor = FiberMonitor(compute)
     val unregister = registerFiberMonitorMBean(fiberMonitor)
+    val metrics = IORuntimeMetrics(compute)
     def unregisterAndShutdown: () => Unit = () => {
       unregister()
       shutdown()
@@ -84,7 +87,8 @@ object IORuntime extends IORuntimeCompanionPlatform {
         pollers,
         fiberMonitor,
         unregisterAndShutdown,
-        config)
+        config,
+        metrics)
     allRuntimes.put(runtime, runtime.hashCode())
     runtime
   }
@@ -104,14 +108,19 @@ object IORuntime extends IORuntimeCompanionPlatform {
       scheduler: Scheduler,
       fiberMonitor: FiberMonitor,
       shutdown: () => Unit,
-      config: IORuntimeConfig): IORuntime =
-    new IORuntime(compute, blocking, scheduler, Nil, fiberMonitor, shutdown, config)
+      config: IORuntimeConfig): IORuntime = {
+    val metrics = IORuntimeMetrics(compute)
+    new IORuntime(compute, blocking, scheduler, Nil, fiberMonitor, shutdown, config, metrics)
+  }
 
   def builder(): IORuntimeBuilder =
     IORuntimeBuilder()
 
-  private[effect] def testRuntime(ec: ExecutionContext, scheduler: Scheduler): IORuntime =
-    new IORuntime(ec, ec, scheduler, Nil, new NoOpFiberMonitor(), () => (), IORuntimeConfig())
+  private[effect] def testRuntime(ec: ExecutionContext, scheduler: Scheduler): IORuntime = {
+    val config = IORuntimeConfig()
+    val metrics = IORuntimeMetrics(ec)
+    new IORuntime(ec, ec, scheduler, Nil, new NoOpFiberMonitor(), () => (), config, metrics)
+  }
 
   @static private[effect] final val allRuntimes: ThreadSafeHashtable[IORuntime] =
     new ThreadSafeHashtable(4)

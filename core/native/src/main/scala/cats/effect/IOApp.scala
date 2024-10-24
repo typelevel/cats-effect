@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.metrics.{CpuStarvationWarningMetrics, NativeCpuStarvationMetrics}
+import cats.effect.metrics.CpuStarvationWarningMetrics
 import cats.syntax.all._
 
 import scala.concurrent.CancellationException
@@ -271,7 +271,7 @@ trait IOApp {
       else Resource.unit[IO]
 
     val starvationChecker = CpuStarvationCheck
-      .run(runtimeConfig, NativeCpuStarvationMetrics(), onCpuStarvationWarn)
+      .run(runtimeConfig, runtime.metrics.cpuStarvationSampler, onCpuStarvationWarn)
       .background
 
     Spawn[IO]

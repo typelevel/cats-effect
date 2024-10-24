@@ -14,14 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
-import cats.effect.IO
+import scala.concurrent.ExecutionContext
 
-import scala.concurrent.duration.FiniteDuration
+private[metrics] abstract class IORuntimeMetricsCompanionPlatform {
+  this: IORuntimeMetrics.type =>
 
-private[effect] trait CpuStarvationMetrics {
-  def incCpuStarvationCount: IO[Unit]
+  private[unsafe] def apply(ec: ExecutionContext): IORuntimeMetrics =
+    new IORuntimeMetrics {
+      private[effect] val cpuStarvationSampler: CpuStarvationSampler =
+        CpuStarvationSampler()
 
-  def recordClockDrift(drift: FiniteDuration): IO[Unit]
+      val cpuStarvation: CpuStarvationMetrics =
+        CpuStarvationMetrics(cpuStarvationSampler)
+
+      val workStealingThreadPool: Option[WorkStealingPoolMetrics] =
+        WorkStealingPoolMetrics(ec)
+    }
+
 }
