@@ -107,9 +107,18 @@ private final class IOFiber[A](
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
 
+  def getLocalState(): IOLocalState = localState
+
+  def setLocalState(s: IOLocalState): Unit = localState = s
+
   override def run(): Unit = {
     // insert a read barrier after every async boundary
     readBarrier()
+
+    if (ioLocalPropagation) {
+      IOFiber.setCurrentIOFiber(this)
+    }
+
     (resumeTag: @switch) match {
       case 0 => execR()
       case 1 => asyncContinueSuccessfulR()
@@ -120,6 +129,10 @@ private final class IOFiber[A](
       case 6 => cedeR()
       case 7 => autoCedeR()
       case 8 => () // DoneR
+    }
+
+    if (ioLocalPropagation) {
+      IOFiber.setCurrentIOFiber(null)
     }
   }
 
@@ -1558,6 +1571,23 @@ private object IOFiber {
   @static private[IOFiber] val TypeBlocking = Sync.Type.Blocking
   @static private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
   @static private[effect] val RightUnit = Right(())
+
+  @static private[this] val threadLocal = new ThreadLocal[IOFiber[_]]
+  @static def currentIOFiber(): IOFiber[_] = {
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread[_]])
+      thread.asInstanceOf[WorkerThread[_]].currentIOFiber
+    else
+      threadLocal.get()
+  }
+
+  @static private def setCurrentIOFiber(f: IOFiber[_]): Unit = {
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread[_]])
+      thread.asInstanceOf[WorkerThread[_]].currentIOFiber = f
+    else
+      threadLocal.set(f)
+  }
 
   @static def onFatalFailure(t: Throwable): Nothing = {
     val interrupted = Thread.interrupted()

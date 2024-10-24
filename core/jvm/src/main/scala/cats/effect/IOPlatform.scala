@@ -71,7 +71,7 @@ abstract private[effect] class IOPlatform[+A] extends Serializable { self: IO[A]
       implicit runtime: unsafe.IORuntime): Option[A] = {
     val queue = new ArrayBlockingQueue[Either[Throwable, A]](1)
 
-    unsafeRunAsync { r =>
+    val fiber = unsafeRunAsyncImpl { r =>
       queue.offer(r)
       ()
     }
@@ -82,6 +82,9 @@ abstract private[effect] class IOPlatform[+A] extends Serializable { self: IO[A]
     } catch {
       case _: InterruptedException =>
         None
+    } finally {
+      if (IOFiberConstants.ioLocalPropagation)
+        IOLocal.setThreadLocalState(fiber.getLocalState())
     }
   }
 

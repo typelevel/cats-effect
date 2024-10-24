@@ -180,3 +180,9 @@ TraceIdScope.fromIOLocal.flatMap { implicit traceIdScope: TraceIdScope[IO] =>
   service[IO]
 }
 ```
+
+## Propagating `IOLocal`s as `ThreadLocal`s
+
+To support integration with Java libraries, `IOLocal` interoperates with the JDK `ThreadLocal` API via `IOLocal#unsafeThreadLocal`. This makes it possible to unsafely read and write the value of an `IOLocal` on the currently running fiber within a suspended side-effect (e.g. `IO.delay` or `IO.blocking`).
+
+To use this feature you must set the property `cats.effect.ioLocalPropagation=true`. Note that enabling propagation causes a performance hit of up to 25% in some of our microbenchmarks. However, it is not clear that this performance impact matters in practice.

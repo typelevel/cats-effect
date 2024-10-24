@@ -671,7 +671,15 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.unsafe.IORuntimeBuilder.this"),
       // introduced by #3695, which enabled fiber dumps on native
       ProblemFilters.exclude[MissingClassProblem](
-        "cats.effect.unsafe.FiberMonitorCompanionPlatform")
+        "cats.effect.unsafe.FiberMonitorCompanionPlatform"),
+      // introduced by #3636, IOLocal propagation
+      // IOLocal is a sealed trait
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.getOrDefault"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.set"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.reset"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.lens"),
+      // this filter is particulary terrible, because it can also mask real issues :(
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOLocal.lens")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -916,7 +924,8 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
     scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
   .jvmSettings(
-    fork := true
+    fork := true,
+    Test / javaOptions += "-Dcats.effect.ioLocalPropagation=true"
   )
   .nativeSettings(
     Compile / mainClass := Some("catseffect.examples.NativeRunner")

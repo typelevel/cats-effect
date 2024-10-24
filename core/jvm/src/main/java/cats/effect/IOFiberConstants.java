@@ -48,6 +48,8 @@ final class IOFiberConstants {
   static final byte AutoCedeR = 7;
   static final byte DoneR = 8;
 
+  static final boolean ioLocalPropagation = Boolean.getBoolean("cats.effect.ioLocalPropagation");
+
   static boolean isVirtualThread(final Thread thread) {
     try {
       return (boolean) THREAD_IS_VIRTUAL_HANDLE.invokeExact(thread);
