@@ -136,8 +136,7 @@ object SecureRandom extends SecureRandomCompanionPlatform {
    * on Linux, macOS, and BSD. Unsupported platforms such as Windows will encounter link-time
    * errors.
    */
-  def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
-    Sync[F]
-      .delay(new JavaSecureRandom())
-      .map(r => new ScalaRandom[F](Applicative[F].pure(r)) with SecureRandom[F] {})
+  override def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
+    super.javaSecuritySecureRandom[F]
+
 }

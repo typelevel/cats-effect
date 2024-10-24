@@ -434,17 +434,21 @@ object Random extends RandomCompanionPlatform {
 
   }
 
-  private[std] abstract class ScalaRandom[F[_]: Sync](f: F[SRandom]) extends RandomCommon[F] {
+  private[std] abstract class ScalaRandom[F[_]: Sync](f: F[SRandom], hint: Sync.Type)
+      extends RandomCommon[F] {
+
+    def this(f: F[SRandom]) = this(f, Sync.Type.Delay)
+
     def nextBoolean: F[Boolean] =
       for {
         r <- f
-        out <- Sync[F].delay(r.nextBoolean())
+        out <- Sync[F].suspend(hint)(r.nextBoolean())
       } yield out
 
     def nextBytes(n: Int): F[Array[Byte]] =
       for {
         r <- f
-        out <- Sync[F].delay {
+        out <- Sync[F].suspend(hint) {
           val bytes = new Array[Byte](0 max n)
           r.nextBytes(bytes)
           bytes
@@ -454,61 +458,61 @@ object Random extends RandomCompanionPlatform {
     def nextDouble: F[Double] =
       for {
         r <- f
-        out <- Sync[F].delay(r.nextDouble())
+        out <- Sync[F].suspend(hint)(r.nextDouble())
       } yield out
 
     def nextFloat: F[Float] =
       for {
         r <- f
-        out <- Sync[F].delay(r.nextFloat())
+        out <- Sync[F].suspend(hint)(r.nextFloat())
       } yield out
 
     def nextGaussian: F[Double] =
       for {
         r <- f
-        out <- Sync[F].delay(r.nextGaussian())
+        out <- Sync[F].suspend(hint)(r.nextGaussian())
       } yield out
 
     def nextInt: F[Int] =
       for {
         r <- f
-        out <- Sync[F].delay(r.nextInt())
+        out <- Sync[F].suspend(hint)(r.nextInt())
       } yield out
 
     def nextIntBounded(n: Int): F[Int] =
       for {
         r <- f
-        out <- Sync[F].delay(r.self.nextInt(n))
+        out <- Sync[F].suspend(hint)(r.self.nextInt(n))
       } yield out
 
     def nextLong: F[Long] =
       for {
         r <- f
-        out <- Sync[F].delay(r.nextLong())
+        out <- Sync[F].suspend(hint)(r.nextLong())
       } yield out
 
     def nextPrintableChar: F[Char] =
       for {
         r <- f
-        out <- Sync[F].delay(r.nextPrintableChar())
+        out <- Sync[F].suspend(hint)(r.nextPrintableChar())
       } yield out
 
     def nextString(length: Int): F[String] =
       for {
         r <- f
-        out <- Sync[F].delay(r.nextString(length))
+        out <- Sync[F].suspend(hint)(r.nextString(length))
       } yield out
 
     def shuffleList[A](l: List[A]): F[List[A]] =
       for {
         r <- f
-        out <- Sync[F].delay(r.shuffle(l))
+        out <- Sync[F].suspend(hint)(r.shuffle(l))
       } yield out
 
     def shuffleVector[A](v: Vector[A]): F[Vector[A]] =
       for {
         r <- f
-        out <- Sync[F].delay(r.shuffle(v))
+        out <- Sync[F].suspend(hint)(r.shuffle(v))
       } yield out
   }
 

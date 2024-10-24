@@ -16,6 +16,10 @@
 
 package cats.effect.std
 
+import cats.Applicative
+import cats.effect.kernel.Sync
+import cats.effect.std.Random.ScalaRandom
+
 import org.typelevel.scalaccompat.annotation._
 
 import scala.scalanative.libc.errno._
@@ -52,6 +56,12 @@ private[std] trait SecureRandomCompanionPlatform {
     }
 
   }
+
+  def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
+    Sync[F].delay(unsafeJavaSecuritySecureRandom())
+
+  private[effect] def unsafeJavaSecuritySecureRandom[F[_]: Sync](): SecureRandom[F] =
+    new ScalaRandom[F](Applicative[F].pure(new JavaSecureRandom())) with SecureRandom[F] {}
 
 }
 

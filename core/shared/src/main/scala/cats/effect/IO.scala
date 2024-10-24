@@ -40,7 +40,7 @@ import cats.data.Ior
 import cats.effect.instances.spawn
 import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleDuration
-import cats.effect.std.{Backpressure, Console, Env, Supervisor, UUIDGen}
+import cats.effect.std.{Backpressure, Console, Env, SecureRandom, Supervisor, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.effect.unsafe.IORuntime
 import cats.syntax._
@@ -2160,6 +2160,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   // instance which is also cached as a val, and therefore needs to appear
   // later in the file
   private[this] val _never: IO[Nothing] = asyncForIO.never
+
+  implicit lazy val secureRandom: SecureRandom[IO] =
+    SecureRandom.unsafeJavaSecuritySecureRandom[IO]()
 
   // implementations
 
