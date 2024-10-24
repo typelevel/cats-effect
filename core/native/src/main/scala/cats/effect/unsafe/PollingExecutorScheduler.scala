@@ -32,7 +32,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
       type Poller = outer.type
       private[this] var needsPoll = true
       def close(): Unit = ()
-      def makeApi(access: (Poller => Unit) => Unit): Api = outer
+      def makeApi(provider: PollerProvider[Poller]): Api = outer
       def makePoller(): Poller = outer
       def closePoller(poller: Poller): Unit = ()
       def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
