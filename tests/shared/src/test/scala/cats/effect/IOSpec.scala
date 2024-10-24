@@ -428,9 +428,18 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         } must completeAs(42)
       }
 
-      "joinWithNever on a canceled fiber" in ticked { implicit ticker =>
+      "joinWithNever on a canceled cancelable fiber" in ticked { implicit ticker =>
         (for {
           fib <- IO.sleep(2.seconds).start
+          _ <- fib.cancel
+          _ <- fib.joinWithNever
+        } yield ()) must selfCancel
+      }
+
+      "joinWithNever on a canceled uncancelable fiber" in ticked { implicit ticker =>
+        (for {
+          fib <- IO.never[Unit].uncancelable.start
+          _ <- IO.sleep(1.second)
           _ <- fib.cancel
           _ <- fib.joinWithNever
         } yield ()) must nonTerminate
