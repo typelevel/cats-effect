@@ -1172,6 +1172,31 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
   }
 
+  "attempt" >> {
+
+    "releases resource on error" in ticked { implicit ticker =>
+      IO.ref(0)
+        .flatMap { ref =>
+          val resource = Resource.make(ref.update(_ + 1))(_ => ref.update(_ + 1))
+          val error = Resource.raiseError[IO, Unit, Throwable](new Exception)
+          (resource *> error).attempt.use { r =>
+            IO(r must beLeft) *> ref.get.map { _ must be_==(2) }
+          }
+        }
+        .void must completeAs(())
+    }
+
+    "acquire is interruptible" in ticked { implicit ticker =>
+      val sleep = IO.never
+      val timeout = 500.millis
+      IO.ref(false).flatMap { ref =>
+        val r = Resource.makeFull[IO, Unit] { poll => poll(sleep).onCancel(ref.set(true)) }(_ =>
+          IO.unit)
+        r.attempt.timeout(timeout).attempt.use_ *> ref.get
+      } must completeAs(true)
+    }
+  }
+
   "uncancelable" >> {
     "does not suppress errors within use" in real {
       case object TestException extends RuntimeException
