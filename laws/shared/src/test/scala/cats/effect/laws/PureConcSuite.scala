@@ -32,6 +32,9 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
   import PureConcGenerators._
   import OutcomeGenerators._
 
+  override def scalaCheckInitialSeed =
+    "ogn64yom4GXCEX0mXdqSfsqSeJxI2RbPUFC5YkvDtzD="
+
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
 
@@ -164,6 +167,64 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
       } yield ()
 
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Unit](None))
+    }
+
+    test("run finalizers in order") {
+      val t = for {
+        results <- F.ref[String]("")
+        f <- F start {
+          F.canceled.onCancel(results.update(_ + "A")).onCancel(results.update(_ + "B"))
+        }
+        _ <- f.join
+        back <- results.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, String](Some("AB")))
+    }
+
+    test("correctly interpret uncancelable cancelation followed by suspension") {
+      val t = F.uncancelable(_ => F.canceled *> F.never[Unit])
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Unit](None))
+
+      val forked = pure.run(F.start(t).flatMap(_.joinWith(F.canceled *> F.never[Unit])))
+      assertEquals(forked, Outcome.Succeeded[Option, Int, Unit](None))
+    }
+
+    test("implement locals via Kleisli and FreeT") {
+      import cats.{~>, Eval, Id}
+      import cats.data.Kleisli
+      import cats.free.FreeT
+      import cats.syntax.all._
+
+      type F[A] = FreeT[Id, Kleisli[Eval, Int, *], A]
+
+      def read[A](f: Int => F[A]): F[A] =
+        FreeT.liftT(Kleisli.ask[Eval, Int]).flatMap(f)
+
+      def withLocal[A](i: Int)(fa: F[A]): F[A] =
+        fa.mapK(new (Kleisli[Eval, Int, *] ~> Kleisli[Eval, Int, *]) {
+          def apply[a](kea: Kleisli[Eval, Int, a]) =
+            Kleisli((_: Int) => kea(i))
+        })
+
+      def run[A](i: Int)(fa: F[A]): A =
+        fa.runM(fta => Kleisli.liftF(Eval.now(fta))).apply(i).value
+
+      val _ = run(1) {
+        withLocal(42) {
+          read { i =>
+            FreeT
+              .liftT[Id, Kleisli[Eval, Int, *], Unit](
+                Kleisli.liftF[Eval, Int, Unit](Eval.later(assertEquals(i, 42))))
+              .flatMap(_ =>
+                read { i2 =>
+                  FreeT.liftT(Kleisli.liftF(Eval.later(assertEquals(i2, 42))))
+                })
+          }
+        } *> read { i =>
+          FreeT.liftT(Kleisli.liftF(Eval.later(assertEquals(i, 1))))
+        }
+      }
     }
   }
 
