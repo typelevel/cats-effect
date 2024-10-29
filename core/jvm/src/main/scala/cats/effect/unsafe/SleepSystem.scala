@@ -42,6 +42,8 @@ object SleepSystem extends PollingSystem {
     false
   }
 
+  def steal(poller: Poller, reportFailure: Throwable => Unit): Boolean = false
+
   def needsPoll(poller: Poller): Boolean = false
 
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit =

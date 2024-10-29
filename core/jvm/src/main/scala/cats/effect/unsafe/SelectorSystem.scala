@@ -63,7 +63,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
         } catch {
           case ex if NonFatal(ex) =>
             error = ex
-            readyOps = -1 // interest all waiters
+            readyOps = -1 // notify all waiters
         }
 
         val value = if (error ne null) Left(error) else Right(readyOps)
@@ -97,6 +97,8 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
       polled
     } else false
   }
+
+  def steal(poller: Poller, reportFailure: Throwable => Unit): Boolean = false
 
   def needsPoll(poller: Poller): Boolean =
     !poller.selector.keys().isEmpty()
