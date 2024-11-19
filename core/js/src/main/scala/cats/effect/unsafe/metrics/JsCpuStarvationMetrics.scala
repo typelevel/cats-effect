@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.metrics
+package cats.effect.unsafe.metrics
 
 import cats.effect.IO
 

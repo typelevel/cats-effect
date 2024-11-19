@@ -74,7 +74,37 @@ Triggering the above fiber dump is a matter of sending a POSIX signal to the pro
 
 Since `INFO` is the signal used on macOS and BSD, this combined with a quirk of Apple's TTY implementation means that **anyone running a Cats Effect application on macOS can simply hit <kbd>Ctrl</kbd>-<kbd>T</kbd>** within the active application to trigger a fiber dump, similar to how you can use <kbd>Ctrl</kbd>-<kbd>\\</kbd> to trigger a thread dump. Note that this trick only works on macOS, since that is the only platform which maps a particular keybind to either the `INFO` or `USR1` signals.
 
-In the event that you're either running on a platform which doesn't support POSIX signals, or the signal registration failed for whatever reason, Cats Effect on the JVM will *also* automatically register an [MBean](https://docs.oracle.com/javase/8/docs/technotes/guides/management/overview.html) under `cats.effect.unsafe.metrics.LiveFiberSnapshotTriggerMBean` which can produce a string representation of the fiber dump when its only method is invoked.
+In the event that you're either running on a platform which doesn't support POSIX signals, or the signal registration failed for whatever reason, Cats Effect on the JVM will *also* automatically register an [MBean](https://docs.oracle.com/javase/8/docs/technotes/guides/management/overview.html) under `cats.effect.unsafe.metrics.LiveFiberSnapshotTriggerMBean` which can produce a string representation of the fiber dump when its only method is invoked. 
+
+It is possible to invoke the MBean via a proxy, like so:
+
+```scala
+import cats.effect.{IO, IOApp}
+import cats.effect.unsafe.metrics.LiveFiberSnapshotTriggerMBean
+import java.lang.management.ManagementFactory
+import javax.management.{JMX, ObjectName}
+
+object MBean extends IOApp.Simple {
+  def fiberSnapshot: IO[String] = IO {
+    val fiberObjectName =
+      new ObjectName(
+        "cats.effect.unsafe.metrics:type=LiveFiberSnapshotTrigger-0"
+      )
+    val server = ManagementFactory.getPlatformMBeanServer
+    val fiberBean = JMX.newMBeanProxy(
+      server,
+      fiberObjectName,
+      classOf[LiveFiberSnapshotTriggerMBean]
+    )
+
+    fiberBean.liveFiberSnapshot().mkString
+  }
+
+  val run: IO[Unit] = fiberSnapshot.flatMap(IO.println)
+}
+```
+
+Note that the `ObjectName`, in this case `cats.effect.unsafe.metrics:type=LiveFiberSnapshotTrigger-0`, has a unique counter at the end. In the case of a single IO runtime and a single registered fiber snapshot MBean, that value will be 0.
 
 ## Configuration
 
