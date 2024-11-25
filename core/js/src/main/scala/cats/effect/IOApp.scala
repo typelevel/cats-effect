@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.effect.metrics.{CpuStarvationWarningMetrics, JsCpuStarvationMetrics}
-import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
 
 import scala.concurrent.CancellationException
@@ -147,6 +146,14 @@ trait IOApp {
 
   private[this] var _runtime: unsafe.IORuntime = null
 
+  @volatile
+  private[this] var _failureReporter: Throwable => IO[Unit] =
+    err => reportFailure(err)
+
+  @volatile
+  private[this] var _onCpuStarvationReporter: CpuStarvationWarningMetrics => IO[Unit] =
+    metrics => onCpuStarvationWarn(metrics)
+
   /**
    * The runtime which will be used by `IOApp` to evaluate the [[IO]] produced by the `run`
    * method. This may be overridden by `IOApp` implementations which have extremely specialized
@@ -175,15 +182,57 @@ trait IOApp {
    * runtime. With that said, some care should be taken to avoid raising unhandled errors as a
    * result of handling unhandled errors, since that will result in the obvious chaos.
    */
+  @deprecatedOverriding("Use setFailureReporter instead", "3.6.0")
   protected def reportFailure(err: Throwable): IO[Unit] =
-    Console[IO].printStackTrace(err)
+    IO.consoleForIO.printStackTrace(err)
+
+  /**
+   * Configures the action to perform when unhandled errors are caught by the runtime.
+   *
+   * An unhandled error is an error that is raised (and not handled) on a Fiber that nobody is
+   * joining.
+   *
+   * For example:
+   *
+   * {{{
+   *   import scala.concurrent.duration._
+   *   override def run: IO[Unit] = IO(throw new Exception("")).start *> IO.sleep(1.second)
+   * }}}
+   *
+   * In this case, the exception is raised on a Fiber with no listeners. Nobody would be
+   * notified about that error. Therefore it is unhandled, and it goes through the reportFailure
+   * mechanism.
+   *
+   * By default, the runtime simply delegates to [[cats.effect.std.Console!.printStackTrace]].
+   * It is safe to perform any `IO` action within this handler; it will not block the progress
+   * of the runtime. With that said, some care should be taken to avoid raising unhandled errors
+   * as a result of handling unhandled errors, since that will result in the obvious chaos.
+   */
+  protected final def setFailureReporter(
+      reporter: Throwable => IO[Unit]
+  ): IO[Unit] =
+    IO {
+      _failureReporter = reporter
+    }
 
   /**
    * Defines what to do when CpuStarvationCheck is triggered. Defaults to log a warning to
    * System.err.
    */
+  @deprecatedOverriding("Use setOnCpuStarvationReporter instead", "3.6.0")
   protected def onCpuStarvationWarn(metrics: CpuStarvationWarningMetrics): IO[Unit] =
     CpuStarvationCheck.logWarning(metrics)
+
+  /**
+   * Configures what to do when CpuStarvationCheck is triggered. By default the runtime logs a
+   * warning to System.err.
+   */
+  protected final def setOnCpuStarvationReporter(
+      reporter: CpuStarvationWarningMetrics => IO[Unit]
+  ): IO[Unit] =
+    IO {
+      _onCpuStarvationReporter = reporter
+    }
 
   /**
    * The entry point for your application. Will be called by the runtime when the process is
@@ -206,8 +255,12 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
-        val compute = IORuntime.createBatchingMacrotaskExecutor(reportFailure = t =>
-          reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
+        val compute = IORuntime.createBatchingMacrotaskExecutor(
+          reportFailure = t =>
+            IO(_failureReporter)
+              .flatMap(_.apply(t))
+              .unsafeRunAndForgetWithoutCallback()(runtime)
+        )
 
         IORuntime(
           compute,
@@ -260,10 +313,16 @@ trait IOApp {
     val fiber = Spawn[IO]
       .raceOutcome[ExitCode, Nothing](
         CpuStarvationCheck
-          .run(runtimeConfig, JsCpuStarvationMetrics(), onCpuStarvationWarn)
+          .run(
+            runtimeConfig,
+            JsCpuStarvationMetrics(),
+            onCpuStarvationWarn =
+              metrics => IO(_onCpuStarvationReporter).flatMap(_.apply(metrics))
+          )
           .background
           .surround(run(argList)),
-        keepAlive)
+        keepAlive
+      )
       .flatMap {
         case Left(Outcome.Canceled()) =>
           IO.raiseError(new CancellationException("IOApp main fiber was canceled"))
