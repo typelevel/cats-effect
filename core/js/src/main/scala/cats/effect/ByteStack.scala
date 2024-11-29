@@ -18,6 +18,8 @@ package cats.effect
 
 import scala.scalajs.js
 
+import java.lang.Math.addExact
+
 private object ByteStack {
 
   type T = js.Array[Int]
@@ -28,7 +30,7 @@ private object ByteStack {
   }
 
   @inline final def growIfNeeded(stack: js.Array[Int], count: Int): js.Array[Int] = {
-    if ((1 + ((count + 1) >> 3)) < stack.length) {
+    if ((1 + (addExact(count, 1) >> 3)) < stack.length) {
       stack
     } else {
       stack.push(0)
@@ -42,7 +44,7 @@ private object ByteStack {
     val s = (c >> 3) + 1 // current slot in `use`
     val shift = (c & 7) << 2 // BEGIN MAGIC
     use(s) = (use(s) & ~(0xffffffff << shift)) | (op << shift) // END MAGIC
-    use(0) += 1 // write the new count
+    use(0) = addExact(c, 1) // write the new count
     use
   }
 
