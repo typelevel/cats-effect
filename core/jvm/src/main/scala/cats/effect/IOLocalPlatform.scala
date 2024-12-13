@@ -21,23 +21,32 @@ import IOFiberConstants.ioLocalPropagation
 private[effect] trait IOLocalPlatform[A] { self: IOLocal[A] =>
 
   /**
-   * Returns a [[java.lang.ThreadLocal]] view of this [[IOLocal]] that allows to unsafely get,
-   * set, and remove (aka reset) the value in the currently running fiber. The system property
-   * `cats.effect.ioLocalPropagation` must be `true`, otherwise throws an
+   * Creates a [[java.lang.ThreadLocal]] based on this [[IOLocal]]. This allows to unsafely get,
+   * set, and remove (aka reset) the [[IOLocal]]'s value in the currently running fiber. When
+   * used outside of a fiber, behaves like an ordinary `ThreadLocal`.
+   *
+   * The system property `cats.effect.ioLocalPropagation` must be `true`, otherwise throws an
    * [[java.lang.UnsupportedOperationException]].
    */
   def unsafeThreadLocal(): ThreadLocal[A] = if (ioLocalPropagation)
     new ThreadLocal[A] {
+      override def initialValue(): A = self.getOrDefault(IOLocalState.empty)
+
       override def get(): A = {
         val fiber = IOFiber.currentIOFiber()
-        val state = if (fiber ne null) fiber.getLocalState() else IOLocalState.empty
-        self.getOrDefault(state)
+        if (fiber ne null) {
+          self.getOrDefault(fiber.getLocalState())
+        } else {
+          super.get()
+        }
       }
 
       override def set(value: A): Unit = {
         val fiber = IOFiber.currentIOFiber()
         if (fiber ne null) {
           fiber.setLocalState(self.set(fiber.getLocalState(), value))
+        } else {
+          super.set(value)
         }
       }
 
@@ -45,6 +54,8 @@ private[effect] trait IOLocalPlatform[A] { self: IOLocal[A] =>
         val fiber = IOFiber.currentIOFiber()
         if (fiber ne null) {
           fiber.setLocalState(self.reset(fiber.getLocalState()))
+        } else {
+          super.remove()
         }
       }
     }
