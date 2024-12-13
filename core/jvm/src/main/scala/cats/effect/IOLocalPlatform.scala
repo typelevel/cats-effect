@@ -30,33 +30,16 @@ private[effect] trait IOLocalPlatform[A] { self: IOLocal[A] =>
    */
   def unsafeThreadLocal(): ThreadLocal[A] = if (ioLocalPropagation)
     new ThreadLocal[A] {
-      override def initialValue(): A = self.getOrDefault(IOLocalState.empty)
-
       override def get(): A = {
-        val fiber = IOFiber.currentIOFiber()
-        if (fiber ne null) {
-          self.getOrDefault(fiber.getLocalState())
-        } else {
-          super.get()
-        }
+        self.getOrDefault(IOLocal.getThreadLocalState())
       }
 
       override def set(value: A): Unit = {
-        val fiber = IOFiber.currentIOFiber()
-        if (fiber ne null) {
-          fiber.setLocalState(self.set(fiber.getLocalState(), value))
-        } else {
-          super.set(value)
-        }
+        IOLocal.setThreadLocalState(self.set(IOLocal.getThreadLocalState(), value))
       }
 
       override def remove(): Unit = {
-        val fiber = IOFiber.currentIOFiber()
-        if (fiber ne null) {
-          fiber.setLocalState(self.reset(fiber.getLocalState()))
-        } else {
-          super.remove()
-        }
+        IOLocal.setThreadLocalState(self.reset(IOLocal.getThreadLocalState()))
       }
     }
   else

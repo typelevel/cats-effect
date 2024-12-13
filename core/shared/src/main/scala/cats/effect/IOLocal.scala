@@ -273,14 +273,21 @@ object IOLocal {
    */
   def isPropagating: Boolean = IOFiberConstants.ioLocalPropagation
 
-  private[effect] def getThreadLocalState() = {
-    val fiber = IOFiber.currentIOFiber()
-    if (fiber ne null) fiber.getLocalState() else IOLocalState.empty
+  private[effect] val threadLocal = new ThreadLocal[IOLocalState] {
+    override def initialValue() = IOLocalState.empty
   }
 
-  private[effect] def setThreadLocalState(state: IOLocalState) = {
+  private[effect] def getThreadLocalState(): IOLocalState = {
     val fiber = IOFiber.currentIOFiber()
-    if (fiber ne null) fiber.setLocalState(state)
+    if (fiber ne null) fiber.getLocalState() else threadLocal.get()
+  }
+
+  private[effect] def setThreadLocalState(state: IOLocalState): Unit = {
+    val fiber = IOFiber.currentIOFiber()
+    if (fiber ne null)
+      fiber.setLocalState(state)
+    else
+      threadLocal.set(state)
   }
 
   private final class IOLocalImpl[A](default: A) extends IOLocal[A] {
