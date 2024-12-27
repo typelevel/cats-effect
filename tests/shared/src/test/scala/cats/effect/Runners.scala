@@ -34,6 +34,7 @@ trait Runners extends TestInstances with RunnersPlatform {
   self: FunSuite =>
 
   def executionTimeout: FiniteDuration = 20.seconds
+  override def munitTimeout: Duration = executionTimeout
 
   def ticked(options: TestOptions)(body: Ticker => Any)(implicit loc: Location): Unit =
     test(options)(body(Ticker(TestContext())))
