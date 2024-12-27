@@ -16,8 +16,6 @@
 
 package cats.effect
 
-import org.specs2.mutable.Specification
+import munit.FunSuite
 
-trait BaseSpec extends Specification with Runners
-
-trait BaseSuite extends munit.FunSuite with MUnitRunners
+trait BaseSuite extends FunSuite with Runners

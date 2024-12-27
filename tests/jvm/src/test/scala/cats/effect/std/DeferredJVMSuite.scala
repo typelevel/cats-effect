@@ -20,22 +20,19 @@ package std
 import cats.effect.kernel.Deferred
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 
-import org.specs2.mutable.Specification
-import org.specs2.specification.BeforeAfterEach
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import java.util.concurrent.atomic.AtomicLong
 
+import munit.FunSuite
+
 class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
 class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
 class DeferredJVMParallelism4Tests extends BaseDeferredJVMTests(4)
 
-abstract class BaseDeferredJVMTests(parallelism: Int)
-    extends Specification
-    with BeforeAfterEach {
+abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite {
   var service: ExecutorService = _
 
   implicit val context: ExecutionContext = new ExecutionContext {
@@ -67,7 +64,6 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
   }
 
   // ----------------------------------------------------------------------------
-  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   val iterations = if (isCI) 1000 else 10000
   val timeout = if (isCI) 30.seconds else 10.seconds
 
@@ -80,7 +76,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
         IO.unit
     }
 
-  // "Deferred — issue #380: producer keeps its thread, consumer stays forked" in {
+  // test("Deferred — issue #380: producer keeps its thread, consumer stays forked") {
   //   for (_ <- 0 until iterations) {
   //     val name = Thread.currentThread().getName
 
@@ -94,19 +90,19 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
   //     val task = for {
   //       df <- Deferred[IO, Unit]
   //       fb <- get(df).start
-  //       _ <- IO(Thread.currentThread().getName mustEqual name)
+  //       _ <- IO(Thread.currentThread().assertEquals(getName, name))
   //       _ <- df.complete(())
-  //       _ <- IO(Thread.currentThread().getName mustEqual name)
+  //       _ <- IO(Thread.currentThread().assertEquals(getName, name))
   //       _ <- fb.join
   //     } yield ()
 
-  //     task.unsafeRunTimed(timeout).nonEmpty must beTrue
+  //     task.unsafeRunTimed(timeout).assert(nonEmpty)
   //   }
 
   //   success
   // }
 
-  // "Deferred — issue #380: with foreverM" in {
+  // test("Deferred — issue #380: with foreverM") {
   //   for (_ <- 0 until iterations) {
   //     val cancelLoop = new AtomicBoolean(false)
   //     val unit = IO {
@@ -123,7 +119,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
   //         _ <- fb.cancel
   //       } yield ()
 
-  //       task.unsafeRunTimed(timeout).nonEmpty must beTrue
+  //       task.unsafeRunTimed(timeout).assert(nonEmpty)
   //     } finally {
   //       cancelLoop.set(true)
   //     }
@@ -132,7 +128,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
   //   success
   // }
 
-  "Deferred — issue #380: with cooperative light async boundaries" in {
+  test("Deferred — issue #380: with cooperative light async boundaries") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] =
         if (i == 512) IO.async[Unit](cb => IO(cb(Right(()))).as(None)) >> foreverAsync(0)
@@ -149,13 +145,11 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
     }
 
     for (_ <- 0 until iterations) {
-      run.unsafeRunTimed(timeout).nonEmpty must beTrue
+      assert(run.unsafeRunTimed(timeout).nonEmpty)
     }
-
-    success
   }
 
-  "Deferred — issue #380: with cooperative full async boundaries" in {
+  test("Deferred — issue #380: with cooperative full async boundaries") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] =
         if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -172,15 +166,13 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
     }
 
     for (_ <- 0 until iterations) {
-      run.unsafeRunTimed(timeout).nonEmpty must beTrue
+      assert(run.unsafeRunTimed(timeout).nonEmpty)
     }
-
-    success
   }
 
   // TODO move this back to run on both JVM and JS once we have a better test
   // setup than unsafeRunRealistic
-  "issue #380: complete doesn't block, test #2" in {
+  test("issue #380: complete doesn't block, test #2") {
     def execute(times: Int): IO[Boolean] = {
       val task = for {
         d <- Deferred[IO, Unit]
@@ -198,7 +190,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
       }
     }
 
-    unsafeRunRealistic(execute(100))() must beEqualTo(Some(true))
+    assertEquals(unsafeRunRealistic(execute(100))(), Some(true))
   }
 
   def unsafeRunRealistic[A](ioa: IO[A])(

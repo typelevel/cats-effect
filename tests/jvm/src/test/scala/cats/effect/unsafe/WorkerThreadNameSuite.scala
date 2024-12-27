@@ -16,12 +16,12 @@
 
 package cats.effect.unsafe
 
-import cats.effect.BaseSpec
+import cats.effect.BaseSuite
 import cats.effect.testkit.TestInstances
 
 import scala.concurrent.duration._
 
-class WorkerThreadNameSuite extends BaseSpec with TestInstances {
+class WorkerThreadNameSuite extends BaseSuite with TestInstances {
 
   override def runtime(): IORuntime = {
     lazy val rt: IORuntime = {
@@ -53,7 +53,7 @@ class WorkerThreadNameSuite extends BaseSpec with TestInstances {
     rt
   }
 
-  "WorkerThread" should {
+  /*"WorkerThread" should {
     "rename itself when entering and exiting blocking region" in skipped(
       "this test is quite flaky in CI"
     ) /*real {
@@ -87,13 +87,13 @@ class WorkerThreadNameSuite extends BaseSpec with TestInstances {
         }
         resetBlockerThread must beSome[String].setMessage(
           "blocker thread not found after reset")
-        resetBlockerThread must beSome((_: String).startsWith("io-compute"))
+        assertEquals(resetBlockerThread, Some((_: String)).startsWith("io-compute"))
           .setMessage("blocker thread name was not reset")
-        resetBlockerThread must beSome((_: String).endsWith("-0"))
+        assertEquals(resetBlockerThread, Some((_: String)).endsWith("-0"))
           .setMessage("blocker thread index was not correct")
       }
     }*/
-  }
+  }*/
 
   /*private val threadInfo =
     IO((Thread.currentThread().getName(), Thread.currentThread().getId()))*/

@@ -17,17 +17,17 @@
 package not.cats.effect // verifies scoping outside of CE
 
 import cats.{Align, CommutativeApplicative}
-import cats.effect.{BaseSpec, IO}
+import cats.effect.{BaseSuite, IO}
 import cats.syntax.all._
 
-class IOParImplicitSuite extends BaseSpec {
+class IOParImplicitSuite extends BaseSuite {
 
-  "Can resolve CommutativeApplicative instance" in {
+  test("Can resolve CommutativeApplicative instance") {
     List(1, 2, 3).parUnorderedTraverse(_ => IO.unit) // compilation test
     true
   }
 
-  "Can resolve IO.Par instances" in { // compilation test
+  test("Can resolve IO.Par instances") { // compilation test
     Align[IO.Par]
     CommutativeApplicative[IO.Par]
     true

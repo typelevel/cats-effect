@@ -20,88 +20,108 @@ import cats.{Eq, Show}
 import cats.effect.testkit.{TestContext, TestInstances}
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
-import munit.TestOptions
+
 import org.scalacheck.Gen
-import org.specs2.execute.AsResult
-import org.specs2.matcher.Matcher
-import org.specs2.mutable.SpecificationLike
-import org.specs2.specification.core.Execution
 
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
-import scala.reflect.ClassTag
+import scala.reflect.{classTag, ClassTag}
 
-trait Runners extends SpecificationLike with TestInstances with RunnersPlatform { outer =>
+import munit.{FunSuite, Location, TestOptions}
+import munit.internal.PlatformCompat
 
-  def executionTimeout = 20.seconds
+trait Runners extends TestInstances with RunnersPlatform {
+  self: FunSuite =>
 
-  def ticked[A: AsResult](test: Ticker => A): Execution =
-    Execution.result(test(Ticker(TestContext())))
+  def executionTimeout: FiniteDuration = 20.seconds
 
-  def real[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync { _ =>
-      val (fut, cancel) = test.unsafeToFutureCancelable()(runtime())
+  def ticked(options: TestOptions)(body: Ticker => Any)(implicit loc: Location): Unit =
+    test(options)(body(Ticker(TestContext())))
+
+  def real[A](options: TestOptions)(body: => IO[A])(implicit loc: Location): Unit =
+    test(options) {
+      val (fut, cancel) = body.unsafeToFutureCancelable()(runtime())
       timeout(fut, cancel, executionTimeout)
     }
 
   /*
    * Hacky implementation of effectful property testing
    */
-  def realProp[A, B](gen: Gen[A])(f: A => IO[B])(implicit R: AsResult[List[B]]): Execution =
-    real(List.range(1, 100).traverse { _ =>
+  def realProp[A, B](options: TestOptions, gen: Gen[A])(f: A => IO[B])(
+      implicit loc: Location): Unit =
+    real(options)(List.range(1, 100).traverse_ { _ =>
       val a = gen.sample.get
       f(a)
     })
 
-  def realWithRuntime[A: AsResult](test: IORuntime => IO[A]): Execution =
-    Execution.withEnvAsync { _ =>
+  def realWithRuntime[A](options: TestOptions)(f: IORuntime => IO[A])(
+      implicit loc: Location): Unit =
+    test(options) {
       val rt = runtime()
-      val (fut, cancel) = test(rt).unsafeToFutureCancelable()(rt)
+      val (fut, cancel) = f(rt).unsafeToFutureCancelable()(rt)
       timeout(fut, cancel, executionTimeout)
     }
 
-  def completeAs[A: Eq: Show](expected: A)(implicit ticker: Ticker): Matcher[IO[A]] =
-    tickTo(Outcome.Succeeded(Some(expected)))
+  def assertCompleteAs[A: Eq: Show](ioa: IO[A], expected: A)(
+      implicit ticker: Ticker,
+      loc: Location): Unit =
+    assertTickTo(ioa, Outcome.Succeeded(Some(expected)))
 
-  def completeAsSync[A: Eq: Show](expected: A): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
+  def assertCompleteAsSync[A: Eq: Show](ioa: SyncIO[A], expected: A)(
+      implicit loc: Location): Unit = {
     val a = ioa.unsafeRunSync()
-    (a eqv expected, s"${a.show} !== ${expected.show}")
+    assert(a eqv expected, s"${a.show} !== ${expected.show}")
   }
 
-  def failAs(expected: Throwable)(implicit ticker: Ticker): Matcher[IO[Unit]] =
-    tickTo[Unit](Outcome.Errored(expected))
+  def assertFailAs(io: IO[Unit], expected: Throwable)(
+      implicit ticker: Ticker,
+      loc: Location): Unit =
+    assertTickTo[Unit](io, Outcome.Errored(expected))
 
-  def failAsSync[A](expected: Throwable): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
+  def assertFailAsSync[A](ioa: SyncIO[A], expected: Throwable)(implicit loc: Location): Unit = {
     val t =
       (try ioa.unsafeRunSync()
       catch {
         case t: Throwable => t
       }).asInstanceOf[Throwable]
-    (t eqv expected, s"${t.show} !== ${expected.show}")
+    assert(t eqv expected, s"${t.show} !== ${expected.show}")
   }
 
-  def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
-    tickTo[Unit](Outcome.Succeeded(None))
+  def assertNonTerminate(io: IO[Unit])(implicit ticker: Ticker, loc: Location): Unit =
+    assertTickTo[Unit](io, Outcome.Succeeded(None))
 
-  def selfCancel(implicit ticker: Ticker): Matcher[IO[Unit]] =
-    tickTo[Unit](Outcome.Canceled())
+  def assertSelfCancel(io: IO[Unit])(implicit ticker: Ticker, loc: Location): Unit =
+    assertTickTo[Unit](io, Outcome.Canceled())
 
-  def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(
-      implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
+  def assertTickTo[A: Eq: Show](ioa: IO[A], expected: Outcome[Option, Throwable, A])(
+      implicit ticker: Ticker,
+      loc: Location): Unit = {
     val oc = unsafeRun(ioa)
-    (oc eqv expected, s"${oc.show} !== ${expected.show}")
+    assert(oc eqv expected, s"${oc.show} !== ${expected.show}")
+  }
+
+  implicit class TestOptionsSyntax(options: TestOptions) {
+    // todo: munit 1.0 has `options.pending`
+    def pendingNative: TestOptions = if (PlatformCompat.isNative) options.ignore else options
+    def ignoreNative: TestOptions = if (PlatformCompat.isNative) options.ignore else options
+    def ignoreJS: TestOptions = if (PlatformCompat.isJS) options.ignore else options
   }
 
   // useful for tests in the `real` context
   implicit class Assertions[A](fa: IO[A]) {
-    def mustFailWith[E <: Throwable: ClassTag] =
+    def mustFailWith[E <: Throwable: ClassTag](implicit loc: Location) =
       fa.attempt.flatMap { res =>
         IO {
-          res must beLike { case Left(e) => e must haveClass[E] }
+          res match {
+            case Left(e) => assert(classTag[E].runtimeClass.isAssignableFrom(e.getClass))
+            case Right(value) =>
+              fail(
+                s"Expected Left(${classTag[E].runtimeClass.getSimpleName}) got Right($value)")
+          }
         }
       }
 
-    def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
+    def mustEqual(a: A)(implicit loc: Location) = fa.flatMap { res => IO(assertEquals(res, a)) }
   }
 
   private def timeout[A](
@@ -131,30 +151,6 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
 
     p.future
   }
-}
-
-trait MUnitRunners extends TestInstances with MUnitRunnersPlatform {
-  self: munit.FunSuite =>
-
-  def executionTimeout: FiniteDuration = 20.seconds
-
-  def ticked(options: TestOptions)(body: Ticker => Any)(implicit loc: munit.Location): Unit =
-    test(options)(body(Ticker(TestContext())))
-
-  def assertCompleteAs[A: Eq: Show](ioa: IO[A], expected: A)(implicit ticker: Ticker): Unit =
-    tickTo(ioa, Outcome.Succeeded(Some(expected)))
-
-  /*def completeAsSync[A: Eq: Show](expected: A): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
-    val a = ioa.unsafeRunSync()
-    (a eqv expected, s"${a.show} !== ${expected.show}")
-  }*/
-
-  def tickTo[A: Eq: Show](ioa: IO[A], expected: Outcome[Option, Throwable, A])(
-    implicit ticker: Ticker): Unit = {
-    val oc = unsafeRun(ioa)
-    assert(oc eqv expected, s"${oc.show} !== ${expected.show}")
-  }
-
 }
 
 class TestTimeoutException extends Exception

@@ -16,42 +16,38 @@
 
 package cats.effect.unsafe
 
-import cats.effect.{BaseSpec, FiberIO, IO, Outcome}
+import cats.effect.{BaseSuite, FiberIO, IO, Outcome}
 import cats.effect.std.CountDownLatch
 import cats.effect.testkit.TestInstances
 
 import scala.concurrent.duration._
 
-class FiberMonitorSuite extends BaseSpec with TestInstances {
+class FiberMonitorSuite extends BaseSuite with TestInstances {
 
-  "FiberMonitor" should {
+  realWithRuntime("show only active fibers in a live snapshot") { (runtime: IORuntime) =>
+    val waitingPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ WAITING((.|\n)*)"
+    val completedPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ COMPLETED"
 
-    "show only active fibers in a live snapshot" in realWithRuntime { (runtime: IORuntime) =>
-      val waitingPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ WAITING((.|\n)*)"
-      val completedPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ COMPLETED"
+    for {
+      cdl <- CountDownLatch[IO](1)
+      fiber <- cdl.await.start // create a 'waiting' fiber
+      fiberId <- IO(extractFiberId(fiber))
+      _ <- IO.sleep(100.millis)
 
-      for {
-        cdl <- CountDownLatch[IO](1)
-        fiber <- cdl.await.start // create a 'waiting' fiber
-        fiberId <- IO(extractFiberId(fiber))
-        _ <- IO.sleep(100.millis)
+      snapshot <- IO(makeSnapshot(runtime))
+      _ <- IO(assertEquals(snapshot.size, 2)) // root and awaiting fibers
+      fiberSnapshot <- IO(snapshot.filter(_.contains(fiberId)))
+      _ <- IO(assertEquals(fiberSnapshot.size, 1)) // only awaiting fiber
+      _ <- IO(assert(fiberSnapshot.exists(_.matches(waitingPattern))))
 
-        snapshot <- IO(makeSnapshot(runtime))
-        _ <- IO(snapshot must have size 2) // root and awaiting fibers
-        fiberSnapshot <- IO(snapshot.filter(_.contains(fiberId)))
-        _ <- IO(fiberSnapshot must have size 1) // only awaiting fiber
-        _ <- IO(fiberSnapshot must containPattern(waitingPattern))
+      _ <- cdl.release // allow further execution
+      outcome <- fiber.join
+      _ <- IO.sleep(100.millis)
 
-        _ <- cdl.release // allow further execution
-        outcome <- fiber.join
-        _ <- IO.sleep(100.millis)
-
-        _ <- IO(outcome must beEqualTo(Outcome.succeeded[IO, Throwable, Unit](IO.unit)))
-        _ <- IO(fiber.toString must beMatching(completedPattern))
-        _ <- IO(makeSnapshot(runtime) must have size 1) // only root fiber
-      } yield ok
-    }
-
+      _ <- IO(assertEquals(outcome, Outcome.succeeded[IO, Throwable, Unit](IO.unit)))
+      _ <- IO(assert(fiber.toString.matches(completedPattern)))
+      _ <- IO(assertEquals(makeSnapshot(runtime).size, 1)) // only root fiber
+    } yield ()
   }
 
   // keep only fibers

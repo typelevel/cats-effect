@@ -22,38 +22,37 @@ import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-class DeferredSuite extends BaseSpec with DetectPlatform { outer =>
+class DeferredSuite extends BaseSuite with DetectPlatform { outer =>
 
-  "Deferred for Async" should {
-    tests(IO(Deferred.unsafe), IO(Deferred.unsafe))
-  }
+  tests("Deferred for Async", IO(Deferred.unsafe), IO(Deferred.unsafe))
 
-  "Deferred for IO" should {
-    tests(IO(new IODeferred), IO(new IODeferred))
-  }
+  tests("Deferred for IO", IO(new IODeferred), IO(new IODeferred))
 
-  def tests(deferredU: IO[Deferred[IO, Unit]], deferredI: IO[Deferred[IO, Int]]) = {
-    "complete" in real {
+  def tests(
+      name: String,
+      deferredU: IO[Deferred[IO, Unit]],
+      deferredI: IO[Deferred[IO, Int]]) = {
+    real(s"$name complete") {
       val op = deferredI.flatMap { p => p.complete(0) *> p.get }
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(0)
+          assertEquals(res, 0)
         }
       }
     }
 
-    "complete is only successful once" in real {
+    real(s"$name complete is only successful once") {
       val op = deferredI.flatMap { p => p.complete(0) *> p.complete(1).product(p.get) }
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo((false, 0))
+          assertEquals(res, (false, 0))
         }
       }
     }
 
-    "get blocks until set" in real {
+    real(s"$name get blocks until set") {
       val op = for {
         state <- Ref[IO].of(0)
         modifyGate <- deferredU
@@ -66,12 +65,12 @@ class DeferredSuite extends BaseSpec with DetectPlatform { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(2)
+          assertEquals(res, 2)
         }
       }
     }
 
-    "concurrent - get - cancel before forcing" in real {
+    real(s"$name concurrent - get - cancel before forcing") {
       def cancelBeforeForcing: IO[Option[Int]] =
         for {
           r <- Ref[IO].of(Option.empty[Int])
@@ -94,22 +93,22 @@ class DeferredSuite extends BaseSpec with DetectPlatform { outer =>
 
       cancelBeforeForcing.flatMap { res =>
         IO {
-          res must beNone
+          assertEquals(res, None)
         }
       }
     }
 
-    "tryGet returns None for unset Deferred" in real {
+    real(s"$name tryGet returns None for unset Deferred") {
       val op = deferredU.flatMap(_.tryGet)
 
       op.flatMap { res =>
         IO {
-          res must beNone
+          assertEquals(res, None)
         }
       }
     }
 
-    "tryGet returns Some() for set Deferred" in real {
+    real(s"$name tryGet returns Some() for set Deferred") {
       val op = for {
         d <- deferredU
         _ <- d.complete(())
@@ -118,12 +117,12 @@ class DeferredSuite extends BaseSpec with DetectPlatform { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(Some(()))
+          assertEquals(res, Some(()))
         }
       }
     }
 
-    "issue #380: complete doesn't block, test #1" in real {
+    real(s"$name issue #380: complete doesn't block, test #1") {
       def execute(times: Int): IO[Boolean] = {
         def foreverAsync(i: Int): IO[Unit] =
           if (i == 512) IO.async[Unit] { cb =>
@@ -150,12 +149,12 @@ class DeferredSuite extends BaseSpec with DetectPlatform { outer =>
 
       execute(100).flatMap { res =>
         IO {
-          res must beTrue
+          assert(res)
         }
       }
     }
 
-    "issue #3283: complete must be uncancelable" in real {
+    real(s"$name issue #3283: complete must be uncancelable") {
 
       import cats.syntax.all._
 
@@ -166,18 +165,18 @@ class DeferredSuite extends BaseSpec with DetectPlatform { outer =>
           IO.race(attemptCompletion(1), attemptCompletion(2)).void,
           d.get.void
         ).parSequence
-        r <- IO { (res == List((), ())) must beTrue }
+        r <- IO { assert(res == List((), ())) }
       } yield r
     }
 
-    "handle lots of canceled gets in parallel" in real {
+    real(s"$name handle lots of canceled gets in parallel") {
       List(10, 100, 1000)
         .traverse_ { n =>
           deferredU
             .flatMap { d =>
               (d.get.background.surround(IO.cede).replicateA_(n) *> d
                 .complete(())).background.surround {
-                d.get.as(1).parReplicateA(n).map(_.sum must be_==(n))
+                d.get.as(1).parReplicateA(n).map(r => assertEquals(r.sum, n))
               }
             }
             .replicateA_(if (isJVM) 100 else 1)
@@ -185,7 +184,7 @@ class DeferredSuite extends BaseSpec with DetectPlatform { outer =>
         .as(true)
     }
 
-    "handle adversarial cancelations without loss of callbacks" in ticked { implicit ticker =>
+    ticked("handle adversarial cancelations without loss of callbacks") { implicit ticker =>
       val test = for {
         d <- deferredU
 
@@ -205,7 +204,7 @@ class DeferredSuite extends BaseSpec with DetectPlatform { outer =>
         _ <- remaining.toList.traverse_(fibers(_).join.void)
       } yield ()
 
-      test must completeAs(())
+      assertCompleteAs(test, ())
     }
   }
 }

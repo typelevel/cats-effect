@@ -22,161 +22,158 @@ import cats.data.State
 
 import scala.concurrent.duration._
 
-class RefSuite extends BaseSpec with DetectPlatform { outer =>
+class RefSuite extends BaseSuite with DetectPlatform { outer =>
 
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
-  "ref" should {
-    // TODO need parallel instance for IO
-    // "support concurrent modifications" in ticked { implicit ticker =>
-    //   val finalValue = 100
-    //   val r = Ref.unsafe[IO, Int](0)
-    //   val modifies = List.fill(finalValue)(r.update(_ + 1)).parSequence
-    //   (modifies.start *> r.get) must completeAs(finalValue)
+  // TODO need parallel instance for IO
+  // ticked("support concurrent modifications") { implicit ticker =>
+  //   val finalValue = 100
+  //   val r = Ref.unsafe[IO, Int](0)
+  //   val modifies = List.fill(finalValue)(r.update(_ + 1)).parSequence
+  //   (modifies.start *> assertCompleteAs(r.get), finalValue)
 
-    // }
+  // }
 
-    "get and set successfully" in ticked { implicit ticker =>
-      val op = for {
-        r <- Ref[IO].of(0)
-        getAndSetResult <- r.getAndSet(1)
-        getResult <- r.get
-      } yield getAndSetResult == 0 && getResult == 1
+  ticked("get and set successfully") { implicit ticker =>
+    val op = for {
+      r <- Ref[IO].of(0)
+      getAndSetResult <- r.getAndSet(1)
+      getResult <- r.get
+    } yield getAndSetResult == 0 && getResult == 1
 
-      op must completeAs(true)
+    assertCompleteAs(op, true)
 
-    }
+  }
 
-    "get and update successfully" in ticked { implicit ticker =>
-      val op = for {
-        r <- Ref[IO].of(0)
-        getAndUpdateResult <- r.getAndUpdate(_ + 1)
-        getResult <- r.get
-      } yield getAndUpdateResult == 0 && getResult == 1
+  ticked("get and update successfully") { implicit ticker =>
+    val op = for {
+      r <- Ref[IO].of(0)
+      getAndUpdateResult <- r.getAndUpdate(_ + 1)
+      getResult <- r.get
+    } yield getAndUpdateResult == 0 && getResult == 1
 
-      op must completeAs(true)
-    }
+    assertCompleteAs(op, true)
+  }
 
-    "update and get successfully" in ticked { implicit ticker =>
-      val op = for {
-        r <- Ref[IO].of(0)
-        updateAndGetResult <- r.updateAndGet(_ + 1)
-        getResult <- r.get
-      } yield updateAndGetResult == 1 && getResult == 1
+  ticked("update and get successfully") { implicit ticker =>
+    val op = for {
+      r <- Ref[IO].of(0)
+      updateAndGetResult <- r.updateAndGet(_ + 1)
+      getResult <- r.get
+    } yield updateAndGetResult == 1 && getResult == 1
 
-      op must completeAs(true)
-    }
+    assertCompleteAs(op, true)
+  }
 
-    "access successfully" in ticked { implicit ticker =>
+  ticked("access successfully") { implicit ticker =>
+    val op = for {
+      r <- Ref[IO].of(0)
+      valueAndSetter <- r.access
+      (value, setter) = valueAndSetter
+      success <- setter(value + 1)
+      result <- r.get
+    } yield success && result == 1
+
+    assertCompleteAs(op, true)
+  }
+
+  ticked("access - setter should fail if value is modified before setter is called") {
+    implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         valueAndSetter <- r.access
         (value, setter) = valueAndSetter
+        _ <- r.set(5)
         success <- setter(value + 1)
         result <- r.get
-      } yield success && result == 1
+      } yield !success && result == 5
 
-      op must completeAs(true)
-    }
+      assertCompleteAs(op, true)
+  }
 
-    "access - setter should fail if value is modified before setter is called" in ticked {
+  ticked("tryUpdate - modification occurs successfully") { implicit ticker =>
+    val op = for {
+      r <- Ref[IO].of(0)
+      result <- r.tryUpdate(_ + 1)
+      value <- r.get
+    } yield result && value == 1
+
+    assertCompleteAs(op, true)
+  }
+
+  if (!isJS && !isNative) // concurrent modification impossible
+    ticked("tryUpdate - should fail to update if modification has occurred") {
       implicit ticker =>
+        val updateRefUnsafely: Ref[IO, Int] => Unit = { (ref: Ref[IO, Int]) =>
+          unsafeRun(ref.update(_ + 1))
+          ()
+        }
+
         val op = for {
           r <- Ref[IO].of(0)
-          valueAndSetter <- r.access
-          (value, setter) = valueAndSetter
-          _ <- r.set(5)
-          success <- setter(value + 1)
-          result <- r.get
-        } yield !success && result == 5
-
-        op must completeAs(true)
-    }
-
-    "tryUpdate - modification occurs successfully" in ticked { implicit ticker =>
-      val op = for {
-        r <- Ref[IO].of(0)
-        result <- r.tryUpdate(_ + 1)
-        value <- r.get
-      } yield result && value == 1
-
-      op must completeAs(true)
-    }
-
-    if (!isJS && !isNative) // concurrent modification impossible
-      "tryUpdate - should fail to update if modification has occurred" in ticked {
-        implicit ticker =>
-          val updateRefUnsafely: Ref[IO, Int] => Unit = { (ref: Ref[IO, Int]) =>
-            unsafeRun(ref.update(_ + 1))
-            ()
+          result <- r.tryUpdate { currentValue =>
+            updateRefUnsafely(r)
+            currentValue + 1
           }
+        } yield result
 
-          val op = for {
-            r <- Ref[IO].of(0)
-            result <- r.tryUpdate { currentValue =>
-              updateRefUnsafely(r)
-              currentValue + 1
-            }
-          } yield result
-
-          op must completeAs(false)
-      }
-    else ()
-
-    "tryModifyState - modification occurs successfully" in ticked { implicit ticker =>
-      val op = for {
-        r <- Ref[IO].of(0)
-        result <- r.tryModifyState(State.pure(1))
-      } yield result.contains(1)
-
-      op must completeAs(true)
+        assertCompleteAs(op, false)
     }
+  else ()
 
-    "modifyState - modification occurs successfully" in ticked { implicit ticker =>
-      val op = for {
-        r <- Ref[IO].of(0)
-        result <- r.modifyState(State.pure(1))
-      } yield result == 1
+  ticked("tryModifyState - modification occurs successfully") { implicit ticker =>
+    val op = for {
+      r <- Ref[IO].of(0)
+      result <- r.tryModifyState(State.pure(1))
+    } yield result.contains(1)
 
-      op must completeAs(true)
-    }
+    assertCompleteAs(op, true)
+  }
 
-    "flatModify - finalizer should be uncancelable" in ticked { implicit ticker =>
-      var passed = false
-      val op = for {
-        ref <- Ref[IO].of(0)
-        _ <- ref
-          .flatModify(_ => (1, IO.canceled >> IO { passed = true }))
-          .start
-          .flatMap(_.join)
-          .void
-        result <- ref.get
-      } yield result == 1
+  ticked("modifyState - modification occurs successfully") { implicit ticker =>
+    val op = for {
+      r <- Ref[IO].of(0)
+      result <- r.modifyState(State.pure(1))
+    } yield result == 1
 
-      op must completeAs(true)
-      passed must beTrue
-    }
+    assertCompleteAs(op, true)
+  }
 
-    "flatModifyFull - finalizer should mask cancellation" in ticked { implicit ticker =>
-      var passed = false
-      var failed = false
-      val op = for {
-        ref <- Ref[IO].of(0)
-        _ <- ref
-          .flatModifyFull { (poll, _) =>
-            (1, poll(IO.canceled >> IO { failed = true }).onCancel(IO { passed = true }))
-          }
-          .start
-          .flatMap(_.join)
-          .void
-        result <- ref.get
-      } yield result == 1
+  ticked("flatModify - finalizer should be uncancelable") { implicit ticker =>
+    var passed = false
+    val op = for {
+      ref <- Ref[IO].of(0)
+      _ <- ref
+        .flatModify(_ => (1, IO.canceled >> IO { passed = true }))
+        .start
+        .flatMap(_.join)
+        .void
+      result <- ref.get
+    } yield result == 1
 
-      op must completeAs(true)
-      passed must beTrue
-      failed must beFalse
-    }
+    assertCompleteAs(op, true)
+    assert(passed)
+  }
 
+  ticked("flatModifyFull - finalizer should mask cancellation") { implicit ticker =>
+    var passed = false
+    var failed = false
+    val op = for {
+      ref <- Ref[IO].of(0)
+      _ <- ref
+        .flatModifyFull { (poll, _) =>
+          (1, poll(IO.canceled >> IO { failed = true }).onCancel(IO { passed = true }))
+        }
+        .start
+        .flatMap(_.join)
+        .void
+      result <- ref.get
+    } yield result == 1
+
+    assertCompleteAs(op, true)
+    assert(passed)
+    assert(!failed)
   }
 
 }

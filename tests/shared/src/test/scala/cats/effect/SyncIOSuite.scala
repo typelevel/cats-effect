@@ -24,207 +24,219 @@ import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
-import org.typelevel.discipline.specs2.mutable.Discipline
 
-class SyncIOSuite extends BaseSpec with Discipline with SyncIOPlatformSpecification {
+import munit.DisciplineSuite
 
-  "sync io monad" should {
-    "produce a pure value when run" in {
-      SyncIO.pure(42) must completeAsSync(42)
+class SyncIOSuite extends BaseSuite with DisciplineSuite with SyncIOPlatformSuite {
+
+  test("produce a pure value when run") {
+    assertCompleteAsSync(SyncIO.pure(42), 42)
+  }
+
+  test("suspend a side-effect without memoizing") {
+    var i = 42
+
+    val ioa = SyncIO {
+      i += 1
+      i
     }
 
-    "suspend a side-effect without memoizing" in {
-      var i = 42
+    assertCompleteAsSync(ioa, 43)
+    assertCompleteAsSync(ioa, 44)
+  }
 
-      val ioa = SyncIO {
-        i += 1
-        i
-      }
+  test("capture errors in suspensions") {
+    case object TestException extends RuntimeException
+    assertFailAsSync(SyncIO(throw TestException), TestException)
+  }
 
-      ioa must completeAsSync(43)
-      ioa must completeAsSync(44)
+  test("map results to a new type") {
+    assertCompleteAsSync(SyncIO.pure(42).map(_.toString), "42")
+  }
+
+  test("flatMap results sequencing both effects") {
+    var i = 0
+    assertCompleteAsSync(SyncIO.pure(42).flatMap(i2 => SyncIO { i = i2 }), ())
+    assertEquals(i, 42)
+  }
+
+  test("raiseError propagates out") {
+    case object TestException extends RuntimeException
+    assertFailAsSync(
+      SyncIO.raiseError(TestException).void.flatMap(_ => SyncIO.pure(())),
+      TestException)
+  }
+
+  test("errors can be handled") {
+    case object TestException extends RuntimeException
+    assertCompleteAsSync(SyncIO.raiseError[Unit](TestException).attempt, Left(TestException))
+  }
+
+  test("attempt is redeem with Left(_) for recover and Right(_) for map") {
+    forAll { (io: SyncIO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
+  }
+
+  test("attempt is flattened redeemWith") {
+    forAll {
+      (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
+        io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
     }
+  }
 
-    "capture errors in suspensions" in {
-      case object TestException extends RuntimeException
-      SyncIO(throw TestException) must failAsSync(TestException)
+  test("redeem is flattened redeemWith") {
+    forAll {
+      (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
+        io.redeem(recover, bind).flatMap(identity) eqv io.redeemWith(recover, bind)
     }
+  }
 
-    "map results to a new type" in {
-      SyncIO.pure(42).map(_.toString) must completeAsSync("42")
+  test("redeem subsumes handleError") {
+    forAll { (io: SyncIO[Int], recover: Throwable => Int) =>
+      io.redeem(recover, identity) eqv io.handleError(recover)
     }
+  }
 
-    "flatMap results sequencing both effects" in {
-      var i = 0
-      SyncIO.pure(42).flatMap(i2 => SyncIO { i = i2 }) must completeAsSync(())
-      i mustEqual 42
+  test("redeemWith subsumes handleErrorWith") {
+    forAll { (io: SyncIO[Int], recover: Throwable => SyncIO[Int]) =>
+      io.redeemWith(recover, SyncIO.pure) eqv io.handleErrorWith(recover)
     }
+  }
 
-    "raiseError propagates out" in {
-      case object TestException extends RuntimeException
-      SyncIO.raiseError(TestException).void.flatMap(_ => SyncIO.pure(())) must failAsSync(
-        TestException)
-    }
+  test("redeem correctly recovers from errors") {
+    case object TestException extends RuntimeException
+    assertCompleteAsSync(SyncIO.raiseError[Unit](TestException).redeem(_ => 42, _ => 43), 42)
+  }
 
-    "errors can be handled" in {
-      case object TestException extends RuntimeException
-      SyncIO.raiseError[Unit](TestException).attempt must completeAsSync(Left(TestException))
-    }
+  test("redeem maps successful results") {
+    assertCompleteAsSync(SyncIO.unit.redeem(_ => 41, _ => 42), 42)
+  }
 
-    "attempt is redeem with Left(_) for recover and Right(_) for map" in {
-      forAll { (io: SyncIO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
-    }
-
-    "attempt is flattened redeemWith" in {
-      forAll {
-        (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
-          io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
-      }
-    }
-
-    "redeem is flattened redeemWith" in {
-      forAll {
-        (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
-          io.redeem(recover, bind).flatMap(identity) eqv io.redeemWith(recover, bind)
-      }
-    }
-
-    "redeem subsumes handleError" in {
-      forAll { (io: SyncIO[Int], recover: Throwable => Int) =>
-        io.redeem(recover, identity) eqv io.handleError(recover)
-      }
-    }
-
-    "redeemWith subsumes handleErrorWith" in {
-      forAll { (io: SyncIO[Int], recover: Throwable => SyncIO[Int]) =>
-        io.redeemWith(recover, SyncIO.pure) eqv io.handleErrorWith(recover)
-      }
-    }
-
-    "redeem correctly recovers from errors" in {
-      case object TestException extends RuntimeException
-      SyncIO.raiseError[Unit](TestException).redeem(_ => 42, _ => 43) must completeAsSync(42)
-    }
-
-    "redeem maps successful results" in {
-      SyncIO.unit.redeem(_ => 41, _ => 42) must completeAsSync(42)
-    }
-
-    "redeem catches exceptions thrown in recovery function" in {
-      case object TestException extends RuntimeException
-      case object ThrownException extends RuntimeException
+  test("redeem catches exceptions thrown in recovery function") {
+    case object TestException extends RuntimeException
+    case object ThrownException extends RuntimeException
+    assertCompleteAsSync(
       SyncIO
         .raiseError[Unit](TestException)
         .redeem(_ => throw ThrownException, _ => 42)
-        .attempt must completeAsSync(Left(ThrownException))
-    }
+        .attempt,
+      Left(ThrownException))
+  }
 
-    "redeem catches exceptions thrown in map function" in {
-      case object ThrownException extends RuntimeException
-      SyncIO.unit.redeem(_ => 41, _ => throw ThrownException).attempt must completeAsSync(
-        Left(ThrownException))
-    }
+  test("redeem catches exceptions thrown in map function") {
+    case object ThrownException extends RuntimeException
+    assertCompleteAsSync(
+      SyncIO.unit.redeem(_ => 41, _ => throw ThrownException).attempt,
+      Left(ThrownException))
+  }
 
-    "redeemWith correctly recovers from errors" in {
-      case object TestException extends RuntimeException
+  test("redeemWith correctly recovers from errors") {
+    case object TestException extends RuntimeException
+    assertCompleteAsSync(
       SyncIO
         .raiseError[Unit](TestException)
-        .redeemWith(_ => SyncIO.pure(42), _ => SyncIO.pure(43)) must completeAsSync(42)
-    }
+        .redeemWith(_ => SyncIO.pure(42), _ => SyncIO.pure(43)),
+      42)
+  }
 
-    "redeemWith binds successful results" in {
-      SyncIO.unit.redeemWith(_ => SyncIO.pure(41), _ => SyncIO.pure(42)) must completeAsSync(42)
-    }
+  test("redeemWith binds successful results") {
+    assertCompleteAsSync(SyncIO.unit.redeemWith(_ => SyncIO.pure(41), _ => SyncIO.pure(42)), 42)
+  }
 
-    "redeemWith catches exceptions throw in recovery function" in {
-      case object TestException extends RuntimeException
-      case object ThrownException extends RuntimeException
+  test("redeemWith catches exceptions throw in recovery function") {
+    case object TestException extends RuntimeException
+    case object ThrownException extends RuntimeException
+    assertCompleteAsSync(
       SyncIO
         .raiseError[Unit](TestException)
         .redeemWith(_ => throw ThrownException, _ => SyncIO.pure(42))
-        .attempt must completeAsSync(Left(ThrownException))
-    }
+        .attempt,
+      Left(ThrownException))
+  }
 
-    "redeemWith catches exceptions thrown in bind function" in {
-      case object ThrownException extends RuntimeException
-      SyncIO
-        .unit
-        .redeem(_ => SyncIO.pure(41), _ => throw ThrownException)
-        .attempt must completeAsSync(Left(ThrownException))
-    }
+  test("redeemWith catches exceptions thrown in bind function") {
+    case object ThrownException extends RuntimeException
+    assertCompleteAsSync(
+      SyncIO.unit.redeem(_ => SyncIO.pure(41), _ => throw ThrownException).attempt,
+      Left(ThrownException))
+  }
 
-    "evaluate 10,000 consecutive map continuations" in {
-      def loop(i: Int): SyncIO[Unit] =
-        if (i < 10000)
-          SyncIO.unit.flatMap(_ => loop(i + 1)).map(u => u)
-        else
-          SyncIO.unit
+  test("evaluate 10,000 consecutive map continuations") {
+    def loop(i: Int): SyncIO[Unit] =
+      if (i < 10000)
+        SyncIO.unit.flatMap(_ => loop(i + 1)).map(u => u)
+      else
+        SyncIO.unit
 
-      loop(0) must completeAsSync(())
-    }
+    assertCompleteAsSync(loop(0), ())
+  }
 
-    "evaluate 10,000 consecutive handleErrorWith continuations" in {
-      def loop(i: Int): SyncIO[Unit] =
-        if (i < 10000)
-          SyncIO.unit.flatMap(_ => loop(i + 1)).handleErrorWith(SyncIO.raiseError(_))
-        else
-          SyncIO.unit
+  test("evaluate 10,000 consecutive handleErrorWith continuations") {
+    def loop(i: Int): SyncIO[Unit] =
+      if (i < 10000)
+        SyncIO.unit.flatMap(_ => loop(i + 1)).handleErrorWith(SyncIO.raiseError(_))
+      else
+        SyncIO.unit
 
-      loop(0) must completeAsSync(())
-    }
+    assertCompleteAsSync(loop(0), ())
+  }
 
-    "catch exceptions thrown in map functions" in {
-      case object TestException extends RuntimeException
-      SyncIO.unit.map(_ => (throw TestException): Unit).attempt must completeAsSync(
-        Left(TestException))
-    }
+  test("catch exceptions thrown in map functions") {
+    case object TestException extends RuntimeException
+    assertCompleteAsSync(
+      SyncIO.unit.map(_ => (throw TestException): Unit).attempt,
+      Left(TestException))
+  }
 
-    "catch exceptions thrown in flatMap functions" in {
-      case object TestException extends RuntimeException
-      SyncIO.unit.flatMap(_ => (throw TestException): SyncIO[Unit]).attempt must completeAsSync(
-        Left(TestException))
-    }
+  test("catch exceptions thrown in flatMap functions") {
+    case object TestException extends RuntimeException
+    assertCompleteAsSync(
+      SyncIO.unit.flatMap(_ => (throw TestException): SyncIO[Unit]).attempt,
+      Left(TestException))
+  }
 
-    "catch exceptions thrown in handleErrorWith functions" in {
-      case object TestException extends RuntimeException
-      case object WrongException extends RuntimeException
+  test("catch exceptions thrown in handleErrorWith functions") {
+    case object TestException extends RuntimeException
+    case object WrongException extends RuntimeException
+    assertCompleteAsSync(
       SyncIO
         .raiseError[Unit](WrongException)
         .handleErrorWith(_ => (throw TestException): SyncIO[Unit])
-        .attempt must completeAsSync(Left(TestException))
-    }
+        .attempt,
+      Left(TestException))
+  }
 
-    "preserve monad right identity on uncancelable" in {
-      val fa = MonadCancel[SyncIO].uncancelable(_ => MonadCancel[SyncIO].canceled)
-      fa.flatMap(SyncIO.pure(_)) must completeAsSync(())
-      fa must completeAsSync(())
-    }
+  test("preserve monad right identity on uncancelable") {
+    val fa = MonadCancel[SyncIO].uncancelable(_ => MonadCancel[SyncIO].canceled)
+    assertCompleteAsSync(fa.flatMap(SyncIO.pure(_)), ())
+    assertCompleteAsSync(fa, ())
+  }
 
-    "cancel flatMap continuations following a canceled uncancelable block" in {
+  test("cancel flatMap continuations following a canceled uncancelable block") {
+    assertCompleteAsSync(
       MonadCancel[SyncIO]
         .uncancelable(_ => MonadCancel[SyncIO].canceled)
-        .flatMap(_ => SyncIO.pure(())) must completeAsSync(())
-    }
+        .flatMap(_ => SyncIO.pure(())),
+      ())
+  }
 
-    "cancel map continuations following a canceled uncancelable block" in {
-      MonadCancel[SyncIO]
-        .uncancelable(_ => MonadCancel[SyncIO].canceled)
-        .map(_ => ()) must completeAsSync(())
-    }
+  test("cancel map continuations following a canceled uncancelable block") {
+    assertCompleteAsSync(
+      MonadCancel[SyncIO].uncancelable(_ => MonadCancel[SyncIO].canceled).map(_ => ()),
+      ())
+  }
 
-    "lift a SyncIO into IO" in realProp(arbitrarySyncIO[Int].arbitrary) { sio =>
-      val io = sio.to[IO]
+  realProp("lift a SyncIO into IO", arbitrarySyncIO[Int].arbitrary) { sio =>
+    val io = sio.to[IO]
 
-      for {
-        res1 <- IO.delay(sio.unsafeRunSync()).attempt
-        res2 <- io.attempt
-        res <- IO.delay(res1 mustEqual res2)
-      } yield res
-    }
+    for {
+      res1 <- IO.delay(sio.unsafeRunSync()).attempt
+      res2 <- io.attempt
+      res <- IO.delay(assertEquals(res1, res2))
+    } yield res
+  }
 
-    "serialize" in {
-      forAll { (io: SyncIO[Int]) => serializable(io) }
-    }
+  test("serialize") {
+    forAll { (io: SyncIO[Int]) => serializable(io) }
   }
 
   {
@@ -248,5 +260,5 @@ class SyncIOSuite extends BaseSpec with Discipline with SyncIOPlatformSpecificat
     )
   }
 
-  platformSpecs
+  platformTests()
 }

@@ -18,40 +18,7 @@ package cats.effect
 
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 
-import org.specs2.specification.BeforeAfterAll
-
-trait RunnersPlatform extends BeforeAfterAll {
-
-  private[this] var runtime0: IORuntime = _
-
-  protected def runtime(): IORuntime = runtime0
-
-  def beforeAll(): Unit = {
-    val (blocking, blockDown) =
-      IORuntime.createDefaultBlockingExecutionContext(threadPrefix =
-        s"io-blocking-${getClass.getName}")
-    val (compute, poller, compDown) =
-      IORuntime.createWorkStealingComputeThreadPool(
-        threadPrefix = s"io-compute-${getClass.getName}",
-        blockerThreadPrefix = s"io-blocker-${getClass.getName}")
-
-    runtime0 = IORuntime(
-      compute,
-      blocking,
-      compute,
-      List(poller),
-      { () =>
-        compDown()
-        blockDown()
-      },
-      IORuntimeConfig()
-    )
-  }
-
-  def afterAll(): Unit = runtime().shutdown()
-}
-
-trait MUnitRunnersPlatform { self: munit.Suite =>
+trait RunnersPlatform { self: munit.Suite =>
 
   private[this] var runtime0: IORuntime = _
 

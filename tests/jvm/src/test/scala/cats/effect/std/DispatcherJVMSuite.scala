@@ -22,50 +22,48 @@ import cats.syntax.all._
 
 import scala.concurrent.duration.DurationInt
 
-class DispatcherJVMSuite extends BaseSpec {
+class DispatcherJVMSuite extends BaseSuite {
 
-  "async dispatcher" should {
-    "run multiple IOs in parallel with blocking threads" in real {
-      val num = 100
+  real("run multiple IOs in parallel with blocking threads") {
+    val num = 100
 
-      for {
-        latches <- (0 until num).toList.traverse(_ => Deferred[IO, Unit])
-        awaitAll = latches.parTraverse_(_.get)
+    for {
+      latches <- (0 until num).toList.traverse(_ => Deferred[IO, Unit])
+      awaitAll = latches.parTraverse_(_.get)
 
-        // engineer a deadlock: all subjects must be run in parallel or this will hang
-        subjects = latches.map(latch => latch.complete(()) >> awaitAll)
+      // engineer a deadlock: all subjects must be run in parallel or this will hang
+      subjects = latches.map(latch => latch.complete(()) >> awaitAll)
 
-        _ <- {
-          val rec = Dispatcher.parallel[IO](await = false) flatMap { runner =>
-            Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunSync(act))))
-          }
-
-          rec.use(_ => IO.unit)
+      _ <- {
+        val rec = Dispatcher.parallel[IO](await = false) flatMap { runner =>
+          Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunSync(act))))
         }
-      } yield ok
-    }
 
-    "propagate Java thread interruption in unsafeRunSync" in real {
-      Dispatcher.parallel[IO](await = true).use { dispatcher =>
-        for {
-          pre <- IO.deferred[Unit]
-          canceled <- IO.deferred[Unit]
-
-          io = (pre.complete(()) *> IO.never).onCancel(canceled.complete(()).void)
-
-          f <- IO.interruptible {
-            try dispatcher.unsafeRunSync(io)
-            catch { case _: InterruptedException => }
-          }.start
-
-          _ <- pre.get
-          _ <- f.cancel
-
-          _ <- canceled
-            .get
-            .timeoutTo(1.second, IO.raiseError(new Exception("io was not canceled")))
-        } yield ok
+        rec.use(_ => IO.unit)
       }
+    } yield ()
+  }
+
+  real("propagate Java thread interruption in unsafeRunSync") {
+    Dispatcher.parallel[IO](await = true).use { dispatcher =>
+      for {
+        pre <- IO.deferred[Unit]
+        canceled <- IO.deferred[Unit]
+
+        io = (pre.complete(()) *> IO.never).onCancel(canceled.complete(()).void)
+
+        f <- IO.interruptible {
+          try dispatcher.unsafeRunSync(io)
+          catch { case _: InterruptedException => }
+        }.start
+
+        _ <- pre.get
+        _ <- f.cancel
+
+        _ <- canceled
+          .get
+          .timeoutTo(1.second, IO.raiseError(new Exception("io was not canceled")))
+      } yield ()
     }
   }
 }

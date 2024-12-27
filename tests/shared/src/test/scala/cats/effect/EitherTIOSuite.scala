@@ -22,10 +22,12 @@ import cats.effect.laws.AsyncTests
 import cats.effect.syntax.all._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
-import munit.DisciplineSuite
+
 import org.scalacheck.Prop
 
 import scala.concurrent.duration._
+
+import munit.DisciplineSuite
 
 class EitherTIOSuite extends BaseSuite with DisciplineSuite {
 

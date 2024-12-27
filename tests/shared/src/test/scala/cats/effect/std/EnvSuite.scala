@@ -17,18 +17,16 @@
 package cats.effect
 package std
 
-class EnvSuite extends BaseSpec {
+class EnvSuite extends BaseSuite {
 
-  "Env" should {
-    "retrieve a variable from the environment" in real {
-      Env[IO].get("HOME").flatMap(x => IO(x must beSome))
-    }
-    "return none for non-existent environment variable" in real {
-      Env[IO].get("MADE_THIS_UP").flatMap(x => IO(x must beNone))
-    }
-    "provide an iterable of all the things" in real {
-      Env[IO].entries.flatMap(x => IO(x must not(beEmpty)))
-    }
+  real("retrieve a variable from the environment") {
+    Env[IO].get("HOME").flatMap(x => IO(assert(x.isDefined)))
+  }
+  real("return none for non-existent environment variable") {
+    Env[IO].get("MADE_THIS_UP").flatMap(x => IO(assert(x.isEmpty)))
+  }
+  real("provide an iterable of all the things") {
+    Env[IO].entries.flatMap(x => IO(assert(x.nonEmpty)))
   }
 
 }

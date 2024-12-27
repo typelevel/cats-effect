@@ -20,12 +20,10 @@ package testkit
 import cats.Id
 import cats.syntax.all._
 
-import org.specs2.matcher.Matcher
-
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 
-class TestControlSuite extends BaseSpec {
+class TestControlSuite extends BaseSuite {
 
   val simple = IO.unit
 
@@ -41,185 +39,190 @@ class TestControlSuite extends BaseSpec {
 
   val deadlock: IO[Unit] = IO.never
 
-  "execute" should {
-    "run a simple IO" in real {
-      TestControl.execute(simple) flatMap { control =>
-        for {
-          r1 <- control.results
-          _ <- IO(r1 must beNone)
+  real("execute - run a simple IO") {
+    TestControl.execute(simple) flatMap { control =>
+      for {
+        r1 <- control.results
+        _ <- IO(assertEquals(r1, None))
 
-          _ <- control.tick
+        _ <- control.tick
 
-          r2 <- control.results
-          _ <- IO(r2 must beSome(beSucceeded(())))
-        } yield ok
-      }
+        r2 <- control.results
+        _ <- IO(assertEquals(r2, Some(beSucceeded(()))))
+      } yield ()
     }
+  }
 
-    "run a ceded IO in a single tick" in real {
-      TestControl.execute(simple) flatMap { control =>
-        for {
-          r1 <- control.results
-          _ <- IO(r1 must beNone)
+  real("execute - run a ceded IO in a single tick") {
+    TestControl.execute(simple) flatMap { control =>
+      for {
+        r1 <- control.results
+        _ <- IO(assertEquals(r1, None))
 
-          _ <- control.tick
+        _ <- control.tick
 
-          r2 <- control.results
-          _ <- IO(r2 must beSome(beSucceeded(())))
-        } yield ok
-      }
+        r2 <- control.results
+        _ <- IO(assertEquals(r2, Some(beSucceeded(()))))
+      } yield ()
     }
+  }
 
-    "run an IO with long sleeps" in real {
-      TestControl.execute(longSleeps) flatMap { control =>
-        for {
-          r1 <- control.results
-          _ <- IO(r1 must beNone)
+  real("execute - run an IO with long sleeps") {
+    TestControl.execute(longSleeps) flatMap { control =>
+      for {
+        r1 <- control.results
+        _ <- IO(assertEquals(r1, None))
 
-          _ <- control.tick
-          r2 <- control.results
-          _ <- IO(r2 must beNone)
+        _ <- control.tick
+        r2 <- control.results
+        _ <- IO(assertEquals(r2, None))
 
-          int1 <- control.nextInterval
-          _ <- IO(int1 mustEqual 1.hour)
+        int1 <- control.nextInterval
+        _ <- IO(assertEquals(int1, 1.hour))
 
-          _ <- control.advanceAndTick(1.hour)
-          r3 <- control.results
-          _ <- IO(r3 must beNone)
+        _ <- control.advanceAndTick(1.hour)
+        r3 <- control.results
+        _ <- IO(assertEquals(r3, None))
 
-          int2 <- control.nextInterval
-          _ <- IO(int2 mustEqual 1.day)
+        int2 <- control.nextInterval
+        _ <- IO(assertEquals(int2, 1.day))
 
-          _ <- control.advanceAndTick(1.day)
+        _ <- control.advanceAndTick(1.day)
 
-          r4 <- control.results
-          _ <- IO(r4 must beSome(beSucceeded((0.nanoseconds, 1.hour, 25.hours))))
-        } yield ok
-      }
+        r4 <- control.results
+        _ <- IO(assertEquals(r4, Some(beSucceeded((0.nanoseconds, 1.hour, 25.hours)))))
+      } yield ()
     }
+  }
 
-    "detect a deadlock" in real {
-      TestControl.execute(deadlock) flatMap { control =>
-        for {
-          r1 <- control.results
-          _ <- IO(r1 must beNone)
+  real("execute - detect a deadlock") {
+    TestControl.execute(deadlock) flatMap { control =>
+      for {
+        r1 <- control.results
+        _ <- IO(assertEquals(r1, None))
 
-          _ <- control.tick
-          id <- control.isDeadlocked
-          _ <- IO(id must beTrue)
+        _ <- control.tick
+        id <- control.isDeadlocked
+        _ <- IO(assert(id))
 
-          r2 <- control.results
-          _ <- IO(r2 must beNone)
-        } yield ok
-      }
+        r2 <- control.results
+        _ <- IO(assertEquals(r2, None))
+      } yield ()
     }
+  }
 
-    "only detect a deadlock when results are unavailable" in real {
-      TestControl.execute(IO.unit) flatMap { control =>
-        for {
-          r1 <- control.results
-          _ <- IO(r1 must beNone)
+  real("execute - only detect a deadlock when results are unavailable") {
+    TestControl.execute(IO.unit) flatMap { control =>
+      for {
+        r1 <- control.results
+        _ <- IO(assertEquals(r1, None))
 
-          _ <- control.tick
-          id <- control.isDeadlocked
-          _ <- IO(id must beFalse)
+        _ <- control.tick
+        id <- control.isDeadlocked
+        _ <- IO(assert(!id))
 
-          r2 <- control.results
-          _ <- IO(r2 must beSome)
-        } yield ok
-      }
+        r2 <- control.results
+        _ <- IO(assert(r2.isDefined))
+      } yield ()
     }
+  }
 
-    "produce Duration.Zero from nextInterval when no tasks" in real {
-      TestControl.execute(deadlock) flatMap { control =>
-        for {
-          _ <- control.tick
-          i <- control.nextInterval
-          _ <- IO(i mustEqual Duration.Zero)
-        } yield ok
-      }
+  real("execute - produce Duration.Zero from nextInterval when no tasks") {
+    TestControl.execute(deadlock) flatMap { control =>
+      for {
+        _ <- control.tick
+        i <- control.nextInterval
+        _ <- IO(assertEquals(i, Duration.Zero))
+      } yield ()
     }
+  }
 
-    "tickFor" >> {
-      "not advance beyond limit" in real {
-        TestControl.execute(IO.sleep(1.second).as(42)) flatMap { control =>
-          for {
-            r1 <- control.results
-            _ <- IO(r1 must beNone)
+  real("execute - tickFor - not advance beyond limit") {
+    TestControl.execute(IO.sleep(1.second).as(42)) flatMap { control =>
+      for {
+        r1 <- control.results
+        _ <- IO(assertEquals(r1, None))
 
-            _ <- control.tickFor(500.millis)
-            r2 <- control.results
-            _ <- IO(r2 must beNone)
+        _ <- control.tickFor(500.millis)
+        r2 <- control.results
+        _ <- IO(assertEquals(r2, None))
 
-            i1 <- control.nextInterval
-            _ <- IO(i1 mustEqual 500.millis)
+        i1 <- control.nextInterval
+        _ <- IO(assertEquals(i1, 500.millis))
 
-            _ <- control.tickFor(250.millis)
-            r3 <- control.results
-            _ <- IO(r3 must beNone)
+        _ <- control.tickFor(250.millis)
+        r3 <- control.results
+        _ <- IO(assertEquals(r3, None))
 
-            i2 <- control.nextInterval
-            _ <- IO(i2 mustEqual 250.millis)
+        i2 <- control.nextInterval
+        _ <- IO(assertEquals(i2, 250.millis))
 
-            _ <- control.tickFor(250.millis)
-            r4 <- control.results
-            _ <- IO(r4 must beSome(beSucceeded(42)))
-          } yield ok
-        }
-      }
+        _ <- control.tickFor(250.millis)
+        r4 <- control.results
+        _ <- IO(assertEquals(r4, Some(beSucceeded(42))))
+      } yield ()
+    }
+  }
 
-      "advance incrementally in minimum steps" in real {
-        val step = IO.sleep(1.second) *> IO.realTime
+  real("execute - tickFor - advance incrementally in minimum steps") {
+    val step = IO.sleep(1.second) *> IO.realTime
 
-        TestControl.execute((step, step).tupled) flatMap { control =>
-          for {
-            _ <- control.tickFor(1.second + 500.millis)
-            _ <- control.tickAll
+    TestControl.execute((step, step).tupled) flatMap { control =>
+      for {
+        _ <- control.tickFor(1.second + 500.millis)
+        _ <- control.tickAll
 
-            r <- control.results
-            _ <- IO(r must beSome(beSucceeded((1.second, 2.seconds))))
-          } yield ok
+        r <- control.results
+        _ <- IO(assertEquals(r, Some(beSucceeded((1.second, 2.seconds)))))
+      } yield ()
+    }
+  }
+
+  real("executeEmbed - run a simple IO") {
+    TestControl.executeEmbed(simple) flatMap { r => IO(assertEquals(r, ())) }
+  }
+
+  real("executeEmbed - run an IO with long sleeps") {
+    TestControl.executeEmbed(longSleeps) flatMap { r =>
+      IO(assertEquals(r, (0.nanoseconds, 1.hour, 25.hours)))
+    }
+  }
+
+  real("executeEmbed - detect a deadlock") {
+    TestControl.executeEmbed(deadlock).attempt flatMap { r =>
+      IO {
+        r match {
+          case Left(e) => assert(e.isInstanceOf[TestControl.NonTerminationException])
+          case Right(v) => fail(s"Expected Left, got $v")
         }
       }
     }
   }
 
-  "executeEmbed" should {
-    "run a simple IO" in real {
-      TestControl.executeEmbed(simple) flatMap { r => IO(r mustEqual (())) }
-    }
+  real("executeEmbed - run an IO which produces an error") {
+    case object TestException extends RuntimeException
 
-    "run an IO with long sleeps" in real {
-      TestControl.executeEmbed(longSleeps) flatMap { r =>
-        IO(r mustEqual ((0.nanoseconds, 1.hour, 25.hours)))
-      }
-    }
-
-    "detect a deadlock" in real {
-      TestControl.executeEmbed(deadlock).attempt flatMap { r =>
-        IO {
-          r must beLike { case Left(_: TestControl.NonTerminationException) => ok }
-        }
-      }
-    }
-
-    "run an IO which produces an error" in real {
-      case object TestException extends RuntimeException
-
-      TestControl.executeEmbed(IO.raiseError[Unit](TestException)).attempt flatMap { r =>
-        IO(r must beLeft(TestException: Throwable))
-      }
-    }
-
-    "run an IO which self-cancels" in real {
-      TestControl.executeEmbed(IO.canceled).attempt flatMap { r =>
-        IO {
-          r must beLike { case Left(_: CancellationException) => ok }
+    TestControl.executeEmbed(IO.raiseError[Unit](TestException)).attempt flatMap { r =>
+      IO {
+        r match {
+          case Left(e) => assertEquals(e, TestException)
+          case Right(v) => fail(s"Expected Left, got $v")
         }
       }
     }
   }
 
-  private def beSucceeded[A](value: A): Matcher[Outcome[Id, Throwable, A]] =
-    (_: Outcome[Id, Throwable, A]) == Outcome.succeeded[Id, Throwable, A](value)
+  real("executeEmbed - run an IO which self-cancels") {
+    TestControl.executeEmbed(IO.canceled).attempt flatMap { r =>
+      IO {
+        r match {
+          case Left(e) => assert(e.isInstanceOf[CancellationException])
+          case Right(v) => fail(s"Expected Left, got $v")
+        }
+      }
+    }
+  }
+
+  private def beSucceeded[A](value: A): Outcome[Id, Throwable, A] =
+    Outcome.succeeded[Id, Throwable, A](value)
 }

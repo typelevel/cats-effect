@@ -19,63 +19,60 @@ package std
 
 import cats.syntax.all._
 
-class UnsafeUnboundedSuite extends BaseSpec {
+class UnsafeUnboundedSuite extends BaseSuite {
 
-  "unsafe unbounded queue" should {
-    val length = 1000
+  val length = 1000
 
-    "put and take in order" in {
-      val q = new UnsafeUnbounded[Int]()
+  test("put and take in order") {
+    val q = new UnsafeUnbounded[Int]()
 
-      0.until(length).foreach(q.put(_))
-      0.until(length).map(_ => q.take()) mustEqual 0.until(length)
-    }
-
-    "produce an error when taking from empty" >> {
-      "always empty" >> {
-        new UnsafeUnbounded[Unit]().take() must throwAn[Exception]
-      }
-
-      "emptied" >> {
-        val q = new UnsafeUnbounded[Unit]()
-
-        q.put(())
-        q.put(())
-        q.take()
-        q.take()
-
-        q.take() must throwAn[Exception]
-      }
-    }
-
-    "put three times, clear one, then take" in {
-      val q = new UnsafeUnbounded[String]()
-
-      q.put("1")
-      val clear = q.put("2")
-      q.put("3")
-
-      clear()
-
-      q.take() mustEqual "1"
-      q.take() mustEqual null
-      q.take() mustEqual "3"
-    }
-
-    "put and take in parallel" in real {
-      val q = new UnsafeUnbounded[Int]()
-
-      // retry forever until canceled
-      def retry[A](ioa: IO[A]): IO[A] =
-        ioa.handleErrorWith(_ => IO.cede *> retry(ioa))
-
-      val puts = 1.to(length * 2).toList.parTraverse_(i => IO(q.put(i)))
-      val takes = 1.to(length * 2).toList.parTraverse(_ => retry(IO(q.take())))
-
-      for {
-        results <- puts &> takes
-        _ <- IO(results.toList must containTheSameElementsAs(1.to(length * 2)))
-      } yield ok
-    }
+    0.until(length).foreach(q.put(_))
+    assertEquals(0.until(length).map(_ => q.take()), 0.until(length))
   }
+
+  test("produce an error when taking from empty - always empty") {
+    intercept[Exception](new UnsafeUnbounded[Unit]().take())
+  }
+
+  test("produce an error when taking from empty - emptied") {
+    val q = new UnsafeUnbounded[Unit]()
+
+    q.put(())
+    q.put(())
+    q.take()
+    q.take()
+
+    intercept[Exception](q.take())
+  }
+
+  test("put three times, clear one, then take") {
+    val q = new UnsafeUnbounded[String]()
+
+    q.put("1")
+    val clear = q.put("2")
+    q.put("3")
+
+    clear()
+
+    assertEquals(q.take(), "1")
+    assertEquals(q.take(), null)
+    assertEquals(q.take(), "3")
+  }
+
+  real("put and take in parallel") {
+    val q = new UnsafeUnbounded[Int]()
+
+    // retry forever until canceled
+    def retry[A](ioa: IO[A]): IO[A] =
+      ioa.handleErrorWith(_ => IO.cede *> retry(ioa))
+
+    val puts = 1.to(length * 2).toList.parTraverse_(i => IO(q.put(i)))
+    val takes = 1.to(length * 2).toList.parTraverse(_ => retry(IO(q.take())))
+
+    for {
+      results <- puts &> takes
+      _ <- IO(assertEquals(results.sorted, 1.to(length * 2).toList))
+    } yield ()
+  }
+
 }

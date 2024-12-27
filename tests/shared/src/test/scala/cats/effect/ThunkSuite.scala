@@ -16,14 +16,12 @@
 
 package cats.effect
 
-class ThunkSuite extends BaseSpec {
+class ThunkSuite extends BaseSuite {
 
-  "IO.delay" should {
-    "return the same function" in {
-      var i = 0
-      val f = () => i += 1
-      IO.delay(f()).asInstanceOf[IO.Delay[Unit]].thunk eq f
-    }
+  test("return the same function") {
+    var i = 0
+    val f = () => i += 1
+    IO.delay(f()).asInstanceOf[IO.Delay[Unit]].thunk eq f
   }
 
 }

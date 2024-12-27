@@ -16,14 +16,14 @@
 
 package cats.effect
 
-import org.specs2.mutable.Specification
-
 import scala.io.Source
 import scala.sys.process.{BasicIO, Process, ProcessBuilder}
 
 import java.io.File
 
-class IOAppSpec extends Specification {
+import munit.FunSuite
+
+class IOAppSpec extends FunSuite {
 
   abstract class Platform(val id: String) { outer =>
     def builder(proto: String, args: List[String]): ProcessBuilder
@@ -145,118 +145,123 @@ class IOAppSpec extends Specification {
     platform == JVM && sys.props.get("java.version").filter(_.startsWith("1.8")).isDefined
   lazy val isWindows = System.getProperty("os.name").toLowerCase.contains("windows")
 
-  s"IOApp (${platform.id})" should {
+  {
 
     if (!isWindows) { // these tests have all been emperically flaky on Windows CI builds, so they're disabled
 
-      "evaluate and print hello world" in {
+      test(s"IOApp (${platform.id}) - evaluate and print hello world") {
         val h = platform("HelloWorld", Nil)
-        h.awaitStatus() mustEqual 0
-        h.stdout() mustEqual s"Hello, World!${System.lineSeparator()}"
+        assertEquals(h.awaitStatus(), 0)
+        assertEquals(h.stdout(), s"Hello, World!${System.lineSeparator()}")
       }
 
-      "pass all arguments to child" in {
+      test(s"IOApp (${platform.id}) - pass all arguments to child") {
         val expected = List("the", "quick", "brown", "fox jumped", "over")
         val h = platform("Arguments", expected)
-        h.awaitStatus() mustEqual 0
-        h.stdout() mustEqual expected.mkString(
-          "",
-          System.lineSeparator(),
-          System.lineSeparator())
-      }
-
-      "exit on non-fatal error" in {
-        val h = platform("NonFatalError", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-      }
-
-      "exit with leaked fibers" in {
-        val h = platform("LeakedFiber", List.empty)
-        h.awaitStatus() mustEqual 0
-      }
-
-      "exit on fatal error" in {
-        val h = platform("FatalError", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-        h.stdout() must not(contain("sadness"))
-      }
-
-      "exit on fatal error with other unsafe runs" in {
-        val h = platform("FatalErrorUnsafeRun", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-      }
-
-      "exit on raising a fatal error with attempt" in {
-        val h = platform("RaiseFatalErrorAttempt", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-        h.stdout() must not(contain("sadness"))
-      }
-
-      "exit on raising a fatal error with handleError" in {
-        val h = platform("RaiseFatalErrorHandle", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-        h.stdout() must not(contain("sadness"))
-      }
-
-      "exit on raising a fatal error inside a map" in {
-        val h = platform("RaiseFatalErrorMap", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-        h.stdout() must not(contain("sadness"))
-      }
-
-      "exit on raising a fatal error inside a flatMap" in {
-        val h = platform("RaiseFatalErrorFlatMap", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-        h.stdout() must not(contain("sadness"))
-      }
-
-      "warn on global runtime collision" in {
-        val h = platform("GlobalRacingInit", List.empty)
-        h.awaitStatus() mustEqual 0
-        h.stderr() must contain(
-          "Cats Effect global runtime already initialized; custom configurations will be ignored")
-        h.stderr() must not(contain("boom"))
-      }
-
-      "reset global runtime on shutdown" in {
-        val h = platform("GlobalShutdown", List.empty)
-        h.awaitStatus() mustEqual 0
-        h.stderr() must not contain
-          "Cats Effect global runtime already initialized; custom configurations will be ignored"
-        h.stderr() must not(contain("boom"))
-      }
-
-      // TODO reenable this test (#3919)
-      "warn on cpu starvation" in skipped {
-        val h = platform("CpuStarvation", List.empty)
-        h.awaitStatus()
-        val err = h.stderr()
-        err must not(contain("[WARNING] Failed to register Cats Effect CPU"))
-        err must contain("[WARNING] Your app's responsiveness")
-        // we use a regex because time has too many corner cases - a test run at just the wrong
-        // moment on new year's eve, etc
-        err must beMatching(
-          // (?s) allows matching across line breaks
-          """(?s)^\d{4}-[01]\d-[0-3]\dT[012]\d:[0-6]\d:[0-6]\d(?:\.\d{1,3})?Z \[WARNING\] Your app's responsiveness.*"""
+        assertEquals(h.awaitStatus(), 0)
+        assertEquals(
+          h.stdout(),
+          expected.mkString("", System.lineSeparator(), System.lineSeparator())
         )
       }
 
-      "custom runtime installed as global" in {
+      test(s"IOApp (${platform.id}) - exit on non-fatal error") {
+        val h = platform("NonFatalError", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+      }
+
+      test(s"IOApp (${platform.id}) - exit with leaked fibers") {
+        val h = platform("LeakedFiber", List.empty)
+        assertEquals(h.awaitStatus(), 0)
+      }
+
+      test(s"IOApp (${platform.id}) - exit on fatal error") {
+        val h = platform("FatalError", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+        assert(!h.stdout().contains("sadness"))
+      }
+
+      test(s"IOApp (${platform.id}) - exit on fatal error with other unsafe runs") {
+        val h = platform("FatalErrorUnsafeRun", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+      }
+
+      test(s"IOApp (${platform.id}) - exit on raising a fatal error with attempt") {
+        val h = platform("RaiseFatalErrorAttempt", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+        assert(!h.stdout().contains("sadness"))
+      }
+
+      test(s"IOApp (${platform.id}) - exit on raising a fatal error with handleError") {
+        val h = platform("RaiseFatalErrorHandle", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+        assert(!h.stdout().contains("sadness"))
+      }
+
+      test(s"IOApp (${platform.id}) - exit on raising a fatal error inside a map") {
+        val h = platform("RaiseFatalErrorMap", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+        assert(!h.stdout().contains("sadness"))
+      }
+
+      test(s"IOApp (${platform.id}) - exit on raising a fatal error inside a flatMap") {
+        val h = platform("RaiseFatalErrorFlatMap", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+        assert(!h.stdout().contains("sadness"))
+      }
+
+      test(s"IOApp (${platform.id}) - warn on global runtime collision") {
+        val h = platform("GlobalRacingInit", List.empty)
+        assertEquals(h.awaitStatus(), 0)
+        assert(
+          h.stderr()
+            .contains(
+              "Cats Effect global runtime already initialized; custom configurations will be ignored"))
+        assert(!h.stderr().contains("boom"))
+      }
+
+      test(s"IOApp (${platform.id}) - reset global runtime on shutdown") {
+        val h = platform("GlobalShutdown", List.empty)
+        assertEquals(h.awaitStatus(), 0)
+        assert(
+          !h.stderr()
+            .contains(
+              "Cats Effect global runtime already initialized; custom configurations will be ignored"))
+        assert(!h.stderr().contains("boom"))
+      }
+
+      // TODO reenable this test (#3919)
+      test(s"IOApp (${platform.id}) - warn on cpu starvation".ignore) {
+        val h = platform("CpuStarvation", List.empty)
+        h.awaitStatus()
+        val err = h.stderr()
+        assert(!err.contains("[WARNING] Failed to register Cats Effect CPU"))
+        assert(err.contains("[WARNING] Your app's responsiveness"))
+        // we use a regex because time has too many corner cases - a test run at just the wrong
+        // moment on new year's eve, etc
+        assert(
+          err.matches(
+            // (?s) allows matching across line breaks
+            """(?s)^\d{4}-[01]\d-[0-3]\dT[012]\d:[0-6]\d:[0-6]\d(?:\.\d{1,3})?Z \[WARNING\] Your app's responsiveness.*"""
+          ))
+      }
+
+      test(s"IOApp (${platform.id}) - custom runtime installed as global") {
         val h = platform("CustomRuntime", List.empty)
-        h.awaitStatus() mustEqual 0
+        assertEquals(h.awaitStatus(), 0)
       }
 
       if (platform != Native) {
-        "abort awaiting shutdown hooks" in {
+        test(s"IOApp (${platform.id}) - abort awaiting shutdown hooks") {
           val h = platform("ShutdownHookImmediateTimeout", List.empty)
-          h.awaitStatus() mustEqual 0
+          assertEquals(h.awaitStatus(), 0)
         }
         ()
       }
@@ -266,7 +271,7 @@ class IOAppSpec extends Specification {
       // The jvm cannot gracefully terminate processes on Windows, so this
       // test cannot be carried out properly. Same for testing IOApp in sbt.
 
-      "run finalizers on TERM" in {
+      test(s"IOApp (${platform.id}) - run finalizers on TERM") {
         import _root_.java.io.{BufferedReader, FileReader}
 
         // we have to resort to this convoluted approach because Process#destroy kills listeners before killing the process
@@ -293,32 +298,32 @@ class IOAppSpec extends Specification {
         ) // give thread scheduling just a sec to catch up and get us into the latch.await()
 
         h.term()
-        h.awaitStatus() mustEqual 143
+        assertEquals(h.awaitStatus(), 143)
 
         i = 0
         while (readTest() == null && i < 100) {
           i += 1
         }
-        readTest() must contain("canceled")
+        assert(readTest().contains("canceled"))
       }
     } else ()
 
-    "exit on fatal error without IOApp" in {
+    test(s"IOApp (${platform.id}) - exit on fatal error without IOApp") {
       val h = platform("FatalErrorRaw", List.empty)
       h.awaitStatus()
-      h.stdout() must not(contain("sadness"))
-      h.stderr() must not(contain("Promise already completed"))
+      assert(!h.stdout().contains("sadness"))
+      assert(!h.stderr().contains("Promise already completed"))
     }
 
-    "exit on canceled" in {
+    test(s"IOApp (${platform.id}) - exit on canceled") {
       val h = platform("Canceled", List.empty)
-      h.awaitStatus() mustEqual 1
+      assertEquals(h.awaitStatus(), 1)
     }
 
     if (!isJava8 && !isWindows && platform != Native) {
       // JDK 8 does not have free signals for live fiber snapshots
       // cannot observe signals sent to process termination on Windows
-      "live fiber snapshot" in {
+      test(s"IOApp (${platform.id}) - live fiber snapshot") {
         val h = platform("LiveFiberSnapshot", List.empty)
 
         // wait for the application to fully start before trying to send the signal
@@ -327,31 +332,30 @@ class IOAppSpec extends Specification {
         }
 
         val pid = h.pid()
-        pid must beSome
+        assert(pid.isDefined)
         pid.foreach(platform.sendSignal)
         h.awaitStatus()
         val stderr = h.stderr()
-        stderr must contain("cats.effect.IOFiber")
+        assert(stderr.contains("cats.effect.IOFiber"))
       }
       ()
     }
 
     if (platform == JVM) {
-      "shutdown on worker thread interruption" in {
+      test(s"IOApp (${platform.id}) - shutdown on worker thread interruption") {
         val h = platform("WorkerThreadInterrupt", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("java.lang.InterruptedException")
-        ok
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("java.lang.InterruptedException"))
       }
 
-      "support main thread evaluation" in {
+      test(s"IOApp (${platform.id}) - support main thread evaluation") {
         val h = platform("EvalOnMainThread", List.empty)
-        h.awaitStatus() mustEqual 0
+        assertEquals(h.awaitStatus(), 0)
       }
 
-      "use configurable reportFailure for MainThread" in {
+      test(s"IOApp (${platform.id}) - use configurable reportFailure for MainThread") {
         val h = platform("MainThreadReportFailure", List.empty)
-        h.awaitStatus() mustEqual 0
+        assertEquals(h.awaitStatus(), 0)
       }
 
       "use configurable reportFailure for runnables on MainThread" in {
@@ -359,33 +363,30 @@ class IOAppSpec extends Specification {
         h.awaitStatus() mustEqual 0
       }
 
-      "warn on blocked threads" in {
+      test(s"IOApp (${platform.id}) - warn on blocked threads") {
         val h = platform("BlockedThreads", List.empty)
         h.awaitStatus()
         val err = h.stderr()
-        err must contain(
-          "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
+        assert(
+          err.contains(
+            "[WARNING] A Cats Effect worker thread was detected to be in a blocked state"))
       }
 
-      "shut down WSTP on fatal error without IOApp" in {
+      test(s"IOApp (${platform.id}) - shut down WSTP on fatal error without IOApp") {
         val h = platform("FatalErrorShutsDownRt", List.empty)
         h.awaitStatus()
-        h.stdout() must not(contain("sadness"))
-        h.stdout() must contain("done")
+        assert(!h.stdout().contains("sadness"))
+        assert(h.stdout().contains("done"))
       }
-
-      ()
     }
 
     if (platform == Node) {
-      "gracefully ignore undefined process.exit" in {
+      test(s"IOApp (${platform.id}) - gracefully ignore undefined process.exit") {
         val h = platform("UndefinedProcessExit", List.empty)
-        h.awaitStatus() mustEqual 0
+        assertEquals(h.awaitStatus(), 0)
       }
-      ()
     }
 
-    "make specs2 happy" in ok
   }
 
   trait Handle {

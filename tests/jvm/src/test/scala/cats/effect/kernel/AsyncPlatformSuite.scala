@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.effect.{BaseSpec, IO}
+import cats.effect.{BaseSuite, IO}
 import cats.effect.testkit.TestControl
 import cats.effect.unsafe.IORuntimeConfig
 
@@ -25,48 +25,46 @@ import scala.concurrent.duration._
 import java.util.concurrent.{CancellationException, CompletableFuture}
 import java.util.concurrent.atomic.AtomicBoolean
 
-class AsyncPlatformSuite extends BaseSpec {
+class AsyncPlatformSuite extends BaseSuite {
 
   val smallDelay: IO[Unit] = IO.sleep(1.second)
 
-  "AsyncPlatform CompletableFuture conversion" should {
-    "cancel CompletableFuture on fiber cancellation" in real {
-      lazy val cf = CompletableFuture.supplyAsync { () =>
-        Thread.sleep(2000) // some computation
-      }
-
-      for {
-        fiber <- IO.fromCompletableFuture(IO(cf)).start
-        _ <- smallDelay // time for the callback to be set-up
-        _ <- fiber.cancel
-        _ <- IO(cf.join() must throwA[CancellationException])
-      } yield ok
+  real("cancel CompletableFuture on fiber cancellation") {
+    lazy val cf = CompletableFuture.supplyAsync { () =>
+      Thread.sleep(2000) // some computation
     }
 
-    "backpressure on CompletableFuture cancelation" in real {
-      // a non-cancelable, never-completing CompletableFuture
-      def mkcf() = new CompletableFuture[Unit] {
-        override def cancel(mayInterruptIfRunning: Boolean) = false
-      }
+    for {
+      fiber <- IO.fromCompletableFuture(IO(cf)).start
+      _ <- smallDelay // time for the callback to be set-up
+      _ <- fiber.cancel
+      _ <- IO(intercept[CancellationException](cf.join()))
+    } yield ()
+  }
 
-      def go = for {
-        started <- IO(new AtomicBoolean)
-        fiber <- IO.fromCompletableFuture {
-          IO {
-            started.set(true)
-            mkcf()
-          }
-        }.start
-        _ <- IO.cede.whileM_(IO(!started.get))
-        _ <- fiber.cancel
-      } yield ()
-
-      TestControl
-        .executeEmbed(go, IORuntimeConfig(1, 2))
-        .as(false)
-        .recover { case _: TestControl.NonTerminationException => true }
-        .replicateA(1000)
-        .map(_.forall(identity(_)))
+  real("backpressure on CompletableFuture cancelation") {
+    // a non-cancelable, never-completing CompletableFuture
+    def mkcf() = new CompletableFuture[Unit] {
+      override def cancel(mayInterruptIfRunning: Boolean) = false
     }
+
+    def go = for {
+      started <- IO(new AtomicBoolean)
+      fiber <- IO.fromCompletableFuture {
+        IO {
+          started.set(true)
+          mkcf()
+        }
+      }.start
+      _ <- IO.cede.whileM_(IO(!started.get))
+      _ <- fiber.cancel
+    } yield ()
+
+    TestControl
+      .executeEmbed(go, IORuntimeConfig(1, 2))
+      .as(false)
+      .recover { case _: TestControl.NonTerminationException => true }
+      .replicateA(1000)
+      .map(_.forall(identity(_)))
   }
 }

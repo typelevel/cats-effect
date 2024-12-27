@@ -24,23 +24,23 @@ import cats.syntax.all._
 import cats.~>
 
 import org.scalacheck.Prop
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Success
 
+import munit.DisciplineSuite
+
 import Prop.forAll
 
-class MemoizeSuite extends BaseSpec with Discipline {
+class MemoizeSuite extends BaseSuite with DisciplineSuite {
 
-  sequential
-
-  def tests[F[_]: Concurrent: LiftIO](lowerK: F ~> IO) = {
+  def tests[F[_]: Concurrent: LiftIO](name: String, lowerK: F ~> IO) = {
 
     val liftK = LiftIO.liftK
 
-    "Concurrent.memoize does not evaluate the effect if the inner `F[A]` isn't bound" in ticked {
+    ticked(
+      s"$name Concurrent.memoize does not evaluate the effect if the inner `F[A]` isn't bound") {
       implicit ticker =>
         import cats.syntax.all._
 
@@ -54,10 +54,10 @@ class MemoizeSuite extends BaseSpec with Discipline {
         val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tick()
 
-        result.value mustEqual Some(Success(0))
+        assertEquals(result.value, Some(Success(0)))
     }
 
-    "Concurrent.memoize evaluates effect once if inner `F[A]` is bound twice" in ticked {
+    ticked(s"$name Concurrent.memoize evaluates effect once if inner `F[A]` is bound twice") {
       implicit ticker =>
         import cats.syntax.all._
 
@@ -76,10 +76,11 @@ class MemoizeSuite extends BaseSpec with Discipline {
         val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tick()
 
-        result.value mustEqual Some(Success((1, 1, 1)))
+        assertEquals(result.value, Some(Success((1, 1, 1))))
     }
 
-    "Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)" in ticked {
+    ticked(
+      s"$name Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)") {
       implicit ticker =>
         import cats.syntax.all._
 
@@ -99,20 +100,21 @@ class MemoizeSuite extends BaseSpec with Discipline {
         val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tick()
 
-        result.value mustEqual Some(Success((1, 1)))
+        assertEquals(result.value, Some(Success((1, 1))))
     }
 
-    "Concurrent.memoize and then flatten is identity" in ticked { implicit ticker =>
+    ticked(s"$name Concurrent.memoize and then flatten is identity") { implicit ticker =>
       forAll { (fa: IO[Int]) => lowerK(Concurrent[F].memoize(liftK(fa)).flatten) eqv fa }
     }
 
-    "Concurrent.memoize uncancelable canceled and then flatten is identity" in ticked {
+    ticked(s"$name Concurrent.memoize uncancelable canceled and then flatten is identity") {
       implicit ticker =>
         val fa = Concurrent[F].uncancelable(_ => Concurrent[F].canceled)
         lowerK(Concurrent[F].memoize(fa).flatten) eqv lowerK(fa)
     }
 
-    "Memoized effects can be canceled when there are no other active subscribers (1)" in ticked {
+    ticked(
+      s"$name Memoized effects can be canceled when there are no other active subscribers (1)") {
       implicit ticker =>
         import cats.syntax.all._
 
@@ -130,10 +132,11 @@ class MemoizeSuite extends BaseSpec with Discipline {
         val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
-        result.value mustEqual Some(Success(false))
+        assertEquals(result.value, Some(Success(false)))
     }
 
-    "Memoized effects can be canceled when there are no other active subscribers (2)" in ticked {
+    ticked(
+      s"$name Memoized effects can be canceled when there are no other active subscribers (2)") {
       implicit ticker =>
         import cats.syntax.all._
 
@@ -154,10 +157,11 @@ class MemoizeSuite extends BaseSpec with Discipline {
         val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
-        result.value mustEqual Some(Success(false))
+        assertEquals(result.value, Some(Success(false)))
     }
 
-    "Memoized effects can be canceled when there are no other active subscribers (3)" in ticked {
+    ticked(
+      s"$name Memoized effects can be canceled when there are no other active subscribers (3)") {
       implicit ticker =>
         import cats.syntax.all._
 
@@ -178,10 +182,10 @@ class MemoizeSuite extends BaseSpec with Discipline {
         val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
-        result.value mustEqual Some(Success(false))
+        assertEquals(result.value, Some(Success(false)))
     }
 
-    "Running a memoized effect after it was previously canceled reruns it" in ticked {
+    ticked(s"$name Running a memoized effect after it was previously canceled reruns it") {
       implicit ticker =>
         import cats.syntax.all._
 
@@ -204,10 +208,10 @@ class MemoizeSuite extends BaseSpec with Discipline {
         val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
-        result.value mustEqual Some(Success((2, 1)))
+        assertEquals(result.value, Some(Success((2, 1))))
     }
 
-    "Attempting to cancel a memoized effect with active subscribers is a no-op" in ticked {
+    ticked(s"$name Attempting to cancel a memoized effect with active subscribers is a no-op") {
       implicit ticker =>
         import cats.syntax.all._
 
@@ -236,159 +240,164 @@ class MemoizeSuite extends BaseSpec with Discipline {
         val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
-        result.value mustEqual Some(Success(true))
+        assertEquals(result.value, Some(Success(true)))
     }
 
-    "External cancelation does not affect subsequent access" in ticked { implicit ticker =>
-      IO.ref(0).flatMap { counter =>
-        val go = counter.getAndUpdate(_ + 1) <* IO.sleep(2.seconds)
-        go.memoize.flatMap { memo =>
-          memo.parReplicateA_(10).timeoutTo(1.second, IO.unit) *> memo
-        }
-      } must completeAs(1)
+    ticked(s"$name External cancelation does not affect subsequent access") { implicit ticker =>
+      assertCompleteAs(
+        IO.ref(0).flatMap { counter =>
+          val go = counter.getAndUpdate(_ + 1) <* IO.sleep(2.seconds)
+          go.memoize.flatMap { memo =>
+            memo.parReplicateA_(10).timeoutTo(1.second, IO.unit) *> memo
+          }
+        },
+        1
+      )
     }
 
   }
 
-  "Concurrent.memoize" >> {
+  tests[IO]("Concurrent.memoize >> IO", FunctionK.id)
 
-    "IO" >> tests[IO](FunctionK.id)
-
-    "Resource[IO, *]" >> tests[Resource[IO, *]](new ~>[Resource[IO, *], IO] {
+  tests[Resource[IO, *]](
+    "Concurrent.memoize >> Resource[IO, *]",
+    new ~>[Resource[IO, *], IO] {
       def apply[A](ra: Resource[IO, A]): IO[A] = ra.use(IO.pure)
     })
 
-    "Monad transformers" >> {
-
-      "OptionT" in ticked { implicit ticker =>
-        val op = for {
-          counter <- IO.ref(0)
-          incr = counter.update(_ + 1)
-          optMemoOpt <- Concurrent[OptionT[IO, *]]
-            .memoize[Int](
-              OptionT.liftF(incr) *> OptionT.none[IO, Int]
-            )
-            .value
-          memoOpt <- optMemoOpt.fold(IO.raiseError[OptionT[IO, Int]](new Exception))(IO.pure(_))
-          opt1 <- memoOpt.value
-          opt2 <- memoOpt.value
-          vOpt <- counter.get
-        } yield (opt1: Option[Int], opt2: Option[Int], vOpt: Int)
-
-        val result = op.unsafeToFuture()
-        ticker.ctx.tickAll()
-
-        result.value mustEqual Some(Success((None, None, 1)))
-      }
-
-      "EitherT" in ticked { implicit ticker =>
-        val op = for {
-          counter <- IO.ref(0)
-          incr = counter.update(_ + 1)
-          eitMemoEit <- Concurrent[EitherT[IO, String, *]]
-            .memoize[Int](
-              EitherT.liftF[IO, String, Unit](incr) *> EitherT.left(IO.pure("x"))
-            )
-            .value
-          memoEit <- eitMemoEit.fold(_ => IO.raiseError(new Exception), IO.pure(_))
-          eit1 <- memoEit.value
-          eit2 <- memoEit.value
-          vEit <- counter.get
-        } yield (eit1: Either[String, Int], eit2: Either[String, Int], vEit: Int)
-
-        val result = op.unsafeToFuture()
-        ticker.ctx.tickAll()
-
-        result.value mustEqual Some(Success((Left("x"), Left("x"), 1)))
-      }
-
-      "IorT" in ticked { implicit ticker =>
-        val op = for {
-          counter <- IO.ref(0)
-          incr = counter.update(_ + 1)
-          // left:
-          iorMemoIor1 <- Concurrent[IorT[IO, String, *]]
-            .memoize[Int](
-              IorT.liftF[IO, String, Unit](incr) *> IorT.left[Int](IO.pure("x"))
-            )
-            .value
-          memoIor1 <- iorMemoIor1.fold(
-            _ => IO.raiseError[IorT[IO, String, Int]](new Exception),
-            IO.pure(_),
-            (_, _) => IO.raiseError(new Exception))
-          ior1 <- memoIor1.value
-          ior2 <- memoIor1.value
-          vIor1 <- counter.get
-          // both:
-          iorMemoIor2 <- Concurrent[IorT[IO, String, *]]
-            .memoize[Int](
-              IorT.liftF[IO, String, Unit](incr) *> IorT
-                .both[IO, String, Int](IO.pure("x"), IO.pure(42))
-            )
-            .value
-          memoIor2 <- iorMemoIor2.fold(
-            _ => IO.raiseError[IorT[IO, String, Int]](new Exception),
-            IO.pure(_),
-            (_, _) => IO.raiseError(new Exception))
-          ior3 <- memoIor2.value
-          ior4 <- memoIor2.value
-          vIor2 <- counter.get
-        } yield (
-          ior1: Ior[String, Int],
-          ior2: Ior[String, Int],
-          vIor1: Int,
-          ior3: Ior[String, Int],
-          ior4: Ior[String, Int],
-          vIor2: Int
+  ticked("Monad transformers - OptionT") { implicit ticker =>
+    val op = for {
+      counter <- IO.ref(0)
+      incr = counter.update(_ + 1)
+      optMemoOpt <- Concurrent[OptionT[IO, *]]
+        .memoize[Int](
+          OptionT.liftF(incr) *> OptionT.none[IO, Int]
         )
+        .value
+      memoOpt <- optMemoOpt.fold(IO.raiseError[OptionT[IO, Int]](new Exception))(IO.pure(_))
+      opt1 <- memoOpt.value
+      opt2 <- memoOpt.value
+      vOpt <- counter.get
+    } yield (opt1: Option[Int], opt2: Option[Int], vOpt: Int)
 
-        val result = op.unsafeToFuture()
-        ticker.ctx.tickAll()
+    val result = op.unsafeToFuture()
+    ticker.ctx.tickAll()
 
-        result.value mustEqual Some(
-          Success(
-            (
-              Ior.left("x"),
-              Ior.left("x"),
-              1,
-              Ior.both("x", 42),
-              Ior.both("x", 42),
-              2
-            )))
-      }
+    assertEquals(result.value, Some(Success((None, None, 1))))
+  }
 
-      "WriterT" in ticked { implicit ticker =>
-        val op = for {
-          counter <- IO.ref(0)
-          incr = counter.update(_ + 1)
-          wriMemoWri <- Concurrent[WriterT[IO, List[String], *]]
-            .memoize[Int](
-              WriterT.liftF[IO, List[String], Unit](incr) *> WriterT(IO.pure((List("x"), 42)))
-            )
-            .run
-          (log, memoWri) = wriMemoWri
-          _ <- if (log.nonEmpty) IO.raiseError(new Exception) else IO.unit
-          wri1 <- memoWri.run
-          wri2 <- memoWri.run
-          vWri <- counter.get
-        } yield (
-          wri1: (List[String], Int),
-          wri2: (List[String], Int),
-          vWri: Int
+  ticked("Monad transformers - EitherT") { implicit ticker =>
+    val op = for {
+      counter <- IO.ref(0)
+      incr = counter.update(_ + 1)
+      eitMemoEit <- Concurrent[EitherT[IO, String, *]]
+        .memoize[Int](
+          EitherT.liftF[IO, String, Unit](incr) *> EitherT.left(IO.pure("x"))
         )
+        .value
+      memoEit <- eitMemoEit.fold(_ => IO.raiseError(new Exception), IO.pure(_))
+      eit1 <- memoEit.value
+      eit2 <- memoEit.value
+      vEit <- counter.get
+    } yield (eit1: Either[String, Int], eit2: Either[String, Int], vEit: Int)
 
-        val result = op.unsafeToFuture()
-        ticker.ctx.tickAll()
+    val result = op.unsafeToFuture()
+    ticker.ctx.tickAll()
 
-        result.value mustEqual Some(
-          Success(
-            (
-              (List("x"), 42),
-              (List("x"), 42),
-              1
-            )))
-      }
-    }
+    assertEquals(result.value, Some(Success((Left("x"), Left("x"), 1))))
+  }
+
+  ticked(s"Monad transformers - IorT") { implicit ticker =>
+    val op = for {
+      counter <- IO.ref(0)
+      incr = counter.update(_ + 1)
+      // left:
+      iorMemoIor1 <- Concurrent[IorT[IO, String, *]]
+        .memoize[Int](
+          IorT.liftF[IO, String, Unit](incr) *> IorT.left[Int](IO.pure("x"))
+        )
+        .value
+      memoIor1 <- iorMemoIor1.fold(
+        _ => IO.raiseError[IorT[IO, String, Int]](new Exception),
+        IO.pure(_),
+        (_, _) => IO.raiseError(new Exception))
+      ior1 <- memoIor1.value
+      ior2 <- memoIor1.value
+      vIor1 <- counter.get
+      // both:
+      iorMemoIor2 <- Concurrent[IorT[IO, String, *]]
+        .memoize[Int](
+          IorT.liftF[IO, String, Unit](incr) *> IorT
+            .both[IO, String, Int](IO.pure("x"), IO.pure(42))
+        )
+        .value
+      memoIor2 <- iorMemoIor2.fold(
+        _ => IO.raiseError[IorT[IO, String, Int]](new Exception),
+        IO.pure(_),
+        (_, _) => IO.raiseError(new Exception))
+      ior3 <- memoIor2.value
+      ior4 <- memoIor2.value
+      vIor2 <- counter.get
+    } yield (
+      ior1: Ior[String, Int],
+      ior2: Ior[String, Int],
+      vIor1: Int,
+      ior3: Ior[String, Int],
+      ior4: Ior[String, Int],
+      vIor2: Int
+    )
+
+    val result = op.unsafeToFuture()
+    ticker.ctx.tickAll()
+
+    assertEquals(
+      result.value,
+      Some(
+        Success(
+          (
+            Ior.left("x"),
+            Ior.left("x"),
+            1,
+            Ior.both("x", 42),
+            Ior.both("x", 42),
+            2
+          )))
+    )
+  }
+
+  ticked(s"Monad transformers - WriterT") { implicit ticker =>
+    val op = for {
+      counter <- IO.ref(0)
+      incr = counter.update(_ + 1)
+      wriMemoWri <- Concurrent[WriterT[IO, List[String], *]]
+        .memoize[Int](
+          WriterT.liftF[IO, List[String], Unit](incr) *> WriterT(IO.pure((List("x"), 42)))
+        )
+        .run
+      (log, memoWri) = wriMemoWri
+      _ <- if (log.nonEmpty) IO.raiseError(new Exception) else IO.unit
+      wri1 <- memoWri.run
+      wri2 <- memoWri.run
+      vWri <- counter.get
+    } yield (
+      wri1: (List[String], Int),
+      wri2: (List[String], Int),
+      vWri: Int
+    )
+
+    val result = op.unsafeToFuture()
+    ticker.ctx.tickAll()
+
+    assertEquals(
+      result.value,
+      Some(
+        Success(
+          (
+            (List("x"), 42),
+            (List("x"), 42),
+            1
+          )))
+    )
   }
 
 }

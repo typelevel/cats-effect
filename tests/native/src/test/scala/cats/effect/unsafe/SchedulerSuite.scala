@@ -19,28 +19,26 @@ package unsafe
 
 import scala.concurrent.duration._
 
-class SchedulerSuite extends BaseSpec {
+class SchedulerSuite extends BaseSuite {
 
-  "Default scheduler" should {
-    "use high-precision time" in real {
-      for {
-        start <- IO.realTime
-        times <- IO.realTime.replicateA(100)
-        deltas = times.map(_ - start)
-      } yield deltas.exists(_.toMicros % 1000 != 0)
-    }
+  real("use high-precision time") {
+    for {
+      start <- IO.realTime
+      times <- IO.realTime.replicateA(100)
+      deltas = times.map(_ - start)
+    } yield deltas.exists(_.toMicros % 1000 != 0)
+  }
 
-    "correctly calculate real time" in real {
-      IO.realTime.product(IO(System.currentTimeMillis())).map {
-        case (realTime, currentTime) =>
-          (realTime.toMillis - currentTime) should be_<=(1L)
-      }
+  real("correctly calculate real time") {
+    IO.realTime.product(IO(System.currentTimeMillis())).map {
+      case (realTime, currentTime) =>
+        assert(realTime.toMillis - currentTime <= 1L)
     }
+  }
 
-    "sleep for correct duration" in real {
-      val duration = 1500.millis
-      IO.sleep(duration).timed.map(_._1 should be_>=(duration))
-    }
+  real("sleep for correct duration") {
+    val duration = 1500.millis
+    IO.sleep(duration).timed.map(r => assert(r._1 >= duration))
   }
 
 }

@@ -30,7 +30,7 @@ import scala.scalanative.unsigned._
 
 import java.io.IOException
 
-class FileDescriptorPollerSuite extends BaseSpec {
+class FileDescriptorPollerSuite extends BaseSuite {
 
   final class Pipe(
       val readFd: Int,
@@ -101,44 +101,41 @@ class FileDescriptorPollerSuite extends BaseSpec {
           }
       }
 
-  "FileDescriptorPoller" should {
+  real("notify read-ready events") {
+    mkPipe.use { pipe =>
+      for {
+        buf <- IO(new Array[Byte](4))
+        _ <- pipe.write(Array[Byte](1, 2, 3), 0, 3).background.surround(pipe.read(buf, 0, 3))
+        _ <- pipe.write(Array[Byte](42), 0, 1).background.surround(pipe.read(buf, 3, 1))
+      } yield assertEquals(buf.toList, List[Byte](1, 2, 3, 42))
+    }
+  }
 
-    "notify read-ready events" in real {
-      mkPipe.use { pipe =>
-        for {
-          buf <- IO(new Array[Byte](4))
-          _ <- pipe.write(Array[Byte](1, 2, 3), 0, 3).background.surround(pipe.read(buf, 0, 3))
-          _ <- pipe.write(Array[Byte](42), 0, 1).background.surround(pipe.read(buf, 3, 1))
-        } yield buf.toList must be_==(List[Byte](1, 2, 3, 42))
+  real("handle lots of simultaneous events") {
+    def test(n: Int) = mkPipe.replicateA(n).use { pipes =>
+      CountDownLatch[IO](n).flatMap { latch =>
+        pipes
+          .traverse_ { pipe =>
+            (pipe.read(new Array[Byte](1), 0, 1) *> latch.release).background
+          }
+          .surround {
+            IO { // trigger all the pipes at once
+              pipes.foreach { pipe =>
+                unistd.write(pipe.writeFd, Array[Byte](42).atUnsafe(0), 1.toULong)
+              }
+            }.background.surround(latch.await.as(true))
+          }
       }
     }
 
-    "handle lots of simultaneous events" in real {
-      def test(n: Int) = mkPipe.replicateA(n).use { pipes =>
-        CountDownLatch[IO](n).flatMap { latch =>
-          pipes
-            .traverse_ { pipe =>
-              (pipe.read(new Array[Byte](1), 0, 1) *> latch.release).background
-            }
-            .surround {
-              IO { // trigger all the pipes at once
-                pipes.foreach { pipe =>
-                  unistd.write(pipe.writeFd, Array[Byte](42).atUnsafe(0), 1.toULong)
-                }
-              }.background.surround(latch.await.as(true))
-            }
-        }
-      }
+    // multiples of 64 to exercise ready queue draining logic
+    test(64) *> test(128) *>
+      test(1000) // a big, non-64-multiple
+  }
 
-      // multiples of 64 to exercise ready queue draining logic
-      test(64) *> test(128) *>
-        test(1000) // a big, non-64-multiple
-    }
-
-    "hang if never ready" in real {
-      mkPipe.use { pipe =>
-        pipe.read(new Array[Byte](1), 0, 1).as(false).timeoutTo(1.second, IO.pure(true))
-      }
+  real("hang if never ready") {
+    mkPipe.use { pipe =>
+      pipe.read(new Array[Byte](1), 0, 1).as(false).timeoutTo(1.second, IO.pure(true))
     }
   }
 

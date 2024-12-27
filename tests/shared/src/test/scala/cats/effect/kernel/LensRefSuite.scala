@@ -23,7 +23,7 @@ import cats.data.State
 
 import scala.concurrent.duration._
 
-class LensRefSuite extends BaseSpec with DetectPlatform { outer =>
+class LensRefSuite extends BaseSuite with DetectPlatform { outer =>
 
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
@@ -60,192 +60,191 @@ class LensRefSuite extends BaseSpec with DetectPlatform { outer =>
     def set(foo: Foo)(bar: Integer): Foo = foo.copy(bar = bar)
   }
 
-  "ref lens" should {
+  ticked("get - returns B") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get(_), Foo.set(_))
+      result <- refB.get
+    } yield result
 
-    "get - returns B" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get(_), Foo.set(_))
-        result <- refB.get
-      } yield result
+    assertCompleteAs(op, 0: Integer)
+  }
 
-      op must completeAs(0: Integer)
-    }
+  ticked("set - modifies underlying Ref") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      _ <- refB.set(1)
+      result <- refA.get
+    } yield result
 
-    "set - modifies underlying Ref" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-        _ <- refB.set(1)
-        result <- refA.get
-      } yield result
+    assertCompleteAs(op, Foo(1, -1))
+  }
 
-      op must completeAs(Foo(1, -1))
-    }
+  ticked("getAndSet - modifies underlying Ref and returns previous value") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      oldValue <- refB.getAndSet(1)
+      a <- refA.get
+    } yield (oldValue, a)
 
-    "getAndSet - modifies underlying Ref and returns previous value" in ticked {
+    assertCompleteAs(op, (0: Integer, Foo(1, -1)))
+  }
+
+  ticked("update - modifies underlying Ref") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      _ <- refB.update(_ + 1)
+      a <- refA.get
+    } yield a
+
+    assertCompleteAs(op, Foo(1, -1))
+  }
+
+  ticked("modify - modifies underlying Ref and returns a value") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      result <- refB.modify(bar => (bar + 1, 10))
+      a <- refA.get
+    } yield (result, a)
+
+    assertCompleteAs(op, (10, Foo(1, -1)))
+  }
+
+  ticked("tryUpdate - successfully modifies underlying Ref") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      result <- refB.tryUpdate(_ + 1)
+      a <- refA.get
+    } yield (result, a)
+
+    assertCompleteAs(op, (true, Foo(1, -1)))
+  }
+
+  if (!isJS && !isNative) // concurrent modification impossible
+    ticked(
+      "tryUpdate - fails to modify original value if it's already been modified concurrently") {
       implicit ticker =>
+        val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
+          unsafeRun(ref.set(5))
+          ()
+        }
+
         val op = for {
           refA <- Ref[IO].of(Foo(0, -1))
           refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-          oldValue <- refB.getAndSet(1)
+          result <- refB.tryUpdate { currentValue =>
+            updateRefUnsafely(refB)
+            currentValue + 1
+          }
           a <- refA.get
-        } yield (oldValue, a)
+        } yield (result, a)
 
-        op must completeAs((0: Integer, Foo(1, -1)))
+        assertCompleteAs(op, (false, Foo(5, -1)))
     }
+  else ()
 
-    "update - modifies underlying Ref" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-        _ <- refB.update(_ + 1)
-        a <- refA.get
-      } yield a
+  ticked("tryModify - successfully modifies underlying Ref") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      result <- refB.tryModify(bar => (bar + 1, "A"))
+      a <- refA.get
+    } yield (result, a)
 
-      op must completeAs(Foo(1, -1))
-    }
+    assertCompleteAs(op, (Some("A"), Foo(1, -1)))
+  }
 
-    "modify - modifies underlying Ref and returns a value" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-        result <- refB.modify(bar => (bar + 1, 10))
-        a <- refA.get
-      } yield (result, a)
+  if (!isJS && !isNative) // concurrent modification impossible
+    ticked(
+      "tryModify - fails to modify original value if it's already been modified concurrently") {
+      implicit ticker =>
+        val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
+          unsafeRun(ref.set(5))
+          ()
+        }
 
-      op must completeAs((10, Foo(1, -1)))
-    }
-
-    "tryUpdate - successfully modifies underlying Ref" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-        result <- refB.tryUpdate(_ + 1)
-        a <- refA.get
-      } yield (result, a)
-
-      op must completeAs((true, Foo(1, -1)))
-    }
-
-    if (!isJS && !isNative) // concurrent modification impossible
-      "tryUpdate - fails to modify original value if it's already been modified concurrently" in ticked {
-        implicit ticker =>
-          val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
-            unsafeRun(ref.set(5))
-            ()
+        val op = for {
+          refA <- Ref[IO].of(Foo(0, -1))
+          refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+          result <- refB.tryModify { currentValue =>
+            updateRefUnsafely(refB)
+            (currentValue + 1, 10)
           }
+          a <- refA.get
+        } yield (result, a)
 
-          val op = for {
-            refA <- Ref[IO].of(Foo(0, -1))
-            refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-            result <- refB.tryUpdate { currentValue =>
-              updateRefUnsafely(refB)
-              currentValue + 1
-            }
-            a <- refA.get
-          } yield (result, a)
-
-          op must completeAs((false, Foo(5, -1)))
-      }
-    else ()
-
-    "tryModify - successfully modifies underlying Ref" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-        result <- refB.tryModify(bar => (bar + 1, "A"))
-        a <- refA.get
-      } yield (result, a)
-
-      op must completeAs((Some("A"), Foo(1, -1)))
+        assertCompleteAs(op, (None, Foo(5, -1)))
     }
+  else ()
 
-    if (!isJS && !isNative) // concurrent modification impossible
-      "tryModify - fails to modify original value if it's already been modified concurrently" in ticked {
-        implicit ticker =>
-          val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
-            unsafeRun(ref.set(5))
-            ()
-          }
+  ticked("tryModifyState - successfully modifies underlying Ref") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      result <- refB.tryModifyState(State.apply(x => (x + 1, "A")))
+      a <- refA.get
+    } yield (result, a)
 
-          val op = for {
-            refA <- Ref[IO].of(Foo(0, -1))
-            refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-            result <- refB.tryModify { currentValue =>
-              updateRefUnsafely(refB)
-              (currentValue + 1, 10)
-            }
-            a <- refA.get
-          } yield (result, a)
+    assertCompleteAs(op, (Some("A"), Foo(1, -1)))
+  }
 
-          op must completeAs((None, Foo(5, -1)))
-      }
-    else ()
+  ticked("modifyState - successfully modifies underlying Ref") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      result <- refB.modifyState(State.apply(x => (x + 1, "A")))
+      a <- refA.get
+    } yield (result, a)
 
-    "tryModifyState - successfully modifies underlying Ref" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-        result <- refB.tryModifyState(State.apply(x => (x + 1, "A")))
-        a <- refA.get
-      } yield (result, a)
+    assertCompleteAs(op, ("A", Foo(1, -1)))
+  }
 
-      op must completeAs((Some("A"), Foo(1, -1)))
-    }
+  ticked("access - successfully modifies underlying Ref") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      valueAndSetter <- refB.access
+      (value, setter) = valueAndSetter
+      success <- setter(value + 1)
+      a <- refA.get
+    } yield (success, a)
 
-    "modifyState - successfully modifies underlying Ref" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-        result <- refB.modifyState(State.apply(x => (x + 1, "A")))
-        a <- refA.get
-      } yield (result, a)
+    assertCompleteAs(op, (true, Foo(1, -1)))
+  }
 
-      op must completeAs(("A", Foo(1, -1)))
-    }
-
-    "access - successfully modifies underlying Ref" in ticked { implicit ticker =>
+  ticked(
+    "access - setter fails to modify underlying Ref if value is modified before setter is called") {
+    implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
         valueAndSetter <- refB.access
         (value, setter) = valueAndSetter
+        _ <- refA.set(Foo(5, -1))
         success <- setter(value + 1)
         a <- refA.get
       } yield (success, a)
 
-      op must completeAs((true, Foo(1, -1)))
-    }
-
-    "access - setter fails to modify underlying Ref if value is modified before setter is called" in ticked {
-      implicit ticker =>
-        val op = for {
-          refA <- Ref[IO].of(Foo(0, -1))
-          refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-          valueAndSetter <- refB.access
-          (value, setter) = valueAndSetter
-          _ <- refA.set(Foo(5, -1))
-          success <- setter(value + 1)
-          a <- refA.get
-        } yield (success, a)
-
-        op must completeAs((false, Foo(5, -1)))
-    }
-
-    "access - setter fails the second time" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-        valueAndSetter <- refB.access
-        (_, setter) = valueAndSetter
-        result1 <- setter(1)
-        result2 <- setter(2)
-        a <- refA.get
-      } yield (result1, result2, a)
-
-      op must completeAs((true, false, Foo(1, -1)))
-    }
-
+      assertCompleteAs(op, (false, Foo(5, -1)))
   }
+
+  ticked("access - setter fails the second time") { implicit ticker =>
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      valueAndSetter <- refB.access
+      (_, setter) = valueAndSetter
+      result1 <- setter(1)
+      result2 <- setter(2)
+      a <- refA.get
+    } yield (result1, result2, a)
+
+    assertCompleteAs(op, (true, false, Foo(1, -1)))
+  }
+
 }

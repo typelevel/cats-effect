@@ -16,9 +16,9 @@
 
 package cats.effect
 
-class IOImplicitSuite extends BaseSpec {
+class IOImplicitSuite extends BaseSuite {
 
-  "Can resolve IO sequence ops without import of cats.syntax.all" in { // compilation test
+  test("Can resolve IO sequence ops without import of cats.syntax.all") { // compilation test
     for {
       _ <- List(IO(1)).sequence_
       _ <- Option(IO(1)).sequence
@@ -28,7 +28,7 @@ class IOImplicitSuite extends BaseSpec {
     true
   }
 
-  "Can resolve IO.Par ops without import of cats.syntax.all" in { // compilation test
+  test("Can resolve IO.Par ops without import of cats.syntax.all") { // compilation test
     for {
       _ <- Option(IO(1)).parSequence
       _ <- Option(IO(1)).parSequence_

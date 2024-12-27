@@ -17,17 +17,15 @@
 package cats.effect
 package unsafe
 
-class IORuntimeBuilderSuite extends BaseSpec with DetectPlatform {
+import munit.TestOptions
 
-  "IORuntimeBuilder" should {
-    if (isNative) "configure the failure reporter" in pending
-    else
-      "configure the failure reporter" in {
-        var invoked = false
-        val rt = IORuntime.builder().setFailureReporter(_ => invoked = true).build()
-        rt.compute.reportFailure(new Exception)
-        invoked must beTrue
-      }
+class IORuntimeBuilderSuite extends BaseSuite with DetectPlatform {
+
+  test(("configure the failure reporter": TestOptions).ignoreNative) {
+    var invoked = false
+    val rt = IORuntime.builder().setFailureReporter(_ => invoked = true).build()
+    rt.compute.reportFailure(new Exception)
+    assert(invoked)
   }
 
 }

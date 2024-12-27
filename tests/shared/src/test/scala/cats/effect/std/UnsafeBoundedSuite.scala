@@ -21,74 +21,68 @@ import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-class UnsafeBoundedSuite extends BaseSpec {
+class UnsafeBoundedSuite extends BaseSuite {
   import Queue.UnsafeBounded
 
   override def executionTimeout = 30.seconds
 
-  "unsafe bounded queue" should {
-    "enqueue max items and dequeue in order" >> {
-      // NB: emperically, it seems this needs to be > availableProcessors() to be effective
-      val length = 1000
+  // NB: emperically, it seems this needs to be > availableProcessors() to be effective
+  val length = 1000
 
-      "sequential all" >> {
-        val q = new UnsafeBounded[Int](length)
+  test("sequential all") {
+    val q = new UnsafeBounded[Int](length)
 
-        0.until(length).foreach(q.put(_))
-        0.until(length).map(_ => q.take()).toList mustEqual 0.until(length).toList
-      }
+    0.until(length).foreach(q.put(_))
+    assertEquals(0.until(length).map(_ => q.take()).toList, 0.until(length).toList)
+  }
 
-      "parallel put, parallel take" >> real {
-        val q = new UnsafeBounded[Int](length)
+  real("enqueue max items and dequeue in order - parallel put, parallel take") {
+    val q = new UnsafeBounded[Int](length)
 
-        val test = for {
-          _ <- 0.until(length).toList.parTraverse_(i => IO(q.put(i)))
-          results <- 0.until(length).toList.parTraverse(_ => IO(q.take()))
-          _ <- IO(results.toList must containTheSameElementsAs(0.until(length)))
-        } yield ok
+    val test = for {
+      _ <- 0.until(length).toList.parTraverse_(i => IO(q.put(i)))
+      results <- 0.until(length).toList.parTraverse(_ => IO(q.take()))
+      _ <- IO(assertEquals(results.sorted, 0.until(length).toList))
+    } yield ()
 
-        test.timeoutTo(16.seconds, IO(false must beTrue))
-      }
+    test.timeoutTo(16.seconds, IO(assert(false)))
+  }
 
-      "parallel put and take" >> real {
-        val q = new UnsafeBounded[Int](length)
+  real("enqueue max items and dequeue in order - parallel put and take") {
+    val q = new UnsafeBounded[Int](length)
 
-        // retry forever until canceled
-        def retry[A](ioa: IO[A]): IO[A] =
-          ioa.handleErrorWith(_ => IO.cede *> retry(ioa))
+    // retry forever until canceled
+    def retry[A](ioa: IO[A]): IO[A] =
+      ioa.handleErrorWith(_ => IO.cede *> retry(ioa))
 
-        val puts = 1.to(length * 2).toList.parTraverse_(i => retry(IO(q.put(i))))
-        val takes = 1.to(length * 2).toList.parTraverse(_ => retry(IO(q.take())))
+    val puts = 1.to(length * 2).toList.parTraverse_(i => retry(IO(q.put(i))))
+    val takes = 1.to(length * 2).toList.parTraverse(_ => retry(IO(q.take())))
 
-        val test = for {
-          results <- puts &> takes
-          _ <- IO(q.size() mustEqual 0)
-          _ <- IO(results.toList must containTheSameElementsAs(1.to(length * 2)))
-        } yield ok
+    val test = for {
+      results <- puts &> takes
+      _ <- IO(assertEquals(q.size(), 0))
+      _ <- IO(assertEquals(results.sorted, 1.to(length * 2).toList))
+    } yield ()
 
-        test.timeoutTo(30.seconds, IO(false must beTrue))
-      }
-    }
+    test.timeoutTo(30.seconds, IO(assert(false)))
+  }
 
-    "produce failure when putting over bound" in {
-      val q = new UnsafeBounded[Unit](10)
-      0.until(11).foreach(_ => q.put(())) must throwAn[Exception]
-    }
+  test("produce failure when putting over bound") {
+    val q = new UnsafeBounded[Unit](10)
+    intercept[Exception](0.until(11).foreach(_ => q.put(())))
+  }
 
-    "produce failure when taking while empty" >> {
-      "without changes" >> {
-        val q = new UnsafeBounded[Unit](10)
-        q.take() must throwAn[Exception]
-      }
+  test("produce failure when taking while empty - without changes") {
+    val q = new UnsafeBounded[Unit](10)
+    intercept[Exception](q.take())
+  }
 
-      "after put and take" >> {
-        val q = new UnsafeBounded[Unit](10)
+  test("produce failure when taking while empty - after put and take") {
+    val q = new UnsafeBounded[Unit](10)
 
-        0.until(5).foreach(_ => q.put(()))
-        0.until(5).foreach(_ => q.take())
+    0.until(5).foreach(_ => q.put(()))
+    0.until(5).foreach(_ => q.take())
 
-        q.take() must throwAn[Exception]
-      }
-    }
+    intercept[Exception](q.take())
   }
 }

@@ -23,10 +23,10 @@ import cats.effect.kernel.testkit.TimeT
 import cats.effect.kernel.testkit.pure._
 import cats.syntax.all._
 
-import scala.concurrent.duration._
-import munit.FunSuite
-
 import scala.concurrent.TimeoutException
+import scala.concurrent.duration._
+
+import munit.FunSuite
 
 class GenTemporalSuite extends FunSuite {
   outer =>

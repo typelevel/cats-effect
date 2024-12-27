@@ -20,12 +20,11 @@ package effect
 import cats.mtl.Local
 import cats.mtl.laws.discipline._
 
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import java.util.concurrent.CancellationException
 
-class IOMtlLocalSuite extends BaseSpec with Discipline {
-  sequential
+import munit.DisciplineSuite
+
+class IOMtlLocalSuite extends BaseSuite with DisciplineSuite {
 
   implicit val ticker: Ticker = Ticker()
 

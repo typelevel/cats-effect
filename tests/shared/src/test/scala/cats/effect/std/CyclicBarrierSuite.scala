@@ -20,61 +20,55 @@ package std
 import cats.arrow.FunctionK
 import cats.implicits._
 
-import org.specs2.specification.core.Fragments
-
 import scala.concurrent.duration._
 
-class CyclicBarrierSuite extends BaseSpec {
+class CyclicBarrierSuite extends BaseSuite {
 
-  "Cyclic barrier" should {
-    cyclicBarrierTests("Cyclic barrier", CyclicBarrier.apply)
-    cyclicBarrierTests(
-      "Cyclic barrier mapK",
-      CyclicBarrier.apply[IO](_).map(_.mapK(FunctionK.id)))
-  }
+  cyclicBarrierTests("Cyclic barrier", CyclicBarrier.apply)
+  cyclicBarrierTests(
+    "Cyclic barrier mapK",
+    CyclicBarrier.apply[IO](_).map(_.mapK(FunctionK.id)))
 
-  private def cyclicBarrierTests(
-      name: String,
-      newBarrier: Int => IO[CyclicBarrier[IO]]): Fragments = {
-    s"$name - should raise an exception when constructed with a negative capacity" in real {
+  private def cyclicBarrierTests(name: String, newBarrier: Int => IO[CyclicBarrier[IO]]) = {
+    real(s"$name  - should raise an exception when constructed with a negative capacity") {
       IO.defer(newBarrier(-1)).mustFailWith[IllegalArgumentException]
     }
 
-    s"$name - should raise an exception when constructed with zero capacity" in real {
+    real(s"$name  - should raise an exception when constructed with zero capacity") {
       IO.defer(newBarrier(0)).mustFailWith[IllegalArgumentException]
     }
 
-    s"$name - await is blocking" in ticked { implicit ticker =>
-      newBarrier(2).flatMap(_.await) must nonTerminate
+    ticked(s"$name  - await is blocking") { implicit ticker =>
+      assertNonTerminate(newBarrier(2).flatMap(_.await))
     }
 
-    s"$name - await is cancelable" in ticked { implicit ticker =>
-      newBarrier(2).flatMap(_.await).timeoutTo(1.second, IO.unit) must completeAs(())
+    ticked(s"$name  - await is cancelable") { implicit ticker =>
+      assertCompleteAs(newBarrier(2).flatMap(_.await).timeoutTo(1.second, IO.unit), ())
     }
 
-    s"$name - await releases all fibers" in real {
+    real(s"$name  - await releases all fibers") {
       newBarrier(2).flatMap { barrier =>
         (barrier.await, barrier.await).parTupled.void.mustEqual(())
       }
     }
 
-    s"$name - should reset once full" in ticked { implicit ticker =>
-      newBarrier(2).flatMap { barrier =>
+    ticked(s"$name  - should reset once full") { implicit ticker =>
+      assertNonTerminate(newBarrier(2).flatMap { barrier =>
         (barrier.await, barrier.await).parTupled >>
           barrier.await
-      } must nonTerminate
+      })
     }
 
-    s"$name - should clean up upon cancelation of await" in ticked { implicit ticker =>
-      newBarrier(2).flatMap { barrier =>
+    ticked(s"$name  - should clean up upon cancelation of await") { implicit ticker =>
+      assertNonTerminate(newBarrier(2).flatMap { barrier =>
         // This will time out, so count goes back to 2
         barrier.await.timeoutTo(1.second, IO.unit) >>
           // Therefore count goes only down to 1 when this awaits, and will block again
           barrier.await
-      } must nonTerminate
+      })
     }
 
-    s"$name - barrier of capacity 1 is a no op" in real {
+    real(s"$name  - barrier of capacity 1 is a no op") {
       newBarrier(1).flatMap(_.await).mustEqual(())
     }
 
@@ -83,7 +77,7 @@ class CyclicBarrierSuite extends BaseSpec {
      * had a race between cancelation of an awaiting fiber and
      * resetting the barrier once it's full
      */
-    s"$name - race fiber cancel and barrier full" in real {
+    real(s"$name  - race fiber cancel and barrier full") {
       val iterations = 100
 
       val run = newBarrier(2)

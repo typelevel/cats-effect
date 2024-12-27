@@ -25,37 +25,33 @@ import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 
 import org.scalacheck.Prop
-import org.specs2.scalacheck.Parameters
-import org.typelevel.discipline.specs2.mutable.Discipline
 
-class StateTIOSuite extends BaseSpec with Discipline {
+import munit.DisciplineSuite
 
-  sequential
+class StateTIOSuite extends BaseSuite with DisciplineSuite {
 
-  "StateT" should {
-    "execute finalizers" in ticked { implicit ticker =>
-      var guaranteed = false
+  ticked("execute finalizers") { implicit ticker =>
+    var guaranteed = false
 
-      val test = for {
-        _ <- StateT.set[IO, String]("state").guarantee(StateT.liftF(IO { guaranteed = true }))
-        g <- StateT.liftF(IO(guaranteed))
-      } yield g
+    val test = for {
+      _ <- StateT.set[IO, String]("state").guarantee(StateT.liftF(IO { guaranteed = true }))
+      g <- StateT.liftF(IO(guaranteed))
+    } yield g
 
-      test.runA("") must completeAs(true)
-    }
+    assertCompleteAs(test.runA(""), true)
+  }
 
-    "execute finalizers when doubly nested" in ticked { implicit ticker =>
-      var guaranteed = false
+  ticked("execute finalizers when doubly nested") { implicit ticker =>
+    var guaranteed = false
 
-      val test = for {
-        _ <- StateT
-          .set[OptionT[IO, *], String]("state")
-          .guarantee(StateT.liftF(OptionT.liftF(IO { guaranteed = true })))
-        g <- StateT.liftF(OptionT.liftF(IO(guaranteed)))
-      } yield g
+    val test = for {
+      _ <- StateT
+        .set[OptionT[IO, *], String]("state")
+        .guarantee(StateT.liftF(OptionT.liftF(IO { guaranteed = true })))
+      g <- StateT.liftF(OptionT.liftF(IO(guaranteed)))
+    } yield g
 
-      test.runA("").value must completeAs(Some(true))
-    }
+    assertCompleteAs(test.runA("").value, Some(true))
   }
 
   implicit def stateTEq[F[_]: FlatMap, S, A](
@@ -74,7 +70,6 @@ class StateTIOSuite extends BaseSpec with Discipline {
   {
     implicit val ticker = Ticker()
 
-    checkAll("StateT[IO]", SyncTests[StateT[IO, MiniInt, *]].sync[Int, Int, Int])(
-      Parameters(minTestsOk = 25))
+    checkAll("StateT[IO]", SyncTests[StateT[IO, MiniInt, *]].sync[Int, Int, Int])
   }
 }

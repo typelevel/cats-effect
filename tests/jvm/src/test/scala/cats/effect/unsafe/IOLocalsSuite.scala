@@ -17,39 +17,34 @@
 package cats.effect
 package unsafe
 
-class IOLocalsSuite extends BaseSpec {
+class IOLocalsSuite extends BaseSuite {
 
-  "IOLocals" should {
-    "return a default value" in real {
-      IOLocal(42)
-        .flatMap(local => IO(local.unsafeThreadLocal().get()))
-        .map(_ must beEqualTo(42))
-    }
+  real("return a default value") {
+    IOLocal(42).flatMap(local => IO(local.unsafeThreadLocal().get())).map(assertEquals(_, 42))
+  }
 
-    "return a set value" in real {
-      for {
-        local <- IOLocal(42)
-        threadLocal <- IO(local.unsafeThreadLocal())
-        _ <- local.set(24)
-        got <- IO(threadLocal.get())
-      } yield got must beEqualTo(24)
-    }
+  real("return a set value") {
+    for {
+      local <- IOLocal(42)
+      threadLocal <- IO(local.unsafeThreadLocal())
+      _ <- local.set(24)
+      got <- IO(threadLocal.get())
+    } yield assertEquals(got, 24)
+  }
 
-    "unsafely set" in real {
-      IOLocal(42).flatMap(local =>
-        IO(local.unsafeThreadLocal().set(24)) *> local.get.map(_ must beEqualTo(24)))
-    }
+  real("unsafely set") {
+    IOLocal(42).flatMap(local =>
+      IO(local.unsafeThreadLocal().set(24)) *> local.get.map(assertEquals(_, 24)))
+  }
 
-    "unsafely reset" in real {
-      for {
-        local <- IOLocal(42)
-        threadLocal <- IO(local.unsafeThreadLocal())
-        _ <- local.set(24)
-        _ <- IO(threadLocal.remove())
-        got <- local.get
-      } yield got must beEqualTo(42)
-    }
-
+  real("unsafely reset") {
+    for {
+      local <- IOLocal(42)
+      threadLocal <- IO(local.unsafeThreadLocal())
+      _ <- local.set(24)
+      _ <- IO(threadLocal.remove())
+      got <- local.get
+    } yield assertEquals(got, 42)
   }
 
 }

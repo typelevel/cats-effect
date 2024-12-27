@@ -25,71 +25,66 @@ import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 import cats.syntax.all._
 
-import org.scalacheck.{Cogen, Prop}
-import org.specs2.scalacheck.Parameters
-import org.typelevel.discipline.specs2.mutable.Discipline
+import org.scalacheck.{Cogen, Prop, Test}
 
 import scala.concurrent.duration._
 
-class KleisliIOSuite extends BaseSpec with Discipline {
+import munit.DisciplineSuite
 
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+class KleisliIOSuite extends BaseSuite with DisciplineSuite {
 
-  "Kleisli[IO, R, *]" >> {
-    "should be stack safe in long traverse chains" in ticked { implicit ticker =>
-      val N = 10000
+  ticked("should be stack safe in long traverse chains") { implicit ticker =>
+    val N = 10000
 
-      val test = for {
-        ref <- Ref[IO].of(0)
-        _ <- List.fill(N)(0).traverse_(_ => Kleisli.liftF(ref.update(_ + 1))).run("Go...")
-        v <- ref.get
-      } yield v
+    val test = for {
+      ref <- Ref[IO].of(0)
+      _ <- List.fill(N)(0).traverse_(_ => Kleisli.liftF(ref.update(_ + 1))).run("Go...")
+      v <- ref.get
+    } yield v
 
-      test must completeAs(N)
-    }
+    assertCompleteAs(test, N)
+  }
 
-    "should be stack safe in long parTraverse chains" in ticked { implicit ticker =>
-      val N = 10000
+  ticked("should be stack safe in long parTraverse chains") { implicit ticker =>
+    val N = 10000
 
-      val test = for {
-        ref <- Ref[IO].of(0)
-        _ <- List.fill(N)(0).parTraverse_(_ => Kleisli.liftF(ref.update(_ + 1))).run("Go...")
-        v <- ref.get
-      } yield v
+    val test = for {
+      ref <- Ref[IO].of(0)
+      _ <- List.fill(N)(0).parTraverse_(_ => Kleisli.liftF(ref.update(_ + 1))).run("Go...")
+      v <- ref.get
+    } yield v
 
-      test must completeAs(N)
-    }
+    assertCompleteAs(test, N)
+  }
 
-    "execute finalizers" in ticked { implicit ticker =>
-      type F[A] = Kleisli[IO, String, A]
+  ticked("execute finalizers") { implicit ticker =>
+    type F[A] = Kleisli[IO, String, A]
 
-      val test = for {
-        gate <- Deferred[F, Unit]
-        _ <- Kleisli.ask[IO, String].guarantee(gate.complete(()).void).start
-        _ <- gate.get
-      } yield ()
+    val test = for {
+      gate <- Deferred[F, Unit]
+      _ <- Kleisli.ask[IO, String].guarantee(gate.complete(()).void).start
+      _ <- gate.get
+    } yield ()
 
-      test.run("kleisli") must completeAs(())
-    }
+    assertCompleteAs(test.run("kleisli"), ())
+  }
 
-    "execute finalizers when doubly nested" in ticked { implicit ticker =>
-      type F[A] = Kleisli[OptionT[IO, *], String, A]
+  ticked("execute finalizers when doubly nested") { implicit ticker =>
+    type F[A] = Kleisli[OptionT[IO, *], String, A]
 
-      val test = for {
-        gate1 <- Deferred[F, Unit]
-        gate2 <- Deferred[F, Unit]
-        _ <- Kleisli.ask[OptionT[IO, *], String].guarantee(gate1.complete(()).void).start
-        _ <- Kleisli
-          .liftF[OptionT[IO, *], String, Unit](OptionT.none[IO, Unit])
-          .guarantee(gate2.complete(()).void)
-          .start
-        _ <- gate1.get
-        _ <- gate2.get
-      } yield ()
+    val test = for {
+      gate1 <- Deferred[F, Unit]
+      gate2 <- Deferred[F, Unit]
+      _ <- Kleisli.ask[OptionT[IO, *], String].guarantee(gate1.complete(()).void).start
+      _ <- Kleisli
+        .liftF[OptionT[IO, *], String, Unit](OptionT.none[IO, Unit])
+        .guarantee(gate2.complete(()).void)
+        .start
+      _ <- gate1.get
+      _ <- gate2.get
+    } yield ()
 
-      test.run("kleisli").value must completeAs(Some(()))
-    }
+    assertCompleteAs(test.run("kleisli").value, Some(()))
   }
 
   implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
@@ -114,13 +109,16 @@ class KleisliIOSuite extends BaseSpec with Discipline {
       implicit F: Cogen[A => F[B]]): Cogen[Kleisli[F, A, B]] =
     F.contramap(_.run)
 
+  override protected def scalaCheckTestParameters: Test.Parameters =
+    super.scalaCheckTestParameters.withMinSuccessfulTests(25)
+
   {
     implicit val ticker = Ticker()
 
     checkAll(
       "Kleisli[IO]",
       AsyncTests[Kleisli[IO, MiniInt, *]].async[Int, Int, Int](10.millis)
-    )(Parameters(minTestsOk = 25))
+    )
   }
 
 }

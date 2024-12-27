@@ -17,19 +17,21 @@
 package cats.effect
 package std
 
-class UUIDGenSuite extends BaseSpec {
+class UUIDGenSuite extends BaseSuite {
 
-  "UUIDGen" should {
-    "securely generate UUIDs" in real {
-      for {
-        left <- UUIDGen.randomUUID[IO]
-        right <- UUIDGen.randomUUID[IO]
-      } yield left != right
-    }
-    "use the correct variant and version" in real {
-      for {
-        uuid <- UUIDGen.randomUUID[IO]
-      } yield (uuid.variant should be_==(2)) and (uuid.version should be_==(4))
+  real("securely generate UUIDs") {
+    for {
+      left <- UUIDGen.randomUUID[IO]
+      right <- UUIDGen.randomUUID[IO]
+    } yield left != right
+  }
+
+  real("use the correct variant and version") {
+    for {
+      uuid <- UUIDGen.randomUUID[IO]
+    } yield {
+      assertEquals(uuid.variant, 2)
+      assertEquals(uuid.version, 4)
     }
   }
 

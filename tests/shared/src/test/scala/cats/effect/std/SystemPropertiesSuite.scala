@@ -17,23 +17,22 @@
 package cats.effect
 package std
 
-class SystemPropertiesSuite extends BaseSpec {
+class SystemPropertiesSuite extends BaseSuite {
 
-  "SystemProperties" should {
-    "retrieve a property just set" in real {
-      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
-        SystemProperties[IO].set(key, "bar") *>
-          SystemProperties[IO].get(key).flatMap(x => IO(x mustEqual Some("bar")))
-      }
-    }
-    "return none for a non-existent property" in real {
-      SystemProperties[IO].get("MADE_THIS_UP").flatMap(x => IO(x must beNone))
-    }
-    "clear" in real {
-      Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
-        SystemProperties[IO].set(key, "bar") *> SystemProperties[IO].clear(key) *>
-          SystemProperties[IO].get(key).flatMap(x => IO(x must beNone))
-      }
+  real("retrieve a property just set") {
+    Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
+      SystemProperties[IO].set(key, "bar") *>
+        SystemProperties[IO].get(key).flatMap(x => IO(assertEquals(x, Some("bar"))))
     }
   }
+  real("return none for a non-existent property") {
+    SystemProperties[IO].get("MADE_THIS_UP").flatMap(x => IO(assertEquals(x, None)))
+  }
+  real("clear") {
+    Random.javaUtilConcurrentThreadLocalRandom[IO].nextString(12).flatMap { key =>
+      SystemProperties[IO].set(key, "bar") *> SystemProperties[IO].clear(key) *>
+        SystemProperties[IO].get(key).flatMap(x => IO(assertEquals(x, None)))
+    }
+  }
+
 }

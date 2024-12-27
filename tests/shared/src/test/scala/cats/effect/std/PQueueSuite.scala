@@ -27,27 +27,21 @@ import cats.arrow.FunctionK
 import cats.implicits._
 
 import org.scalacheck.Arbitrary.arbitrary
-import org.specs2.specification.core.Fragments
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
 
-class BoundedPQueueSuite extends BaseSpec with PQueueTests {
+class BoundedPQueueSuite extends BaseSuite with PQueueTests {
 
   override def executionTimeout = 20.seconds
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 
-  "PQueue" should {
-    boundedPQueueTests(PQueue.bounded)
-  }
+  boundedPQueueTests("PQueue", PQueue.bounded)
+  boundedPQueueTests("PQueue mapK", PQueue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
 
-  "PQueue mapK" should {
-    boundedPQueueTests(PQueue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
-  }
-
-  private def boundedPQueueTests(constructor: Int => IO[PQueue[IO, Int]]): Fragments = {
-    "demonstrate offer and take with zero capacity" in real {
+  private def boundedPQueueTests(name: String, constructor: Int => IO[PQueue[IO, Int]]) = {
+    real("demonstrate offer and take with zero capacity") {
       for {
         q <- constructor(0)
         _ <- q.offer(1).start
@@ -55,26 +49,29 @@ class BoundedPQueueSuite extends BaseSpec with PQueueTests {
         f <- q.take.start
         _ <- q.offer(2)
         v2 <- f.joinWithNever
-        r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
+        r <- IO {
+          assertEquals(v1, 1)
+          assertEquals(v2, 2)
+        }
       } yield r
     }
 
-    "async take with zero capacity" in realWithRuntime { implicit rt =>
+    realWithRuntime("async take with zero capacity") { implicit rt =>
       for {
         q <- constructor(0)
         _ <- q.offer(1).start
         v1 <- q.take
-        _ <- IO(v1 must beEqualTo(1))
+        _ <- IO(assertEquals(v1, 1))
         ff <- IO(q.take.unsafeToFuture()).start
         f <- ff.joinWithNever
-        _ <- IO(f.value must beEqualTo(None))
+        _ <- IO(assertEquals(f.value, None))
         _ <- q.offer(2)
         v2 <- IO.fromFuture(IO.pure(f))
-        r <- IO(v2 must beEqualTo(2))
+        r <- IO(assertEquals(v2, 2))
       } yield r
     }
 
-    "offer/take with zero capacity" in real {
+    real("offer/take with zero capacity") {
       val count = 1000
 
       def producer(q: PQueue[IO, Int], n: Int): IO[Unit] =
@@ -97,61 +94,57 @@ class BoundedPQueueSuite extends BaseSpec with PQueueTests {
         c <- consumer(q, count).start
         _ <- p.join
         v <- c.joinWithNever
-        r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
+        r <- IO(assertEquals(v, count.toLong * (count - 1) / 2))
       } yield r
     }
 
-    negativeCapacityConstructionTests(constructor)
-    tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
-    cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
-    cancelableOfferBoundedTests(constructor, _.offer(_), _.take, _.tryTakeN(_))
-    cancelableTakeTests(constructor, _.offer(_), _.take)
-    tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
-    commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
-    dequeueInPriorityOrder(constructor)
-    batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
-    batchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
+    negativeCapacityConstructionTests(name, constructor)
+    tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
+    cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
+    cancelableOfferBoundedTests(name, constructor, _.offer(_), _.take, _.tryTakeN(_))
+    cancelableTakeTests(name, constructor, _.offer(_), _.take)
+    tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    dequeueInPriorityOrder(name, constructor)
+    batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
-class UnboundedPQueueSuite extends BaseSpec with PQueueTests {
-  sequential
+class UnboundedPQueueSuite extends BaseSuite with PQueueTests {
 
   override def executionTimeout = 20.seconds
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 
-  "UnboundedPQueue" should {
-    unboundedPQueueTests(PQueue.unbounded)
-  }
+  unboundedPQueueTests("UnboundedPQueue", PQueue.unbounded)
+  unboundedPQueueTests(
+    "UnboundedPQueue mapK",
+    PQueue.unbounded[IO, Int].map(_.mapK(FunctionK.id)))
 
-  "UnboundedPQueue mapK" should {
-    unboundedPQueueTests(PQueue.unbounded[IO, Int].map(_.mapK(FunctionK.id)))
-  }
-
-  private def unboundedPQueueTests(constructor: IO[PQueue[IO, Int]]): Fragments = {
-    tryOfferOnFullTests(_ => constructor, _.offer(_), _.tryOffer(_), true)
-    tryOfferTryTakeTests(_ => constructor, _.tryOffer(_), _.tryTake)
-    commonTests(_ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
-    dequeueInPriorityOrder(_ => constructor)
-    batchTakeTests(_ => constructor, _.offer(_), _.tryTakeN(_))
-    batchOfferTests(_ => constructor, _.tryOfferN(_), _.tryTakeN(_))
+  private def unboundedPQueueTests(name: String, constructor: IO[PQueue[IO, Int]]) = {
+    tryOfferOnFullTests(name, _ => constructor, _.offer(_), _.tryOffer(_), true)
+    tryOfferTryTakeTests(name, _ => constructor, _.tryOffer(_), _.tryTake)
+    commonTests(name, _ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    dequeueInPriorityOrder(name, _ => constructor)
+    batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, _ => constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
-trait PQueueTests extends QueueTests[PQueue] { self: BaseSpec =>
+trait PQueueTests extends QueueTests[PQueue] { self: BaseSuite =>
 
-  def dequeueInPriorityOrder(constructor: Int => IO[PQueue[IO, Int]]): Fragments = {
+  def dequeueInPriorityOrder(name: String, constructor: Int => IO[PQueue[IO, Int]]) = {
 
     /**
      * Hand-rolled scalacheck effect as we don't have that for CE3 yet
      */
-    "should dequeue in priority order" in realProp(arbitrary[List[Int]]) { in =>
+    realProp(s"$name - should dequeue in priority order", arbitrary[List[Int]]) { in =>
       for {
         q <- constructor(Int.MaxValue)
         _ <- in.traverse_(q.offer(_))
         out <- List.fill(in.length)(q.take).sequence
-        res <- IO(out must beEqualTo(in.sorted))
+        res <- IO(assertEquals(out, in.sorted))
       } yield res
     }
   }

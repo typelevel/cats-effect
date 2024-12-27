@@ -25,16 +25,16 @@ import cats.laws.discipline.{AlignTests, CommutativeApplicativeTests, ParallelTe
 import cats.laws.discipline.arbitrary.catsLawsCogenForIor
 import cats.syntax.all._
 
-import org.specs2.scalacheck._
-import org.typelevel.discipline.specs2.mutable.Discipline
+import org.scalacheck.Test
 
-class ParallelFSuite extends BaseSpec with Discipline with DetectPlatform {
+import munit.DisciplineSuite
 
-  implicit val params: Parameters =
-    if (isNative)
-      Parameters(minTestsOk = 5)
-    else
-      Parameters(minTestsOk = 100)
+class ParallelFSuite extends BaseSuite with DisciplineSuite with DetectPlatform {
+
+  override protected def scalaCheckTestParameters: Test.Parameters = {
+    if (isNative) super.scalaCheckTestParameters.withMinSuccessfulTests(5)
+    else super.scalaCheckTestParameters.withMinSuccessfulTests(100)
+  }
 
   def alleyEq[E, A: Eq]: Eq[PureConc[E, A]] = { (x, y) =>
     import Outcome._

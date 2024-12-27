@@ -25,31 +25,28 @@ import scala.util.Random
 
 import java.util.concurrent.CountDownLatch
 
-class BlockingStressSuite extends BaseSpec {
+class BlockingStressSuite extends BaseSuite {
 
   override def executionTimeout: FiniteDuration = 30.seconds
 
   // This test spawns a lot of helper threads.
   private val count = 1000
 
-  "Blocking" should {
-    "work properly with many blocking actions and helper threads" in realWithRuntime { rt =>
-      def io(latch: CountDownLatch) = for {
-        p <- IO(Promise[Unit]())
-        d1 <- IO(Random.nextInt(50))
-        d2 <- IO(Random.nextInt(100))
-        _ <- (IO.sleep(d1.millis) *> IO(
-          rt.scheduler.sleep(d2.millis, () => p.success(())))).start
-        _ <- IO(Await.result(p.future, Duration.Inf))
-        _ <- IO(blocking(latch.countDown()))
-      } yield ()
+  realWithRuntime("work properly with many blocking actions and helper threads") { rt =>
+    def io(latch: CountDownLatch) = for {
+      p <- IO(Promise[Unit]())
+      d1 <- IO(Random.nextInt(50))
+      d2 <- IO(Random.nextInt(100))
+      _ <- (IO.sleep(d1.millis) *> IO(rt.scheduler.sleep(d2.millis, () => p.success(())))).start
+      _ <- IO(Await.result(p.future, Duration.Inf))
+      _ <- IO(blocking(latch.countDown()))
+    } yield ()
 
-      for {
-        latch <- IO(new CountDownLatch(count))
-        _ <- List.fill(count)(io(latch).start.void).sequence.void
-        _ <- IO(blocking(latch.await()))
-        res <- IO(ok)
-      } yield res
-    }
+    for {
+      latch <- IO(new CountDownLatch(count))
+      _ <- List.fill(count)(io(latch).start.void).sequence.void
+      _ <- IO(blocking(latch.await()))
+    } yield ()
   }
+
 }

@@ -22,52 +22,46 @@ import cats.syntax.all._
 import scala.concurrent.{Await, Promise}
 import scala.concurrent.duration._
 
-class HelperThreadParkSuite extends BaseSpec {
+class HelperThreadParkSuite extends BaseSuite {
 
-  "HelperThread" should {
-    "not give up when fibers are late" in real {
-      def smallRuntime(): IORuntime = {
-        lazy val rt: IORuntime = {
-          val (blocking, blockDown) =
-            IORuntime.createDefaultBlockingExecutionContext(threadPrefix =
-              s"io-blocking-${getClass.getName}")
-          val (scheduler, schedDown) =
-            IORuntime.createDefaultScheduler(threadPrefix = s"io-scheduler-${getClass.getName}")
-          val (compute, _, compDown) =
-            IORuntime.createWorkStealingComputeThreadPool(
-              threadPrefix = s"io-compute-${getClass.getName}",
-              threads = 2)
+  real("not give up when fibers are late") {
+    def smallRuntime(): IORuntime = {
+      lazy val rt: IORuntime = {
+        val (blocking, blockDown) =
+          IORuntime.createDefaultBlockingExecutionContext(threadPrefix =
+            s"io-blocking-${getClass.getName}")
+        val (scheduler, schedDown) =
+          IORuntime.createDefaultScheduler(threadPrefix = s"io-scheduler-${getClass.getName}")
+        val (compute, _, compDown) =
+          IORuntime.createWorkStealingComputeThreadPool(
+            threadPrefix = s"io-compute-${getClass.getName}",
+            threads = 2)
 
-          IORuntime(
-            compute,
-            blocking,
-            scheduler,
-            { () =>
-              compDown()
-              blockDown()
-              schedDown()
-            },
-            IORuntimeConfig()
-          )
-        }
-
-        rt
+        IORuntime(
+          compute,
+          blocking,
+          scheduler,
+          { () =>
+            compDown()
+            blockDown()
+            schedDown()
+          },
+          IORuntimeConfig()
+        )
       }
 
-      Resource.make(IO(smallRuntime()))(rt => IO(rt.shutdown())).use { rt =>
-        val io = for {
-          p <- IO(Promise[Unit]())
-          _ <- (IO.sleep(50.millis) *> IO(
-            rt.scheduler.sleep(100.millis, () => p.success(())))).start
-          _ <- IO(Await.result(p.future, Duration.Inf))
-        } yield ()
+      rt
+    }
 
-        List
-          .fill(10)(io.start)
-          .sequence
-          .flatMap(_.traverse(_.joinWithNever))
-          .evalOn(rt.compute) >> IO(ok)
-      }
+    Resource.make(IO(smallRuntime()))(rt => IO(rt.shutdown())).use { rt =>
+      val io = for {
+        p <- IO(Promise[Unit]())
+        _ <- (IO.sleep(50.millis) *> IO(
+          rt.scheduler.sleep(100.millis, () => p.success(())))).start
+        _ <- IO(Await.result(p.future, Duration.Inf))
+      } yield ()
+
+      List.fill(10)(io.start).sequence.flatMap(_.traverse(_.joinWithNever)).evalOn(rt.compute)
     }
   }
 }

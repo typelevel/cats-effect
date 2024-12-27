@@ -19,32 +19,30 @@ package unsafe
 
 import cats.effect.std.Queue
 
-class DrainBatchSuite extends BaseSpec {
+class DrainBatchSuite extends BaseSuite {
 
-  "Batch draining" should {
-    "work correctly in the presence of concurrent stealers" in real {
-      val iterations = 500000
+  real("work correctly in the presence of concurrent stealers") {
+    val iterations = 500000
 
-      def catsEffectRepeat[A](n: Int)(io: IO[A]): IO[A] =
-        if (n <= 1) io
-        else io.flatMap(_ => catsEffectRepeat(n - 1)(io))
+    def catsEffectRepeat[A](n: Int)(io: IO[A]): IO[A] =
+      if (n <= 1) io
+      else io.flatMap(_ => catsEffectRepeat(n - 1)(io))
 
-      def iterate(deferred: Deferred[IO, Unit], n: Int): IO[Any] =
-        for {
-          ref <- IO.ref(n)
-          queue <- Queue.bounded[IO, Unit](1)
-          effect = queue.offer(()).start >>
-            queue.take >>
-            ref.modify(n => (n - 1, if (n == 1) deferred.complete(()) else IO.unit)).flatten
-          _ <- catsEffectRepeat(iterations)(effect.start)
-        } yield ()
-
+    def iterate(deferred: Deferred[IO, Unit], n: Int): IO[Any] =
       for {
-        deferred <- IO.deferred[Unit]
-        _ <- iterate(deferred, iterations).start
-        _ <- deferred.get
-        res <- IO(ok)
-      } yield res
-    }
+        ref <- IO.ref(n)
+        queue <- Queue.bounded[IO, Unit](1)
+        effect = queue.offer(()).start >>
+          queue.take >>
+          ref.modify(n => (n - 1, if (n == 1) deferred.complete(()) else IO.unit)).flatten
+        _ <- catsEffectRepeat(iterations)(effect.start)
+      } yield ()
+
+    for {
+      deferred <- IO.deferred[Unit]
+      _ <- iterate(deferred, iterations).start
+      _ <- deferred.get
+    } yield ()
   }
+
 }

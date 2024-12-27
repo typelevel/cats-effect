@@ -20,8 +20,6 @@ package effect
 import cats.effect.syntax.all._
 import cats.syntax.all._
 
-import org.specs2.execute._
-
 import scala.concurrent.duration._
 
 class ContSuite extends ContSpecBase {
@@ -34,18 +32,18 @@ class DefaultContSuite extends ContSpecBase {
     Async.defaultCont(body)
 }
 
-trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
+trait ContSpecBase extends BaseSuite with ContSpecBasePlatform { outer =>
 
   def cont[K, R](body: Cont[IO, K, R]): IO[R]
 
-  def execute(io: IO[?], times: Int, i: Int = 0): IO[Success] = {
-    if (i == times) IO(success)
+  def execute(io: IO[?], times: Int, i: Int = 0): IO[Unit] = {
+    if (i == times) IO.unit
     else io >> execute(io, times, i + 1)
   }
 
   type Cancelable[F[_]] = MonadCancel[F, Throwable]
 
-  "get resumes" in real {
+  real("get resumes") {
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
@@ -54,12 +52,12 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual "42"))
+    val test = io.flatMap(r => IO(assertEquals(r, "42")))
 
     execute(test, iterations)
   }
 
-  "callback resumes" in realWithRuntime { rt =>
+  realWithRuntime("callback resumes") { rt =>
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
@@ -70,12 +68,12 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual "42"))
+    val test = io.flatMap(r => IO(assertEquals(r, "42")))
 
     execute(test, 100)
   }
 
-  "get can be canceled" in real {
+  real("get can be canceled") {
     def never =
       cont {
         new Cont[IO, Int, String] {
@@ -89,7 +87,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     execute(io, iterations)
   }
 
-  "nondeterministic cancelation corner case: get running finalisers " in real {
+  real("nondeterministic cancelation corner case: get running finalisers ") {
     import kernel._
 
     def wait(syncLatch: Ref[IO, Boolean]): IO[Unit] =
@@ -109,7 +107,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     execute(io, iterations)
   }
 
-  "get within onCancel - 1" in realWithRuntime { rt =>
+  realWithRuntime("get within onCancel - 1") { rt =>
     val flag = Ref[IO].of(false)
 
     val io =
@@ -127,10 +125,10 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
           }.timeoutTo(1.second, ().pure[IO]) >> (start.get, end.get).tupled
       }
 
-    io.flatMap { r => IO(r mustEqual true -> true) }
+    io.flatMap { r => IO(assertEquals(r, true -> true)) }
   }
 
-  "get within onCancel - 2" in realWithRuntime { rt =>
+  realWithRuntime("get within onCancel - 2") { rt =>
     val flag = Ref[IO].of(false)
 
     val io =
@@ -148,10 +146,10 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
           }.timeoutTo(1.second, ().pure[IO]) >> (start.get, end.get).tupled
       }
 
-    io.flatMap { r => IO(r mustEqual true -> true) }
+    io.flatMap { r => IO(assertEquals(r, true -> true)) }
   }
 
-  "get exclusively within onCancel" in realWithRuntime { rt =>
+  realWithRuntime("get exclusively within onCancel") { rt =>
     val test = cont {
       new Cont[IO, Unit, Unit] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
@@ -161,10 +159,10 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
       }
     }
 
-    test.timeoutTo(500.millis, IO.unit).as(ok)
+    test.timeoutTo(500.millis, IO.unit)
   }
 
-  "get is idempotent - 1" in real {
+  real("get is idempotent - 1") {
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
@@ -173,12 +171,12 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual "42"))
+    val test = io.flatMap(r => IO(assertEquals(r, "42")))
 
     execute(test, iterations)
   }
 
-  "get is idempotent - 2" in realWithRuntime { rt =>
+  realWithRuntime("get is idempotent - 2") { rt =>
     val io = cont {
       new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
@@ -189,7 +187,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual "42"))
+    val test = io.flatMap(r => IO(assertEquals(r, "42")))
 
     execute(test, 100)
   }

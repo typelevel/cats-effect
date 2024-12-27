@@ -18,104 +18,98 @@ package cats
 package effect
 package std
 
-import org.specs2.specification.core.Fragments
-
 import scala.concurrent.duration._
 
-final class AtomicCellSuite extends BaseSpec {
-  "AsyncAtomicCell" should {
-    tests(AtomicCell.async)
-  }
+final class AtomicCellSuite extends BaseSuite {
 
-  "ConcurrentAtomicCell" should {
-    tests(AtomicCell.concurrent)
-  }
+  tests("AsyncAtomicCell", AtomicCell.async)
+  tests("ConcurrentAtomicCell", AtomicCell.concurrent)
 
-  def tests(factory: Int => IO[AtomicCell[IO, Int]]): Fragments = {
-    "AtomicCell" should {
-      "get and set successfully" in real {
-        val op = for {
-          cell <- factory(0)
-          getAndSetResult <- cell.getAndSet(1)
-          getResult <- cell.get
-        } yield getAndSetResult == 0 && getResult == 1
+  def tests(name: String, factory: Int => IO[AtomicCell[IO, Int]]) = {
 
-        op.mustEqual(true)
-      }
+    real(s"$name get and set successfully") {
+      val op = for {
+        cell <- factory(0)
+        getAndSetResult <- cell.getAndSet(1)
+        getResult <- cell.get
+      } yield getAndSetResult == 0 && getResult == 1
 
-      "get and update successfully" in real {
-        val op = for {
-          cell <- factory(0)
-          getAndUpdateResult <- cell.getAndUpdate(_ + 1)
-          getResult <- cell.get
-        } yield getAndUpdateResult == 0 && getResult == 1
-
-        op.mustEqual(true)
-      }
-
-      "update and get successfully" in real {
-        val op = for {
-          cell <- factory(0)
-          updateAndGetResult <- cell.updateAndGet(_ + 1)
-          getResult <- cell.get
-        } yield updateAndGetResult == 1 && getResult == 1
-
-        op.mustEqual(true)
-      }
-
-      "evalModify successfully" in ticked { implicit ticker =>
-        val op = factory(0).flatMap { cell =>
-          cell.evalModify { x =>
-            val y = x + 1
-            IO.sleep(1.second).as((y, (x, y)))
-          } map {
-            case (oldValue, newValue) =>
-              oldValue == 0 && newValue == 1
-          }
-        }
-
-        op must completeAs(true)
-      }
-
-      "evalUpdate should block and cancel should release" in ticked { implicit ticker =>
-        val op = for {
-          cell <- factory(0)
-          b <- cell.evalUpdate(x => IO.never.as(x + 1)).start
-          _ <- IO.sleep(1.second)
-          f <- cell.update(_ + 3).start
-          _ <- IO.sleep(1.second)
-          _ <- f.cancel
-          _ <- IO.sleep(1.second)
-          _ <- b.cancel
-          _ <- IO.sleep(1.second)
-          _ <- cell.update(_ + 1)
-          r <- cell.get
-        } yield r == 1
-
-        op must completeAs(true)
-      }
-
-      "evalModify should properly suspend read" in ticked { implicit ticker =>
-        val op = for {
-          cell <- factory(0)
-          _ <- cell.update(_ + 1).replicateA_(2)
-          r <- cell.get
-        } yield r == 2
-
-        op must completeAs(true)
-      }
-
-      "get should not block during concurrent modification" in ticked { implicit ticker =>
-        val op = for {
-          cell <- factory(0)
-          gate <- IO.deferred[Unit]
-          _ <- cell.evalModify(_ => gate.complete(()) *> IO.never).start
-          _ <- gate.get
-          r <- cell.get
-        } yield r == 0
-
-        op must completeAs(true)
-      }
+      op.mustEqual(true)
     }
+
+    real(s"$name get and update successfully") {
+      val op = for {
+        cell <- factory(0)
+        getAndUpdateResult <- cell.getAndUpdate(_ + 1)
+        getResult <- cell.get
+      } yield getAndUpdateResult == 0 && getResult == 1
+
+      op.mustEqual(true)
+    }
+
+    real(s"$name update and get successfully") {
+      val op = for {
+        cell <- factory(0)
+        updateAndGetResult <- cell.updateAndGet(_ + 1)
+        getResult <- cell.get
+      } yield updateAndGetResult == 1 && getResult == 1
+
+      op.mustEqual(true)
+    }
+
+    ticked(s"$name evalModify successfully") { implicit ticker =>
+      val op = factory(0).flatMap { cell =>
+        cell.evalModify { x =>
+          val y = x + 1
+          IO.sleep(1.second).as((y, (x, y)))
+        } map {
+          case (oldValue, newValue) =>
+            oldValue == 0 && newValue == 1
+        }
+      }
+
+      assertCompleteAs(op, true)
+    }
+
+    ticked(s"$name evalUpdate should block and cancel should release") { implicit ticker =>
+      val op = for {
+        cell <- factory(0)
+        b <- cell.evalUpdate(x => IO.never.as(x + 1)).start
+        _ <- IO.sleep(1.second)
+        f <- cell.update(_ + 3).start
+        _ <- IO.sleep(1.second)
+        _ <- f.cancel
+        _ <- IO.sleep(1.second)
+        _ <- b.cancel
+        _ <- IO.sleep(1.second)
+        _ <- cell.update(_ + 1)
+        r <- cell.get
+      } yield r == 1
+
+      assertCompleteAs(op, true)
+    }
+
+    ticked(s"$name evalModify should properly suspend read") { implicit ticker =>
+      val op = for {
+        cell <- factory(0)
+        _ <- cell.update(_ + 1).replicateA_(2)
+        r <- cell.get
+      } yield r == 2
+
+      assertCompleteAs(op, true)
+    }
+
+    ticked(s"$name get should not block during concurrent modification") { implicit ticker =>
+      val op = for {
+        cell <- factory(0)
+        gate <- IO.deferred[Unit]
+        _ <- cell.evalModify(_ => gate.complete(()) *> IO.never).start
+        _ <- gate.get
+        r <- cell.get
+      } yield r == 0
+
+      assertCompleteAs(op, true)
+    }
+
   }
 }

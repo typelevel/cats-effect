@@ -17,15 +17,13 @@
 package cats.effect
 package std
 
-class ConsoleJSSuite extends BaseSpec {
+class ConsoleJSSuite extends BaseSuite {
 
-  "Console" should {
-    "work in any JS environment" in real {
-      Console[IO].println("printing") *> Console[IO].errorln("erroring") *> IO(true)
-    }
-    "println should not hang for large strings" in real {
-      Console[IO].println("foo" * 10000).as(true)
-    }
+  real("work in any JS environment") {
+    Console[IO].println("printing") *> Console[IO].errorln("erroring") *> IO(true)
+  }
+  real("println should not hang for large strings") {
+    Console[IO].println("foo" * 10000).as(true)
   }
 
 }

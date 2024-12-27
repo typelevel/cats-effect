@@ -21,31 +21,30 @@ import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-class BackpressureSuite extends BaseSpec {
+class BackpressureSuite extends BaseSuite {
 
-  "Backpressure" should {
-    "Lossy Strategy should return IO[None] when no permits are available" in ticked {
-      implicit ticker =>
-        val test = for {
-          backpressure <- Backpressure[IO](Backpressure.Strategy.Lossy, 1)
-          never = backpressure.metered(IO.never)
-          lost <- IO.race(never, never)
-        } yield lost.fold(identity, identity).isEmpty
+  ticked("Lossy Strategy should return IO[None] when no permits are available") {
+    implicit ticker =>
+      val test = for {
+        backpressure <- Backpressure[IO](Backpressure.Strategy.Lossy, 1)
+        never = backpressure.metered(IO.never)
+        lost <- IO.race(never, never)
+      } yield lost.fold(identity, identity).isEmpty
 
-        test must completeAs(true)
-    }
-
-    "Lossless Strategy should complete effects even when no permits are available" in ticked {
-      implicit ticker =>
-        val test = for {
-          backpressure <- Backpressure[IO](Backpressure.Strategy.Lossless, 1)
-          f1 <- backpressure.metered(IO.sleep(1.second) *> 1.pure[IO]).start
-          f2 <- backpressure.metered(IO.sleep(1.second) *> 2.pure[IO]).start
-          res1 <- f1.joinWithNever
-          res2 <- f2.joinWithNever
-        } yield (res1, res2)
-
-        test must completeAs((Some(1), Some(2)))
-    }
+      assertCompleteAs(test, true)
   }
+
+  ticked("Lossless Strategy should complete effects even when no permits are available") {
+    implicit ticker =>
+      val test = for {
+        backpressure <- Backpressure[IO](Backpressure.Strategy.Lossless, 1)
+        f1 <- backpressure.metered(IO.sleep(1.second) *> 1.pure[IO]).start
+        f2 <- backpressure.metered(IO.sleep(1.second) *> 2.pure[IO]).start
+        res1 <- f1.joinWithNever
+        res2 <- f2.joinWithNever
+      } yield (res1, res2)
+
+      assertCompleteAs(test, (Some(1), Some(2)))
+  }
+
 }

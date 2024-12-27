@@ -17,43 +17,34 @@
 package cats.effect
 package unsafe
 
-import scala.util.Try
+class IORuntimeConfigSuite extends BaseSuite {
 
-class IORuntimeConfigSuite extends BaseSpec {
+  test("Reject invalid values of cancelation check- and auto yield threshold") {
+    intercept[IllegalArgumentException](
+      IORuntimeConfig(cancelationCheckThreshold = -1, autoYieldThreshold = -1))
+    intercept[IllegalArgumentException](
+      IORuntimeConfig(cancelationCheckThreshold = -1, autoYieldThreshold = -2))
+    intercept[IllegalArgumentException](
+      IORuntimeConfig(cancelationCheckThreshold = 0, autoYieldThreshold = 2))
+    intercept[IllegalArgumentException](
+      IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 1))
+    intercept[IllegalArgumentException](
+      IORuntimeConfig(cancelationCheckThreshold = 2, autoYieldThreshold = 3))
+    intercept[IllegalArgumentException](
+      IORuntimeConfig(cancelationCheckThreshold = 4, autoYieldThreshold = 2))
+    // these are fine:
+    IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2)
+    IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 3)
+    IORuntimeConfig(cancelationCheckThreshold = 2, autoYieldThreshold = 2)
+    IORuntimeConfig(cancelationCheckThreshold = 2, autoYieldThreshold = 4)
+  }
 
-  "IORuntimeConfig" should {
-
-    "Reject invalid values of cancelation check- and auto yield threshold" in {
-      Try(
-        IORuntimeConfig(
-          cancelationCheckThreshold = -1,
-          autoYieldThreshold = -1)) must beFailedTry
-      Try(
-        IORuntimeConfig(
-          cancelationCheckThreshold = -1,
-          autoYieldThreshold = -2)) must beFailedTry
-      Try(
-        IORuntimeConfig(cancelationCheckThreshold = 0, autoYieldThreshold = 2)) must beFailedTry
-      Try(
-        IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 1)) must beFailedTry
-      Try(
-        IORuntimeConfig(cancelationCheckThreshold = 2, autoYieldThreshold = 3)) must beFailedTry
-      Try(
-        IORuntimeConfig(cancelationCheckThreshold = 4, autoYieldThreshold = 2)) must beFailedTry
-      // these are fine:
-      IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2)
-      IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 3)
-      IORuntimeConfig(cancelationCheckThreshold = 2, autoYieldThreshold = 2)
-      IORuntimeConfig(cancelationCheckThreshold = 2, autoYieldThreshold = 4)
-      ok
-    }
-
-    "Reject invalid values even in the copy method" in {
-      val cfg = IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2)
-      Try(cfg.copy(cancelationCheckThreshold = 0)) must beFailedTry
-      Try(cfg.copy(cancelationCheckThreshold = -1)) must beFailedTry
-      Try(cfg.copy(autoYieldThreshold = 1)) must beFailedTry
-      Try(cfg.copy(cancelationCheckThreshold = 2, autoYieldThreshold = 3)) must beFailedTry
-    }
+  test("Reject invalid values even in the copy method") {
+    val cfg = IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2)
+    intercept[IllegalArgumentException](cfg.copy(cancelationCheckThreshold = 0))
+    intercept[IllegalArgumentException](cfg.copy(cancelationCheckThreshold = -1))
+    intercept[IllegalArgumentException](cfg.copy(autoYieldThreshold = 1))
+    intercept[IllegalArgumentException](
+      cfg.copy(cancelationCheckThreshold = 2, autoYieldThreshold = 3))
   }
 }

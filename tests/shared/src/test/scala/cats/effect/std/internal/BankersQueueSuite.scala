@@ -22,43 +22,47 @@
 package cats.effect
 package std.internal
 
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.{Arbitrary, Gen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
-import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
 
-class BankersQueueSuite extends Specification with ScalaCheck {
+import munit.ScalaCheckSuite
 
-  "bankers queue" should {
-    /*
-     * frontLen <= rebalanceConstant * backLen + 1
-     * backLen <= rebalanceConstant * = frontLen + 1
-     */
-    "maintain size invariants" in prop { (ops: List[Op[Int]]) =>
+class BankersQueueSuite extends ScalaCheckSuite {
+
+  /*
+   * frontLen <= rebalanceConstant * backLen + 1
+   * backLen <= rebalanceConstant * = frontLen + 1
+   */
+  property("maintain size invariants") {
+    Prop.forAll { (ops: List[Op[Int]]) =>
       val queue = Op.fold(ops)
 
-      queue.frontLen must beLessThanOrEqualTo(
-        queue.backLen * BankersQueue.rebalanceConstant + 1)
-      queue.backLen must beLessThanOrEqualTo(
-        queue.frontLen * BankersQueue.rebalanceConstant + 1)
+      assert(queue.frontLen <= queue.backLen * BankersQueue.rebalanceConstant + 1)
+      assert(queue.backLen <= queue.frontLen * BankersQueue.rebalanceConstant + 1)
     }
+  }
 
-    "dequeue in order from front" in prop { (elems: List[Int]) =>
+  property("dequeue in order from front") {
+    Prop.forAll { (elems: List[Int]) =>
       val queue = buildQueue(elems)
 
-      toListFromFront(queue) must beEqualTo(elems)
+      assertEquals(toListFromFront(queue), elems)
     }
+  }
 
-    "dequeue in order from back" in prop { (elems: List[Int]) =>
+  property("dequeue in order from back") {
+    Prop.forAll { (elems: List[Int]) =>
       val queue = buildQueue(elems)
 
-      toListFromBack(queue) must beEqualTo(elems.reverse)
+      assertEquals(toListFromBack(queue), elems.reverse)
     }
+  }
 
-    "reverse" in prop { (elems: List[Int]) =>
+  property("reverse") {
+    Prop.forAll { (elems: List[Int]) =>
       val queue = buildQueue(elems)
 
-      toListFromFront(queue.reverse) must beEqualTo(elems.reverse)
+      assertEquals(toListFromFront(queue.reverse), elems.reverse)
     }
   }
 

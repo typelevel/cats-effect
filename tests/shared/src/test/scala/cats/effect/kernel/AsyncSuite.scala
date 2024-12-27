@@ -26,17 +26,15 @@ import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.concurrent.duration._
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-class AsyncSuite extends BaseSpec with Discipline {
+import munit.DisciplineSuite
 
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+class AsyncSuite extends BaseSuite with DisciplineSuite {
 
   {
     implicit val ticker = Ticker()
@@ -47,77 +45,70 @@ class AsyncSuite extends BaseSpec with Discipline {
     ) /*(Parameters(seed = Some(Seed.fromBase64("ZxDXpm7_3Pdkl-Fvt8M90Cxfam9wKuzcifQ1QsIJxND=").get)))*/
   }
 
-  "fromFuture" should {
-    "backpressure on cancelation" in real {
-      // a non-cancelable, never-completing Future
-      def mkf() = Promise[Unit]().future
+  real("fromFuture should backpressure on cancelation") {
+    // a non-cancelable, never-completing Future
+    def mkf() = Promise[Unit]().future
 
-      def go = for {
-        started <- IO(new AtomicBoolean)
-        fiber <- IO.fromFuture {
-          IO {
-            started.set(true)
-            mkf()
-          }
-        }.start
-        _ <- IO.cede.whileM_(IO(!started.get))
-        _ <- fiber.cancel
-      } yield ()
+    def go = for {
+      started <- IO(new AtomicBoolean)
+      fiber <- IO.fromFuture {
+        IO {
+          started.set(true)
+          mkf()
+        }
+      }.start
+      _ <- IO.cede.whileM_(IO(!started.get))
+      _ <- fiber.cancel
+    } yield ()
 
-      TestControl
-        .executeEmbed(go, IORuntimeConfig(1, 2))
-        .as(false)
-        .recover { case _: TestControl.NonTerminationException => true }
-        .replicateA(100)
-        .map(_.forall(identity(_)))
-    }
+    TestControl
+      .executeEmbed(go, IORuntimeConfig(1, 2))
+      .as(false)
+      .recover { case _: TestControl.NonTerminationException => true }
+      .replicateA(100)
+      .map(_.forall(identity(_)))
+  }
+
+  real("fromFutureCancelable should cancel on fiber cancelation") {
+    val smallDelay: IO[Unit] = IO.sleep(10.millis)
+    def mkf() = Promise[Unit]().future
+
+    val go = for {
+      canceled <- IO(new AtomicBoolean)
+      fiber <- IO.fromFutureCancelable {
+        IO(mkf()).map(f => f -> IO(canceled.set(true)))
+      }.start
+      _ <- smallDelay
+      _ <- fiber.cancel
+      res <- IO(assert(canceled.get()))
+    } yield res
+
+    TestControl.executeEmbed(go, IORuntimeConfig(1, 2)).replicateA(1000)
 
   }
 
-  "fromFutureCancelable" should {
+  real("fromFutureCancelable should backpressure on cancelation") {
+    // a non-cancelable, never-completing Future
+    def mkf() = Promise[Unit]().future
 
-    "cancel on fiber cancelation" in real {
-      val smallDelay: IO[Unit] = IO.sleep(10.millis)
-      def mkf() = Promise[Unit]().future
+    val go = for {
+      started <- IO(new AtomicBoolean)
+      fiber <- IO.fromFutureCancelable {
+        IO {
+          started.set(true)
+          mkf()
+        }.map(f => f -> IO.never)
+      }.start
+      _ <- IO.cede.whileM_(IO(!started.get))
+      _ <- fiber.cancel
+    } yield ()
 
-      val go = for {
-        canceled <- IO(new AtomicBoolean)
-        fiber <- IO.fromFutureCancelable {
-          IO(mkf()).map(f => f -> IO(canceled.set(true)))
-        }.start
-        _ <- smallDelay
-        _ <- fiber.cancel
-        res <- IO(canceled.get() mustEqual true)
-      } yield res
-
-      TestControl.executeEmbed(go, IORuntimeConfig(1, 2)).replicateA(1000)
-
-    }
-
-    "backpressure on cancelation" in real {
-      // a non-cancelable, never-completing Future
-      def mkf() = Promise[Unit]().future
-
-      val go = for {
-        started <- IO(new AtomicBoolean)
-        fiber <- IO.fromFutureCancelable {
-          IO {
-            started.set(true)
-            mkf()
-          }.map(f => f -> IO.never)
-        }.start
-        _ <- IO.cede.whileM_(IO(!started.get))
-        _ <- fiber.cancel
-      } yield ()
-
-      TestControl
-        .executeEmbed(go, IORuntimeConfig(1, 2))
-        .as(false)
-        .recover { case _: TestControl.NonTerminationException => true }
-        .replicateA(1000)
-        .map(_.forall(identity(_)))
-    }
-
+    TestControl
+      .executeEmbed(go, IORuntimeConfig(1, 2))
+      .as(false)
+      .recover { case _: TestControl.NonTerminationException => true }
+      .replicateA(1000)
+      .map(_.forall(identity(_)))
   }
 
   final class AsyncIO[A](val io: IO[A])

@@ -17,6 +17,7 @@
 package cats.effect.std
 
 import cats.effect.kernel.{Async, Concurrent, Deferred, GenConcurrent, Ref, Sync}
+
 import munit.FunSuite
 
 class SyntaxSpec extends FunSuite {

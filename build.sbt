@@ -324,7 +324,6 @@ ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.11.0"
 val CatsMtlVersion = "1.3.1"
-val Specs2Version = "4.20.5"
 val ScalaCheckVersion = "1.17.1"
 val CoopVersion = "1.2.0"
 val MUnitVersion = "1.0.0-M11"
@@ -944,10 +943,6 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-
-      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test,
-      "org.typelevel" %%% "discipline-specs2" % "1.4.0" % Test,
-
       "org.scalameta" %%% "munit" % MUnitVersion % Test,
       "org.scalameta" %%% "munit-scalacheck" % MUnitScalaCheckVersion % Test,
       "org.typelevel" %%% "discipline-munit" % DisciplineMUnitVersion % Test,
@@ -974,7 +969,7 @@ def configureIOAppTests(p: Project): Project =
   p.enablePlugins(NoPublishPlugin, BuildInfoPlugin)
     .settings(
       Test / unmanagedSourceDirectories += (LocalRootProject / baseDirectory).value / "ioapp-tests" / "src" / "test" / "scala",
-      libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test,
+      libraryDependencies += "org.scalameta" %%% "munit" % MUnitVersion % Test,
       buildInfoPackage := "cats.effect",
       buildInfoKeys ++= Seq(
         "jsRunner" -> (tests.js / Compile / fastOptJS / artifactPath).value,

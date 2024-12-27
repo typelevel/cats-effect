@@ -18,60 +18,57 @@ package cats.effect
 package unsafe
 
 import org.scalacheck.Prop.forAll
-import org.specs2.ScalaCheck
 
 import scala.collection.mutable.{ListBuffer, Queue}
 
-class JSArrayQueueSuite extends BaseSpec with ScalaCheck {
+import munit.ScalaCheckSuite
 
-  "JSArrayQueue" should {
-    "be fifo" in {
-      forAll { (stuff: List[Option[Int]]) =>
-        val queue = new JSArrayQueue[Int]
-        val taken = new ListBuffer[Int]
+class JSArrayQueueSuite extends BaseSuite with ScalaCheckSuite {
 
-        stuff.foreach {
-          case Some(i) => queue.offer(i)
-          case None =>
-            if (!queue.isEmpty()) taken += queue.take()
-        }
+  test("be fifo") {
+    forAll { (stuff: List[Option[Int]]) =>
+      val queue = new JSArrayQueue[Int]
+      val taken = new ListBuffer[Int]
 
-        while (!queue.isEmpty()) taken += queue.take()
-
-        taken.toList must beEqualTo(stuff.flatten)
+      stuff.foreach {
+        case Some(i) => queue.offer(i)
+        case None =>
+          if (!queue.isEmpty()) taken += queue.take()
       }
+
+      while (!queue.isEmpty()) taken += queue.take()
+
+      assertEquals(taken.toList, stuff.flatten)
     }
+  }
 
-    "iterate over contents in foreach" in {
-      forAll { (stuff: List[Option[Int]]) =>
-        val queue = new JSArrayQueue[Int]
-        val shadow = new Queue[Int]
+  test("iterate over contents in foreach") {
+    forAll { (stuff: List[Option[Int]]) =>
+      val queue = new JSArrayQueue[Int]
+      val shadow = new Queue[Int]
 
-        def checkContents() = {
-          val builder = List.newBuilder[Int]
-          queue.foreach(builder += _)
-          builder.result() must beEqualTo(shadow.toList)
-        }
+      def checkContents() = {
+        val builder = List.newBuilder[Int]
+        queue.foreach(builder += _)
+        assertEquals(builder.result(), shadow.toList)
+      }
 
-        checkContents()
+      checkContents()
 
-        stuff.foreach {
-          case Some(i) =>
-            queue.offer(i)
-            shadow.enqueue(i)
+      stuff.foreach {
+        case Some(i) =>
+          queue.offer(i)
+          shadow.enqueue(i)
+          checkContents()
+        case None =>
+          if (!shadow.isEmpty) {
+            val got = queue.take()
+            val expected = shadow.dequeue()
+            assertEquals(got, expected)
             checkContents()
-          case None =>
-            if (!shadow.isEmpty) {
-              val got = queue.take()
-              val expected = shadow.dequeue()
-              got must beEqualTo(expected)
-              checkContents()
-            } else {
-              ok
-            }
-        }
-
-        ok
+          } else {
+            ()
+          }
       }
     }
   }

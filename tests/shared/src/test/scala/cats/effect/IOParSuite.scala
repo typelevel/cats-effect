@@ -22,12 +22,9 @@ import cats.laws.discipline.{AlignTests, CommutativeApplicativeTests, ParallelTe
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 
-import org.typelevel.discipline.specs2.mutable.Discipline
+import munit.DisciplineSuite
 
-class IOParSuite extends BaseSpec with Discipline {
-
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+class IOParSuite extends BaseSuite with DisciplineSuite {
 
   // an alley-eq
   implicit override def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] = { (x, y) =>

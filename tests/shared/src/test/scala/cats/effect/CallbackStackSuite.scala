@@ -16,40 +16,36 @@
 
 package cats.effect
 
-class CallbackStackSuite extends BaseSpec with DetectPlatform {
+class CallbackStackSuite extends BaseSuite with DetectPlatform {
 
-  "CallbackStack" should {
-    "correctly report the number removed" in {
-      val stack = CallbackStack.of[Unit](null)
-      val handle = stack.push(_ => ())
-      stack.push(_ => ())
-      val removed = stack.clearHandle(handle)
-      if (removed)
-        stack.pack(1) mustEqual 0
-      else
-        stack.pack(1) mustEqual 1
+  test("correctly report the number removed") {
+    val stack = CallbackStack.of[Unit](null)
+    val handle = stack.push(_ => ())
+    stack.push(_ => ())
+    val removed = stack.clearHandle(handle)
+    if (removed)
+      assertEquals(stack.pack(1), 0)
+    else
+      assertEquals(stack.pack(1), 1)
+  }
+
+  real("handle race conditions in pack") {
+
+    IO(CallbackStack.of[Unit](null)).flatMap { stack =>
+      val pushClearPack = for {
+        handle <- IO(stack.push(_ => ()))
+        removed <- IO(stack.clearHandle(handle))
+        packed <- IO(stack.pack(1))
+      } yield (if (removed) 1 else 0) + packed
+
+      val concurrency = Math.max(2, Runtime.getRuntime().availableProcessors())
+
+      pushClearPack
+        .parReplicateA(concurrency)
+        .product(IO(stack.pack(1)))
+        .flatMap { case (xs, y) => IO(assertEquals(xs.sum + y, concurrency)) }
+        .replicateA_(if (isJS || isNative) 1 else 1000)
     }
-
-    "handle race conditions in pack" in real {
-
-      IO(CallbackStack.of[Unit](null)).flatMap { stack =>
-        val pushClearPack = for {
-          handle <- IO(stack.push(_ => ()))
-          removed <- IO(stack.clearHandle(handle))
-          packed <- IO(stack.pack(1))
-        } yield (if (removed) 1 else 0) + packed
-
-        val concurrency = Math.max(2, Runtime.getRuntime().availableProcessors())
-
-        pushClearPack
-          .parReplicateA(concurrency)
-          .product(IO(stack.pack(1)))
-          .flatMap { case (xs, y) => IO((xs.sum + y) mustEqual concurrency) }
-          .replicateA_(if (isJS || isNative) 1 else 1000)
-          .as(ok)
-      }
-    }
-
   }
 
 }

@@ -16,19 +16,17 @@
 
 package cats.effect
 
-import org.specs2.ScalaCheck
+trait IOPlatformSuite { self: BaseSuite with munit.ScalaCheckSuite =>
 
-trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
-
-  def platformSpecs = "platform" should {
-    "realTimeInstant should return an Instant constructed from realTime" in ticked {
+  def platformTests() = {
+    ticked("realTimeInstant should return an Instant constructed from realTime") {
       implicit ticker =>
         val op = for {
           now <- IO.realTimeInstant
           realTime <- IO.realTime
         } yield now.toEpochMilli == realTime.toMillis
 
-        op must completeAs(true)
+        assertCompleteAs(op, true)
     }
   }
 }

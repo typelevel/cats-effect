@@ -16,23 +16,20 @@
 
 package cats.effect.unsafe
 
-import cats.effect.BaseSpec
+import cats.effect.BaseSuite
 
-class IORuntimeSuite extends BaseSpec {
+class IORuntimeSuite extends BaseSuite {
 
-  "IORuntimeSpec" should {
-    "cleanup allRuntimes collection on shutdown" in {
-      val (defaultScheduler, closeScheduler) = Scheduler.createDefaultScheduler()
+  test("cleanup allRuntimes collection on shutdown") {
+    val (defaultScheduler, closeScheduler) = Scheduler.createDefaultScheduler()
 
-      val runtime = IORuntime(null, null, defaultScheduler, closeScheduler, IORuntimeConfig())
+    val runtime = IORuntime(null, null, defaultScheduler, closeScheduler, IORuntimeConfig())
 
-      IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime) must beEqualTo(Some(runtime))
+    assertEquals(IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime), Some(runtime))
 
-      val _ = runtime.shutdown()
+    val _ = runtime.shutdown()
 
-      IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime) must beEqualTo(None)
-    }
-
+    assertEquals(IORuntime.allRuntimes.unsafeHashtable().find(_ == runtime), None)
   }
 
 }

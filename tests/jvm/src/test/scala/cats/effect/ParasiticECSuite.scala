@@ -23,26 +23,24 @@ import org.scalacheck.Arbitrary
 
 import scala.concurrent.duration._
 
-class ParasiticECSuite extends BaseSpec with TestInstances {
+class ParasiticECSuite extends BaseSuite with TestInstances {
 
   override def executionTimeout: FiniteDuration = 60.seconds
 
-  "IO monad" should {
-    "evaluate fibers correctly in presence of a parasitic execution context" in real {
-      val test = {
-        implicit val ticker = Ticker()
+  real("evaluate fibers correctly in presence of a parasitic execution context") {
+    val test = {
+      implicit val ticker = Ticker()
 
-        IO(implicitly[Arbitrary[IO[Int]]].arbitrary.sample.get).flatMap { io =>
-          IO.delay(io.eqv(io))
-        }
+      IO(implicitly[Arbitrary[IO[Int]]].arbitrary.sample.get).flatMap { io =>
+        IO.delay(io.eqv(io))
       }
+    }
 
-      val iterations = 15000
+    val iterations = 15000
 
-      List.fill(iterations)(test).sequence.map(_.count(identity)).flatMap { c =>
-        IO {
-          c mustEqual iterations
-        }
+    List.fill(iterations)(test).sequence.map(_.count(identity)).flatMap { c =>
+      IO {
+        assertEquals(c, iterations)
       }
     }
   }

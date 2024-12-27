@@ -22,7 +22,7 @@ import cats.syntax.traverse._
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 
-class StripedHashtableSuite extends BaseSpec {
+class StripedHashtableSuite extends BaseSuite {
 
   override def executionTimeout: FiniteDuration = 2.minutes
 
@@ -35,37 +35,35 @@ class StripedHashtableSuite extends BaseSpec {
       IORuntimeConfig()
     )
 
-  "StripedHashtable" should {
-    "work correctly in the presence of many unsafeRuns" in real {
-      val iterations = 10000
+  real("work correctly in the presence of many unsafeRuns") {
+    val iterations = 10000
 
-      object Boom extends RuntimeException("Boom!")
+    object Boom extends RuntimeException("Boom!")
 
-      def io(n: Int): IO[Unit] =
-        (n % 3) match {
-          case 0 => IO.unit
-          case 1 => IO.canceled
-          case 2 => IO.raiseError[Unit](Boom)
-        }
+    def io(n: Int): IO[Unit] =
+      (n % 3) match {
+        case 0 => IO.unit
+        case 1 => IO.canceled
+        case 2 => IO.raiseError[Unit](Boom)
+      }
 
-      Resource.make(IO(hashtableRuntime()))(rt => IO(rt.shutdown())).use { rt =>
-        IO(new CountDownLatch(iterations)).flatMap { counter =>
-          (0 until iterations)
-            .toList
-            .traverse { n => IO(io(n).unsafeRunAsync { _ => counter.countDown() }(rt)) }
-            .flatMap { _ => IO.fromFuture(IO.delay(counter.await())) }
-            .flatMap { _ =>
-              IO.blocking {
-                rt.fiberErrorCbs.synchronized {
-                  rt.fiberErrorCbs.tables.forall { table =>
-                    // check that each component hashtable of the larger striped
-                    // hashtable is empty and has shrunk to its initial capacity
-                    table.isEmpty && table.unsafeCapacity() == table.unsafeInitialCapacity()
-                  } mustEqual true
-                }
+    Resource.make(IO(hashtableRuntime()))(rt => IO(rt.shutdown())).use { rt =>
+      IO(new CountDownLatch(iterations)).flatMap { counter =>
+        (0 until iterations)
+          .toList
+          .traverse { n => IO(io(n).unsafeRunAsync { _ => counter.countDown() }(rt)) }
+          .flatMap { _ => IO.fromFuture(IO.delay(counter.await())) }
+          .flatMap { _ =>
+            IO.blocking {
+              rt.fiberErrorCbs.synchronized {
+                assert(rt.fiberErrorCbs.tables.forall { table =>
+                  // check that each component hashtable of the larger striped
+                  // hashtable is empty and has shrunk to its initial capacity
+                  table.isEmpty && table.unsafeCapacity() == table.unsafeInitialCapacity()
+                })
               }
             }
-        }
+          }
       }
     }
   }

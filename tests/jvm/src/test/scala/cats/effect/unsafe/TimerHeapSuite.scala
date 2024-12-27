@@ -16,9 +16,9 @@
 
 package cats.effect.unsafe
 
-import org.specs2.mutable.Specification
+import cats.effect.BaseSuite
 
-class TimerHeapSuite extends Specification {
+class TimerHeapSuite extends BaseSuite {
 
   /**
    * Creates a new callback, making sure it's a separate object
@@ -34,121 +34,117 @@ class TimerHeapSuite extends Specification {
   private val cb4 = newCb()
   private val cb5 = newCb()
 
-  "TimerHeap" should {
+  test("correctly insert / pollFirstIfTriggered") {
+    val m = new TimerHeap
+    val out = new Array[Right[Nothing, Unit] => Unit](1)
+    assert(m.pollFirstIfTriggered(Long.MinValue) eq null)
+    assert(m.pollFirstIfTriggered(Long.MaxValue) eq null)
+    assertEquals(m.toString, "TimerHeap()")
 
-    "correctly insert / pollFirstIfTriggered" in {
-      val m = new TimerHeap
-      val out = new Array[Right[Nothing, Unit] => Unit](1)
-      m.pollFirstIfTriggered(Long.MinValue) must beNull
-      m.pollFirstIfTriggered(Long.MaxValue) must beNull
-      m.toString mustEqual "TimerHeap()"
+    m.insert(0L, 0L, cb0, out)
+    assert(out(0) eq null)
+    assertEquals(m.toString, "TimerHeap(...)")
+    assert(m.pollFirstIfTriggered(Long.MinValue + 1) eq null)
+    assertEquals(m.pollFirstIfTriggered(Long.MaxValue), cb0)
+    assert(m.pollFirstIfTriggered(Long.MaxValue) eq null)
+    assert(m.pollFirstIfTriggered(Long.MinValue) eq null)
 
-      m.insert(0L, 0L, cb0, out)
-      out(0) must beNull
-      m.toString mustEqual "TimerHeap(...)"
-      m.pollFirstIfTriggered(Long.MinValue + 1) must beNull
-      m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb0
-      m.pollFirstIfTriggered(Long.MaxValue) must beNull
-      m.pollFirstIfTriggered(Long.MinValue) must beNull
-
-      m.insert(0L, 10L, cb0, out)
-      out(0) must beNull
-      m.insert(0L, 30L, cb1, out)
-      out(0) must beNull
-      m.insert(0L, 0L, cb2, out)
-      out(0) must beNull
-      m.insert(0L, 20L, cb3, out)
-      out(0) mustEqual cb2
-      m.pollFirstIfTriggered(-1L) must beNull
-      m.pollFirstIfTriggered(0L) must beNull
-      m.pollFirstIfTriggered(10L) mustEqual cb0
-      m.pollFirstIfTriggered(10L) must beNull
-      m.pollFirstIfTriggered(20L) mustEqual cb3
-      m.pollFirstIfTriggered(20L) must beNull
-      m.pollFirstIfTriggered(30L) mustEqual cb1
-      m.pollFirstIfTriggered(30L) must beNull
-      m.pollFirstIfTriggered(Long.MaxValue) must beNull
-    }
-
-    "correctly insert / remove (cancel)" in {
-      val m = new TimerHeap
-      val out = new Array[Right[Nothing, Unit] => Unit](1)
-      val r0 = m.insert(0L, 1L, cb0, out)
-      out(0) must beNull
-      val r1 = m.insert(0L, 2L, cb1, out)
-      out(0) must beNull
-      val r5 = m.insert(0L, 6L, cb5, out)
-      out(0) must beNull
-      val r4 = m.insert(0L, 5L, cb4, out)
-      out(0) must beNull
-      val r2 = m.insert(0L, 3L, cb2, out)
-      out(0) must beNull
-      val r3 = m.insert(0L, 4L, cb3, out)
-      out(0) must beNull
-
-      m.peekFirstQuiescent() mustEqual cb0
-      m.peekFirstTriggerTime() mustEqual 1L
-      r0.run()
-      m.peekFirstTriggerTime() mustEqual 2L
-      m.peekFirstQuiescent() mustEqual cb1
-      m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb1
-      m.peekFirstQuiescent() mustEqual cb2
-      m.peekFirstTriggerTime() mustEqual 3L
-      r1.run() // NOP
-      r3.run()
-      m.packIfNeeded()
-      m.peekFirstQuiescent() mustEqual cb2
-      m.peekFirstTriggerTime() mustEqual 3L
-      m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb2
-      m.peekFirstQuiescent() mustEqual cb4
-      m.peekFirstTriggerTime() mustEqual 5L
-      m.pollFirstIfTriggered(Long.MaxValue) mustEqual cb4
-      m.peekFirstQuiescent() mustEqual cb5
-      m.peekFirstTriggerTime() mustEqual 6L
-      r2.run()
-      r5.run()
-      m.packIfNeeded()
-      m.peekFirstQuiescent() must beNull
-      m.peekFirstTriggerTime() mustEqual Long.MinValue
-      m.pollFirstIfTriggered(Long.MaxValue) must beNull
-      r4.run() // NOP
-      m.packIfNeeded()
-      m.pollFirstIfTriggered(Long.MaxValue) must beNull
-    }
-
-    "behave correctly when nanoTime wraps around" in {
-      val m = new TimerHeap
-      val startFrom = Long.MaxValue - 100L
-      var nanoTime = startFrom
-      val removers = new Array[Runnable](200)
-      val callbacksBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
-      val triggeredBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
-      for (i <- 0 until 200) {
-        if (i >= 10 && i % 2 == 0) removers(i - 10).run()
-        val cb = newCb()
-        val out = new Array[Right[Nothing, Unit] => Unit](1)
-        val r = m.insert(nanoTime, 10L, cb, out)
-        triggeredBuilder ++= Option(out(0))
-        removers(i) = r
-        callbacksBuilder += cb
-        nanoTime += 1L
-      }
-      for (idx <- 190 until removers.size by 2) {
-        removers(idx).run()
-      }
-      nanoTime += 100L
-      val callbacks = callbacksBuilder.result()
-      while ({
-        val cb = m.pollFirstIfTriggered(nanoTime)
-        triggeredBuilder ++= Option(cb)
-        cb ne null
-      }) {}
-      val triggered = triggeredBuilder.result()
-
-      val nonCanceled = callbacks.grouped(2).map(_.last).toVector
-      triggered should beEqualTo(nonCanceled)
-
-      ok
-    }
+    m.insert(0L, 10L, cb0, out)
+    assert(out(0) eq null)
+    m.insert(0L, 30L, cb1, out)
+    assert(out(0) eq null)
+    m.insert(0L, 0L, cb2, out)
+    assert(out(0) eq null)
+    m.insert(0L, 20L, cb3, out)
+    assertEquals(out(0), cb2)
+    assert(m.pollFirstIfTriggered(-1L) eq null)
+    assert(m.pollFirstIfTriggered(0L) eq null)
+    assertEquals(m.pollFirstIfTriggered(10L), cb0)
+    assert(m.pollFirstIfTriggered(10L) eq null)
+    assertEquals(m.pollFirstIfTriggered(20L), cb3)
+    assert(m.pollFirstIfTriggered(20L) eq null)
+    assertEquals(m.pollFirstIfTriggered(30L), cb1)
+    assert(m.pollFirstIfTriggered(30L) eq null)
+    assert(m.pollFirstIfTriggered(Long.MaxValue) eq null)
   }
+
+  test("correctly insert / remove (cancel)") {
+    val m = new TimerHeap
+    val out = new Array[Right[Nothing, Unit] => Unit](1)
+    val r0 = m.insert(0L, 1L, cb0, out)
+    assert(out(0) eq null)
+    val r1 = m.insert(0L, 2L, cb1, out)
+    assert(out(0) eq null)
+    val r5 = m.insert(0L, 6L, cb5, out)
+    assert(out(0) eq null)
+    val r4 = m.insert(0L, 5L, cb4, out)
+    assert(out(0) eq null)
+    val r2 = m.insert(0L, 3L, cb2, out)
+    assert(out(0) eq null)
+    val r3 = m.insert(0L, 4L, cb3, out)
+    assert(out(0) eq null)
+
+    assertEquals(m.peekFirstQuiescent(), cb0)
+    assertEquals(m.peekFirstTriggerTime(), 1L)
+    r0.run()
+    assertEquals(m.peekFirstTriggerTime(), 2L)
+    assertEquals(m.peekFirstQuiescent(), cb1)
+    assertEquals(m.pollFirstIfTriggered(Long.MaxValue), cb1)
+    assertEquals(m.peekFirstQuiescent(), cb2)
+    assertEquals(m.peekFirstTriggerTime(), 3L)
+    r1.run() // NOP
+    r3.run()
+    m.packIfNeeded()
+    assertEquals(m.peekFirstQuiescent(), cb2)
+    assertEquals(m.peekFirstTriggerTime(), 3L)
+    assertEquals(m.pollFirstIfTriggered(Long.MaxValue), cb2)
+    assertEquals(m.peekFirstQuiescent(), cb4)
+    assertEquals(m.peekFirstTriggerTime(), 5L)
+    assertEquals(m.pollFirstIfTriggered(Long.MaxValue), cb4)
+    assertEquals(m.peekFirstQuiescent(), cb5)
+    assertEquals(m.peekFirstTriggerTime(), 6L)
+    r2.run()
+    r5.run()
+    m.packIfNeeded()
+    assert(m.peekFirstQuiescent() eq null)
+    assertEquals(m.peekFirstTriggerTime(), Long.MinValue)
+    assert(m.pollFirstIfTriggered(Long.MaxValue) eq null)
+    r4.run() // NOP
+    m.packIfNeeded()
+    assert(m.pollFirstIfTriggered(Long.MaxValue) eq null)
+  }
+
+  test("behave correctly when nanoTime wraps around") {
+    val m = new TimerHeap
+    val startFrom = Long.MaxValue - 100L
+    var nanoTime = startFrom
+    val removers = new Array[Runnable](200)
+    val callbacksBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
+    val triggeredBuilder = Vector.newBuilder[Right[Nothing, Unit] => Unit]
+    for (i <- 0 until 200) {
+      if (i >= 10 && i % 2 == 0) removers(i - 10).run()
+      val cb = newCb()
+      val out = new Array[Right[Nothing, Unit] => Unit](1)
+      val r = m.insert(nanoTime, 10L, cb, out)
+      triggeredBuilder ++= Option(out(0))
+      removers(i) = r
+      callbacksBuilder += cb
+      nanoTime += 1L
+    }
+    for (idx <- 190 until removers.size by 2) {
+      removers(idx).run()
+    }
+    nanoTime += 100L
+    val callbacks = callbacksBuilder.result()
+    while ({
+      val cb = m.pollFirstIfTriggered(nanoTime)
+      triggeredBuilder ++= Option(cb)
+      cb ne null
+    }) {}
+    val triggered = triggeredBuilder.result()
+
+    val nonCanceled = callbacks.grouped(2).map(_.last).toVector
+    assertEquals(triggered, nonCanceled)
+  }
+
 }

@@ -19,81 +19,79 @@ package cats.effect
 import cats.arrow.FunctionK
 import cats.syntax.eq._
 
-class ResourceJVMSuite extends BaseSpec {
+class ResourceJVMSuite extends BaseSuite {
 
-  "platform" should {
+  /**
+   * Recursively calls itself until a [[StackOverflowError]] is encountered, at which point, the
+   * current depth is returned.
+   *
+   * @return
+   *   the stack depth at which [[StackOverflowError]] occurs
+   */
+  def verifyThatSoeIsReproducibleWithStackDepth(): Int = {
+    var depth = 0
 
-    /**
-     * Recursively calls itself until a [[StackOverflowError]] is encountered, at which point,
-     * the current depth is returned.
-     *
-     * @return
-     *   the stack depth at which [[StackOverflowError]] occurs
-     */
-    def verifyThatSoeIsReproducibleWithStackDepth(): Int = {
-      var depth = 0
-
-      def triggerStackOverflowError(n: Int): Int = {
-        depth = n
-        n + triggerStackOverflowError(n + 1)
-      }
-
-      try triggerStackOverflowError(0)
-      catch {
-        case _: StackOverflowError => depth
-      }
+    def triggerStackOverflowError(n: Int): Int = {
+      depth = n
+      n + triggerStackOverflowError(n + 1)
     }
 
-    "verify use is stack-safe over binds" in ticked { implicit ticker =>
-      val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
-      val r = (0 to stackDepth)
-        .foldLeft(Resource.eval(IO.unit)) {
-          case (r, _) =>
-            r.flatMap(_ => Resource.eval(IO.unit))
-        }
-        .use_
-      r eqv IO.unit
-    }
-
-    "verify use is stack-safe over binds - 2" in real {
-      val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
-      def p(i: Int): Resource[IO, Int] =
-        Resource
-          .pure {
-            if (i < stackDepth) Left(i + 1)
-            else Right(i)
-          }
-          .flatMap {
-            case Left(a) => p(a)
-            case Right(b) => Resource.pure(b)
-          }
-
-      p(0).use(IO.pure).mustEqual(stackDepth)
-    }
-
-    "verify mapK is stack-safe over binds" in ticked { implicit ticker =>
-      val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
-      val r = (0 to stackDepth)
-        .foldLeft(Resource.eval(IO.unit)) {
-          case (r, _) =>
-            r.flatMap(_ => Resource.eval(IO.unit))
-        }
-        .mapK(FunctionK.id)
-        .use_
-
-      r eqv IO.unit
-    }
-
-    "verify attempt is stack-safe over binds" in ticked { implicit ticker =>
-      val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
-      val r = (0 to stackDepth)
-        .foldLeft(Resource.eval(IO.unit)) {
-          case (r, _) =>
-            r.flatMap(_ => Resource.eval(IO.unit))
-        }
-        .attempt
-
-      r.use_ must completeAs(())
+    try triggerStackOverflowError(0)
+    catch {
+      case _: StackOverflowError => depth
     }
   }
+
+  ticked("verify use is stack-safe over binds") { implicit ticker =>
+    val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
+    val r = (0 to stackDepth)
+      .foldLeft(Resource.eval(IO.unit)) {
+        case (r, _) =>
+          r.flatMap(_ => Resource.eval(IO.unit))
+      }
+      .use_
+    r eqv IO.unit
+  }
+
+  real("verify use is stack-safe over binds - 2") {
+    val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
+    def p(i: Int): Resource[IO, Int] =
+      Resource
+        .pure {
+          if (i < stackDepth) Left(i + 1)
+          else Right(i)
+        }
+        .flatMap {
+          case Left(a) => p(a)
+          case Right(b) => Resource.pure(b)
+        }
+
+    p(0).use(IO.pure).mustEqual(stackDepth)
+  }
+
+  ticked("verify mapK is stack-safe over binds") { implicit ticker =>
+    val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
+    val r = (0 to stackDepth)
+      .foldLeft(Resource.eval(IO.unit)) {
+        case (r, _) =>
+          r.flatMap(_ => Resource.eval(IO.unit))
+      }
+      .mapK(FunctionK.id)
+      .use_
+
+    r eqv IO.unit
+  }
+
+  ticked("verify attempt is stack-safe over binds") { implicit ticker =>
+    val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
+    val r = (0 to stackDepth)
+      .foldLeft(Resource.eval(IO.unit)) {
+        case (r, _) =>
+          r.flatMap(_ => Resource.eval(IO.unit))
+      }
+      .attempt
+
+    assertCompleteAs(r.use_, ())
+  }
+
 }

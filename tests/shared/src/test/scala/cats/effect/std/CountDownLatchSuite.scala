@@ -26,73 +26,78 @@ import cats.arrow.FunctionK
 import cats.effect.kernel.Outcome.Canceled
 import cats.implicits._
 
-import org.specs2.specification.core.Fragments
-
 import scala.concurrent.duration._
 
 import java.util.concurrent.TimeoutException
 
-class CountDownLatchSuite extends BaseSpec {
+class CountDownLatchSuite extends BaseSuite {
 
-  "CountDownLatch" should {
-    boundedQueueTests("CountDownLatch", CountDownLatch.apply[IO])
-    boundedQueueTests(
-      "CountDownLatch mapK",
-      CountDownLatch.apply[IO](_).map(_.mapK(FunctionK.id)))
-  }
+  boundedQueueTests("CountDownLatch", CountDownLatch.apply[IO])
+  boundedQueueTests(
+    "CountDownLatch mapK",
+    CountDownLatch.apply[IO](_).map(_.mapK(FunctionK.id)))
 
-  private def boundedQueueTests(
-      name: String,
-      constructor: Int => IO[CountDownLatch[IO]]): Fragments = {
+  private def boundedQueueTests(name: String, constructor: Int => IO[CountDownLatch[IO]]) = {
 
-    s"$name - should raise an exception when constructed with negative initial latches" in real {
+    real(s"$name - should raise an exception when constructed with negative initial latches") {
       val test = IO.defer(constructor(-1)).attempt
       test.flatMap { res =>
         IO {
-          res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
+          res match {
+            case Left(e) => assert(e.isInstanceOf[IllegalArgumentException])
+            case Right(v) => fail(s"Expected Left, got $v")
+          }
         }
       }
     }
 
-    s"$name - should raise an exception when constructed with zero initial latches" in real {
+    real(s"$name - should raise an exception when constructed with zero initial latches") {
       val test = IO.defer(constructor(0)).attempt
       test.flatMap { res =>
         IO {
-          res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
+          res match {
+            case Left(e) => assert(e.isInstanceOf[IllegalArgumentException])
+            case Right(v) => fail(s"Expected Left, got $v")
+          }
         }
       }
     }
 
-    s"$name - release and then await should complete" in real {
+    real(s"$name - release and then await should complete") {
       for {
         l <- constructor(1)
         _ <- l.release
         r <- l.await
-        res <- IO(r must beEqualTo(()))
+        res <- IO(assertEquals(r, ()))
       } yield res
     }
 
-    s"$name - await and then release should complete" in real {
+    real(s"$name - await and then release should complete") {
       for {
         l <- constructor(1)
         f <- l.await.start
         _ <- IO.sleep(1.milli)
         _ <- l.release
         r <- f.joinWithNever
-        res <- IO(r must beEqualTo(()))
+        res <- IO(assertEquals(r, ()))
       } yield res
     }
 
-    s"$name - await with > 1 latch unreleased should block" in real {
+    real(s"$name - await with > 1 latch unreleased should block") {
       for {
         l <- constructor(2)
         _ <- l.release
         r <- l.await.timeout(5.millis).attempt
-        res <- IO(r must beLike { case Left(e) => e must haveClass[TimeoutException] })
+        res <- IO {
+          r match {
+            case Left(e) => assert(e.isInstanceOf[TimeoutException])
+            case Right(v) => fail(s"Expected Left, got $v")
+          }
+        }
       } yield res
     }
 
-    s"$name - multiple awaits should all complete" in real {
+    real(s"$name - multiple awaits should all complete") {
       for {
         l <- constructor(1)
         f1 <- l.await.start
@@ -100,27 +105,27 @@ class CountDownLatchSuite extends BaseSpec {
         _ <- IO.sleep(1.milli)
         _ <- l.release
         r <- (f1.joinWithNever, f2.joinWithNever).tupled
-        res <- IO(r must beEqualTo(((), ())))
+        res <- IO(assertEquals(r, ((), ())))
       } yield res
     }
 
-    s"$name - should release when latches == 0" in real {
+    real(s"$name - should release when latches == 0") {
       for {
         l <- constructor(1)
         _ <- l.release
         r <- l.release
-        res <- IO(r must beEqualTo(()))
+        res <- IO(assertEquals(r, ()))
       } yield res
     }
 
-    s"$name - blocking is cancelable" in real {
+    real(s"$name - blocking is cancelable") {
       for {
         l <- constructor(1)
         fib <- l.await.start
         _ <- IO.sleep(1.milli)
         _ <- fib.cancel
         oc <- fib.join
-        res <- IO(oc must beEqualTo(Canceled()))
+        res <- IO(assertEquals(oc, Canceled(): Outcome[IO, Throwable, Unit]))
       } yield res
     }
   }

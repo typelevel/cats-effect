@@ -23,54 +23,56 @@ package cats.effect.std.internal
 
 import cats.Order
 
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.{Arbitrary, Gen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
-import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
 
-class BinomialHeapSuite extends Specification with ScalaCheck {
+import munit.ScalaCheckSuite
+
+class BinomialHeapSuite extends ScalaCheckSuite {
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 
-  "Binomial heap" should {
-
-    "dequeue by priority" in prop { (elems: List[Int]) =>
+  property("dequeue by priority") {
+    Prop.forAll { (elems: List[Int]) =>
       val heap = buildHeap(elems)
 
-      toList(heap) must beEqualTo(elems.sorted)
+      assertEquals(toList(heap), elems.sorted)
     }
+  }
 
-    /**
-     * The root of a heap must be <= any of its children and all of its children must also be
-     * heaps
-     */
-    "maintain the heap property" in prop { (ops: List[Op[Int]]) =>
+  /**
+   * The root of a heap must be <= any of its children and all of its children must also be
+   * heaps
+   */
+  property("maintain the heap property") {
+    Prop.forAll { (ops: List[Op[Int]]) =>
       val heap = Op.toHeap(ops)
 
-      heap.trees.forall(validHeap(_)) must beTrue
+      assert(heap.trees.forall(validHeap(_)))
     }
+  }
 
-    /**
-     * The rank of the top-level trees should be strictly monotonically increasing, where the
-     * rank of a tree is defined as the height of the tree ie the number of nodes on the longest
-     * path from the root to a leaf. There is one binomial tree for each nonzero bit in the
-     * binary representation of the number of elements n
-     *
-     * The children of a top-level tree of rank i should be trees of monotonically decreasing
-     * rank i-1, i-2, ..., 1
-     */
-    "maintain correct subtree ranks" in prop { (ops: List[Op[Int]]) =>
+  /**
+   * The rank of the top-level trees should be strictly monotonically increasing, where the rank
+   * of a tree is defined as the height of the tree ie the number of nodes on the longest path
+   * from the root to a leaf. There is one binomial tree for each nonzero bit in the binary
+   * representation of the number of elements n
+   *
+   * The children of a top-level tree of rank i should be trees of monotonically decreasing rank
+   * i-1, i-2, ..., 1
+   */
+  property("maintain correct subtree ranks") {
+    Prop.forAll { (ops: List[Op[Int]]) =>
       val heap = Op.toHeap(ops)
 
       var currentRank = 0
       heap.trees.forall { t =>
         val r = rank(t)
-        r must beGreaterThan(currentRank)
+        assert(r > currentRank)
         currentRank = r
         checkRank(r, t)
       }
     }
-
   }
 
   /**

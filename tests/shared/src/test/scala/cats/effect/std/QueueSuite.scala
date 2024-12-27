@@ -25,136 +25,121 @@ package std
 import cats.arrow.FunctionK
 import cats.syntax.all._
 
-import org.specs2.execute.Result
-import org.specs2.specification.core.Fragments
-
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
 
-class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatform {
+class BoundedQueueSuite extends BaseSuite with QueueTests[Queue] with DetectPlatform {
 
-  "BoundedQueue (concurrent)" should {
-    boundedQueueTests(i => if (i == 0) Queue.synchronous else Queue.boundedForConcurrent(i))
-  }
+  boundedQueueTests(
+    "BoundedQueue (concurrent)",
+    i => if (i == 0) Queue.synchronous else Queue.boundedForConcurrent(i))
+  boundedQueueTests("BoundedQueue (async)", Queue.bounded)
 
-  "BoundedQueue (async)" should {
-    boundedQueueTests(Queue.bounded)
-  }
-
-  "BoundedQueue (unsafe)" should {
-    "permit tryOffer when empty" in real {
-      Queue.unsafeBounded[IO, Int](1024) flatMap { q =>
-        for {
-          attempt <- IO(q.unsafeTryOffer(42))
-          _ <- IO(attempt must beTrue)
-          i <- q.take
-          _ <- IO(i mustEqual 42)
-        } yield ok
-      }
-    }
-
-    "forbid tryOffer when full" in real {
-      Queue.unsafeBounded[IO, Int](8) flatMap { q =>
-        for {
-          _ <- 0.until(8).toList.traverse_(q.offer(_))
-          attempt <- IO(q.unsafeTryOffer(42))
-          _ <- IO(attempt must beFalse)
-        } yield ok
-      }
-    }
-  }
-
-  "BoundedQueue constructor" should {
-    "not OOM" in real {
-      Queue.bounded[IO, Unit](Int.MaxValue).as(true)
-    }
-  }
-
-  "BoundedQueue mapK" should {
-    boundedQueueTests(Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
-  }
-
-  "synchronous queue" should {
-    "respect fifo order" in ticked { implicit ticker =>
-      val test = for {
-        q <- Queue.synchronous[IO, Int]
-
-        _ <- 0.until(5).toList traverse_ { i =>
-          val f = for {
-            _ <- IO.sleep(i.second)
-            _ <- q.offer(i)
-          } yield ()
-
-          f.start
-        }
-
-        _ <- IO.sleep(5.seconds)
-        result <- q.take.replicateA(5)
-      } yield result
-
-      test must completeAs(0.until(5).toList)
-    }
-
-    "not lose offer when taker is canceled during exchange" in real {
-      val test = for {
-        q <- Queue.synchronous[IO, Unit]
-        latch <- CountDownLatch[IO](2)
-        offererDone <- IO.ref(false)
-
-        _ <- (latch.release *> latch.await *> q.offer(()))
-          .guarantee(offererDone.set(true))
-          .start
-        taker <- (latch.release *> latch.await *> q.take).start
-
-        _ <- latch.await
-        _ <- taker.cancel
-
-        // we should either have received the value successfully, or we left the value in queue
-        // what we *don't* want is to remove the value and then lose it due to cancelation
-        oc <- taker.join
-
-        _ <-
-          if (oc.isCanceled) {
-            // we (maybe) hit the race condition
-            // if we lost the value, q.take will hang
-            offererDone.get.flatMap(b => IO(b must beFalse)) *> q.take
-          } else {
-            // we definitely didn't hit the race condition, because we got the value in taker
-            IO.unit
-          }
-      } yield ok
-
-      test.parReplicateA_(if (isJVM) 10000 else 1).as(ok)
-    }
-
-    "not lose takers when offerer is canceled and there are no other takers" in real {
-      val test = for {
-        q <- Queue.synchronous[IO, Unit]
-
-        latch1 <- IO.deferred[Unit]
-        offerer <- IO.uncancelable(p => latch1.complete(()) >> p(q.offer(()))).start
-        _ <- latch1.get
-
-        // take and cancel the offerer at the same time
-        // the race condition we're going for is *simultaneous*
-        // failing to repeat the race is likely, in which case the
-        // offerer will be canceled before we finish registering the take
-        taker <- IO.both(q.take, offerer.cancel).start
-
-        // if we failed the race condition above, this offer will unblock the take
-        // if we succeeded in replicating the race, this offer will have no taker
-        // with the bug, this will timeout since both will block
-        // with the bug fix, either the join will return immediately, or it will
-        // be unblocked by the offer
-        _ <- IO.race(taker.joinWithNever, q.offer(()).delayBy(500.millis))
+  real("BoundedQueue (unsafe) - permit tryOffer when empty") {
+    Queue.unsafeBounded[IO, Int](1024) flatMap { q =>
+      for {
+        attempt <- IO(q.unsafeTryOffer(42))
+        _ <- IO(assert(attempt))
+        i <- q.take
+        _ <- IO(assertEquals(i, 42))
       } yield ()
-
-      test.parReplicateA(if (isJS || isNative) 1 else 1000).as(ok)
     }
   }
 
-  private def boundedQueueTests(constructor: Int => IO[Queue[IO, Int]]): Fragments = {
-    "demonstrate offer and take with zero capacity" in real {
+  real("BoundedQueue (unsafe) - forbid tryOffer when full") {
+    Queue.unsafeBounded[IO, Int](8) flatMap { q =>
+      for {
+        _ <- 0.until(8).toList.traverse_(q.offer(_))
+        attempt <- IO(q.unsafeTryOffer(42))
+        _ <- IO(assert(!attempt))
+      } yield ()
+    }
+  }
+
+  real("BoundedQueue constructor - not OOM") {
+    Queue.bounded[IO, Unit](Int.MaxValue).as(true)
+  }
+
+  boundedQueueTests("BoundedQueue mapK", Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
+
+  ticked("synchronous queue - respect fifo order") { implicit ticker =>
+    val test = for {
+      q <- Queue.synchronous[IO, Int]
+
+      _ <- 0.until(5).toList traverse_ { i =>
+        val f = for {
+          _ <- IO.sleep(i.second)
+          _ <- q.offer(i)
+        } yield ()
+
+        f.start
+      }
+
+      _ <- IO.sleep(5.seconds)
+      result <- q.take.replicateA(5)
+    } yield result
+
+    assertCompleteAs(test, 0.until(5).toList)
+  }
+
+  real("synchronous queue - not lose offer when taker is canceled during exchange") {
+    val test = for {
+      q <- Queue.synchronous[IO, Unit]
+      latch <- CountDownLatch[IO](2)
+      offererDone <- IO.ref(false)
+
+      _ <- (latch.release *> latch.await *> q.offer(())).guarantee(offererDone.set(true)).start
+      taker <- (latch.release *> latch.await *> q.take).start
+
+      _ <- latch.await
+      _ <- taker.cancel
+
+      // we should either have received the value successfully, or we left the value in queue
+      // what we *don't* want is to remove the value and then lose it due to cancelation
+      oc <- taker.join
+
+      _ <-
+        if (oc.isCanceled) {
+          // we (maybe) hit the race condition
+          // if we lost the value, q.take will hang
+          offererDone.get.flatMap(b => IO(assert(!b))) *> q.take
+        } else {
+          // we definitely didn't hit the race condition, because we got the value in taker
+          IO.unit
+        }
+    } yield ()
+
+    test.parReplicateA_(if (isJVM) 10000 else 1)
+  }
+
+  real(
+    "synchronous queue - not lose takers when offerer is canceled and there are no other takers") {
+    val test = for {
+      q <- Queue.synchronous[IO, Unit]
+
+      latch1 <- IO.deferred[Unit]
+      offerer <- IO.uncancelable(p => latch1.complete(()) >> p(q.offer(()))).start
+      _ <- latch1.get
+
+      // take and cancel the offerer at the same time
+      // the race condition we're going for is *simultaneous*
+      // failing to repeat the race is likely, in which case the
+      // offerer will be canceled before we finish registering the take
+      taker <- IO.both(q.take, offerer.cancel).start
+
+      // if we failed the race condition above, this offer will unblock the take
+      // if we succeeded in replicating the race, this offer will have no taker
+      // with the bug, this will timeout since both will block
+      // with the bug fix, either the join will return immediately, or it will
+      // be unblocked by the offer
+      _ <- IO.race(taker.joinWithNever, q.offer(()).delayBy(500.millis))
+    } yield ()
+
+    test.parReplicateA(if (isJS || isNative) 1 else 1000)
+  }
+
+  private def boundedQueueTests(name: String, constructor: Int => IO[Queue[IO, Int]]) = {
+    real(s"$name - demonstrate offer and take with zero capacity") {
       for {
         q <- constructor(0)
         _ <- q.offer(1).start
@@ -162,11 +147,12 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
         f <- q.take.start
         _ <- q.offer(2)
         v2 <- f.joinWithNever
-        r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
-      } yield r
+        _ <- IO(assertEquals(v1, 1))
+        _ <- IO(assertEquals(v2, 2))
+      } yield ()
     }
 
-    "respect fifo order with zero capacity" in ticked { implicit ticker =>
+    ticked(s"$name - respect fifo order with zero capacity") { implicit ticker =>
       val test = for {
         q <- constructor(0)
 
@@ -177,10 +163,10 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
         results <- q.take.replicateA(5)
       } yield results
 
-      test must completeAs(List(0, 1, 2, 3, 4))
+      assertCompleteAs(test, List(0, 1, 2, 3, 4))
     }
 
-    "demonstrate cancelable offer with zero capacity" in ticked { implicit ticker =>
+    ticked(s"$name - demonstrate cancelable offer with zero capacity") { implicit ticker =>
       val test1 = for {
         q <- constructor(0)
 
@@ -194,7 +180,7 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
         outcome <- offerer2.join
       } yield (result, outcome.isSuccess)
 
-      test1 must completeAs((1, true))
+      assertCompleteAs(test1, (1, true))
 
       val test2 = for {
         q <- constructor(0)
@@ -209,10 +195,10 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
         outcome <- offerer1.join
       } yield (result, outcome.isSuccess)
 
-      test2 must completeAs((0, true))
+      assertCompleteAs(test2, (0, true))
     }
 
-    "demonstrate cancelable take with zero capacity" in ticked { implicit ticker =>
+    ticked(s"$name - demonstrate cancelable take with zero capacity") { implicit ticker =>
       val test1 = for {
         q <- constructor(0)
 
@@ -226,7 +212,7 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
         result <- taker2.joinWithNever
       } yield result
 
-      test1 must completeAs(42)
+      assertCompleteAs(test1, 42)
 
       val test2 = for {
         q <- constructor(0)
@@ -241,25 +227,25 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
         result <- taker2.joinWithNever
       } yield result
 
-      test2 must completeAs(42)
+      assertCompleteAs(test2, 42)
     }
 
-    "async take with zero capacity" in realWithRuntime { implicit rt =>
+    realWithRuntime("async take with zero capacity") { implicit rt =>
       for {
         q <- constructor(0)
         _ <- q.offer(1).start
         v1 <- q.take
-        _ <- IO(v1 must beEqualTo(1))
+        _ <- IO(assertEquals(v1, 1))
         ff <- IO(q.take.unsafeToFuture()).start
         f <- ff.joinWithNever
-        _ <- IO(f.value must beEqualTo(None))
+        _ <- IO(assertEquals(f.value, None))
         _ <- q.offer(2)
         v2 <- IO.fromFuture(IO.pure(f))
-        r <- IO(v2 must beEqualTo(2))
+        r <- IO(assertEquals(v2, 2))
       } yield r
     }
 
-    "offer/take with zero capacity" in real {
+    real(s"$name - offer/take with zero capacity") {
       val count = 1000
 
       def producer(q: Queue[IO, Int], n: Int): IO[Unit] =
@@ -282,11 +268,11 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
         c <- consumer(q, count).start
         _ <- p.join
         v <- c.joinWithNever
-        r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
+        r <- IO(assertEquals(v, count.toLong * (count - 1) / 2))
       } yield r
     }
 
-    "offer/take from many fibers simultaneously" in real {
+    real(s"$name - offer/take from many fibers simultaneously") {
       val fiberCount = 50
 
       val expected = 0.until(fiberCount) flatMap { i => 0.until(i).map(_ => i) }
@@ -309,11 +295,11 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
 
         results <- produce &> consume
 
-        _ <- IO(results must containTheSameElementsAs(expected))
-      } yield ok
+        _ <- IO(assertEquals(results.sorted, expected.toList))
+      } yield ()
     }
 
-    "offer/take at high contention" in real {
+    real(s"$name - offer/take at high contention") {
       val size = if (isJS || isNative) 10000 else 100000
 
       val action = constructor(size) flatMap { q =>
@@ -329,20 +315,20 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
         offerers &> takers
       }
 
-      action.as(ok)
+      action
     }
 
-    "offer/take with a single consumer and high contention" in real {
+    real(s"$name - offer/take with a single consumer and high contention") {
       constructor(8) flatMap { q =>
         val offerer = List.fill(8)(List.fill(8)(0)).parTraverse_(_.traverse(q.offer(_)))
 
         val iter = if (isJVM) 1000 else 1
         (offerer &> 0.until(8 * 8).toList.traverse_(_ => q.take)).replicateA_(iter) *>
-          q.size.flatMap(s => IO(s mustEqual 0))
+          q.size.flatMap(s => IO(assertEquals(s, 0)))
       }
     }
 
-    "offer/take/takeN with a single consumer and high contention" in real {
+    real(s"$name - offer/take/takeN with a single consumer and high contention") {
       constructor(8) flatMap { q =>
         val offerer = List.fill(8)(List.fill(8)(0)).parTraverse_(_.traverse(q.offer(_)))
 
@@ -361,176 +347,167 @@ class BoundedQueueSuite extends BaseSpec with QueueTests[Queue] with DetectPlatf
         }
 
         (offerer &> taker(0)).replicateA_(if (isJVM) 1000 else 1) *>
-          q.size.flatMap(s => IO(s mustEqual 0))
+          q.size.flatMap(s => IO(assertEquals(s, 0)))
       }
     }
 
-    negativeCapacityConstructionTests(constructor)
-    tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
-    cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
-    cancelableOfferBoundedTests(constructor, _.offer(_), _.take, _.tryTakeN(_))
-    cancelableTakeTests(constructor, _.offer(_), _.take)
-    tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
-    commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
-    batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
-    batchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
-    boundedBatchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
+    negativeCapacityConstructionTests(name, constructor)
+    tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
+    cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
+    cancelableOfferBoundedTests(name, constructor, _.offer(_), _.take, _.tryTakeN(_))
+    cancelableTakeTests(name, constructor, _.offer(_), _.take)
+    tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
+    boundedBatchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
-class UnboundedQueueSuite extends BaseSpec with QueueTests[Queue] {
-  sequential
+class UnboundedQueueSuite extends BaseSuite with QueueTests[Queue] {
 
-  "UnboundedQueue (concurrent)" should {
-    unboundedQueueTests(Queue.unboundedForConcurrent)
-  }
+  unboundedQueueTests("UnboundedQueue (concurrent)", Queue.unboundedForConcurrent)
 
-  "UnboundedQueue (async)" should {
-    unboundedQueueTests(Queue.unboundedForAsync)
-  }
+  unboundedQueueTests("UnboundedQueue (async)", Queue.unboundedForAsync)
 
-  "UnboundedQueue (unsafe)" should {
-    "pass a value from unsafeOffer to take" in real {
-      Queue.unsafeUnbounded[IO, Int] flatMap { q =>
-        for {
-          _ <- IO(q.unsafeOffer(42))
-          i <- q.take
-          _ <- IO(i mustEqual 42)
-        } yield ok
-      }
+  real("UnboundedQueue (unsafe) - pass a value from unsafeOffer to take") {
+    Queue.unsafeUnbounded[IO, Int] flatMap { q =>
+      for {
+        _ <- IO(q.unsafeOffer(42))
+        i <- q.take
+        _ <- IO(assertEquals(i, 42))
+      } yield ()
     }
   }
 
-  "UnboundedQueue mapk" should {
-    unboundedQueueTests(Queue.unbounded[IO, Int].map(_.mapK(FunctionK.id)))
-  }
+  unboundedQueueTests("UnboundedQueue mapk", Queue.unbounded[IO, Int].map(_.mapK(FunctionK.id)))
 
-  private def unboundedQueueTests(constructor: IO[Queue[IO, Int]]): Fragments = {
-    tryOfferOnFullTests(_ => constructor, _.offer(_), _.tryOffer(_), true)
-    tryOfferTryTakeTests(_ => constructor, _.tryOffer(_), _.tryTake)
-    commonTests(_ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
-    batchTakeTests(_ => constructor, _.offer(_), _.tryTakeN(_))
-    batchOfferTests(_ => constructor, _.tryOfferN(_), _.tryTakeN(_))
-    cancelableTakeTests(_ => constructor, _.offer(_), _.take)
+  private def unboundedQueueTests(name: String, constructor: IO[Queue[IO, Int]]) = {
+    tryOfferOnFullTests(name, _ => constructor, _.offer(_), _.tryOffer(_), true)
+    tryOfferTryTakeTests(name, _ => constructor, _.tryOffer(_), _.tryTake)
+    commonTests(name, _ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, _ => constructor, _.tryOfferN(_), _.tryTakeN(_))
+    cancelableTakeTests(name, _ => constructor, _.offer(_), _.take)
   }
 }
 
-class DroppingQueueSuite extends BaseSpec with QueueTests[Queue] {
-  sequential
+class DroppingQueueSuite extends BaseSuite with QueueTests[Queue] {
 
-  "DroppingQueue (concurrent)" should {
-    droppingQueueTests(i => if (i < 1) Queue.dropping(i) else Queue.droppingForConcurrent(i))
-  }
+  droppingQueueTests(
+    "DroppingQueue (concurrent)",
+    i => if (i < 1) Queue.dropping(i) else Queue.droppingForConcurrent(i))
+  droppingQueueTests("DroppingQueue (async)", Queue.dropping)
+  droppingQueueTests("DroppingQueue mapK", Queue.dropping[IO, Int](_).map(_.mapK(FunctionK.id)))
 
-  "DroppingQueue (async)" should {
-    droppingQueueTests(Queue.dropping)
-  }
-
-  "DroppingQueue mapK" should {
-    droppingQueueTests(Queue.dropping[IO, Int](_).map(_.mapK(FunctionK.id)))
-  }
-
-  private def droppingQueueTests(constructor: Int => IO[Queue[IO, Int]]): Fragments = {
-    negativeCapacityConstructionTests(constructor)
-    zeroCapacityConstructionTests(constructor)
-    tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
-    cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
-    cancelableTakeTests(constructor, _.offer(_), _.take)
-    tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
-    commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
-    batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
-    batchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
+  private def droppingQueueTests(name: String, constructor: Int => IO[Queue[IO, Int]]) = {
+    negativeCapacityConstructionTests(name, constructor)
+    zeroCapacityConstructionTests(name, constructor)
+    tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
+    cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
+    cancelableTakeTests(name, constructor, _.offer(_), _.take)
+    tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
-class CircularBufferQueueSuite extends BaseSpec with QueueTests[Queue] {
-  sequential
+class CircularBufferQueueSuite extends BaseSuite with QueueTests[Queue] {
 
-  "CircularBuffer" should {
-    slidingQueueTests(Queue.circularBuffer)
-  }
+  slidingQueueTests("CircularBuffer", Queue.circularBuffer)
+  slidingQueueTests(
+    "CircularBuffer mapK",
+    Queue.circularBuffer[IO, Int](_).map(_.mapK(FunctionK.id)))
 
-  "CircularBuffer mapK" should {
-    slidingQueueTests(Queue.circularBuffer[IO, Int](_).map(_.mapK(FunctionK.id)))
-  }
-
-  private def slidingQueueTests(constructor: Int => IO[Queue[IO, Int]]): Fragments = {
-    negativeCapacityConstructionTests(constructor)
-    zeroCapacityConstructionTests(constructor)
-    tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), true)
-    commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
-    batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
-    batchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
+  private def slidingQueueTests(name: String, constructor: Int => IO[Queue[IO, Int]]) = {
+    negativeCapacityConstructionTests(name, constructor)
+    zeroCapacityConstructionTests(name, constructor)
+    tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), true)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
-trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
+trait QueueTests[Q[_[_], _]] { self: BaseSuite =>
 
-  def zeroCapacityConstructionTests(constructor: Int => IO[Q[IO, Int]]): Fragments = {
-    "should raise an exception when constructed with zero capacity" in real {
+  def zeroCapacityConstructionTests(name: String, constructor: Int => IO[Q[IO, Int]]) = {
+    real(s"$name - should raise an exception when constructed with zero capacity") {
       val test = IO.defer(constructor(0)).attempt
       test.flatMap { res =>
         IO {
-          res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
+          res match {
+            case Left(e) => assert(e.isInstanceOf[IllegalArgumentException])
+            case Right(v) => fail(s"Expected Left, got $v")
+          }
         }
       }
     }
   }
 
-  def negativeCapacityConstructionTests(constructor: Int => IO[Q[IO, Int]]): Fragments = {
-    "should raise an exception when constructed with a negative capacity" in real {
+  def negativeCapacityConstructionTests(name: String, constructor: Int => IO[Q[IO, Int]]) = {
+    real(s"$name - should raise an exception when constructed with a negative capacity") {
       val test = IO.defer(constructor(-1)).attempt
       test.flatMap { res =>
         IO {
-          res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
+          res match {
+            case Left(e) => assert(e.isInstanceOf[IllegalArgumentException])
+            case Right(v) => fail(s"Expected Left, got $v")
+          }
         }
       }
     }
   }
 
   def batchOfferTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       tryOfferN: (Q[IO, Int], List[Int]) => IO[List[Int]],
       tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]],
       transform: List[Int] => List[Int] = identity
-  ): Fragments = {
-    "should offer all records when there is room" in real {
+  ) = {
+    real(s"$name - should offer all records when there is room") {
       for {
         q <- constructor(5)
         offerR <- tryOfferN(q, List(1, 2, 3, 4, 5))
         takeR <- tryTakeN(q, None)
-        r <- IO(
-          (transform(takeR) must beEqualTo(List(1, 2, 3, 4, 5))) and
-            (offerR must beEqualTo(List.empty)))
+        r <- IO {
+          assertEquals(transform(takeR), List(1, 2, 3, 4, 5))
+          assertEquals(offerR, List.empty)
+        }
       } yield r
     }
   }
 
   def boundedBatchOfferTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       tryOfferN: (Q[IO, Int], List[Int]) => IO[List[Int]],
       tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]],
       transform: List[Int] => List[Int] = identity
-  ): Fragments = {
-    "should offer some records when the queue is full" in real {
+  ) = {
+    real(s"$name - should offer some records when the queue is full") {
       for {
         q <- constructor(5)
         offerR <- tryOfferN(q, List(1, 2, 3, 4, 5, 6, 7))
         takeR <- tryTakeN(q, None)
-        r <- IO(
-          (transform(takeR) must beEqualTo(List(1, 2, 3, 4, 5))) and
-            (offerR must beEqualTo(List(6, 7))))
+        r <- IO {
+          assertEquals(transform(takeR), List(1, 2, 3, 4, 5))
+          assertEquals(offerR, List(6, 7))
+        }
       } yield r
     }
   }
 
   def batchTakeTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       offer: (Q[IO, Int], Int) => IO[Unit],
       tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]],
-      transform: List[Int] => List[Int] = identity): Fragments = {
+      transform: List[Int] => List[Int] = identity) = {
 
-    "take batches for all records when None is provided" in real {
+    real(s"$name - take batches for all records when None is provided") {
       for {
         q <- constructor(5)
         _ <- offer(q, 1)
@@ -539,11 +516,11 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         _ <- offer(q, 4)
         _ <- offer(q, 5)
         b <- tryTakeN(q, None)
-        r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
+        r <- IO(assertEquals(transform(b), List(1, 2, 3, 4, 5)))
       } yield r
     }
 
-    "take batches for all records when maxN is provided" in real {
+    real(s"$name - take batches for all records when maxN is provided") {
       for {
         q <- constructor(5)
         _ <- offer(q, 1)
@@ -552,11 +529,11 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         _ <- offer(q, 4)
         _ <- offer(q, 5)
         b <- tryTakeN(q, Some(5))
-        r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
+        r <- IO(assertEquals(transform(b), List(1, 2, 3, 4, 5)))
       } yield r
     }
 
-    "take all records when maxN > queue size" in real {
+    real(s"$name - take all records when maxN > queue size") {
       for {
         q <- constructor(5)
         _ <- offer(q, 1)
@@ -565,19 +542,19 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         _ <- offer(q, 4)
         _ <- offer(q, 5)
         b <- tryTakeN(q, Some(7))
-        r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
+        r <- IO(assertEquals(transform(b), List(1, 2, 3, 4, 5)))
       } yield r
     }
 
-    "be empty when queue is empty" in real {
+    real(s"$name - be empty when queue is empty") {
       for {
         q <- constructor(5)
         b <- tryTakeN(q, Some(5))
-        r <- IO(transform(b) must beEqualTo(List.empty))
+        r <- IO(assertEquals(transform(b), List.empty))
       } yield r
     }
 
-    "raise an exception when maxN is not > 0" in real {
+    real(s"$name - raise an exception when maxN is not > 0") {
       val toAttempt = for {
         q <- constructor(5)
         _ <- tryTakeN(q, Some(-1))
@@ -586,12 +563,15 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       val test = IO.defer(toAttempt).attempt
       test.flatMap { res =>
         IO {
-          res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
+          res match {
+            case Left(e) => assert(e.isInstanceOf[IllegalArgumentException])
+            case Right(v) => fail(s"Expected Left, got $v")
+          }
         }
       }
     }
 
-    "release one offerer when queue is full" in real {
+    real(s"$name - release one offerer when queue is full") {
       val test = for {
         q <- constructor(5)
         _ <- offer(q, 0).replicateA_(5)
@@ -608,13 +588,13 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           if (results.nonEmpty)
             expected.await
           else
-            IO(skipped("did not take any results"))
-      } yield ok
+            IO.println("did not take any results")
+      } yield ()
 
-      test.parReplicateA(10).as(ok)
+      test.parReplicateA(10)
     }
 
-    "release all offerers when queue is full" in real {
+    real(s"$name - release all offerers when queue is full") {
       val test = for {
         q <- constructor(5)
         _ <- offer(q, 0).replicateA_(5)
@@ -632,34 +612,36 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         _ <- expected.await
       } yield ()
 
-      test.parReplicateA(10).as(ok)
+      test.parReplicateA(10)
     }
   }
 
   def tryOfferOnFullTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       offer: (Q[IO, Int], Int) => IO[Unit],
       tryOffer: (Q[IO, Int], Int) => IO[Boolean],
-      expected: Boolean): Fragments = {
+      expected: Boolean) = {
 
-    "return false on tryOffer when the queue is full" in real {
+    real(s"$name - return false on tryOffer when the queue is full") {
       for {
         q <- constructor(2)
         _ <- offer(q, 0)
         _ <- offer(q, 0)
         v <- tryOffer(q, 1)
-        r <- IO(v must beEqualTo(expected))
+        r <- IO(assertEquals(v, expected))
       } yield r
     }
   }
 
   def offerTakeOverCapacityTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       offer: (Q[IO, Int], Int) => IO[Unit],
       take: Q[IO, Int] => IO[Int]
-  ): Fragments = {
+  ) = {
 
-    "offer/take over capacity" in real {
+    real(s"$name - offer/take over capacity") {
       val count = 1000
 
       def producer(q: Q[IO, Int], n: Int): IO[Unit] =
@@ -682,18 +664,19 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         c <- consumer(q, count).start
         _ <- p.join
         v <- c.joinWithNever
-        r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
+        r <- IO(assertEquals(v, count.toLong * (count - 1) / 2))
       } yield r
     }
   }
 
   def cancelableOfferTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       offer: (Q[IO, Int], Int) => IO[Unit],
       take: Q[IO, Int] => IO[Int],
-      tryTake: Q[IO, Int] => IO[Option[Int]]): Fragments = {
+      tryTake: Q[IO, Int] => IO[Option[Int]]) = {
 
-    "demonstrate cancelable offer" in real {
+    real(s"$name - demonstrate cancelable offer") {
       for {
         q <- constructor(2)
         _ <- offer(q, 1)
@@ -706,13 +689,13 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         v2 <- tryTake(q)
 
         r <- IO {
-          v1 must beEqualTo(1)
-          v2 must beNone
+          assertEquals(v1, 1)
+          assertEquals(v2, None)
         }
       } yield r
     }
 
-    "ensure offerers are awakened under all circumstances" in real {
+    real(s"$name - ensure offerers are awakened under all circumstances") {
       val test = for {
         // _ <- IO.println(s"$prefix >> iterating...")
         q <- constructor(5)
@@ -753,58 +736,61 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
             offer2.join
       } yield ()
 
-      test.parReplicateA(16).as(ok)
+      test.parReplicateA(16)
     }
   }
 
   def cancelableOfferBoundedTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       offer: (Q[IO, Int], Int) => IO[Unit],
       take: Q[IO, Int] => IO[Int],
-      tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]]): Fragments = {
+      tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]]) = {
 
-    "ensure offerers are awakened by tryTakeN after cancelation" in ticked { implicit ticker =>
-      val test = for {
-        q <- constructor(4)
+    ticked(s"$name - ensure offerers are awakened by tryTakeN after cancelation") {
+      implicit ticker =>
+        val test = for {
+          q <- constructor(4)
 
-        // fill the queue
-        _ <- 0.until(4).toList.traverse_(offer(q, _))
+          // fill the queue
+          _ <- 0.until(4).toList.traverse_(offer(q, _))
 
-        offerers <- 0.until(4).toList traverse { i =>
-          // the sleep is to ensure the offerers are ordered
-          (IO.sleep(i.millis) *> offer(q, 10 + i)).start
-        }
+          offerers <- 0.until(4).toList traverse { i =>
+            // the sleep is to ensure the offerers are ordered
+            (IO.sleep(i.millis) *> offer(q, 10 + i)).start
+          }
 
-        // allow quiescence
-        _ <- IO.sleep(10.millis)
+          // allow quiescence
+          _ <- IO.sleep(10.millis)
 
-        // take the *not*-first offerer and cancel it
-        _ <- offerers(1).cancel
+          // take the *not*-first offerer and cancel it
+          _ <- offerers(1).cancel
 
-        // fill up the offerers again
-        _ <- offer(q, 20).start
-        _ <- IO.sleep(1.millis)
+          // fill up the offerers again
+          _ <- offer(q, 20).start
+          _ <- IO.sleep(1.millis)
 
-        // drain the queue. this most notify *all* offerers
-        taken1 <- tryTakeN(q, None)
-        _ <- IO(taken1 mustEqual List(0, 1, 2, 3))
+          // drain the queue. this most notify *all* offerers
+          taken1 <- tryTakeN(q, None)
+          _ <- IO(assertEquals(taken1, List(0, 1, 2, 3)))
 
-        // drain it again
-        // if the offerers weren't awakened, this will hang
-        taken2 <- 0.until(4).toList.traverse(_ => take(q))
-        _ <- IO(taken2 must containTheSameElementsAs(List(10, 12, 13, 20)))
-      } yield ()
+          // drain it again
+          // if the offerers weren't awakened, this will hang
+          taken2 <- 0.until(4).toList.traverse(_ => take(q))
+          _ <- IO(assertEquals(taken2.sorted, List(10, 12, 13, 20)))
+        } yield ()
 
-      test should completeAs(())
+        assertCompleteAs(test, ())
     }
   }
 
   def cancelableTakeTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       offer: (Q[IO, Int], Int) => IO[Unit],
-      take: Q[IO, Int] => IO[Int]): Fragments = {
+      take: Q[IO, Int] => IO[Int]) = {
 
-    "not lose data on canceled take" in real {
+    real(s"$name - not lose data on canceled take") {
       val test = for {
         q <- constructor(100)
 
@@ -837,7 +823,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
               // if this doesn't line up, then it means that we lost an element in the middle
               // namely, when we were canceled, we took an element from the queue without producing
-              _ <- IO(next mustEqual (max + 1))
+              _ <- IO(assertEquals(next, max + 1))
             } yield false
           } else {
             // we consumed the whole sequence from the queue before cancelation, so no possible race
@@ -846,24 +832,24 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       } yield continue
 
       val Bound = 10 // only try ten times before skipping
-      def loop(i: Int): IO[Result] = {
+      def loop(i: Int): IO[Unit] = {
         // we try iterating a few times to get canceled in the middle
         if (i > Bound) {
-          IO.pure(skipped(s"attempted $i times and could not reproduce scenario"))
+          IO.println(s"attempted $i times and could not reproduce scenario")
         } else {
           test flatMap {
             case true => loop(i + 1)
-            case false => IO.pure(ok)
+            case false => IO.unit
           }
         }
       }
 
       // even if we replicate the "cancelation in the middle", we might not hit a race condition
       // replicate this a bunch of times to build confidence that it works
-      loop(0).replicateA_(100).as(ok)
+      loop(0).replicateA_(100)
     }
 
-    "ensure takers are awakened under all circumstances" in real {
+    real(s"$name - ensure takers are awakened under all circumstances") {
       val test = for {
         // _ <- IO.println(s"$prefix >> iterating...")
         q <- constructor(64)
@@ -901,16 +887,17 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         }
       } yield ()
 
-      test.parReplicateA(16).as(ok)
+      test.parReplicateA(16)
     }
   }
 
   def tryOfferTryTakeTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       tryOffer: (Q[IO, Int], Int) => IO[Boolean],
-      tryTake: Q[IO, Int] => IO[Option[Int]]): Fragments = {
+      tryTake: Q[IO, Int] => IO[Option[Int]]) = {
 
-    "tryOffer/tryTake" in real {
+    real(s"$name - tryOffer/tryTake") {
       val count = 1000
 
       def producer(q: Q[IO, Int], n: Int): IO[Unit] =
@@ -941,86 +928,98 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         c <- consumer(q, count).start
         _ <- p.join
         v <- c.joinWithNever
-        r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
+        r <- IO(assertEquals(v, count.toLong * (count - 1) / 2))
       } yield r
     }
   }
 
   def commonTests(
+      name: String,
       constructor: Int => IO[Q[IO, Int]],
       offer: (Q[IO, Int], Int) => IO[Unit],
       tryOffer: (Q[IO, Int], Int) => IO[Boolean],
       take: Q[IO, Int] => IO[Int],
       tryTake: Q[IO, Int] => IO[Option[Int]],
-      size: Q[IO, Int] => IO[Int]): Fragments = {
+      size: Q[IO, Int] => IO[Int]) = {
 
-    "should return the queue size when added to" in real {
+    real(s"$name - should return the queue size when added to") {
       for {
         q <- constructor(2)
         _ <- offer(q, 1)
         _ <- take(q)
         _ <- offer(q, 2)
         sz <- size(q)
-        r <- IO(sz must beEqualTo(1))
+        r <- IO(assertEquals(sz, 1))
       } yield r
     }
 
-    "should return None on tryTake when the queue is empty" in real {
+    real(s"$name - should return None on tryTake when the queue is empty") {
       for {
         q <- constructor(2)
         v <- tryTake(q)
-        r <- IO(v must beNone)
+        r <- IO(assertEquals(v, None))
       } yield r
     }
 
-    "demonstrate sequential offer and take" in real {
+    real(s"$name - demonstrate sequential offer and take") {
       for {
         q <- constructor(2)
         _ <- offer(q, 1)
         v1 <- take(q)
         _ <- offer(q, 2)
         v2 <- take(q)
-        r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
+        r <- IO {
+          assertEquals(v1, 1)
+          assertEquals(v2, 2)
+        }
       } yield r
     }
 
-    "demonstrate cancelable take" in real {
+    real(s"$name - demonstrate cancelable take") {
       for {
         q <- constructor(2)
         f <- take(q).start
         _ <- IO.sleep(10.millis)
         _ <- f.cancel
         v <- tryOffer(q, 1)
-        r <- IO(v must beTrue)
+        r <- IO(assert(v))
       } yield r
     }
 
-    "async take" in realWithRuntime { implicit rt =>
+    realWithRuntime("async take") { implicit rt =>
       for {
         q <- constructor(10)
         _ <- offer(q, 1)
         v1 <- take(q)
-        _ <- IO(v1 must beEqualTo(1))
+        _ <- IO(assertEquals(v1, 1))
         f <- IO(take(q).unsafeToFuture())
-        _ <- IO(f.value must beEqualTo(None))
+        _ <- IO(assertEquals(f.value, None))
         _ <- offer(q, 2)
         v2 <- IO.fromFuture(IO.pure(f))
-        r <- IO(v2 must beEqualTo(2))
+        r <- IO(assertEquals(v2, 2))
       } yield r
     }
 
-    "should return the queue size when take precedes offer" in ticked { implicit ticker =>
-      constructor(10).flatMap { q =>
-        take(q).background.use { took => IO.sleep(1.second) *> offer(q, 1) *> took *> size(q) }
-      } must completeAs(0)
+    ticked(s"$name - should return the queue size when take precedes offer") {
+      implicit ticker =>
+        assertCompleteAs(
+          constructor(10).flatMap { q =>
+            take(q).background.use { took =>
+              IO.sleep(1.second) *> offer(q, 1) *> took *> size(q)
+            }
+          },
+          0)
     }
 
-    "should return the queue size when take precedes tryOffer" in ticked { implicit ticker =>
-      constructor(10).flatMap { q =>
-        take(q).background.use { took =>
-          IO.sleep(1.second) *> tryOffer(q, 1) *> took *> size(q)
-        }
-      } must completeAs(0)
+    ticked(s"$name - should return the queue size when take precedes tryOffer") {
+      implicit ticker =>
+        assertCompleteAs(
+          constructor(10).flatMap { q =>
+            take(q).background.use { took =>
+              IO.sleep(1.second) *> tryOffer(q, 1) *> took *> size(q)
+            }
+          },
+          0)
     }
   }
 }

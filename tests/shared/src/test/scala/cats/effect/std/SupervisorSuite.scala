@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,53 +19,44 @@ package std
 
 import cats.syntax.all._
 
-import org.specs2.specification.core.Fragments
-
 import scala.concurrent.duration._
 
-class SupervisorSuite extends BaseSpec with DetectPlatform {
+class SupervisorSuite extends BaseSuite with DetectPlatform {
 
-  "Supervisor" should {
-    "concurrent" >> {
-      supervisorTests(Supervisor.applyForConcurrent)
-    }
+  supervisorTests("concurrent", Supervisor.applyForConcurrent)
+  supervisorTests("async", Supervisor.applyForAsync)
 
-    "async" >> {
-      supervisorTests(Supervisor.applyForAsync)
-    }
-  }
+  private def supervisorTests(name: String,
+      constructor: (
+          Boolean,
+          Option[Outcome[IO, Throwable, ?] => Boolean]) => Resource[IO, Supervisor[IO]]) = {
 
-  private def supervisorTests(constructor: (
-      Boolean,
-      Option[Outcome[IO, Throwable, _] => Boolean]) => Resource[IO, Supervisor[IO]])
-      : Fragments = {
-
-    "start a fiber that completes successfully" in ticked { implicit ticker =>
+    ticked(s"$name - start a fiber that completes successfully") { implicit ticker =>
       val test = constructor(false, None).use { supervisor =>
         supervisor.supervise(IO(1)).flatMap(_.join)
       }
 
-      test must completeAs(Outcome.succeeded[IO, Throwable, Int](IO.pure(1)))
+      assertCompleteAs(test, Outcome.succeeded[IO, Throwable, Int](IO.pure(1)))
     }
 
-    "start a fiber that raises an error" in ticked { implicit ticker =>
+    ticked(s"$name - start a fiber that raises an error") { implicit ticker =>
       val t = new Throwable("failed")
       val test = constructor(false, None).use { supervisor =>
         supervisor.supervise(IO.raiseError[Unit](t)).flatMap(_.join)
       }
 
-      test must completeAs(Outcome.errored[IO, Throwable, Unit](t))
+      assertCompleteAs(test, Outcome.errored[IO, Throwable, Unit](t))
     }
 
-    "start a fiber that self-cancels" in ticked { implicit ticker =>
+    ticked(s"$name - start a fiber that self-cancels") { implicit ticker =>
       val test = constructor(false, None).use { supervisor =>
         supervisor.supervise(IO.canceled).flatMap(_.join)
       }
 
-      test must completeAs(Outcome.canceled[IO, Throwable, Unit])
+      assertCompleteAs(test, Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "cancel active fibers when supervisor exits" in ticked { implicit ticker =>
+    ticked(s"$name - cancel active fibers when supervisor exits") { implicit ticker =>
       val test = for {
         fiber <- constructor(false, None).use { supervisor =>
           supervisor.supervise(IO.never[Unit])
@@ -73,36 +64,39 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
         outcome <- fiber.join
       } yield outcome
 
-      test must completeAs(Outcome.canceled[IO, Throwable, Unit])
+      assertCompleteAs(test, Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "await active fibers when supervisor exits with await = true" in ticked { implicit ticker =>
-      val test = constructor(true, None).use { supervisor =>
-        supervisor.supervise(IO.never[Unit]).void
-      }
+    ticked(s"$name - await active fibers when supervisor exits with await = true") {
+      implicit ticker =>
+        val test = constructor(true, None).use { supervisor =>
+          supervisor.supervise(IO.never[Unit]).void
+        }
 
-      test must nonTerminate
+        assertNonTerminate(test)
     }
 
-    "await active fibers when supervisor with restarter exits with await = true" in ticked {
+    ticked(
+      s"$name - await active fibers when supervisor with restarter exits with await = true") {
       implicit ticker =>
         val test = constructor(true, Some(_ => true)) use { supervisor =>
           supervisor.supervise(IO.never[Unit]).void
         }
 
-        test must nonTerminate
+        assertNonTerminate(test)
     }
 
-    "await active fibers through a fiber when supervisor with restarter exits with await = true" in ticked {
+    ticked(
+      s"$name - await active fibers through a fiber when supervisor with restarter exits with await = true") {
       implicit ticker =>
         val test = constructor(true, Some(_ => true)) use { supervisor =>
           supervisor.supervise(IO.never[Unit]).void
         }
 
-        test.start.flatMap(_.join).void must nonTerminate
+        assertNonTerminate(test.start.flatMap(_.join).void)
     }
 
-    "stop restarting fibers when supervisor exits with await = true" in ticked {
+    ticked(s"$name - stop restarting fibers when supervisor exits with await = true") {
       implicit ticker =>
         val test = for {
           counter <- IO.ref(0)
@@ -126,20 +120,20 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
 
           _ <- done.get
           completed1 <- fiber.join.as(true).timeoutTo(200.millis, IO.pure(false))
-          _ <- IO(completed1 must beFalse)
+          _ <- IO(assert(!completed1))
 
           _ <- signal.release
           completed2 <- fiber.join.as(true).timeoutTo(200.millis, IO.pure(false))
-          _ <- IO(completed2 must beTrue)
+          _ <- IO(assert(completed2))
 
           count <- counter.get
-          _ <- IO(count mustEqual 3)
+          _ <- IO(assertEquals(count, 3))
         } yield ()
 
-        test must completeAs(())
+        assertCompleteAs(test, ())
     }
 
-    "cancel awaited fibers when exiting with error" in ticked { implicit ticker =>
+    ticked(s"$name - cancel awaited fibers when exiting with error") { implicit ticker =>
       case object TestException extends RuntimeException
 
       val test = IO.deferred[Unit] flatMap { latch =>
@@ -153,10 +147,10 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
         }
       }
 
-      test must failAs(TestException)
+      assertFailAs(test, TestException)
     }
 
-    "cancel awaited fibers when canceled" in ticked { implicit ticker =>
+    ticked(s"$name - cancel awaited fibers when canceled") { implicit ticker =>
       val test = IO.deferred[Unit] flatMap { latch =>
         IO.deferred[Unit] flatMap { canceled =>
           val supervision = constructor(true, None) use { supervisor =>
@@ -168,10 +162,10 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
         }
       }
 
-      test must selfCancel
+      assertSelfCancel(test)
     }
 
-    "check restart a fiber if it produces an error" in ticked { implicit ticker =>
+    ticked(s"$name - check restart a fiber if it produces an error") { implicit ticker =>
       case object TestException extends RuntimeException {
         override def printStackTrace(): Unit =
           () // this is an orphan error; we suppress the printing
@@ -184,14 +178,14 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
 
           constructor(true, Some(_.fold(false, _ => true, _ => false))).use { supervisor =>
             supervisor.supervise(action).flatMap(_.joinWithNever)
-          } <* counterR.get.flatMap(count => IO(count mustEqual 2))
+          } <* counterR.get.flatMap(count => IO(assertEquals(count, 2)))
         }
       }
 
-      test must completeAs(42)
+      assertCompleteAs(test, 42)
     }
 
-    "check restart a fiber if it cancels" in ticked { implicit ticker =>
+    ticked(s"$name - check restart a fiber if it cancels") { implicit ticker =>
       val test = IO.ref(true) flatMap { raiseR =>
         IO.ref(0) flatMap { counterR =>
           val flipCancel = raiseR.set(false) >> IO.canceled.as(1)
@@ -199,14 +193,14 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
 
           constructor(true, Some(_.fold(true, _ => false, _ => false))).use { supervisor =>
             supervisor.supervise(action).flatMap(_.joinWithNever)
-          } <* counterR.get.flatMap(count => IO(count mustEqual 2))
+          } <* counterR.get.flatMap(count => IO(assertEquals(count, 2)))
         }
       }
 
-      test must completeAs(42)
+      assertCompleteAs(test, 42)
     }
 
-    "cancel inner fiber and ignore restart if outer canceled" in real {
+    real(s"$name - cancel inner fiber and ignore restart if outer canceled") {
       val test = IO.deferred[Unit] flatMap { latch =>
         constructor(true, Some(_.fold(true, _ => false, _ => false))).use { supervisor =>
           supervisor.supervise(latch.complete(()) >> IO.canceled) >> latch.get >> IO.canceled
@@ -214,10 +208,10 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).as(ok).timeoutTo(4.seconds, IO(false must beTrue))
+      test.start.flatMap(_.join).timeoutTo(4.seconds, IO(sys.error("err")))
     }
 
-    "cancel inner fiber and ignore restart if outer errored" in real {
+    real(s"$name - cancel inner fiber and ignore restart if outer errored") {
       case object TestException extends RuntimeException
 
       val test = IO.deferred[Unit] flatMap { latch =>
@@ -228,14 +222,14 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).as(ok).timeoutTo(4.seconds, IO(false must beTrue))
+      test.start.flatMap(_.join).timeoutTo(4.seconds, IO(sys.error("err")))
     }
 
-    "supervise / finalize race" in real {
+    real(s"$name - supervise / finalize race") {
       superviseFinalizeRace(constructor(false, None), IO.never[Unit])
     }
 
-    "supervise / finalize race with checkRestart" in real {
+    real(s"$name - supervise / finalize race with checkRestart") {
       superviseFinalizeRace(constructor(false, Some(_ => true)), IO.canceled)
     }
 
@@ -246,13 +240,13 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
             supervisor.supervise(IO.never[Unit]).replicateA(100).flatMap { fibers =>
               val tryFork = supervisor.supervise(task).map(Some(_)).recover {
                 case ex: IllegalStateException =>
-                  ex.getMessage mustEqual "supervisor already shutdown"
+                  assertEquals(ex.getMessage, "supervisor already shutdown")
                   None
               }
               IO.both(tryFork, close).flatMap {
                 case (maybeFiber, _) =>
                   def joinAndCheck(fib: Fiber[IO, Throwable, Unit]) =
-                    fib.join.flatMap { oc => IO(oc.isCanceled must beTrue) }
+                    fib.join.flatMap { oc => IO(assert(oc.isCanceled)) }
                   poll(fibers.traverse(joinAndCheck) *> {
                     maybeFiber match {
                       case None =>
@@ -266,32 +260,37 @@ class SupervisorSuite extends BaseSpec with DetectPlatform {
             }
         }
       }
-      tsk.parReplicateA_(if (isJVM) 700 else 1).as(ok)
+      tsk.parReplicateA_(if (isJVM) 700 else 1)
     }
 
-    "submit to closed supervisor" in real {
+    real(s"$name - submit to closed supervisor") {
       constructor(false, None).use(IO.pure(_)).flatMap { leaked =>
         leaked.supervise(IO.unit).attempt.flatMap { r =>
-          IO(r must beLeft(beAnInstanceOf[IllegalStateException]))
+          IO {
+            r match {
+              case Left(e) => assert(e.isInstanceOf[IllegalStateException])
+              case Right(v) => fail(s"Expected Left, got $v")
+            }
+          }
         }
       }
     }
 
-    "restart / cancel race" in real {
+    real(s"$name - restart / cancel race") {
       val tsk = constructor(false, Some(_ => true)).use { supervisor =>
         IO.ref(0).flatMap { counter =>
           supervisor.supervise(counter.update(_ + 1) *> IO.canceled).flatMap { adaptedFiber =>
             IO.sleep(100.millis) *> adaptedFiber.cancel *> adaptedFiber.join *> (
               (counter.get, IO.sleep(100.millis) *> counter.get).flatMapN {
                 case (v1, v2) =>
-                  IO(v1 mustEqual v2)
+                  IO(assertEquals(v1, v2))
               }
             )
           }
         }
       }
 
-      tsk.parReplicateA_(if (isJVM) 1000 else 1).as(ok)
+      tsk.parReplicateA_(if (isJVM) 1000 else 1)
     }
   }
 }

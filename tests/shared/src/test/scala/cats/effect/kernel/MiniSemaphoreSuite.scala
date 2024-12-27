@@ -20,78 +20,76 @@ package kernel
 
 import scala.concurrent.duration._
 
-class MiniSemaphoreSuite extends BaseSpec { outer =>
+class MiniSemaphoreSuite extends BaseSuite { outer =>
 
-  "mini semaphore" should {
-    "throw on negative n" in real {
-      IO.defer(MiniSemaphore[IO](-1)).mustFailWith[IllegalArgumentException]
-    }
+  real("throw on negative n") {
+    IO.defer(MiniSemaphore[IO](-1)).mustFailWith[IllegalArgumentException]
+  }
 
-    "block if no permits available" in ticked { implicit ticker =>
-      MiniSemaphore[IO](0).flatMap { sem => sem.withPermit(IO.unit) } must nonTerminate
-    }
+  ticked("block if no permits available") { implicit ticker =>
+    assertNonTerminate(MiniSemaphore[IO](0).flatMap { sem => sem.withPermit(IO.unit) })
+  }
 
-    "execute action if permit is available for it" in real {
-      MiniSemaphore[IO](1).flatMap { sem => sem.withPermit(IO.unit).mustEqual(()) }
-    }
+  real("execute action if permit is available for it") {
+    MiniSemaphore[IO](1).flatMap { sem => sem.withPermit(IO.unit).mustEqual(()) }
+  }
 
-    "unblock when permit is released" in ticked { implicit ticker =>
-      val p =
-        for {
-          sem <- MiniSemaphore[IO](1)
-          ref <- IO.ref(false)
-          _ <- sem.withPermit { IO.sleep(1.second) >> ref.set(true) }.start
-          _ <- IO.sleep(500.millis)
-          _ <- sem.withPermit(IO.unit)
-          v <- ref.get
-        } yield v
-
-      p must completeAs(true)
-    }
-
-    "release permit if withPermit errors" in real {
+  ticked("unblock when permit is released") { implicit ticker =>
+    val p =
       for {
         sem <- MiniSemaphore[IO](1)
-        _ <- sem.withPermit(IO.raiseError(new Exception)).attempt
-        res <- sem.withPermit(IO.unit).mustEqual(())
-      } yield res
-    }
-
-    "release permit if action gets canceled" in ticked { implicit ticker =>
-      val p =
-        for {
-          sem <- MiniSemaphore[IO](1)
-          fiber <- sem.withPermit(IO.never).start
-          _ <- IO.sleep(1.second)
-          _ <- fiber.cancel
-          _ <- sem.withPermit(IO.unit)
-        } yield ()
-
-      p must completeAs(())
-    }
-
-    "allow cancelation if blocked waiting for permit" in ticked { implicit ticker =>
-      val p = for {
-        sem <- MiniSemaphore[IO](0)
         ref <- IO.ref(false)
-        f <- sem.withPermit(IO.unit).onCancel(ref.set(true)).start
-        _ <- IO.sleep(1.second)
-        _ <- f.cancel
+        _ <- sem.withPermit { IO.sleep(1.second) >> ref.set(true) }.start
+        _ <- IO.sleep(500.millis)
+        _ <- sem.withPermit(IO.unit)
         v <- ref.get
       } yield v
 
-      p must completeAs(true)
-    }
+    assertCompleteAs(p, true)
+  }
 
-    "not release permit when an acquire gets canceled" in ticked { implicit ticker =>
-      val p = for {
-        sem <- MiniSemaphore[IO](0)
-        _ <- sem.withPermit(IO.unit).timeout(1.second).attempt
+  real("release permit if withPermit errors") {
+    for {
+      sem <- MiniSemaphore[IO](1)
+      _ <- sem.withPermit(IO.raiseError(new Exception)).attempt
+      res <- sem.withPermit(IO.unit).mustEqual(())
+    } yield res
+  }
+
+  ticked("release permit if action gets canceled") { implicit ticker =>
+    val p =
+      for {
+        sem <- MiniSemaphore[IO](1)
+        fiber <- sem.withPermit(IO.never).start
+        _ <- IO.sleep(1.second)
+        _ <- fiber.cancel
         _ <- sem.withPermit(IO.unit)
       } yield ()
 
-      p must nonTerminate
-    }
+    assertCompleteAs(p, ())
+  }
+
+  ticked("allow cancelation if blocked waiting for permit") { implicit ticker =>
+    val p = for {
+      sem <- MiniSemaphore[IO](0)
+      ref <- IO.ref(false)
+      f <- sem.withPermit(IO.unit).onCancel(ref.set(true)).start
+      _ <- IO.sleep(1.second)
+      _ <- f.cancel
+      v <- ref.get
+    } yield v
+
+    assertCompleteAs(p, true)
+  }
+
+  ticked("not release permit when an acquire gets canceled") { implicit ticker =>
+    val p = for {
+      sem <- MiniSemaphore[IO](0)
+      _ <- sem.withPermit(IO.unit).timeout(1.second).attempt
+      _ <- sem.withPermit(IO.unit)
+    } yield ()
+
+    assertNonTerminate(p)
   }
 
 }

@@ -21,8 +21,6 @@ import cats.Show
 import cats.effect.kernel.Sync
 import cats.syntax.all._
 
-import org.specs2.matcher.MatchResult
-
 import scala.concurrent.duration._
 import scala.io.Source
 
@@ -36,8 +34,7 @@ import java.io.{
 }
 import java.nio.charset.{Charset, StandardCharsets}
 
-class ConsoleJVMSuite extends BaseSpec {
-  sequential
+class ConsoleJVMSuite extends BaseSuite {
 
   private def printStream(out: ByteArrayOutputStream): Resource[IO, PrintStream] =
     Resource.make(IO(new PrintStream(out)))(ps => IO(ps.close()))
@@ -140,138 +137,138 @@ class ConsoleJVMSuite extends BaseSpec {
     test.use(_ => loop(Nil))
   }
 
-  private def readLineTest(name: String, charset: Charset): IO[MatchResult[List[String]]] =
+  private def readLineTest(name: String, charset: Charset): IO[Unit] =
     for {
       rawLines <- fileLines(name, charset)
       lines <- consoleReadLines(rawLines, charset)
-      result <- IO(lines must beEqualTo(rawLines))
+      result <- IO(assertEquals(lines, rawLines))
     } yield result
 
-  "Console" should {
-    "print to the standard output" in real {
-      val message = "Message"
-      standardOutTest(IO.print(message)).flatMap { msg =>
-        IO {
-          msg must beEqualTo(message)
-        }
+  real("print to the standard output") {
+    val message = "Message"
+    standardOutTest(IO.print(message)).flatMap { msg =>
+      IO {
+        assertEquals(msg, message)
       }
     }
+  }
 
-    "println to the standard output" in real {
-      val message = "Message"
-      standardOutTest(IO.println(message)).flatMap { msg =>
-        IO {
-          msg must beEqualTo(s"$message${System.lineSeparator()}")
-        }
+  real("println to the standard output") {
+    val message = "Message"
+    standardOutTest(IO.println(message)).flatMap { msg =>
+      IO {
+        assertEquals(msg, s"$message${System.lineSeparator()}")
       }
     }
+  }
 
-    "print to the standard error" in real {
-      val error = "Error"
-      standardErrTest(Console[IO].error(error)).flatMap { err =>
-        IO {
-          err must beEqualTo(error)
-        }
+  real("print to the standard error") {
+    val error = "Error"
+    standardErrTest(Console[IO].error(error)).flatMap { err =>
+      IO {
+        assertEquals(err, error)
       }
     }
+  }
 
-    "println to the standard error" in real {
-      val error = "Error"
-      standardErrTest(Console[IO].errorln(error)).flatMap { err =>
-        IO {
-          err must beEqualTo(s"$error${System.lineSeparator()}")
-        }
+  real("println to the standard error") {
+    val error = "Error"
+    standardErrTest(Console[IO].errorln(error)).flatMap { err =>
+      IO {
+        assertEquals(err, s"$error${System.lineSeparator()}")
       }
     }
+  }
 
-    "printStackTrace to the standard error output" in real {
-      val e = new Throwable("error!")
+  real("printStackTrace to the standard error output") {
+    val e = new Throwable("error!")
 
-      val stackTraceString = throwableToString(e)
+    val stackTraceString = throwableToString(e)
 
-      standardErrTest(Console[IO].printStackTrace(e)).flatMap { err =>
-        IO {
-          err must beEqualTo(stackTraceString)
-        }
+    standardErrTest(Console[IO].printStackTrace(e)).flatMap { err =>
+      IO {
+        assertEquals(err, stackTraceString)
       }
     }
+  }
 
-    "default printStackTrace implementation copies the throwable stack trace and prints it to the standard error" in real {
+  real(
+    "default printStackTrace implementation copies the throwable stack trace and prints it to the standard error") {
 
-      final class DummyConsole[F[_]](implicit F: Sync[F]) extends Console[F] {
-        def readLineWithCharset(charset: Charset): F[String] = F.pure("line")
+    final class DummyConsole[F[_]](implicit F: Sync[F]) extends Console[F] {
+      def readLineWithCharset(charset: Charset): F[String] = F.pure("line")
 
-        def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
+      def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
 
-        def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
+      def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
 
-        def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
-          val text = a.show
-          F.blocking(System.err.print(text))
-        }
-
-        def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
+      def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
+        val text = a.show
+        F.blocking(System.err.print(text))
       }
 
-      val e = new Throwable("error!")
+      def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
+    }
 
-      val stackTraceString = throwableToString(e)
+    val e = new Throwable("error!")
 
-      val console = new DummyConsole[IO]
+    val stackTraceString = throwableToString(e)
 
-      standardErrTest(console.printStackTrace(e)).flatMap { err =>
-        IO {
-          err must beEqualTo(stackTraceString)
-        }
+    val console = new DummyConsole[IO]
+
+    standardErrTest(console.printStackTrace(e)).flatMap { err =>
+      IO {
+        assertEquals(err, stackTraceString)
       }
     }
+  }
 
-    "read all lines from an ISO-8859-1 encoded file" in real {
-      val cs = StandardCharsets.ISO_8859_1
-      readLineTest(cs.name(), cs)
-    }
+  real("read all lines from an ISO-8859-1 encoded file") {
+    val cs = StandardCharsets.ISO_8859_1
+    readLineTest(cs.name(), cs)
+  }
 
-    "read all lines from a US-ASCII encoded file" in real {
-      val cs = StandardCharsets.US_ASCII
-      readLineTest(cs.name(), cs)
-    }
+  real("read all lines from a US-ASCII encoded file") {
+    val cs = StandardCharsets.US_ASCII
+    readLineTest(cs.name(), cs)
+  }
 
-    "read all lines from a UTF-8 encoded file" in real {
-      val cs = StandardCharsets.UTF_8
-      readLineTest(cs.name(), cs)
-    }
+  real("read all lines from a UTF-8 encoded file") {
+    val cs = StandardCharsets.UTF_8
+    readLineTest(cs.name(), cs)
+  }
 
-    "read all lines from a UTF-16 encoded file" in real {
-      val cs = StandardCharsets.UTF_16
-      readLineTest(cs.name(), cs)
-    }
+  real("read all lines from a UTF-16 encoded file") {
+    val cs = StandardCharsets.UTF_16
+    readLineTest(cs.name(), cs)
+  }
 
-    "read all lines from a UTF-16BE encoded file" in real {
-      val cs = StandardCharsets.UTF_16BE
-      readLineTest(cs.name(), cs)
-    }
+  real("read all lines from a UTF-16BE encoded file") {
+    val cs = StandardCharsets.UTF_16BE
+    readLineTest(cs.name(), cs)
+  }
 
-    "read all lines from a UTF-16LE encoded file" in real {
-      val cs = StandardCharsets.UTF_16LE
-      readLineTest(cs.name(), cs)
-    }
+  real("read all lines from a UTF-16LE encoded file") {
+    val cs = StandardCharsets.UTF_16LE
+    readLineTest(cs.name(), cs)
+  }
 
-    "readLine is cancelable and does not lose lines" in real {
-      IO(new PipedOutputStream).flatMap { out =>
-        IO(new PipedInputStream(out)).flatMap { in =>
-          replaceStandardIn(in).surround {
-            for {
-              read1 <- IO.readLine.timeout(100.millis).attempt
-              _ <- IO(read1 should beLeft)
-              _ <- IO(out.write("unblocked\n".getBytes()))
-              read2 <- Console[IO].readLineWithCharset(StandardCharsets.US_ASCII).attempt
-              _ <- IO(read2 should beLeft)
-              read3 <- IO.readLine
-              _ <- IO(read3 must beEqualTo("unblocked"))
-            } yield ok
-          }
+  real("readLine is cancelable and does not lose lines") {
+    IO(new PipedOutputStream).flatMap { out =>
+      IO(new PipedInputStream(out)).flatMap { in =>
+        replaceStandardIn(in).surround {
+          for {
+            read1 <- IO.readLine.timeout(100.millis).attempt
+            _ <- IO(assert(read1.isLeft))
+            _ <- IO(out.write("unblocked\n".getBytes()))
+            read2 <- Console[IO].readLineWithCharset(StandardCharsets.US_ASCII).attempt
+            _ <- IO(assert(read2.isLeft))
+            read3 <- IO.readLine
+            _ <- IO(assertEquals(read3, "unblocked"))
+          } yield ()
         }
       }
     }
   }
+
 }

@@ -24,51 +24,48 @@ import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 
 import org.scalacheck.Prop
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class WriterTIOSuite extends BaseSpec with Discipline {
+import munit.DisciplineSuite
+
+class WriterTIOSuite extends BaseSuite with DisciplineSuite {
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+  ticked("execute finalizers") { implicit ticker =>
+    type F[A] = WriterT[IO, Chain[String], A]
 
-  "WriterT" should {
-    "execute finalizers" in ticked { implicit ticker =>
-      type F[A] = WriterT[IO, Chain[String], A]
+    val test = for {
+      gate <- Deferred[F, Unit]
+      _ <- WriterT
+        .tell[IO, Chain[String]](Chain.one("hello"))
+        .guarantee(gate.complete(()).void)
+        .start
+      _ <- gate.get
+    } yield ()
 
-      val test = for {
-        gate <- Deferred[F, Unit]
-        _ <- WriterT
-          .tell[IO, Chain[String]](Chain.one("hello"))
-          .guarantee(gate.complete(()).void)
-          .start
-        _ <- gate.get
-      } yield ()
+    assertCompleteAs(test.run._2F, ())
+  }
 
-      test.run._2F must completeAs(())
-    }
+  ticked("execute finalizers when doubly nested") { implicit ticker =>
+    type F[A] = WriterT[OptionT[IO, *], Chain[String], A]
 
-    "execute finalizers when doubly nested" in ticked { implicit ticker =>
-      type F[A] = WriterT[OptionT[IO, *], Chain[String], A]
+    val test = for {
+      gate1 <- Deferred[F, Unit]
+      gate2 <- Deferred[F, Unit]
+      _ <- WriterT
+        .tell[OptionT[IO, *], Chain[String]](Chain.one("hello"))
+        .guarantee(gate1.complete(()).void)
+        .start
+      _ <- WriterT
+        .liftF[OptionT[IO, *], Chain[String], Unit](OptionT.none)
+        .guarantee(gate2.complete(()).void)
+        .start
+      _ <- gate1.get
+      _ <- gate2.get
+    } yield ()
 
-      val test = for {
-        gate1 <- Deferred[F, Unit]
-        gate2 <- Deferred[F, Unit]
-        _ <- WriterT
-          .tell[OptionT[IO, *], Chain[String]](Chain.one("hello"))
-          .guarantee(gate1.complete(()).void)
-          .start
-        _ <- WriterT
-          .liftF[OptionT[IO, *], Chain[String], Unit](OptionT.none)
-          .guarantee(gate2.complete(()).void)
-          .start
-        _ <- gate1.get
-        _ <- gate2.get
-      } yield ()
-
-      test.run._2F.value must completeAs(Some(()))
-    }
+    assertCompleteAs(test.run._2F.value, Some(()))
   }
 
   implicit def ordWriterTIOFD(
