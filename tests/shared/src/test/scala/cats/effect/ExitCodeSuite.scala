@@ -16,11 +16,11 @@
 
 package cats.effect
 
-class ExitCodeSpec extends BaseSpec {
+class ExitCodeSuite extends BaseSuite {
 
-  "ExitCode.unapply is exhaustive" >> {
+  test("ExitCode.unapply is exhaustive") {
     ExitCode(0) match { // if not, should be a fatal warning in CI
-      case ExitCode(_) => ok
+      case ExitCode(_) => assert(true)
     }
   }
 

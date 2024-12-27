@@ -58,7 +58,9 @@ class OptionTPureConcSuite extends DisciplineSuite with BaseSuite {
       case _ => Applicative[OptionT[PureConc[Int, *], *]].unit
     }
 
-    assert(pure.run(test.value) === Outcome.Succeeded(Some(Option.empty[Unit])))
+    assertEquals(
+      pure.run(test.value),
+      Outcome.Succeeded(Some(Option.empty[Unit])): Outcome[Option, Int, Option[Unit]])
 
     assert(observed)
   }

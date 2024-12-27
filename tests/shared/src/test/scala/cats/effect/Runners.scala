@@ -20,7 +20,7 @@ import cats.{Eq, Show}
 import cats.effect.testkit.{TestContext, TestInstances}
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
-
+import munit.TestOptions
 import org.scalacheck.Gen
 import org.specs2.execute.AsResult
 import org.specs2.matcher.Matcher
@@ -131,6 +131,30 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
 
     p.future
   }
+}
+
+trait MUnitRunners extends TestInstances with MUnitRunnersPlatform {
+  self: munit.FunSuite =>
+
+  def executionTimeout: FiniteDuration = 20.seconds
+
+  def ticked(options: TestOptions)(body: Ticker => Any)(implicit loc: munit.Location): Unit =
+    test(options)(body(Ticker(TestContext())))
+
+  def assertCompleteAs[A: Eq: Show](ioa: IO[A], expected: A)(implicit ticker: Ticker): Unit =
+    tickTo(ioa, Outcome.Succeeded(Some(expected)))
+
+  /*def completeAsSync[A: Eq: Show](expected: A): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
+    val a = ioa.unsafeRunSync()
+    (a eqv expected, s"${a.show} !== ${expected.show}")
+  }*/
+
+  def tickTo[A: Eq: Show](ioa: IO[A], expected: Outcome[Option, Throwable, A])(
+    implicit ticker: Ticker): Unit = {
+    val oc = unsafeRun(ioa)
+    assert(oc eqv expected, s"${oc.show} !== ${expected.show}")
+  }
+
 }
 
 class TestTimeoutException extends Exception

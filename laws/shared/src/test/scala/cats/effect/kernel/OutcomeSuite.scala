@@ -21,8 +21,6 @@ import cats.{Eq, Eval, Id, MonadError}
 import cats.effect.kernel.testkit.OutcomeGenerators
 import cats.laws.discipline.{ApplicativeErrorTests, MonadErrorTests}
 
-import org.scalacheck.{Arbitrary, Cogen}
-
 import munit.DisciplineSuite
 
 class OutcomeSuite extends DisciplineSuite {

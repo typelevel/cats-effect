@@ -17,11 +17,11 @@
 package cats.effect.std
 
 import cats.effect.kernel.{Async, Concurrent, Deferred, GenConcurrent, Ref, Sync}
+import munit.FunSuite
 
-import org.specs2.mutable.Specification
+class SyntaxSpec extends FunSuite {
 
-class SyntaxSpec extends Specification {
-  "concurrent data structure construction syntax" >> ok
+  test("concurrent data structure construction syntax") {}
 
   def async[F[_]: Async] = {
     Ref.of[F, String]("foo")

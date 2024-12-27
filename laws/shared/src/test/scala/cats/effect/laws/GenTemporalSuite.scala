@@ -24,11 +24,12 @@ import cats.effect.kernel.testkit.pure._
 import cats.syntax.all._
 
 import scala.concurrent.duration._
-
 import munit.FunSuite
-// import scala.concurrent.TimeoutException
 
-class GenTemporalSuite extends FunSuite { outer =>
+import scala.concurrent.TimeoutException
+
+class GenTemporalSuite extends FunSuite {
+  outer =>
 
   type F[A] = PureConc[Throwable, A]
 
@@ -41,98 +42,107 @@ class GenTemporalSuite extends FunSuite { outer =>
     val fa = F.pure(true)
     assertEquals(F.timeout(fa, Duration.Inf), fa)
   }
-  "temporal" should {
-    "timeout" should {
-      "return identity when infinite duration" in {
-        val fa = F.pure(true)
-        F.timeout(fa, Duration.Inf) mustEqual fa
-      }
 
-      "succeed on a fast action" in {
-        val fa: TimeT[F, Boolean] = F.pure(true)
-        val op = F.timeout(fa, Duration.Zero)
+  test("timeout should return identity when infinite duration") {
+    val fa = F.pure(true)
+    assertEquals(F.timeout(fa, Duration.Inf), fa)
+  }
 
-        run(TimeT.run(op)) mustEqual Outcome.Succeeded(Some(true))
-      }
+  test("timeout should succeed on a fast action") {
+    val fa: TimeT[F, Boolean] = F.pure(true)
+    val op = F.timeout(fa, Duration.Zero)
 
-      "error out on a slow action" in {
-        val fa: TimeT[F, Boolean] = F.never *> F.pure(true)
-        val op = F.timeout(fa, Duration.Zero)
+    assertEquals(
+      run(TimeT.run(op)),
+      Outcome.Succeeded(Some(true)): Outcome[Option, Throwable, Boolean])
+  }
 
-        run(TimeT.run(op)) must beLike {
-          case Outcome.Errored(e) => e must haveClass[TimeoutException]
-        }
-      }
+  test("timeout should error out on a slow action") {
+    val fa: TimeT[F, Boolean] = F.never *> F.pure(true)
+    val op = F.timeout(fa, Duration.Zero)
 
-      "propagate successful outcome of uncancelable action" in {
-        val fa = F.uncancelable(_ => F.sleep(50.millis) *> F.pure(true))
-        val op = F.timeout(fa, Duration.Zero)
-
-        run(TimeT.run(op)) mustEqual Outcome.Succeeded(Some(true))
-      }
-
-      "propagate errors from uncancelable action" in {
-        val fa = F.uncancelable { _ =>
-          F.sleep(50.millis) *> F.raiseError(new RuntimeException("fa failed")) *> F.pure(true)
-        }
-        val op = F.timeout(fa, Duration.Zero)
-
-        run(TimeT.run(op)) must beLike {
-          case Outcome.Errored(e: RuntimeException) => e.getMessage mustEqual "fa failed"
-        }
-      }
+    run(TimeT.run(op)) match {
+      case Outcome.Errored(e) => assert(e.isInstanceOf[TimeoutException])
+      case other => fail(s"Expected Outcome.Errored, got $other")
     }
+  }
+
+  test("timeout should propagate successful outcome of uncancelable action") {
+    val fa = F.uncancelable(_ => F.sleep(50.millis) *> F.pure(true))
+    val op = F.timeout(fa, Duration.Zero)
+
+    assertEquals(
+      run(TimeT.run(op)),
+      Outcome.Succeeded(Some(true)): Outcome[Option, Throwable, Boolean])
+  }
+
+  test("timeout should propagate errors from uncancelable action") {
+    val fa = F.uncancelable { _ =>
+      F.sleep(50.millis) *> F.raiseError(new RuntimeException("fa failed")) *> F.pure(true)
+    }
+    val op = F.timeout(fa, Duration.Zero)
+
+    run(TimeT.run(op)) match {
+      case Outcome.Errored(e: RuntimeException) => assertEquals(e.getMessage, "fa failed")
+      case other => fail(s"Expected Outcome.Errored, got $other")
+    }
+  }
 
   test("timeoutTo should return identity when infinite duration") {
     val fa: TimeT[F, Boolean] = F.pure(true)
     val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
     assertEquals(F.timeoutTo(fa, Duration.Inf, fallback), fa)
   }
-    "timeoutTo" should {
-      "return identity when infinite duration" in {
-        val fa: TimeT[F, Boolean] = F.pure(true)
-        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
-        F.timeoutTo(fa, Duration.Inf, fallback) mustEqual fa
-      }
 
-      "succeed on a fast action" in {
-        val fa: TimeT[F, Boolean] = F.pure(true)
-        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
-        val op = F.timeoutTo(fa, Duration.Zero, fallback)
+  test("timeoutTo should return identity when infinite duration") {
+    val fa: TimeT[F, Boolean] = F.pure(true)
+    val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+    assertEquals(F.timeoutTo(fa, Duration.Inf, fallback), fa)
+  }
 
-        run(TimeT.run(op)) mustEqual Outcome.Succeeded(Some(true))
-      }
+  test("timeoutTo should succeed on a fast action") {
+    val fa: TimeT[F, Boolean] = F.pure(true)
+    val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+    val op = F.timeoutTo(fa, Duration.Zero, fallback)
 
-      "error out on a slow action" in {
-        val fa: TimeT[F, Boolean] = F.never *> F.pure(true)
-        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
-        val op = F.timeoutTo(fa, Duration.Zero, fallback)
+    assertEquals(
+      run(TimeT.run(op)),
+      Outcome.Succeeded(Some(true)): Outcome[Option, Throwable, Boolean])
+  }
 
-        run(TimeT.run(op)) must beLike {
-          case Outcome.Errored(e) => e must haveClass[RuntimeException]
-        }
-      }
+  test("timeoutTo should error out on a slow action") {
+    val fa: TimeT[F, Boolean] = F.never *> F.pure(true)
+    val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+    val op = F.timeoutTo(fa, Duration.Zero, fallback)
 
-      "propagate successful outcome of uncancelable action" in {
-        val fa = F.uncancelable(_ => F.sleep(50.millis) *> F.pure(true))
-        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
-        val op = F.timeoutTo(fa, Duration.Zero, fallback)
-
-        run(TimeT.run(op)) mustEqual Outcome.Succeeded(Some(true))
-      }
-
-      "propagate errors from uncancelable action" in {
-        val fa = F.uncancelable { _ =>
-          F.sleep(50.millis) *> F.raiseError(new RuntimeException("fa failed")) *> F.pure(true)
-        }
-        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
-        val op = F.timeoutTo(fa, Duration.Zero, fallback)
-
-        run(TimeT.run(op)) must beLike {
-          case Outcome.Errored(e: RuntimeException) => e.getMessage mustEqual "fa failed"
-        }
-      }
+    run(TimeT.run(op)) match {
+      case Outcome.Errored(e) => assert(e.isInstanceOf[RuntimeException])
+      case other => fail(s"Expected OutcomeErrored, got $other")
     }
+  }
+
+  test("timeoutTo should propagate successful outcome of uncancelable action") {
+    val fa = F.uncancelable(_ => F.sleep(50.millis) *> F.pure(true))
+    val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+    val op = F.timeoutTo(fa, Duration.Zero, fallback)
+
+    assertEquals(
+      run(TimeT.run(op)),
+      Outcome.Succeeded(Some(true)): Outcome[Option, Throwable, Boolean])
+  }
+
+  test("timeoutTo should propagate errors from uncancelable action") {
+    val fa = F.uncancelable { _ =>
+      F.sleep(50.millis) *> F.raiseError(new RuntimeException("fa failed")) *> F.pure(true)
+    }
+    val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+    val op = F.timeoutTo(fa, Duration.Zero, fallback)
+
+    run(TimeT.run(op)) match {
+      case Outcome.Errored(e: RuntimeException) => assertEquals(e.getMessage, "fa failed")
+      case other => fail(s"Expected Outcome.Errored, got $other")
+    }
+  }
 
   test("timeoutAndForget should return identity when infinite duration") {
     val fa: TimeT[F, Boolean] = F.pure(true)
@@ -154,7 +164,7 @@ class GenTemporalSuite extends FunSuite { outer =>
       "use fallback" in {
         val op: TimeT[F, Boolean] = F.timeoutTo(loop >> F.pure(false), 5.millis, F.pure(true))
 
-        run(TimeT.run(op)) mustEqual Succeeded(Some(true))
+        run(TimeT.run(op)) , Succeeded(Some(true))
       }.pendingUntilFixed
     }
   }*/

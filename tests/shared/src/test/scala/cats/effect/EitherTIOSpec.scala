@@ -22,53 +22,44 @@ import cats.effect.laws.AsyncTests
 import cats.effect.syntax.all._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
-
+import munit.DisciplineSuite
 import org.scalacheck.Prop
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class EitherTIOSpec extends BaseSpec with Discipline {
+class EitherTIOSpec extends BaseSuite with DisciplineSuite {
 
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+  ticked("EitherT should execute finalizers") { implicit ticker =>
+    type F[A] = EitherT[IO, String, A]
 
-  "EitherT" should {
-    "execute finalizers" in ticked { implicit ticker =>
-      type F[A] = EitherT[IO, String, A]
+    val test = for {
+      gate1 <- Deferred[F, Unit]
+      gate2 <- Deferred[F, Unit]
+      _ <- EitherT.leftT[IO, Unit]("boom").guarantee(gate1.complete(()).void).start
+      _ <- EitherT.rightT[IO, String](()).guarantee(gate2.complete(()).void).start
+      _ <- gate1.get
+      _ <- gate2.get
+    } yield ()
 
-      val test = for {
-        gate1 <- Deferred[F, Unit]
-        gate2 <- Deferred[F, Unit]
-        _ <- EitherT.leftT[IO, Unit]("boom").guarantee(gate1.complete(()).void).start
-        _ <- EitherT.rightT[IO, String](()).guarantee(gate2.complete(()).void).start
-        _ <- gate1.get
-        _ <- gate2.get
-      } yield ()
+    assertCompleteAs(test.value, Right(()))
+  }
 
-      test.value must completeAs(Right(()))
-    }
+  ticked("EitherT should execute finalizers when doubly nested") { implicit ticker =>
+    type F[A] = EitherT[OptionT[IO, *], String, A]
 
-    "execute finalizers when doubly nested" in ticked { implicit ticker =>
-      type F[A] = EitherT[OptionT[IO, *], String, A]
+    val test = for {
+      gate1 <- Deferred[F, Unit]
+      gate2 <- Deferred[F, Unit]
+      gate3 <- Deferred[F, Unit]
+      _ <- EitherT.leftT[OptionT[IO, *], Unit]("boom").guarantee(gate1.complete(()).void).start
+      _ <- EitherT.rightT[OptionT[IO, *], String](()).guarantee(gate2.complete(()).void).start
+      _ <- EitherT.liftF(OptionT.none[IO, Unit]).guarantee(gate3.complete(()).void).start
+      _ <- gate1.get
+      _ <- gate2.get
+      _ <- gate3.get
+    } yield ()
 
-      val test = for {
-        gate1 <- Deferred[F, Unit]
-        gate2 <- Deferred[F, Unit]
-        gate3 <- Deferred[F, Unit]
-        _ <- EitherT
-          .leftT[OptionT[IO, *], Unit]("boom")
-          .guarantee(gate1.complete(()).void)
-          .start
-        _ <- EitherT.rightT[OptionT[IO, *], String](()).guarantee(gate2.complete(()).void).start
-        _ <- EitherT.liftF(OptionT.none[IO, Unit]).guarantee(gate3.complete(()).void).start
-        _ <- gate1.get
-        _ <- gate2.get
-        _ <- gate3.get
-      } yield ()
-
-      test.value.value must completeAs(Some(Right(())))
-    }
+    assertCompleteAs(test.value.value, Some(Right(())))
   }
 
   implicit def ordEitherTIOFD(
