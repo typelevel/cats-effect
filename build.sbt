@@ -322,6 +322,8 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
+ThisBuild / Test / testOptions += Tests.Argument("+l")
+
 val CatsVersion = "2.11.0"
 val CatsMtlVersion = "1.3.1"
 val ScalaCheckVersion = "1.17.1"

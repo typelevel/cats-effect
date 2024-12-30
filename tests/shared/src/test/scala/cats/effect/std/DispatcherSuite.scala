@@ -94,7 +94,6 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
           }
         }
       }.replicateA_(if (isJVM) 10000 else 1)
-
     }
   }
 
@@ -183,7 +182,7 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
           case (runner, release) =>
             IO(runner.unsafeRunAndForget(release)) *>
               IO.sleep(100.millis) *>
-              IO(intercept[IllegalStateException](runner.unsafeRunAndForget(IO(ko))))
+              IO(intercept[IllegalStateException](runner.unsafeRunAndForget(IO(fail("fail")))))
         }
 
         assertCompleteAs(test.void, ())
@@ -428,7 +427,7 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
     real(s"$name - raise an error on leaked runner") {
       dispatcher.use(IO.pure(_)) flatMap { runner =>
         IO {
-          intercept[IllegalStateException](runner.unsafeRunAndForget(IO(ko)))
+          intercept[IllegalStateException](runner.unsafeRunAndForget(IO(fail("fail"))))
         }
       }
     }
@@ -451,7 +450,7 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
 
       test
         .use(t =>
-          IO.fromFutureCancelable(IO((t.future, IO.unit))).timeoutTo(1.second, IO.pure(false)))
+          IO.fromFutureCancelable(IO((t.future, IO.unit))).timeoutTo(3.second, IO.pure(false)))
         .flatMap(t => IO(assertEquals(t, true)))
     }
 
@@ -514,7 +513,7 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
                 .guarantee(latch2.complete(()).void)
 
               _ <- release &> challenge
-            } yield ko
+            } yield fail("fail")
         }
       }
 
@@ -671,5 +670,4 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
     }
   }
 
-  private def ko(implicit loc: munit.Location) = fail("fail")
 }

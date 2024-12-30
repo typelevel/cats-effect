@@ -18,4 +18,12 @@ package cats.effect
 
 import munit.FunSuite
 
-trait BaseSuite extends FunSuite with Runners
+trait BaseSuite extends FunSuite with Runners {
+
+  override def munitValueTransforms: List[ValueTransform] =
+    super.munitValueTransforms ++ List(
+      new ValueTransform("IO", { case _: IO[_] => sys.error("Non-evaluated IO") }),
+      new ValueTransform("SyncIO", { case _: SyncIO[_] => sys.error("Non-evaluated SyncIO") })
+    )
+
+}

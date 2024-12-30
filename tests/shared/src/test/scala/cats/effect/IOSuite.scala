@@ -526,26 +526,28 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
       assertCompleteAs(fa, 44)
   }
 
-      // format: off
-      ticked("asyncCheckAttempt - produce a failure when the registration raises an error after result") { implicit ticker =>
-        case object TestException extends RuntimeException
+  ticked(
+    "asyncCheckAttempt - produce a failure when the registration raises an error after result"
+  ) { implicit ticker =>
+    case object TestException extends RuntimeException
 
-        assertFailAs(IO.asyncCheckAttempt[Int](_ => IO(Right(42))
-          .flatMap(_ => IO.raiseError(TestException)))
-          .void, TestException)
-      }
-      // format: on
+    assertFailAs(
+      IO.asyncCheckAttempt[Int](_ => IO(Right(42)).flatMap(_ => IO.raiseError(TestException)))
+        .void,
+      TestException)
+  }
 
-      // format: off
-      ticked("asyncCheckAttempt - produce a failure when the registration raises an error after callback") { implicit ticker =>
-        case object TestException extends RuntimeException
+  ticked(
+    "asyncCheckAttempt - produce a failure when the registration raises an error after callback"
+  ) { implicit ticker =>
+    case object TestException extends RuntimeException
 
-        val fa = IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42)))
-          .flatMap(_ => IO.raiseError(TestException)))
-          .void
-        assertFailAs(fa, TestException)
-      }
-      // format: on
+    val fa = IO
+      .asyncCheckAttempt[Int](cb =>
+        IO(cb(Right(42))).flatMap(_ => IO.raiseError(TestException)))
+      .void
+    assertFailAs(fa, TestException)
+  }
 
   ticked("asyncCheckAttempt - ignore asyncCheckAttempt callback") { implicit ticker =>
     case object TestException extends RuntimeException
@@ -739,7 +741,7 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
 
   ticked("async - calling async callback with null during registration (ticked)") {
     implicit ticker =>
-      IO.async[Int] { cb => IO(cb(null)).as(None) }.map(_ + 1).attempt.map { e =>
+      val test = IO.async[Int] { cb => IO(cb(null)).as(None) }.map(_ + 1).attempt.map { e =>
         assertCompleteAs(
           IO {
             e match {
@@ -750,6 +752,8 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
           ()
         )
       }
+
+      assertCompleteAs(test, ())
   }
 
   ticked("async - calling async callback with null after registration (ticked)") {
