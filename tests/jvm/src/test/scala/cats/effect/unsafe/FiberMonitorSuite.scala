@@ -38,14 +38,16 @@ class FiberMonitorSuite extends BaseSuite with TestInstances {
       _ <- IO(assertEquals(snapshot.size, 2)) // root and awaiting fibers
       fiberSnapshot <- IO(snapshot.filter(_.contains(fiberId)))
       _ <- IO(assertEquals(fiberSnapshot.size, 1)) // only awaiting fiber
-      _ <- IO(assert(fiberSnapshot.exists(_.matches(waitingPattern))))
+      _ <- IO(
+        assert(fiberSnapshot.exists(_.matches(waitingPattern)), fiberSnapshot.mkString("\n"))
+      )
 
       _ <- cdl.release // allow further execution
       outcome <- fiber.join
       _ <- IO.sleep(100.millis)
 
       _ <- IO(assertEquals(outcome, Outcome.succeeded[IO, Throwable, Unit](IO.unit)))
-      _ <- IO(assert(fiber.toString.matches(completedPattern)))
+      _ <- IO(assert(fiber.toString.matches(completedPattern), fiber.toString))
       _ <- IO(assertEquals(makeSnapshot(runtime).size, 1)) // only root fiber
     } yield ()
   }
