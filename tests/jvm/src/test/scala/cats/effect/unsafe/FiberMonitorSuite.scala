@@ -25,7 +25,8 @@ import scala.concurrent.duration._
 class FiberMonitorSuite extends BaseSuite with TestInstances {
 
   realWithRuntime("show only active fibers in a live snapshot") { (runtime: IORuntime) =>
-    val waitingPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ WAITING((.|\n)*)"
+    val newline = System.lineSeparator()
+    val waitingPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ WAITING((.|$newline)*)"
     val completedPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ COMPLETED"
 
     for {
