@@ -149,13 +149,13 @@ class IOAppSpec extends FunSuite {
 
     if (!isWindows) { // these tests have all been emperically flaky on Windows CI builds, so they're disabled
 
-      test(s"IOApp (${platform.id}) - evaluate and print hello world") {
+      test("evaluate and print hello world") {
         val h = platform("HelloWorld", Nil)
         assertEquals(h.awaitStatus(), 0)
         assertEquals(h.stdout(), s"Hello, World!${System.lineSeparator()}")
       }
 
-      test(s"IOApp (${platform.id}) - pass all arguments to child") {
+      test("pass all arguments to child") {
         val expected = List("the", "quick", "brown", "fox jumped", "over")
         val h = platform("Arguments", expected)
         assertEquals(h.awaitStatus(), 0)
@@ -165,59 +165,59 @@ class IOAppSpec extends FunSuite {
         )
       }
 
-      test(s"IOApp (${platform.id}) - exit on non-fatal error") {
+      test("exit on non-fatal error") {
         val h = platform("NonFatalError", List.empty)
         assertEquals(h.awaitStatus(), 1)
         assert(h.stderr().contains("Boom!"))
       }
 
-      test(s"IOApp (${platform.id}) - exit with leaked fibers") {
+      test("exit with leaked fibers") {
         val h = platform("LeakedFiber", List.empty)
         assertEquals(h.awaitStatus(), 0)
       }
 
-      test(s"IOApp (${platform.id}) - exit on fatal error") {
+      test("exit on fatal error") {
         val h = platform("FatalError", List.empty)
         assertEquals(h.awaitStatus(), 1)
         assert(h.stderr().contains("Boom!"))
         assert(!h.stdout().contains("sadness"))
       }
 
-      test(s"IOApp (${platform.id}) - exit on fatal error with other unsafe runs") {
+      test("exit on fatal error with other unsafe runs") {
         val h = platform("FatalErrorUnsafeRun", List.empty)
         assertEquals(h.awaitStatus(), 1)
         assert(h.stderr().contains("Boom!"))
       }
 
-      test(s"IOApp (${platform.id}) - exit on raising a fatal error with attempt") {
+      test("exit on raising a fatal error with attempt") {
         val h = platform("RaiseFatalErrorAttempt", List.empty)
         assertEquals(h.awaitStatus(), 1)
         assert(h.stderr().contains("Boom!"))
         assert(!h.stdout().contains("sadness"))
       }
 
-      test(s"IOApp (${platform.id}) - exit on raising a fatal error with handleError") {
+      test("exit on raising a fatal error with handleError") {
         val h = platform("RaiseFatalErrorHandle", List.empty)
         assertEquals(h.awaitStatus(), 1)
         assert(h.stderr().contains("Boom!"))
         assert(!h.stdout().contains("sadness"))
       }
 
-      test(s"IOApp (${platform.id}) - exit on raising a fatal error inside a map") {
+      test("exit on raising a fatal error inside a map") {
         val h = platform("RaiseFatalErrorMap", List.empty)
         assertEquals(h.awaitStatus(), 1)
         assert(h.stderr().contains("Boom!"))
         assert(!h.stdout().contains("sadness"))
       }
 
-      test(s"IOApp (${platform.id}) - exit on raising a fatal error inside a flatMap") {
+      test("exit on raising a fatal error inside a flatMap") {
         val h = platform("RaiseFatalErrorFlatMap", List.empty)
         assertEquals(h.awaitStatus(), 1)
         assert(h.stderr().contains("Boom!"))
         assert(!h.stdout().contains("sadness"))
       }
 
-      test(s"IOApp (${platform.id}) - warn on global runtime collision") {
+      test("warn on global runtime collision") {
         val h = platform("GlobalRacingInit", List.empty)
         assertEquals(h.awaitStatus(), 0)
         assert(
@@ -227,7 +227,7 @@ class IOAppSpec extends FunSuite {
         assert(!h.stderr().contains("boom"))
       }
 
-      test(s"IOApp (${platform.id}) - reset global runtime on shutdown") {
+      test("reset global runtime on shutdown") {
         val h = platform("GlobalShutdown", List.empty)
         assertEquals(h.awaitStatus(), 0)
         assert(
@@ -238,7 +238,7 @@ class IOAppSpec extends FunSuite {
       }
 
       // TODO reenable this test (#3919)
-      test(s"IOApp (${platform.id}) - warn on cpu starvation".ignore) {
+      test("warn on cpu starvation".ignore) {
         val h = platform("CpuStarvation", List.empty)
         h.awaitStatus()
         val err = h.stderr()
@@ -253,13 +253,13 @@ class IOAppSpec extends FunSuite {
           ))
       }
 
-      test(s"IOApp (${platform.id}) - custom runtime installed as global") {
+      test("custom runtime installed as global") {
         val h = platform("CustomRuntime", List.empty)
         assertEquals(h.awaitStatus(), 0)
       }
 
       if (platform != Native) {
-        test(s"IOApp (${platform.id}) - abort awaiting shutdown hooks") {
+        test("abort awaiting shutdown hooks") {
           val h = platform("ShutdownHookImmediateTimeout", List.empty)
           assertEquals(h.awaitStatus(), 0)
         }
@@ -271,7 +271,7 @@ class IOAppSpec extends FunSuite {
       // The jvm cannot gracefully terminate processes on Windows, so this
       // test cannot be carried out properly. Same for testing IOApp in sbt.
 
-      test(s"IOApp (${platform.id}) - run finalizers on TERM") {
+      test("run finalizers on TERM") {
         import _root_.java.io.{BufferedReader, FileReader}
 
         // we have to resort to this convoluted approach because Process#destroy kills listeners before killing the process
@@ -308,14 +308,14 @@ class IOAppSpec extends FunSuite {
       }
     } else ()
 
-    test(s"IOApp (${platform.id}) - exit on fatal error without IOApp") {
+    test("exit on fatal error without IOApp") {
       val h = platform("FatalErrorRaw", List.empty)
       h.awaitStatus()
       assert(!h.stdout().contains("sadness"))
       assert(!h.stderr().contains("Promise already completed"))
     }
 
-    test(s"IOApp (${platform.id}) - exit on canceled") {
+    test("exit on canceled") {
       val h = platform("Canceled", List.empty)
       assertEquals(h.awaitStatus(), 1)
     }
@@ -323,7 +323,7 @@ class IOAppSpec extends FunSuite {
     if (!isJava8 && !isWindows && platform != Native) {
       // JDK 8 does not have free signals for live fiber snapshots
       // cannot observe signals sent to process termination on Windows
-      test(s"IOApp (${platform.id}) - live fiber snapshot") {
+      test("live fiber snapshot") {
         val h = platform("LiveFiberSnapshot", List.empty)
 
         // wait for the application to fully start before trying to send the signal
@@ -342,18 +342,18 @@ class IOAppSpec extends FunSuite {
     }
 
     if (platform == JVM) {
-      test(s"IOApp (${platform.id}) - shutdown on worker thread interruption") {
+      test("shutdown on worker thread interruption") {
         val h = platform("WorkerThreadInterrupt", List.empty)
         assertEquals(h.awaitStatus(), 1)
         assert(h.stderr().contains("java.lang.InterruptedException"))
       }
 
-      test(s"IOApp (${platform.id}) - support main thread evaluation") {
+      test("support main thread evaluation") {
         val h = platform("EvalOnMainThread", List.empty)
         assertEquals(h.awaitStatus(), 0)
       }
 
-      test(s"IOApp (${platform.id}) - use configurable reportFailure for MainThread") {
+      test("use configurable reportFailure for MainThread") {
         val h = platform("MainThreadReportFailure", List.empty)
         assertEquals(h.awaitStatus(), 0)
       }
@@ -363,7 +363,7 @@ class IOAppSpec extends FunSuite {
         h.awaitStatus() mustEqual 0
       }
 
-      test(s"IOApp (${platform.id}) - warn on blocked threads") {
+      test("warn on blocked threads") {
         val h = platform("BlockedThreads", List.empty)
         h.awaitStatus()
         val err = h.stderr()
@@ -372,7 +372,7 @@ class IOAppSpec extends FunSuite {
             "[WARNING] A Cats Effect worker thread was detected to be in a blocked state"))
       }
 
-      test(s"IOApp (${platform.id}) - shut down WSTP on fatal error without IOApp") {
+      test("shut down WSTP on fatal error without IOApp") {
         val h = platform("FatalErrorShutsDownRt", List.empty)
         h.awaitStatus()
         assert(!h.stdout().contains("sadness"))
@@ -381,7 +381,7 @@ class IOAppSpec extends FunSuite {
     }
 
     if (platform == Node) {
-      test(s"IOApp (${platform.id}) - gracefully ignore undefined process.exit") {
+      test("gracefully ignore undefined process.exit") {
         val h = platform("UndefinedProcessExit", List.empty)
         assertEquals(h.awaitStatus(), 0)
       }
