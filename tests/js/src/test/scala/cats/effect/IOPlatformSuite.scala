@@ -22,22 +22,22 @@ import org.scalacheck.Prop.forAll
 
 import scala.scalajs.js
 
-trait IOPlatformSuite { self: BaseSuite with munit.ScalaCheckSuite =>
+trait IOPlatformSuite { self: BaseScalaCheckSuite =>
 
   def platformTests() = {
 
-    ticked("round trip through js.Promise".ignore) { implicit ticker =>
+    tickedProperty("round trip through js.Promise".ignore) { implicit ticker =>
       forAll { (ioa: IO[Int]) =>
-        ioa.eqv(IO.fromPromise(IO(ioa.unsafeToPromise())))
+        assertEqv(ioa, IO.fromPromise(IO(ioa.unsafeToPromise())))
       } // "callback scheduling gets in the way here since Promise doesn't use TestContext"
     }
 
-    ticked("round trip through js.Promise via Async".ignore) { implicit ticker =>
+    tickedProperty("round trip through js.Promise via Async".ignore) { implicit ticker =>
       def lossy[F[_]: Async, A](fa: F[A])(f: F[A] => js.Promise[A]): F[A] =
         Async[F].fromPromise(Sync[F].delay(f(fa))).map(x => x)
 
       forAll { (ioa: IO[Int]) =>
-        ioa.eqv(lossy(ioa)(_.unsafeToPromise()))
+        assertEqv(ioa, lossy(ioa)(_.unsafeToPromise()))
       } // "callback scheduling gets in the way here since Promise doesn't use TestContext"
     }
 

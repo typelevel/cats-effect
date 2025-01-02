@@ -44,7 +44,7 @@ import java.util.concurrent.{
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, AtomicReference}
 
 trait IOPlatformSuite extends DetectPlatform {
-  self: BaseSuite with munit.ScalaCheckSuite =>
+  self: BaseScalaCheckSuite =>
 
   def platformTests() = {
     real("shift delay evaluation within evalOn") {
@@ -120,11 +120,14 @@ trait IOPlatformSuite extends DetectPlatform {
       task.replicateA(100)
     }
 
-    ticked("round trip non-canceled through j.u.c.CompletableFuture") { implicit ticker =>
-      forAll { (ioa: IO[Int]) =>
-        val normalized = ioa.onCancel(IO.never)
-        normalized.eqv(IO.fromCompletableFuture(IO(normalized.unsafeToCompletableFuture())))
-      }
+    tickedProperty("round trip non-canceled through j.u.c.CompletableFuture") {
+      implicit ticker =>
+        forAll { (ioa: IO[Int]) =>
+          val normalized = ioa.onCancel(IO.never)
+          assertEqv(
+            normalized,
+            IO.fromCompletableFuture(IO(normalized.unsafeToCompletableFuture())))
+        }
     }
 
     ticked("canceled through j.u.c.CompletableFuture is errored") { implicit ticker =>

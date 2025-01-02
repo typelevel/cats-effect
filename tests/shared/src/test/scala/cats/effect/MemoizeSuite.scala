@@ -33,7 +33,7 @@ import munit.DisciplineSuite
 
 import Prop.forAll
 
-class MemoizeSuite extends BaseSuite with DisciplineSuite {
+class MemoizeSuite extends BaseScalaCheckSuite with DisciplineSuite {
 
   def tests[F[_]: Concurrent: LiftIO](name: String, lowerK: F ~> IO) = {
 
@@ -103,14 +103,17 @@ class MemoizeSuite extends BaseSuite with DisciplineSuite {
         assertEquals(result.value, Some(Success((1, 1))))
     }
 
-    ticked(s"$name Concurrent.memoize and then flatten is identity") { implicit ticker =>
-      forAll { (fa: IO[Int]) => lowerK(Concurrent[F].memoize(liftK(fa)).flatten) eqv fa }
+    tickedProperty(s"$name Concurrent.memoize and then flatten is identity") {
+      implicit ticker =>
+        forAll { (fa: IO[Int]) =>
+          assertEqv(lowerK(Concurrent[F].memoize(liftK(fa)).flatten), fa)
+        }
     }
 
     ticked(s"$name Concurrent.memoize uncancelable canceled and then flatten is identity") {
       implicit ticker =>
         val fa = Concurrent[F].uncancelable(_ => Concurrent[F].canceled)
-        lowerK(Concurrent[F].memoize(fa).flatten) eqv lowerK(fa)
+        assertEqv(lowerK(Concurrent[F].memoize(fa).flatten), lowerK(fa))
     }
 
     ticked(

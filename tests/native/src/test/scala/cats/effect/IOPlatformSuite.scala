@@ -16,7 +16,7 @@
 
 package cats.effect
 
-trait IOPlatformSuite { self: BaseSuite with munit.ScalaCheckSuite =>
+trait IOPlatformSuite { self: BaseScalaCheckSuite =>
 
   def platformTests() = {
     ticked("realTimeInstant should return an Instant constructed from realTime") {

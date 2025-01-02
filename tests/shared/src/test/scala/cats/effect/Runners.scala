@@ -36,7 +36,7 @@ trait Runners extends TestInstances with RunnersPlatform {
   def executionTimeout: FiniteDuration = 20.seconds
   override def munitTimeout: Duration = executionTimeout
 
-  def ticked(options: TestOptions)(body: Ticker => Any)(implicit loc: Location): Unit =
+  def ticked(options: TestOptions)(body: Ticker => Unit)(implicit loc: Location): Unit =
     test(options)(body(Ticker(TestContext())))
 
   def real[A](options: TestOptions)(body: => IO[A])(implicit loc: Location): Unit =
@@ -62,6 +62,11 @@ trait Runners extends TestInstances with RunnersPlatform {
       val (fut, cancel) = f(rt).unsafeToFutureCancelable()(rt)
       timeout(fut, cancel, executionTimeout)
     }
+
+  def assertEqv[A: Eq: Show](obtained: A, expected: A)(implicit loc: Location): Unit = {
+    implicit val comp: munit.Compare[A, A] = (l, r) => Eq[A].eqv(l, r)
+    assertEquals(obtained, expected, show"$obtained !== $expected")
+  }
 
   def assertCompleteAs[A: Eq: Show](ioa: IO[A], expected: A)(
       implicit ticker: Ticker,

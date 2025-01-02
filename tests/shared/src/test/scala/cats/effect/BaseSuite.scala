@@ -16,7 +16,9 @@
 
 package cats.effect
 
-import munit.{FunSuite, Location, TestOptions}
+import cats.effect.testkit.TestContext
+import munit.{FunSuite, Location, ScalaCheckSuite, TestOptions}
+import org.scalacheck.Prop
 
 trait BaseSuite extends FunSuite with Runners {
 
@@ -42,4 +44,10 @@ trait BaseSuite extends FunSuite with Runners {
       new ValueTransform("SyncIO", { case _: SyncIO[_] => sys.error("Non-evaluated SyncIO") })
     )
 
+}
+
+trait BaseScalaCheckSuite extends BaseSuite with ScalaCheckSuite {
+  @annotation.nowarn("cat=deprecation")
+  def tickedProperty(options: TestOptions)(body: Ticker => Prop)(implicit loc: Location): Unit =
+    test(options)(body(Ticker(TestContext())))
 }

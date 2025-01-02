@@ -21,9 +21,7 @@ import org.scalacheck.Prop.forAll
 
 import scala.collection.mutable.{ListBuffer, Queue}
 
-import munit.ScalaCheckSuite
-
-class JSArrayQueueSuite extends BaseSuite with ScalaCheckSuite {
+class JSArrayQueueSuite extends BaseScalaCheckSuite {
 
   property("be fifo") {
     forAll { (stuff: List[Option[Int]]) =>

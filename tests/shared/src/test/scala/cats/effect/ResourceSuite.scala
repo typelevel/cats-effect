@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{~>, SemigroupK}
+import cats.{SemigroupK, Show, ~>}
 import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext
@@ -26,20 +26,20 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
-
-import org.scalacheck.{Cogen, Prop}
+import org.scalacheck.Cogen
 import org.scalacheck.Prop.forAll
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-
 import java.util.concurrent.atomic.AtomicBoolean
 
 import munit.DisciplineSuite
 
-class ResourceSuite extends BaseSuite with DisciplineSuite {
+class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
 
-  ticked("releases resources in reverse order of acquisition") { implicit ticker =>
+  private implicit def resourceShow[A]: Show[Resource[IO, A]] = Show.fromToString
+
+  tickedProperty("releases resources in reverse order of acquisition") { implicit ticker =>
     forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
       var released: List[Int] = Nil
       val r = as.traverse {
@@ -148,8 +148,8 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     )
   }
 
-  ticked("eval") { implicit ticker =>
-    forAll { (fa: IO[String]) => Resource.eval(fa).use(IO.pure) eqv fa }
+  tickedProperty("eval") { implicit ticker =>
+    forAll { (fa: IO[String]) => assertEqv(Resource.eval(fa).use(IO.pure), fa) }
   }
 
   ticked("eval - interruption") { implicit ticker =>
@@ -172,14 +172,16 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     assertCompleteAs(p, 1)
   }
 
-  ticked("eval(fa) <-> liftK.apply(fa)") { implicit ticker =>
+  tickedProperty("eval(fa) <-> liftK.apply(fa)") { implicit ticker =>
     forAll { (fa: IO[String], f: String => IO[Int]) =>
-      Resource.eval(fa).use(f) eqv Resource.liftK[IO].apply(fa).use(f)
+      assertEqv(Resource.eval(fa).use(f), Resource.liftK[IO].apply(fa).use(f))
     }
   }
 
-  ticked("evalMap") { implicit ticker =>
-    forAll { (f: Int => IO[Int]) => Resource.eval(IO(0)).evalMap(f).use(IO.pure) eqv f(0) }
+  tickedProperty("evalMap") { implicit ticker =>
+    forAll { (f: Int => IO[Int]) =>
+      assertEqv(Resource.eval(IO(0)).evalMap(f).use(IO.pure), f(0))
+    }
   }
 
   ticked("evalMap with error fails during use") { implicit ticker =>
@@ -190,9 +192,9 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       Foo)
   }
 
-  ticked("evalTap") { implicit ticker =>
+  tickedProperty("evalTap") { implicit ticker =>
     forAll { (f: Int => IO[Int]) =>
-      Resource.eval(IO(0)).evalTap(f).use(IO.pure) eqv f(0).as(0)
+      assertEqv(Resource.eval(IO(0)).evalTap(f).use(IO.pure), f(0).as(0))
     }
   }
 
@@ -229,16 +231,17 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     }
   }
 
-  ticked("allocated releases resources in reverse order of acquisition") { implicit ticker =>
-    forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
-      var released: List[Int] = Nil
-      val r = as.traverse {
-        case (a, e) =>
-          Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+  tickedProperty("allocated releases resources in reverse order of acquisition") {
+    implicit ticker =>
+      forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
+        var released: List[Int] = Nil
+        val r = as.traverse {
+          case (a, e) =>
+            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+        }
+        assertCompleteAs(r.allocated.flatMap(_._2).attempt.void, ())
+        assertEquals(released, as.map(_._1))
       }
-      assertCompleteAs(r.allocated.flatMap(_._2).attempt.void, ())
-      assertEquals(released, as.map(_._1))
-    }
   }
 
   ticked("allocated does not release until close is invoked") { implicit ticker =>
@@ -260,12 +263,12 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     assertCompleteAs(prog, ())
   }
 
-  ticked("mapK") { implicit ticker =>
+  tickedProperty("mapK") { implicit ticker =>
     forAll { (fa: Kleisli[IO, Int, Int]) =>
       val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
         override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
       }
-      Resource.eval(fa).mapK(runWithTwo).use(IO.pure) eqv fa(2)
+      assertEqv(Resource.eval(fa).mapK(runWithTwo).use(IO.pure), fa(2))
     }
   }
 
@@ -340,16 +343,16 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     assertCompleteAs(fa, false -> true)
   }
 
-  ticked("allocated produces the same value as the resource") { implicit ticker =>
+  tickedProperty("allocated produces the same value as the resource") { implicit ticker =>
     forAll { (resource: Resource[IO, Int]) =>
       val a0 = IO.uncancelable { p =>
         p(resource.allocated).flatMap { case (b, fin) => fin.as(b) }
       }
       val a1 = resource.use(IO.pure)
 
-      a0.flatMap(IO.pure).handleErrorWith(IO.raiseError) eqv a1
-        .flatMap(IO.pure)
-        .handleErrorWith(IO.raiseError)
+      assertEqv(
+        a0.flatMap(IO.pure).handleErrorWith(IO.raiseError),
+        a1.flatMap(IO.pure).handleErrorWith(IO.raiseError))
     }
   }
 
@@ -392,7 +395,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
           r.flatMap(_ => Resource.eval(IO.unit))
       }
       .use_
-    r eqv IO.unit
+    assertEqv(r, IO.unit)
   }
 
   real("use is stack-safe over binds - 2") {
@@ -424,7 +427,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       }
       .use_
 
-    r eqv IO.unit
+    assertEqv(r, IO.unit)
   }
 
   ticked("attempt is stack-safe over binds") { implicit ticker =>
@@ -444,22 +447,23 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     assertFailAs(suspend.use_, exception)
   }
 
-  ticked("both - releases resources in reverse order of acquisition") { implicit ticker =>
-    // conceptually asserts that:
-    //   forAll (r: Resource[F, A]) then r <-> r.both(Resource.unit) <-> Resource.unit.both(r)
-    // needs to be tested manually to assert the equivalence during cleanup as well
-    forAll { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
-      var released: List[Int] = Nil
-      val r = as.traverse {
-        case (a, e) =>
-          Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
-      }
-      val unit = ().pure[Resource[IO, *]]
-      val p = if (rhs) r.both(unit) else unit.both(r)
+  tickedProperty("both - releases resources in reverse order of acquisition") {
+    implicit ticker =>
+      // conceptually asserts that:
+      //   forAll (r: Resource[F, A]) then r <-> r.both(Resource.unit) <-> Resource.unit.both(r)
+      // needs to be tested manually to assert the equivalence during cleanup as well
+      forAll { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
+        var released: List[Int] = Nil
+        val r = as.traverse {
+          case (a, e) =>
+            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+        }
+        val unit = ().pure[Resource[IO, *]]
+        val p = if (rhs) r.both(unit) else unit.both(r)
 
-      assertCompleteAs(p.use_.attempt.void, ())
-      assertEquals(released, as.map(_._1))
-    }
+        assertCompleteAs(p.use_.attempt.void, ())
+        assertEquals(released, as.map(_._1))
+      }
   }
 
   ticked("both - parallel acquisition and release") { implicit ticker =>
@@ -716,21 +720,22 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       assertEquals(released, acquired)
   }
 
-  ticked("combineK - behave like orElse when underlying effect does") { implicit ticker =>
-    Prop.forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
-      val lhs = r1.orElse(r2)
-      val rhs = r1 <+> r2
+  tickedProperty("combineK - behave like orElse when underlying effect does") {
+    implicit ticker =>
+      forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
+        val lhs = r1.orElse(r2)
+        val rhs = r1 <+> r2
 
-      lhs eqv rhs
-    }
+        assertEqv(lhs, rhs)
+      }
   }
 
-  ticked("combineK - behave like underlying effect") { implicit ticker =>
+  tickedProperty("combineK - behave like underlying effect") { implicit ticker =>
     forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
       val lhs = Resource.eval(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
       val rhs = (Resource.eval(ot1) <+> Resource.eval(ot2)).use(OptionT.pure[IO](_)).value
 
-      lhs eqv rhs
+      assertEqv(lhs, rhs)
     }
   }
 
@@ -800,7 +805,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       val surroundee = IO("hello")
       val surrounded = r.surround(surroundee)
 
-      surrounded eqv surroundee
+      assertEqv(surrounded, surroundee)
   }
 
   ticked(
@@ -811,15 +816,16 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       val surround = r.surroundK
       val surrounded = surround(surroundee)
 
-      surrounded eqv surroundee
+      assertEqv(surrounded, surroundee)
   }
 
-  ticked("evalOn - run acquire and release on provided ExecutionContext") { implicit ticker =>
-    forAll { (executionContext: ExecutionContext) =>
-      val assertion =
-        IO.executionContext.flatMap(ec => IO(assertEquals(ec, executionContext)).void)
-      Resource.make(assertion)(_ => assertion).evalOn(executionContext).use_.as(true)
-    }
+  tickedProperty("evalOn - run acquire and release on provided ExecutionContext") {
+    implicit ticker =>
+      forAll { (executionContext: ExecutionContext) =>
+        val assertion =
+          IO.executionContext.flatMap(ec => IO(assertEquals(ec, executionContext)).void)
+        Resource.make(assertion)(_ => assertion).evalOn(executionContext).use_.as(true)
+      }
   }
 
   {
@@ -1119,8 +1125,8 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
         assert(rightReleased)
     }
 
-    ticked("Concurrent[Resource] - memoize - memoize and then flatten is identity") {
-      implicit ticker => forAll { (r: Resource[IO, Int]) => r.memoize.flatten eqv r }
+    tickedProperty("Concurrent[Resource] - memoize - memoize and then flatten is identity") {
+      implicit ticker => forAll { (r: Resource[IO, Int]) => assertEqv(r.memoize.flatten, r) }
     }
     ticked("Concurrent[Resource] - memoize - allocates once and releases at end") {
       implicit ticker =>
@@ -1253,7 +1259,8 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       }
       .uncancelable
       .use_
-    r eqv IO.unit
+
+    assertEqv(r, IO.unit)
   }
 
   ticked("allocatedCase - is stack-safe over binds") { implicit ticker =>
@@ -1265,8 +1272,8 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       }
       .allocatedCase
       .map(_._1)
-    r eqv IO.unit
 
+    assertEqv(r, IO.unit)
   }
 
   ticked("Resource[Resource[IO, *], *] - flatten with finalizers inside-out") {
@@ -1290,7 +1297,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
         }
       }
 
-      r.use_ eqv IO.unit
+      assertEqv(r.use_, IO.unit)
   }
 
   {

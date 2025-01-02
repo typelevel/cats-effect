@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.arrow.FunctionK
-import cats.syntax.eq._
 
 class ResourceJVMSuite extends BaseSuite {
 
@@ -50,7 +49,7 @@ class ResourceJVMSuite extends BaseSuite {
           r.flatMap(_ => Resource.eval(IO.unit))
       }
       .use_
-    r eqv IO.unit
+    assertEqv(r, IO.unit)
   }
 
   real("verify use is stack-safe over binds - 2") {
@@ -79,7 +78,7 @@ class ResourceJVMSuite extends BaseSuite {
       .mapK(FunctionK.id)
       .use_
 
-    r eqv IO.unit
+    assertEqv(r, IO.unit)
   }
 
   ticked("verify attempt is stack-safe over binds") { implicit ticker =>

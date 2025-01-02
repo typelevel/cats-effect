@@ -73,32 +73,32 @@ class SyncIOSuite extends BaseSuite with DisciplineSuite with SyncIOPlatformSuit
   }
 
   property("attempt is redeem with Left(_) for recover and Right(_) for map") {
-    forAll { (io: SyncIO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
+    forAll { (io: SyncIO[Int]) => assertEqv(io.attempt, io.redeem(Left(_), Right(_))) }
   }
 
   property("attempt is flattened redeemWith") {
     forAll {
       (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
-        io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
+        assertEqv(io.attempt.flatMap(_.fold(recover, bind)), io.redeemWith(recover, bind))
     }
   }
 
   property("redeem is flattened redeemWith") {
     forAll {
       (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
-        io.redeem(recover, bind).flatMap(identity) eqv io.redeemWith(recover, bind)
+        assertEqv(io.redeem(recover, bind).flatMap(identity), io.redeemWith(recover, bind))
     }
   }
 
   property("redeem subsumes handleError") {
     forAll { (io: SyncIO[Int], recover: Throwable => Int) =>
-      io.redeem(recover, identity) eqv io.handleError(recover)
+      assertEqv(io.redeem(recover, identity), io.handleError(recover))
     }
   }
 
   property("redeemWith subsumes handleErrorWith") {
     forAll { (io: SyncIO[Int], recover: Throwable => SyncIO[Int]) =>
-      io.redeemWith(recover, SyncIO.pure) eqv io.handleErrorWith(recover)
+      assertEqv(io.redeemWith(recover, SyncIO.pure), io.handleErrorWith(recover))
     }
   }
 

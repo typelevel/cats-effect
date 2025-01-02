@@ -31,11 +31,11 @@ import org.scalacheck.Prop
 import scala.concurrent.{CancellationException, ExecutionContext, Promise, TimeoutException}
 import scala.concurrent.duration._
 
-import munit.{DisciplineSuite, ScalaCheckSuite}
+import munit.DisciplineSuite
 
 import Prop.forAll
 
-class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with IOPlatformSuite {
+class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSuite {
 
   ticked("free monad - produce a pure value when run") { implicit ticker =>
     assertCompleteAs(IO.pure(42), 42)
@@ -132,43 +132,45 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
         TestException2)
   }
 
-  ticked("error handling - attempt is redeem with Left(_) for recover and Right(_) for map") {
-    implicit ticker => forAll { (io: IO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
+  tickedProperty(
+    "error handling - attempt is redeem with Left(_) for recover and Right(_) for map") {
+    implicit ticker =>
+      forAll { (io: IO[Int]) => assertEqv(io.attempt, io.redeem(Left(_), Right(_))) }
   }
 
-  ticked("error handling - attempt is flattened redeemWith") { implicit ticker =>
+  tickedProperty("error handling - attempt is flattened redeemWith") { implicit ticker =>
     forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
-      io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
+      assertEqv(io.attempt.flatMap(_.fold(recover, bind)), io.redeemWith(recover, bind))
     }
   }
 
-  ticked("error handling - attemptTap(f) is an alias for attempt.flatTap(f).rethrow") {
+  tickedProperty("error handling - attemptTap(f) is an alias for attempt.flatTap(f).rethrow") {
     implicit ticker =>
       forAll { (io: IO[Int], f: Either[Throwable, Int] => IO[Int]) =>
-        io.attemptTap(f) eqv io.attempt.flatTap(f).rethrow
+        assertEqv(io.attemptTap(f), io.attempt.flatTap(f).rethrow)
       }
   }
 
-  ticked("error handling - rethrow is inverse of attempt") { implicit ticker =>
-    forAll { (io: IO[Int]) => io.attempt.rethrow eqv io }
+  tickedProperty("error handling - rethrow is inverse of attempt") { implicit ticker =>
+    forAll { (io: IO[Int]) => assertEqv(io.attempt.rethrow, io) }
   }
 
-  ticked("error handling - redeem is flattened redeemWith") { implicit ticker =>
+  tickedProperty("error handling - redeem is flattened redeemWith") { implicit ticker =>
     forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
-      io.redeem(recover, bind).flatten eqv io.redeemWith(recover, bind)
+      assertEqv(io.redeem(recover, bind).flatten, io.redeemWith(recover, bind))
     }
   }
 
-  ticked("error handling - redeem subsumes handleError") { implicit ticker =>
+  tickedProperty("error handling - redeem subsumes handleError") { implicit ticker =>
     forAll { (io: IO[Int], recover: Throwable => Int) =>
       // we have to workaround functor law weirdness here... again... sigh... because of self-cancelation
-      io.redeem(recover, identity).flatMap(IO.pure(_)) eqv io.handleError(recover)
+      assertEqv(io.redeem(recover, identity).flatMap(IO.pure(_)), io.handleError(recover))
     }
   }
 
-  ticked("error handling - redeemWith subsumes handleErrorWith") { implicit ticker =>
+  tickedProperty("error handling - redeemWith subsumes handleErrorWith") { implicit ticker =>
     forAll { (io: IO[Int], recover: Throwable => IO[Int]) =>
-      io.redeemWith(recover, IO.pure) eqv io.handleErrorWith(recover)
+      assertEqv(io.redeemWith(recover, IO.pure), io.handleErrorWith(recover))
     }
   }
 
@@ -1800,23 +1802,26 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
     assertFailAs(tsk, TestException)
   }
 
-  ticked("miscellaneous - round trip non-canceled through s.c.Future") { implicit ticker =>
-    forAll { (ioa: IO[Int]) =>
-      val normalized = ioa.onCancel(IO.never)
-      normalized eqv IO.fromFuture(IO(normalized.unsafeToFuture()))
-    }
+  tickedProperty("miscellaneous - round trip non-canceled through s.c.Future") {
+    implicit ticker =>
+      forAll { (ioa: IO[Int]) =>
+        val normalized = ioa.onCancel(IO.never)
+        assertEqv(normalized, IO.fromFuture(IO(normalized.unsafeToFuture())))
+      }
   }
 
-  ticked("miscellaneous - round trip cancelable through s.c.Future") { implicit ticker =>
-    forAll { (ioa: IO[Int]) =>
-      ioa eqv IO
-        .fromFutureCancelable(
-          IO(ioa.unsafeToFutureCancelable()).map {
-            case (fut, fin) => (fut, IO.fromFuture(IO(fin())))
-          }
+  tickedProperty("miscellaneous - round trip cancelable through s.c.Future") {
+    implicit ticker =>
+      forAll { (ioa: IO[Int]) =>
+        assertEqv(
+          ioa,
+          IO.fromFutureCancelable(
+            IO(ioa.unsafeToFutureCancelable()).map {
+              case (fut, fin) => (fut, IO.fromFuture(IO(fin())))
+            }
+          ).recoverWith { case _: CancellationException => IO.canceled *> IO.never[Int] }
         )
-        .recoverWith { case _: CancellationException => IO.canceled *> IO.never[Int] }
-    }
+      }
   }
 
   ticked("miscellaneous - canceled through s.c.Future is errored") { implicit ticker =>
