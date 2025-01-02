@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{SemigroupK, Show, ~>}
+import cats.{~>, SemigroupK, Show}
 import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext
@@ -26,11 +26,13 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
+
 import org.scalacheck.Cogen
 import org.scalacheck.Prop.forAll
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+
 import java.util.concurrent.atomic.AtomicBoolean
 
 import munit.DisciplineSuite

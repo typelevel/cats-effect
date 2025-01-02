@@ -17,8 +17,10 @@
 package cats.effect
 
 import cats.effect.testkit.TestContext
-import munit.{FunSuite, Location, ScalaCheckSuite, TestOptions}
+
 import org.scalacheck.Prop
+
+import munit.{FunSuite, Location, ScalaCheckSuite, TestOptions}
 
 trait BaseSuite extends FunSuite with Runners {
 
