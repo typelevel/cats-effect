@@ -208,7 +208,7 @@ class SupervisorSuite extends BaseSuite with DetectPlatform {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).timeoutTo(4.seconds, IO(sys.error("err")))
+      test.start.flatMap(_.join).timeoutTo(4.seconds, IO(sys.error("err"))).void
     }
 
     real(s"$name - cancel inner fiber and ignore restart if outer errored") {
@@ -222,7 +222,7 @@ class SupervisorSuite extends BaseSuite with DetectPlatform {
       }
 
       // if this doesn't work properly, the test will hang
-      test.start.flatMap(_.join).timeoutTo(4.seconds, IO(sys.error("err")))
+      test.start.flatMap(_.join).timeoutTo(4.seconds, IO(sys.error("err"))).void
     }
 
     real(s"$name - supervise / finalize race") {

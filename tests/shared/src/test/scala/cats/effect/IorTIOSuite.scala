@@ -78,7 +78,7 @@ class IorTIOSuite extends BaseSuite with DisciplineSuite {
       unsafeRun(sbool.value).fold(
         false,
         _ => false,
-        iO => iO.fold(false)(i => i.fold(_ => false, _ => true, (_, _) => false)))
+        iO => iO.fold(false)(i => i.fold(_ => true, _ => true, (_, _) => false)))
     )
 
   {

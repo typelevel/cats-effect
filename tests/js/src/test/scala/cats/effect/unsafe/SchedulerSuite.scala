@@ -39,7 +39,7 @@ class SchedulerSuite extends BaseSuite {
       start <- IO.realTime
       times <- IO.realTime.replicateA(100)
       deltas = times.map(_ - start)
-    } yield deltas.exists(_.toMicros % 1000 != 0)
+    } yield assert(deltas.exists(_.toMicros % 1000 != 0))
   }
   real("correctly calculate real time") {
     IO.realTime.product(IO(System.currentTimeMillis())).map {
@@ -56,7 +56,7 @@ class SchedulerSuite extends BaseSuite {
       _ <- IO(cancel.run())
       _ <- IO.sleep(200.millis)
       didItCancel <- IO(ref.get())
-    } yield didItCancel
+    } yield assert(didItCancel)
   }
 
 }

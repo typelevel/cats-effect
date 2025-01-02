@@ -116,7 +116,7 @@ final class MutexSuite extends BaseSuite with DetectPlatform {
     }
 
     real(s"$name not deadlock when highly contended") {
-      mutex.flatMap(_.lock.use_.parReplicateA_(10)).replicateA_(10000).as(true)
+      mutex.flatMap(_.lock.use_.parReplicateA_(10)).replicateA_(10000)
     }
 
     real(s"$name handle cancelled acquire") {

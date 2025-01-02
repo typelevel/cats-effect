@@ -20,10 +20,10 @@ package std
 class ConsoleJSSuite extends BaseSuite {
 
   real("work in any JS environment") {
-    Console[IO].println("printing") *> Console[IO].errorln("erroring") *> IO(true)
+    Console[IO].println("printing") *> Console[IO].errorln("erroring")
   }
   real("println should not hang for large strings") {
-    Console[IO].println("foo" * 10000).as(true)
+    Console[IO].println("foo" * 10000)
   }
 
 }

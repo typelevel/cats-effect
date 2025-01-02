@@ -81,8 +81,8 @@ class SelectorSuite extends BaseSuite {
       // get off the wstp to test async codepaths
       IO.blocking(()) *> Selector.get.flatMap { selector =>
         selector.select(pipe.sink, OP_READ).attempt.map {
-          case Left(_: IllegalArgumentException) => true
-          case _ => false
+          case Left(_: IllegalArgumentException) => ()
+          case other => fail(s"Expected Left(IllegalArgumentException), got $other")
         }
       }
     }

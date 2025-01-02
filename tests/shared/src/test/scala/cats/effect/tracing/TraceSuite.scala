@@ -33,12 +33,15 @@ class TraceSuite extends BaseSuite with TestInstances with DetectPlatform { self
         }
       loop(100).attempt.map {
         case Left(ex) =>
-          ex.getStackTrace.count { e =>
-            e.getClassName() == s"flatMap @ ${self.getClass().getName()}" && e
-              .getMethodName()
-              .startsWith("loop$")
-          } == rt.config.traceBufferSize
-        case _ => false
+          assertEquals(
+            ex.getStackTrace.count { e =>
+              e.getClassName() == s"flatMap @ ${self.getClass().getName()}" && e
+                .getMethodName()
+                .startsWith("loop$")
+            },
+            rt.config.traceBufferSize
+          )
+        case other => fail(s"Expected Left, got $other")
       }
     }
   } else {

@@ -66,7 +66,7 @@ class AsyncSuite extends BaseSuite with DisciplineSuite {
       .as(false)
       .recover { case _: TestControl.NonTerminationException => true }
       .replicateA(100)
-      .map(_.forall(identity(_)))
+      .map(r => assert(r.forall(identity(_))))
   }
 
   real("fromFutureCancelable should cancel on fiber cancelation") {
@@ -83,7 +83,7 @@ class AsyncSuite extends BaseSuite with DisciplineSuite {
       res <- IO(assert(canceled.get()))
     } yield res
 
-    TestControl.executeEmbed(go, IORuntimeConfig(1, 2)).replicateA(1000)
+    TestControl.executeEmbed(go, IORuntimeConfig(1, 2)).replicateA_(1000)
 
   }
 
@@ -108,7 +108,7 @@ class AsyncSuite extends BaseSuite with DisciplineSuite {
       .as(false)
       .recover { case _: TestControl.NonTerminationException => true }
       .replicateA(1000)
-      .map(_.forall(identity(_)))
+      .map(r => assert(r.forall(identity(_))))
   }
 
   final class AsyncIO[A](val io: IO[A])

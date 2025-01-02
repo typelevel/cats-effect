@@ -23,7 +23,7 @@ class UUIDGenSuite extends BaseSuite {
     for {
       left <- UUIDGen.randomUUID[IO]
       right <- UUIDGen.randomUUID[IO]
-    } yield left != right
+    } yield assert(left != right)
   }
 
   real("use the correct variant and version") {

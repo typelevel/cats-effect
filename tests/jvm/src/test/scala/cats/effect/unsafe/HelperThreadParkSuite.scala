@@ -61,7 +61,7 @@ class HelperThreadParkSuite extends BaseSuite {
         _ <- IO(Await.result(p.future, Duration.Inf))
       } yield ()
 
-      List.fill(10)(io.start).sequence.flatMap(_.traverse(_.joinWithNever)).evalOn(rt.compute)
+      List.fill(10)(io.start).sequence.flatMap(_.traverse_(_.joinWithNever)).evalOn(rt.compute)
     }
   }
 }

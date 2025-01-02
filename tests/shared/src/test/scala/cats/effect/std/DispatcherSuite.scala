@@ -39,8 +39,7 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
 
     real("sequential dispatcher (cancelable = false) - await = true - not hang") {
       D.use(dispatcher => IO(dispatcher.unsafeRunAndForget(IO.unit)))
-        .replicateA(if (isJS || isNative) 1 else 10000)
-        .as(true)
+        .replicateA_(if (isJS || isNative) 1 else 10000)
     }
 
     real(
@@ -125,8 +124,7 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
 
     real("sequential dispatcher (cancelable = true) - await = true - not hang") {
       D.use(dispatcher => IO(dispatcher.unsafeRunAndForget(IO.unit)))
-        .replicateA(if (isJS || isNative) 1 else 10000)
-        .as(true)
+        .replicateA_(if (isJS || isNative) 1 else 10000)
     }
   }
 
@@ -427,7 +425,7 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
     real(s"$name - raise an error on leaked runner") {
       dispatcher.use(IO.pure(_)) flatMap { runner =>
         IO {
-          intercept[IllegalStateException](runner.unsafeRunAndForget(IO(fail("fail"))))
+          val _ = intercept[IllegalStateException](runner.unsafeRunAndForget(IO(fail("fail"))))
         }
       }
     }

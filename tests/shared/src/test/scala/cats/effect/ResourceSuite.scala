@@ -996,7 +996,7 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
         }
       }
 
-      TestControl.executeEmbed(go.replicateA_(100)).as(true)
+      TestControl.executeEmbed(go.replicateA_(100))
     }
 
     ticked("Async[Resource] - start - runs fibers in parallel") { implicit ticker =>

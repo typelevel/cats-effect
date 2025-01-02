@@ -165,23 +165,20 @@ class DeferredSuite extends BaseSuite with DetectPlatform { outer =>
           IO.race(attemptCompletion(1), attemptCompletion(2)).void,
           d.get.void
         ).parSequence
-        r <- IO { assert(res == List((), ())) }
-      } yield r
+      } yield assertEquals(res, List((), ()))
     }
 
     real(s"$name handle lots of canceled gets in parallel") {
-      List(10, 100, 1000)
-        .traverse_ { n =>
-          deferredU
-            .flatMap { d =>
-              (d.get.background.surround(IO.cede).replicateA_(n) *> d
-                .complete(())).background.surround {
-                d.get.as(1).parReplicateA(n).map(r => assertEquals(r.sum, n))
-              }
+      List(10, 100, 1000).traverse_ { n =>
+        deferredU
+          .flatMap { d =>
+            (d.get.background.surround(IO.cede).replicateA_(n) *> d
+              .complete(())).background.surround {
+              d.get.as(1).parReplicateA(n).map(r => assertEquals(r.sum, n))
             }
-            .replicateA_(if (isJVM) 100 else 1)
-        }
-        .as(true)
+          }
+          .replicateA_(if (isJVM) 100 else 1)
+      }
     }
 
     ticked("handle adversarial cancelations without loss of callbacks") { implicit ticker =>

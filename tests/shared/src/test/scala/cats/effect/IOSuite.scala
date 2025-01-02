@@ -835,7 +835,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield List(r1, r2, r3, r4)
 
     test.flatMap { results =>
-      results.traverse { result =>
+      results.traverse_ { result =>
         IO(assert(result.isSuccess)).flatMap { _ =>
           result match {
             case Outcome.Succeeded(ioa) =>
@@ -2214,7 +2214,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
   }
 
   real("produce a specialized version of Deferred") {
-    IO.deferred[Unit].flatMap(d => IO(d.isInstanceOf[IODeferred[?]]))
+    IO.deferred[Unit].flatMap(d => IO(assert(d.isInstanceOf[IODeferred[?]])))
   }
 
   platformTests()

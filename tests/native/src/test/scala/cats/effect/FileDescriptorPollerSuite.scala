@@ -123,7 +123,7 @@ class FileDescriptorPollerSuite extends BaseSuite {
               pipes.foreach { pipe =>
                 unistd.write(pipe.writeFd, Array[Byte](42).atUnsafe(0), 1.toULong)
               }
-            }.background.surround(latch.await.as(true))
+            }.background.surround(latch.await)
           }
       }
     }
@@ -135,7 +135,10 @@ class FileDescriptorPollerSuite extends BaseSuite {
 
   real("hang if never ready") {
     mkPipe.use { pipe =>
-      pipe.read(new Array[Byte](1), 0, 1).as(false).timeoutTo(1.second, IO.pure(true))
+      pipe
+        .read(new Array[Byte](1), 0, 1)
+        .map(_ => fail("shouldn't get there"))
+        .timeoutTo(1.second, IO.unit)
     }
   }
 

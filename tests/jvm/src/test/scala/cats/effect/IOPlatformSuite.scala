@@ -104,7 +104,7 @@ trait IOPlatformSuite extends DetectPlatform {
 
     real("start 1000 fibers in series and await them all") {
       val input = (0 until 1000).toList
-      val ioa = input.traverse(i => IO.pure(i).start.flatMap(_.join))
+      val ioa = input.traverse_(i => IO.pure(i).start.flatMap(_.join))
 
       ioa
     }
@@ -117,7 +117,7 @@ trait IOPlatformSuite extends DetectPlatform {
         }
       }
 
-      task.replicateA(100)
+      task.replicateA_(100)
     }
 
     tickedProperty("round trip non-canceled through j.u.c.CompletableFuture") {
@@ -562,6 +562,7 @@ trait IOPlatformSuite extends DetectPlatform {
             .invoke(Thread.currentThread())
             .asInstanceOf[Boolean]
         }.evalOn(loomEc)
+          .map(assert(_))
       }
     // else
     // "block in-place on virtual threads" in skipped("virtual threads not supported")

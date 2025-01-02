@@ -39,7 +39,7 @@ trait Runners extends TestInstances with RunnersPlatform {
   def ticked(options: TestOptions)(body: Ticker => Unit)(implicit loc: Location): Unit =
     test(options)(body(Ticker(TestContext())))
 
-  def real[A](options: TestOptions)(body: => IO[A])(implicit loc: Location): Unit =
+  def real(options: TestOptions)(body: => IO[Unit])(implicit loc: Location): Unit =
     test(options) {
       val (fut, cancel) = body.unsafeToFutureCancelable()(runtime())
       timeout(fut, cancel, executionTimeout)
@@ -48,14 +48,14 @@ trait Runners extends TestInstances with RunnersPlatform {
   /*
    * Hacky implementation of effectful property testing
    */
-  def realProp[A, B](options: TestOptions, gen: Gen[A])(f: A => IO[B])(
+  def realProp[A](options: TestOptions, gen: Gen[A])(f: A => IO[Unit])(
       implicit loc: Location): Unit =
     real(options)(List.range(1, 100).traverse_ { _ =>
       val a = gen.sample.get
       f(a)
     })
 
-  def realWithRuntime[A](options: TestOptions)(f: IORuntime => IO[A])(
+  def realWithRuntime(options: TestOptions)(f: IORuntime => IO[Unit])(
       implicit loc: Location): Unit =
     test(options) {
       val rt = runtime()
@@ -115,7 +115,7 @@ trait Runners extends TestInstances with RunnersPlatform {
 
   // useful for tests in the `real` context
   implicit class Assertions[A](fa: IO[A]) {
-    def mustFailWith[E <: Throwable: ClassTag](implicit loc: Location) =
+    def mustFailWith[E <: Throwable: ClassTag](implicit loc: Location): IO[Unit] =
       fa.attempt.flatMap { res =>
         IO {
           res match {
@@ -127,7 +127,8 @@ trait Runners extends TestInstances with RunnersPlatform {
         }
       }
 
-    def mustEqual(a: A)(implicit loc: Location) = fa.flatMap { res => IO(assertEquals(res, a)) }
+    def mustEqual(a: A)(implicit loc: Location): IO[Unit] =
+      fa.flatMap { res => IO(assertEquals(res, a)) }
   }
 
   private def timeout[A](

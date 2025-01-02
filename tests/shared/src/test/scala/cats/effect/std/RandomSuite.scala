@@ -48,7 +48,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randDoubles <- random.betweenDouble(min, max).replicateA(numIterations)
-      } yield randDoubles.forall(randDouble => randDouble >= min && randDouble <= max)
+      } yield assert(randDoubles.forall(randDouble => randDouble >= min && randDouble <= max))
     }
 
     real(s"$name - betweenFloat - generate a random float within a range") {
@@ -58,7 +58,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randFloats <- random.betweenFloat(min, max).replicateA(numIterations)
-      } yield randFloats.forall(randFloat => randFloat >= min && randFloat <= max)
+      } yield assert(randFloats.forall(randFloat => randFloat >= min && randFloat <= max))
     }
 
     real(s"$name - betweenInt - generate a random integer within a range") {
@@ -68,7 +68,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randInts <- random.betweenInt(min, max).replicateA(numIterations)
-      } yield randInts.forall(randInt => randInt >= min && randInt <= max)
+      } yield assert(randInts.forall(randInt => randInt >= min && randInt <= max))
     }
 
     real(s"$name - betweenLong - generate a random long within a range") {
@@ -78,7 +78,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randLongs <- random.betweenLong(min, max).replicateA(numIterations)
-      } yield randLongs.forall(randLong => randLong >= min && randLong <= max)
+      } yield assert(randLongs.forall(randLong => randLong >= min && randLong <= max))
     }
 
     real(s"$name - nextAlphaNumeric - generate random alphanumeric characters") {
@@ -87,7 +87,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randomChars <- random.nextAlphaNumeric.replicateA(numIterations)
-      } yield randomChars.forall(randomChar => alphaNumeric.contains(randomChar))
+      } yield assert(randomChars.forall(randomChar => alphaNumeric.contains(randomChar)))
     }
 
     real(s"$name - nextBoolean - generate random boolean values") {
@@ -103,7 +103,7 @@ class RandomSuite extends BaseSuite {
         bytes1 <- random1.nextBytes(128)
         random2 <- randomGen
         bytes2 <- random2.nextBytes(256)
-      } yield bytes1.length == 128 && bytes2.length == 256
+      } yield assert(bytes1.length == 128 && bytes2.length == 256)
     }
 
     real(
@@ -113,7 +113,7 @@ class RandomSuite extends BaseSuite {
         for {
           bytes1 <- nextBytes
           bytes2 <- nextBytes
-        } yield bytes1 ne bytes2
+        } yield assert(bytes1 ne bytes2)
       }
     }
 
@@ -124,7 +124,7 @@ class RandomSuite extends BaseSuite {
         nextBytes = random.nextBytes(128)
         bytes1 <- nextBytes
         bytes2 <- nextBytes
-      } yield bytes1 ne bytes2
+      } yield assert(bytes1 ne bytes2)
     }
 
     real(s"$name - nextDouble - generate random double values between 0.0 and 1.0") {
@@ -132,7 +132,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randomDoubles <- random.nextDouble.replicateA(numIterations)
-      } yield randomDoubles.forall(double => double >= 0.0 && double < 1.0)
+      } yield assert(randomDoubles.forall(double => double >= 0.0 && double < 1.0))
     }
 
     real(s"$name - nextFloat - generate random float values between 0.0 and 1.0") {
@@ -140,7 +140,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randomFloats <- random.nextFloat.replicateA(numIterations)
-      } yield randomFloats.forall(float => float >= 0.0f && float < 1.0f)
+      } yield assert(randomFloats.forall(float => float >= 0.0f && float < 1.0f))
     }
 
     real(
@@ -152,7 +152,7 @@ class RandomSuite extends BaseSuite {
         mean = gaussians.sum / sampleSize
         variance = gaussians.map(x => math.pow(x - mean, 2)).sum / sampleSize
         stddev = math.sqrt(variance)
-      } yield java.lang.Double.isFinite(mean) && java.lang.Double.isFinite(stddev)
+      } yield assert(java.lang.Double.isFinite(mean) && java.lang.Double.isFinite(stddev))
     }
 
     real(s"$name - nextInt - generate random int value") {
@@ -168,7 +168,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randomInts <- random.nextIntBounded(bound).replicateA(numIterations)
-      } yield randomInts.forall(int => int >= 0 && int < bound)
+      } yield assert(randomInts.forall(int => int >= 0 && int < bound))
     }
 
     real(s"$name - nextLong - generate random long value") {
@@ -184,7 +184,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randomLongs <- random.nextLongBounded(bound).replicateA(numIterations)
-      } yield randomLongs.forall(long => long >= 0L && long < bound)
+      } yield assert(randomLongs.forall(long => long >= 0L && long < bound))
     }
 
     real(s"$name - nextPrintableChar - generate random printable characters") {
@@ -193,7 +193,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randomChars <- random.nextPrintableChar.replicateA(numIterations)
-      } yield randomChars.forall(char => printableChars.contains(char))
+      } yield assert(randomChars.forall(char => printableChars.contains(char)))
     }
 
     real(s"$name - nextString - generate a random string with the specified length") {
@@ -202,9 +202,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         randomStrings <- random.nextString(length).replicateA(numIterations)
-      } yield {
-        randomStrings.forall(_.length == length)
-      }
+      } yield assert(randomStrings.forall(_.length == length))
     }
 
     real(s"$name - shuffleList - shuffle a list") {
@@ -214,7 +212,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         shuffled <- random.shuffleList(list)
-      } yield shuffled != list && shuffled.sorted == list.sorted
+      } yield assert(shuffled != list && shuffled.sorted == list.sorted)
     }
 
     real(s"$name - shuffleVector - shuffle a vector") {
@@ -223,14 +221,14 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         shuffled <- random.shuffleVector(vector)
-      } yield shuffled != vector && shuffled.sorted == vector.sorted
+      } yield assert(shuffled != vector && shuffled.sorted == vector.sorted)
     }
 
     real(s"$name - oneOf - return the only value provided") {
       for {
         random <- randomGen
         chosen <- random.oneOf(42)
-      } yield chosen == 42
+      } yield assertEquals(chosen, 42)
     }
 
     real(s"$name - oneOf - eventually choose all the given values at least once") {
@@ -245,7 +243,7 @@ class RandomSuite extends BaseSuite {
         ref <- Ref.of[IO, Set[Int]](Set.empty)
         _ <- chooseAndAccumulate(random, ref).untilM_(haveChosenAllValues(ref))
         success <- haveChosenAllValues(ref)
-      } yield success
+      } yield assert(success)
     }
 
     real(s"$name - oneOf - not select any value outside the provided list") {
@@ -254,7 +252,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         chosenValues <- random.oneOf(list.head, list.tail: _*).replicateA(numIterations)
-      } yield chosenValues.forall(list.contains)
+      } yield assert(chosenValues.forall(list.contains))
     }
 
     elementOfTests[Int, List[Int]](
@@ -309,7 +307,7 @@ class RandomSuite extends BaseSuite {
       for {
         random <- randomGen
         result <- random.elementOf(emptyCollection).attempt
-      } yield result.isLeft
+      } yield assert(result.isLeft)
     }
 
     real(
@@ -325,7 +323,7 @@ class RandomSuite extends BaseSuite {
         ref <- Ref.of[IO, Set[A]](Set.empty)
         _ <- chooseAndAccumulate(random, ref).untilM_(haveChosenAllElements(ref))
         success <- haveChosenAllElements(ref)
-      } yield success
+      } yield assert(success)
     }
 
     real(
@@ -336,7 +334,7 @@ class RandomSuite extends BaseSuite {
         chosenValues <- random.elementOf(nonEmptyCollection).replicateA(numIterations)
       } yield {
         val collectionVector: Vector[A] = nonEmptyCollection.toVector
-        chosenValues.forall(collectionVector.contains(_))
+        assert(chosenValues.forall(collectionVector.contains(_)))
       }
     }
   }

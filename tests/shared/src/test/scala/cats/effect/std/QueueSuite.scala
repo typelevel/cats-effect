@@ -57,7 +57,7 @@ class BoundedQueueSuite extends BaseSuite with QueueTests[Queue] with DetectPlat
   }
 
   real("BoundedQueue constructor - not OOM") {
-    Queue.bounded[IO, Unit](Int.MaxValue).as(true)
+    Queue.bounded[IO, Unit](Int.MaxValue).void
   }
 
   boundedQueueTests("BoundedQueue mapK", Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
@@ -135,7 +135,7 @@ class BoundedQueueSuite extends BaseSuite with QueueTests[Queue] with DetectPlat
       _ <- IO.race(taker.joinWithNever, q.offer(()).delayBy(500.millis))
     } yield ()
 
-    test.parReplicateA(if (isJS || isNative) 1 else 1000)
+    test.parReplicateA_(if (isJS || isNative) 1 else 1000)
   }
 
   private def boundedQueueTests(name: String, constructor: Int => IO[Queue[IO, Int]]) = {
@@ -591,7 +591,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSuite =>
             IO.println("did not take any results")
       } yield ()
 
-      test.parReplicateA(10)
+      test.parReplicateA_(10)
     }
 
     real(s"$name - release all offerers when queue is full") {
@@ -612,7 +612,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSuite =>
         _ <- expected.await
       } yield ()
 
-      test.parReplicateA(10)
+      test.parReplicateA_(10)
     }
   }
 
@@ -736,7 +736,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSuite =>
             offer2.join
       } yield ()
 
-      test.parReplicateA(16)
+      test.parReplicateA_(16)
     }
   }
 
@@ -887,7 +887,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSuite =>
         }
       } yield ()
 
-      test.parReplicateA(16)
+      test.parReplicateA_(16)
     }
   }
 

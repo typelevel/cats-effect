@@ -65,6 +65,6 @@ class AsyncPlatformSuite extends BaseSuite {
       .as(false)
       .recover { case _: TestControl.NonTerminationException => true }
       .replicateA(1000)
-      .map(_.forall(identity(_)))
+      .map(r => assert(r.forall(identity(_))))
   }
 }
