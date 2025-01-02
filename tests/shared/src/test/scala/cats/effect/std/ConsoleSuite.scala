@@ -21,14 +21,14 @@ class ConsoleSuite extends BaseSuite {
 
   case class Foo(n: Int, b: Boolean)
 
-  test("select default Show.fromToString (IO)") {
+  testUnit("select default Show.fromToString (IO)") {
     val _ = (
       IO.print(Foo(1, true)), // compilation test
       IO.println(Foo(1, true)) // compilation test
     )
   }
 
-  test("select default Show.fromToString (Console[IO])") {
+  testUnit("select default Show.fromToString (Console[IO])") {
     val _ = (
       Console[IO].print(Foo(1, true)), // compilation test
       Console[IO].println(Foo(1, true)), // compilation test

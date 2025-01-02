@@ -19,7 +19,7 @@ package cats.effect
 trait SyncIOPlatformSuite { self: BaseSuite =>
   def platformTests() = {
 
-    test("realTimeInstant should return an Instant constructed from realTime") {
+    testUnit("realTimeInstant should return an Instant constructed from realTime") {
       // Unfortunately since SyncIO doesn't use on a controllable
       // clock source, so a diff best we can do
       val op = for {

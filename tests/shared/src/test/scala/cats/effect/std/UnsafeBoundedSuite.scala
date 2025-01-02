@@ -29,7 +29,7 @@ class UnsafeBoundedSuite extends BaseSuite {
   // NB: emperically, it seems this needs to be > availableProcessors() to be effective
   val length = 1000
 
-  test("sequential all") {
+  testUnit("sequential all") {
     val q = new UnsafeBounded[Int](length)
 
     0.until(length).foreach(q.put(_))
@@ -67,22 +67,22 @@ class UnsafeBoundedSuite extends BaseSuite {
     test.timeoutTo(30.seconds, IO(assert(false)))
   }
 
-  test("produce failure when putting over bound") {
+  testUnit("produce failure when putting over bound") {
     val q = new UnsafeBounded[Unit](10)
-    intercept[Exception](0.until(11).foreach(_ => q.put(())))
+    val _ = intercept[Exception](0.until(11).foreach(_ => q.put(())))
   }
 
-  test("produce failure when taking while empty - without changes") {
+  testUnit("produce failure when taking while empty - without changes") {
     val q = new UnsafeBounded[Unit](10)
-    intercept[Exception](q.take())
+    val _ = intercept[Exception](q.take())
   }
 
-  test("produce failure when taking while empty - after put and take") {
+  testUnit("produce failure when taking while empty - after put and take") {
     val q = new UnsafeBounded[Unit](10)
 
     0.until(5).foreach(_ => q.put(()))
     0.until(5).foreach(_ => q.take())
 
-    intercept[Exception](q.take())
+    val _ = intercept[Exception](q.take())
   }
 }

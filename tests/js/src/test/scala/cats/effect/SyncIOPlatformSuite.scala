@@ -19,7 +19,7 @@ package cats.effect
 trait SyncIOPlatformSuite { self: BaseSuite =>
   def platformTests() = {
 
-    test("realTimeDate should return an Instant constructed from realTime") {
+    testUnit("realTimeDate should return an Instant constructed from realTime") {
       // Unfortunately since SyncIO doesn't rely on a controllable
       // time source, this is the best I can do
       val op = for {

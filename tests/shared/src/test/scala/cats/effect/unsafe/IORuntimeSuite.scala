@@ -20,7 +20,7 @@ import cats.effect.BaseSuite
 
 class IORuntimeSuite extends BaseSuite {
 
-  test("cleanup allRuntimes collection on shutdown") {
+  testUnit("cleanup allRuntimes collection on shutdown") {
     val (defaultScheduler, closeScheduler) = Scheduler.createDefaultScheduler()
 
     val runtime = IORuntime(null, null, defaultScheduler, closeScheduler, IORuntimeConfig())

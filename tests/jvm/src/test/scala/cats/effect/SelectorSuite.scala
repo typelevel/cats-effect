@@ -88,7 +88,7 @@ class SelectorSuite extends BaseSuite {
     }
   }
 
-  test("handles concurrent close") {
+  testUnit("handles concurrent close") {
     val (pool, poller, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
     implicit val runtime: IORuntime =
       IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()

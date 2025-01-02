@@ -22,15 +22,15 @@ import cats.syntax.all._
 
 class IOParImplicitSuite extends BaseSuite {
 
-  test("Can resolve CommutativeApplicative instance") {
+  testUnit("Can resolve CommutativeApplicative instance") {
     List(1, 2, 3).parUnorderedTraverse(_ => IO.unit) // compilation test
-    true
+    ()
   }
 
-  test("Can resolve IO.Par instances") { // compilation test
+  testUnit("Can resolve IO.Par instances") { // compilation test
     Align[IO.Par]
     CommutativeApplicative[IO.Par]
-    true
+    ()
   }
 
 }

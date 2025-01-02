@@ -333,7 +333,7 @@ trait IOPlatformSuite extends DetectPlatform {
       }
     }
 
-    test("safely detect hard-blocked threads even while blockers are being created") {
+    testUnit("safely detect hard-blocked threads even while blockers are being created") {
       val (compute, _, shutdown) =
         IORuntime.createWorkStealingComputeThreadPool(blockedThreadDetectionEnabled = true)
 
@@ -353,7 +353,7 @@ trait IOPlatformSuite extends DetectPlatform {
     }
 
     // this test ensures that the parkUntilNextSleeper bit works
-    test("run a timer when parking thread") {
+    testUnit("run a timer when parking thread") {
       val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
 
       implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
@@ -368,7 +368,7 @@ trait IOPlatformSuite extends DetectPlatform {
     }
 
     // this test ensures that we always see the timer, even when it fires just as we're about to park
-    test("run a timer when detecting just prior to park") {
+    testUnit("run a timer when detecting just prior to park") {
       val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
 
       implicit val runtime: IORuntime = IORuntime.builder().setCompute(pool, shutdown).build()
@@ -439,7 +439,7 @@ trait IOPlatformSuite extends DetectPlatform {
 
     }
 
-    test("not lose cedeing threads from the bypass when blocker transitioning") {
+    testUnit("not lose cedeing threads from the bypass when blocker transitioning") {
       // writing this test in terms of IO seems to not reproduce the issue
       0.until(5) foreach { _ =>
         val wstp = new WorkStealingThreadPool[AnyRef](
@@ -485,7 +485,7 @@ trait IOPlatformSuite extends DetectPlatform {
       ()
     }
 
-    test("wake parked thread for polled events") {
+    testUnit("wake parked thread for polled events") {
 
       trait DummyPoller {
         def poll: IO[Unit]

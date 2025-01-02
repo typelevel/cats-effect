@@ -23,18 +23,18 @@ class UnsafeUnboundedSuite extends BaseSuite {
 
   val length = 1000
 
-  test("put and take in order") {
+  testUnit("put and take in order") {
     val q = new UnsafeUnbounded[Int]()
 
     0.until(length).foreach(q.put(_))
     assertEquals(0.until(length).map(_ => q.take()), 0.until(length))
   }
 
-  test("produce an error when taking from empty - always empty") {
-    intercept[Exception](new UnsafeUnbounded[Unit]().take())
+  testUnit("produce an error when taking from empty - always empty") {
+    val _ = intercept[Exception](new UnsafeUnbounded[Unit]().take())
   }
 
-  test("produce an error when taking from empty - emptied") {
+  testUnit("produce an error when taking from empty - emptied") {
     val q = new UnsafeUnbounded[Unit]()
 
     q.put(())
@@ -42,10 +42,10 @@ class UnsafeUnboundedSuite extends BaseSuite {
     q.take()
     q.take()
 
-    intercept[Exception](q.take())
+    val _ = intercept[Exception](q.take())
   }
 
-  test("put three times, clear one, then take") {
+  testUnit("put three times, clear one, then take") {
     val q = new UnsafeUnbounded[String]()
 
     q.put("1")

@@ -18,10 +18,10 @@ package cats.effect
 
 class ThunkSuite extends BaseSuite {
 
-  test("return the same function") {
+  testUnit("return the same function") {
     var i = 0
     val f = () => i += 1
-    IO.delay(f()).asInstanceOf[IO.Delay[Unit]].thunk eq f
+    assertEquals(IO.delay(f()).asInstanceOf[IO.Delay[Unit]].thunk, f)
   }
 
 }

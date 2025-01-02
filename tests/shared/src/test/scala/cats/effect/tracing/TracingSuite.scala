@@ -21,7 +21,7 @@ import cats.effect.testkit.TestInstances
 
 class TracingSuite extends BaseSuite with TestInstances {
 
-  test("IO.delay should generate identical traces") {
+  testUnit("IO.delay should generate identical traces") {
     val f = () => println("foo")
     val a = IO(f())
     val b = IO(f())
@@ -31,7 +31,7 @@ class TracingSuite extends BaseSuite with TestInstances {
     }
   }
 
-  test("IO.delay should generate unique traces") {
+  testUnit("IO.delay should generate unique traces") {
     val a = IO(println("foo"))
     val b = IO(println("bar"))
     (a, b) match {
@@ -40,7 +40,7 @@ class TracingSuite extends BaseSuite with TestInstances {
     }
   }
 
-  test("Async.delay should generate identical traces") {
+  testUnit("Async.delay should generate identical traces") {
     val f = () => println("foo")
     val a = Async[IO].delay(f())
     val b = Async[IO].delay(f())
@@ -50,7 +50,7 @@ class TracingSuite extends BaseSuite with TestInstances {
     }
   }
 
-  test("Async.delay should generate unique traces") {
+  testUnit("Async.delay should generate unique traces") {
     val a = Async[IO].delay(println("foo"))
     val b = Async[IO].delay(println("bar"))
     (a, b) match {

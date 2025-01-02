@@ -26,7 +26,7 @@ class DerivationRefinementSuite extends BaseSuite {
   type AsyncStack[F[_], A] = Kleisli[OptionT[EitherT[IorT[F, Int, *], String, *], *], Unit, A]
   type SyncStack[F[_], A] = StateT[ReaderWriterStateT[F, String, Int, Unit, *], Boolean, A]
 
-  test("returns Async for OptionT at runtime if possible") {
+  testUnit("returns Async for OptionT at runtime if possible") {
     check[IO, OptionT, Sync, Async]
     check[IO, OptionT, Temporal, Async]
     check[IO, OptionT, Concurrent, Async]
@@ -34,7 +34,7 @@ class DerivationRefinementSuite extends BaseSuite {
     check[IO, OptionT, MonadCancelThrow, Async]
   }
 
-  test("returns Async for EitherT at runtime if possible") {
+  testUnit("returns Async for EitherT at runtime if possible") {
     type EitherTString[F[_], A] = EitherT[F, String, A]
     check[IO, EitherTString, Sync, Async]
     check[IO, EitherTString, Temporal, Async]
@@ -43,7 +43,7 @@ class DerivationRefinementSuite extends BaseSuite {
     check[IO, EitherTString, MonadCancelThrow, Async]
   }
 
-  test("returns Async for Kleisli at runtime if possible") {
+  testUnit("returns Async for Kleisli at runtime if possible") {
     type StringKleisli[F[_], A] = Kleisli[F, String, A]
     check[IO, StringKleisli, Sync, Async]
     check[IO, StringKleisli, Temporal, Async]
@@ -52,7 +52,7 @@ class DerivationRefinementSuite extends BaseSuite {
     check[IO, StringKleisli, MonadCancelThrow, Async]
   }
 
-  test("returns Async for IorT at runtime if possible") {
+  testUnit("returns Async for IorT at runtime if possible") {
     type StringIorT[F[_], A] = IorT[F, String, A]
     check[IO, StringIorT, Sync, Async]
     check[IO, StringIorT, Temporal, Async]
@@ -61,7 +61,7 @@ class DerivationRefinementSuite extends BaseSuite {
     check[IO, StringIorT, MonadCancelThrow, Async]
   }
 
-  test("returns Async for WriterT at runtime if possible") {
+  testUnit("returns Async for WriterT at runtime if possible") {
     type StringWriterT[F[_], A] = WriterT[F, String, A]
     check[IO, StringWriterT, Sync, Async]
     check[IO, StringWriterT, Temporal, Async]
@@ -70,19 +70,19 @@ class DerivationRefinementSuite extends BaseSuite {
     check[IO, StringWriterT, MonadCancelThrow, Async]
   }
 
-  test("returns Sync for StateT at runtime if possible") {
+  testUnit("returns Sync for StateT at runtime if possible") {
     type StringStateT[F[_], A] = StateT[F, String, A]
     check[IO, StringStateT, MonadCancelThrow, Sync]
     check[SyncIO, StringStateT, MonadCancelThrow, Sync]
   }
 
-  test("returns Sync for ReaderWriterStateT at runtime if possible") {
+  testUnit("returns Sync for ReaderWriterStateT at runtime if possible") {
     type TestRWST[F[_], A] = ReaderWriterStateT[F, String, Int, Unit, A]
     check[IO, TestRWST, MonadCancelThrow, Sync]
     check[SyncIO, TestRWST, MonadCancelThrow, Sync]
   }
 
-  test("returns Async for stacked transformers at runtime if possible") {
+  testUnit("returns Async for stacked transformers at runtime if possible") {
     check[IO, AsyncStack, Sync, Async]
     check[IO, AsyncStack, Temporal, Async]
     check[IO, AsyncStack, Concurrent, Async]
@@ -90,7 +90,7 @@ class DerivationRefinementSuite extends BaseSuite {
     check[IO, AsyncStack, MonadCancelThrow, Async]
   }
 
-  test("returns Sync for stacked transformers at runtime if possible") {
+  testUnit("returns Sync for stacked transformers at runtime if possible") {
     check[IO, SyncStack, MonadCancelThrow, Sync]
     check[SyncIO, SyncStack, MonadCancelThrow, Sync]
     check[SyncIO, AsyncStack, MonadCancelThrow, Sync]

@@ -2006,7 +2006,7 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
       IO(cancel.run()) *> IO(cancel.run()))
   }
 
-  test("syncStep - run sync IO to completion") {
+  testUnit("syncStep - run sync IO to completion") {
     var bool = false
 
     val zero = 0
@@ -2036,7 +2036,7 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
     assertEquals(bool, true)
   }
 
-  test("syncStep - fail synchronously with a throwable") {
+  testUnit("syncStep - fail synchronously with a throwable") {
     case object TestException extends RuntimeException
     val io = IO.raiseError[Unit](TestException)
 
@@ -2093,7 +2093,7 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
       )
   }
 
-  test("syncStep - evaluate up to limit and no further") {
+  testUnit("syncStep - evaluate up to limit and no further") {
     var first = false
     var second = false
 
@@ -2158,23 +2158,23 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
       assertEquals(i, 1)
   }
 
-  test("syncStep - handle uncancelable") {
+  testUnit("syncStep - handle uncancelable") {
     val sio = IO.unit.uncancelable.syncStep(Int.MaxValue)
     assertCompleteAsSync(sio.map(_.bimap(_ => (), _ => ())), Right(()))
   }
 
-  test("syncStep - handle onCancel") {
+  testUnit("syncStep - handle onCancel") {
     val sio = IO.unit.onCancel(IO.unit).syncStep(Int.MaxValue)
     assertCompleteAsSync(sio.map(_.bimap(_ => (), _ => ())), Right(()))
   }
 
-  test("syncStep - synchronously allocate a vanilla resource") {
+  testUnit("syncStep - synchronously allocate a vanilla resource") {
     val sio =
       Resource.make(IO.unit)(_ => IO.unit).allocated.map(_._1).syncStep(Int.MaxValue)
     assertCompleteAsSync(sio.map(_.bimap(_ => (), _ => ())), Right(()))
   }
 
-  test("syncStep - synchronously allocate a evalMapped resource") {
+  testUnit("syncStep - synchronously allocate a evalMapped resource") {
     val sio = Resource
       .make(IO.unit)(_ => IO.unit)
       .evalMap(_ => IO.unit)
@@ -2200,7 +2200,7 @@ class IOSuite extends BaseSuite with DisciplineSuite with ScalaCheckSuite with I
     } yield ()
   }
 
-  test("serialize") {
+  property("serialize") {
     forAll { (io: IO[Int]) => serializable(io) }(
       implicitly,
       arbitraryIOWithoutContextShift,

@@ -39,20 +39,19 @@ import munit.DisciplineSuite
 
 class ResourceSuite extends BaseSuite with DisciplineSuite {
 
-  ticked("Resource[IO, *] - releases resources in reverse order of acquisition") {
-    implicit ticker =>
-      forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
-        var released: List[Int] = Nil
-        val r = as.traverse {
-          case (a, e) =>
-            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
-        }
-        assertCompleteAs(r.use_.attempt.void, ())
-        assertEquals(released, as.map(_._1))
+  ticked("releases resources in reverse order of acquisition") { implicit ticker =>
+    forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
+      var released: List[Int] = Nil
+      val r = as.traverse {
+        case (a, e) =>
+          Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
       }
+      assertCompleteAs(r.use_.attempt.void, ())
+      assertEquals(released, as.map(_._1))
+    }
   }
 
-  ticked("Resource[IO, *] - makes acquires non interruptible") { implicit ticker =>
+  ticked("makes acquires non interruptible") { implicit ticker =>
     assertCompleteAs(
       IO.ref(false).flatMap { interrupted =>
         val fa = IO.sleep(5.seconds).onCancel(interrupted.set(true))
@@ -63,39 +62,36 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     )
   }
 
-  ticked("Resource[IO, *] - makes acquires non interruptible, overriding uncancelable") {
-    implicit ticker =>
-      assertCompleteAs(
-        IO.ref(false).flatMap { interrupted =>
-          val fa = IO.uncancelable { poll =>
-            poll(IO.sleep(5.seconds)).onCancel(interrupted.set(true))
-          }
+  ticked("makes acquires non interruptible, overriding uncancelable") { implicit ticker =>
+    assertCompleteAs(
+      IO.ref(false).flatMap { interrupted =>
+        val fa =
+          IO.uncancelable { poll => poll(IO.sleep(5.seconds)).onCancel(interrupted.set(true)) }
 
-          Resource.make(fa)(_ => IO.unit).use_.timeout(1.second).attempt >> interrupted.get
-        },
-        false
-      )
+        Resource.make(fa)(_ => IO.unit).use_.timeout(1.second).attempt >> interrupted.get
+      },
+      false
+    )
   }
 
-  ticked("Resource[IO, *] - releases resource if interruption happens during use") {
-    implicit ticker =>
-      val flag = IO.ref(false)
+  ticked("releases resource if interruption happens during use") { implicit ticker =>
+    val flag = IO.ref(false)
 
-      assertCompleteAs(
-        (flag, flag).tupled.flatMap {
-          case (acquireFin, resourceFin) =>
-            val action = IO.sleep(1.second).onCancel(acquireFin.set(true))
-            val fin = resourceFin.set(true)
-            val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
+    assertCompleteAs(
+      (flag, flag).tupled.flatMap {
+        case (acquireFin, resourceFin) =>
+          val action = IO.sleep(1.second).onCancel(acquireFin.set(true))
+          val fin = resourceFin.set(true)
+          val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
 
-            res.surround(IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
-              (acquireFin.get, resourceFin.get).tupled
-        },
-        false -> true
-      )
+          res.surround(IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
+            (acquireFin.get, resourceFin.get).tupled
+      },
+      false -> true
+    )
   }
 
-  ticked("Resource[IO, *] - supports interruptible acquires") { implicit ticker =>
+  ticked("supports interruptible acquires") { implicit ticker =>
     val flag = IO.ref(false)
 
     assertCompleteAs(
@@ -112,31 +108,30 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     )
   }
 
-  ticked("Resource[IO, *] - supports interruptible acquires, respecting uncancelable") {
-    implicit ticker =>
-      val flag = IO.ref(false)
-      val sleep = IO.sleep(1.second)
-      val timeout = 500.millis
+  ticked("supports interruptible acquires, respecting uncancelable") { implicit ticker =>
+    val flag = IO.ref(false)
+    val sleep = IO.sleep(1.second)
+    val timeout = 500.millis
 
-      assertCompleteAs(
-        (flag, flag, flag, flag).tupled.flatMap {
-          case (acquireFin, resourceFin, a, b) =>
-            val io = IO.uncancelable { poll =>
-              sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
-            }
+    assertCompleteAs(
+      (flag, flag, flag, flag).tupled.flatMap {
+        case (acquireFin, resourceFin, a, b) =>
+          val io = IO.uncancelable { poll =>
+            sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
+          }
 
-            val resource = Resource.makeFull[IO, Unit] { poll =>
-              poll(io).onCancel(acquireFin.set(true))
-            }(_ => resourceFin.set(true))
+          val resource = Resource.makeFull[IO, Unit] { poll =>
+            poll(io).onCancel(acquireFin.set(true))
+          }(_ => resourceFin.set(true))
 
-            resource.use_.timeout(timeout).attempt >>
-              List(a.get, b.get, acquireFin.get, resourceFin.get).sequence
-        },
-        List(false, true, true, false)
-      )
+          resource.use_.timeout(timeout).attempt >>
+            List(a.get, b.get, acquireFin.get, resourceFin.get).sequence
+      },
+      List(false, true, true, false)
+    )
   }
 
-  ticked("Resource[IO, *] - release is always uninterruptible") { implicit ticker =>
+  ticked("release is always uninterruptible") { implicit ticker =>
     val flag = IO.ref(false)
     val sleep = IO.sleep(1.second)
     val timeout = 500.millis
@@ -153,11 +148,11 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     )
   }
 
-  ticked("Resource[IO, *] - eval") { implicit ticker =>
+  ticked("eval") { implicit ticker =>
     forAll { (fa: IO[String]) => Resource.eval(fa).use(IO.pure) eqv fa }
   }
 
-  ticked("Resource[IO, *] - eval - interruption") { implicit ticker =>
+  ticked("eval - interruption") { implicit ticker =>
     def resource(d: Deferred[IO, Int]): Resource[IO, Unit] =
       for {
         _ <- Resource.make(IO.unit)(_ => d.complete(1).void)
@@ -177,17 +172,17 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     assertCompleteAs(p, 1)
   }
 
-  ticked("Resource[IO, *] - eval(fa) <-> liftK.apply(fa)") { implicit ticker =>
+  ticked("eval(fa) <-> liftK.apply(fa)") { implicit ticker =>
     forAll { (fa: IO[String], f: String => IO[Int]) =>
       Resource.eval(fa).use(f) eqv Resource.liftK[IO].apply(fa).use(f)
     }
   }
 
-  ticked("Resource[IO, *] - evalMap") { implicit ticker =>
+  ticked("evalMap") { implicit ticker =>
     forAll { (f: Int => IO[Int]) => Resource.eval(IO(0)).evalMap(f).use(IO.pure) eqv f(0) }
   }
 
-  ticked("Resource[IO, *] - evalMap with error fails during use") { implicit ticker =>
+  ticked("evalMap with error fails during use") { implicit ticker =>
     case object Foo extends Exception
 
     assertFailAs(
@@ -195,33 +190,32 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       Foo)
   }
 
-  ticked("Resource[IO, *] - evalTap") { implicit ticker =>
+  ticked("evalTap") { implicit ticker =>
     forAll { (f: Int => IO[Int]) =>
       Resource.eval(IO(0)).evalTap(f).use(IO.pure) eqv f(0).as(0)
     }
   }
 
-  ticked("Resource[IO, *] - evalTap with error fails during use") { implicit ticker =>
+  ticked("evalTap with error fails during use") { implicit ticker =>
     case object Foo extends Exception
 
     assertFailAs(Resource.eval(IO(0)).evalTap(_ => IO.raiseError(Foo)).void.use(IO.pure), Foo)
   }
 
-  ticked("Resource[IO, *] - releases resources that implement AutoCloseable") {
-    implicit ticker =>
-      var closed = false
-      val autoCloseable = new AutoCloseable {
-        override def close(): Unit = closed = true
-      }
+  ticked("releases resources that implement AutoCloseable") { implicit ticker =>
+    var closed = false
+    val autoCloseable = new AutoCloseable {
+      override def close(): Unit = closed = true
+    }
 
-      assertCompleteAs(
-        Resource.fromAutoCloseable(IO(autoCloseable)).surround("Hello world".pure[IO]),
-        "Hello world")
+    assertCompleteAs(
+      Resource.fromAutoCloseable(IO(autoCloseable)).surround("Hello world".pure[IO]),
+      "Hello world")
 
-      assert(closed)
+    assert(closed)
   }
 
-  real("Resource[IO, *] - allocated releases two resources") {
+  real("allocated releases two resources") {
     var a = false
     var b = false
 
@@ -235,40 +229,38 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     }
   }
 
-  ticked("Resource[IO, *] - allocated releases resources in reverse order of acquisition") {
-    implicit ticker =>
-      forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
-        var released: List[Int] = Nil
-        val r = as.traverse {
-          case (a, e) =>
-            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
-        }
-        assertCompleteAs(r.allocated.flatMap(_._2).attempt.void, ())
-        assertEquals(released, as.map(_._1))
+  ticked("allocated releases resources in reverse order of acquisition") { implicit ticker =>
+    forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
+      var released: List[Int] = Nil
+      val r = as.traverse {
+        case (a, e) =>
+          Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
       }
+      assertCompleteAs(r.allocated.flatMap(_._2).attempt.void, ())
+      assertEquals(released, as.map(_._1))
+    }
   }
 
-  ticked("Resource[IO, *] - allocated does not release until close is invoked") {
-    implicit ticker =>
-      val released = new java.util.concurrent.atomic.AtomicBoolean(false)
-      val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
-      val resource = Resource.eval(IO.unit)
+  ticked("allocated does not release until close is invoked") { implicit ticker =>
+    val released = new java.util.concurrent.atomic.AtomicBoolean(false)
+    val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
+    val resource = Resource.eval(IO.unit)
 
-      // do not inline: it confuses Dotty
-      val ioa = (release *> resource).allocated
+    // do not inline: it confuses Dotty
+    val ioa = (release *> resource).allocated
 
-      val prog = for {
-        res <- ioa
-        (_, close) = res
-        _ <- IO(assert(!released.get()))
-        _ <- close
-        _ <- IO(assert(released.get()))
-      } yield ()
+    val prog = for {
+      res <- ioa
+      (_, close) = res
+      _ <- IO(assert(!released.get()))
+      _ <- close
+      _ <- IO(assert(released.get()))
+    } yield ()
 
-      assertCompleteAs(prog, ())
+    assertCompleteAs(prog, ())
   }
 
-  ticked("Resource[IO, *] - mapK") { implicit ticker =>
+  ticked("mapK") { implicit ticker =>
     forAll { (fa: Kleisli[IO, Int, Int]) =>
       val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
         override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
@@ -277,7 +269,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     }
   }
 
-  real("Resource[IO, *] - attempt on Resource after mapK") {
+  real("attempt on Resource after mapK") {
     class Err extends Exception
 
     Resource
@@ -289,45 +281,44 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       .mustEqual(3)
   }
 
-  ticked("Resource[IO, *] - mapK should preserve ExitCode-specific behaviour") {
-    implicit ticker =>
-      def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
-        val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
-        val res = Resource.makeCase(IO.unit) {
-          case (_, Resource.ExitCase.Succeeded) =>
-            IO {
-              cleanExit.set(true)
-            }
-          case _ => IO.unit
-        }
-        (cleanExit, res)
+  ticked("mapK should preserve ExitCode-specific behaviour") { implicit ticker =>
+    def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
+      val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
+      val res = Resource.makeCase(IO.unit) {
+        case (_, Resource.ExitCase.Succeeded) =>
+          IO {
+            cleanExit.set(true)
+          }
+        case _ => IO.unit
       }
+      (cleanExit, res)
+    }
 
-      val (clean, res) = sideEffectyResource
-      assertCompleteAs(res.use(_ => IO.unit).attempt.void, ())
-      assert(clean.get())
+    val (clean, res) = sideEffectyResource
+    assertCompleteAs(res.use(_ => IO.unit).attempt.void, ())
+    assert(clean.get())
 
-      val (clean1, res1) = sideEffectyResource
-      assertCompleteAs(res1.use(_ => IO.raiseError(new Throwable("oh no"))).attempt.void, ())
-      assert(!clean1.get())
+    val (clean1, res1) = sideEffectyResource
+    assertCompleteAs(res1.use(_ => IO.raiseError(new Throwable("oh no"))).attempt.void, ())
+    assert(!clean1.get())
 
-      val (clean2, res2) = sideEffectyResource
-      assertCompleteAs(res2.mapK(Kleisli.liftK[IO, Int]).use_.run(0).attempt.void, ())
-      assert(clean2.get())
+    val (clean2, res2) = sideEffectyResource
+    assertCompleteAs(res2.mapK(Kleisli.liftK[IO, Int]).use_.run(0).attempt.void, ())
+    assert(clean2.get())
 
-      val (clean3, res3) = sideEffectyResource
-      assertCompleteAs(
-        res3
-          .mapK(Kleisli.liftK[IO, Int])
-          .use(_ => Kleisli.liftF(IO.raiseError[Unit](new Throwable("oh no"))))
-          .run(0)
-          .attempt
-          .void,
-        ())
-      assert(!clean3.get())
+    val (clean3, res3) = sideEffectyResource
+    assertCompleteAs(
+      res3
+        .mapK(Kleisli.liftK[IO, Int])
+        .use(_ => Kleisli.liftF(IO.raiseError[Unit](new Throwable("oh no"))))
+        .run(0)
+        .attempt
+        .void,
+      ())
+    assert(!clean3.get())
   }
 
-  ticked("Resource[IO, *] - mapK respects interruptible acquires") { implicit ticker =>
+  ticked("mapK respects interruptible acquires") { implicit ticker =>
     val flag = IO.ref(false)
     val sleep = IO.sleep(1.second)
     val timeout = 500.millis
@@ -349,22 +340,20 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     assertCompleteAs(fa, false -> true)
   }
 
-  ticked("Resource[IO, *] - allocated produces the same value as the resource") {
-    implicit ticker =>
-      forAll { (resource: Resource[IO, Int]) =>
-        val a0 = IO.uncancelable { p =>
-          p(resource.allocated).flatMap { case (b, fin) => fin.as(b) }
-        }
-        val a1 = resource.use(IO.pure)
-
-        a0.flatMap(IO.pure).handleErrorWith(IO.raiseError) eqv a1
-          .flatMap(IO.pure)
-          .handleErrorWith(IO.raiseError)
+  ticked("allocated produces the same value as the resource") { implicit ticker =>
+    forAll { (resource: Resource[IO, Int]) =>
+      val a0 = IO.uncancelable { p =>
+        p(resource.allocated).flatMap { case (b, fin) => fin.as(b) }
       }
+      val a1 = resource.use(IO.pure)
+
+      a0.flatMap(IO.pure).handleErrorWith(IO.raiseError) eqv a1
+        .flatMap(IO.pure)
+        .handleErrorWith(IO.raiseError)
+    }
   }
 
-  ticked(
-    "Resource[IO, *] - allocated does not release until close is invoked on mapK'd Resources") {
+  ticked("allocated does not release until close is invoked on mapK'd Resources") {
     implicit ticker =>
       val released = new java.util.concurrent.atomic.AtomicBoolean(false)
 
@@ -396,7 +385,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       assertCompleteAs(prog, ())
   }
 
-  ticked("Resource[IO, *] - use is stack-safe over binds") { implicit ticker =>
+  ticked("use is stack-safe over binds") { implicit ticker =>
     val r = (1 to 10000)
       .foldLeft(Resource.eval(IO.unit)) {
         case (r, _) =>
@@ -406,7 +395,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     r eqv IO.unit
   }
 
-  real("Resource[IO, *] - use is stack-safe over binds - 2") {
+  real("use is stack-safe over binds - 2") {
     val n = 50000
     def p(i: Int = 0, n: Int = 50000): Resource[IO, Int] =
       Resource
@@ -422,7 +411,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     p(n = n).use(IO.pure).mustEqual(n)
   }
 
-  ticked("Resource[IO, *] - mapK is stack-safe over binds") { implicit ticker =>
+  ticked("mapK is stack-safe over binds") { implicit ticker =>
     val r = (1 to 10000)
       .foldLeft(Resource.eval(IO.unit)) {
         case (r, _) =>
@@ -438,7 +427,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     r eqv IO.unit
   }
 
-  ticked("Resource[IO, *] - attempt is stack-safe over binds") { implicit ticker =>
+  ticked("attempt is stack-safe over binds") { implicit ticker =>
     val r = (1 to 10000)
       .foldLeft(Resource.eval(IO.unit)) {
         case (r, _) =>
@@ -449,32 +438,31 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     assertCompleteAs(r.use_, ())
   }
 
-  ticked("Resource[IO, *] - safe attempt suspended resource") { implicit ticker =>
+  ticked("safe attempt suspended resource") { implicit ticker =>
     val exception = new Exception("boom!")
     val suspend = Resource.suspend[IO, Unit](IO.raiseError(exception))
     assertFailAs(suspend.use_, exception)
   }
 
-  ticked("Resource[IO, *] - both - releases resources in reverse order of acquisition") {
-    implicit ticker =>
-      // conceptually asserts that:
-      //   forAll (r: Resource[F, A]) then r <-> r.both(Resource.unit) <-> Resource.unit.both(r)
-      // needs to be tested manually to assert the equivalence during cleanup as well
-      forAll { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
-        var released: List[Int] = Nil
-        val r = as.traverse {
-          case (a, e) =>
-            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
-        }
-        val unit = ().pure[Resource[IO, *]]
-        val p = if (rhs) r.both(unit) else unit.both(r)
-
-        assertCompleteAs(p.use_.attempt.void, ())
-        assertEquals(released, as.map(_._1))
+  ticked("both - releases resources in reverse order of acquisition") { implicit ticker =>
+    // conceptually asserts that:
+    //   forAll (r: Resource[F, A]) then r <-> r.both(Resource.unit) <-> Resource.unit.both(r)
+    // needs to be tested manually to assert the equivalence during cleanup as well
+    forAll { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
+      var released: List[Int] = Nil
+      val r = as.traverse {
+        case (a, e) =>
+          Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
       }
+      val unit = ().pure[Resource[IO, *]]
+      val p = if (rhs) r.both(unit) else unit.both(r)
+
+      assertCompleteAs(p.use_.attempt.void, ())
+      assertEquals(released, as.map(_._1))
+    }
   }
 
-  ticked("Resource[IO, *] - both - parallel acquisition and release") { implicit ticker =>
+  ticked("both - parallel acquisition and release") { implicit ticker =>
     var leftAllocated = false
     var rightAllocated = false
     var leftReleasing = false
@@ -517,197 +505,193 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     assert(rightReleased)
   }
 
-  ticked("Resource[IO, *] - both - safety: lhs error during rhs interruptible region") {
-    implicit ticker =>
-      var leftAllocated = false
-      var rightAllocated = false
-      var leftReleasing = false
-      var rightReleasing = false
-      var leftReleased = false
-      var rightReleased = false
+  ticked("both - safety: lhs error during rhs interruptible region") { implicit ticker =>
+    var leftAllocated = false
+    var rightAllocated = false
+    var leftReleasing = false
+    var rightReleasing = false
+    var leftReleased = false
+    var rightReleased = false
 
-      def wait(n: Int) = IO.sleep(n.seconds)
-      val lhs = for {
-        _ <- Resource.make(wait(1) >> IO { leftAllocated = true }) { _ =>
-          IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
-        }
-        _ <- Resource.eval(wait(1) >> IO.raiseError[Unit](new Exception))
-      } yield ()
-
-      val rhs = for {
-        _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
-          IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
-        }
-        _ <- Resource.eval(wait(2))
-      } yield ()
-
-      lhs.both(rhs).use(_ => IO.unit).handleError(_ => ()).unsafeToFuture()
-
-      // after 1 second:
-      //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
-      //  resources are still open during `flatMap` (correctness)
-      ticker.ctx.tick()
-      ticker.ctx.advanceAndTick(1.second)
-      assert(leftAllocated)
-      assert(rightAllocated)
-      assert(!leftReleasing)
-      assert(!rightReleasing)
-
-      // after 2 seconds:
-      //  both resources have started cleanup (interruption, or rhs would start releasing after 3 seconds)
-      ticker.ctx.advanceAndTick(1.second)
-      assert(leftReleasing)
-      assert(rightReleasing)
-      assert(!leftReleased)
-      assert(!rightReleased)
-
-      // after 3 seconds:
-      //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
-      ticker.ctx.advanceAndTick(1.second)
-      assert(leftReleased)
-      assert(rightReleased)
-  }
-
-  ticked("Resource[IO, *] - both - safety: rhs error during lhs uninterruptible region") {
-    implicit ticker =>
-      var leftAllocated = false
-      var rightAllocated = false
-      var rightErrored = false
-      var leftReleasing = false
-      var rightReleasing = false
-      var leftReleased = false
-      var rightReleased = false
-
-      def wait(n: Int) = IO.sleep(n.seconds)
-      val lhs = Resource.make(wait(3) >> IO { leftAllocated = true }) { _ =>
+    def wait(n: Int) = IO.sleep(n.seconds)
+    val lhs = for {
+      _ <- Resource.make(wait(1) >> IO { leftAllocated = true }) { _ =>
         IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
       }
-      val rhs = for {
-        _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
-          IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
-        }
-        _ <- Resource.make(
-          wait(1) >> IO { rightErrored = true } >> IO.raiseError[Unit](new Exception))(_ =>
-          IO.unit)
-      } yield ()
+      _ <- Resource.eval(wait(1) >> IO.raiseError[Unit](new Exception))
+    } yield ()
 
-      lhs.both(rhs).use(_ => wait(1)).handleError(_ => ()).unsafeToFuture()
+    val rhs = for {
+      _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
+        IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
+      }
+      _ <- Resource.eval(wait(2))
+    } yield ()
 
-      // after 1 second:
-      //  rhs has partially allocated, lhs executing
-      ticker.ctx.tick()
-      ticker.ctx.advanceAndTick(1.second)
-      assert(!leftAllocated)
-      assert(rightAllocated)
-      assert(!rightErrored)
-      assert(!leftReleasing)
-      assert(!rightReleasing)
+    lhs.both(rhs).use(_ => IO.unit).handleError(_ => ()).unsafeToFuture()
 
-      // after 2 seconds:
-      //  rhs has failed, release blocked since lhs is in uninterruptible allocation
-      ticker.ctx.advanceAndTick(1.second)
-      assert(!leftAllocated)
-      assert(rightAllocated)
-      assert(rightErrored)
-      assert(!leftReleasing)
-      assert(!rightReleasing)
+    // after 1 second:
+    //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
+    //  resources are still open during `flatMap` (correctness)
+    ticker.ctx.tick()
+    ticker.ctx.advanceAndTick(1.second)
+    assert(leftAllocated)
+    assert(rightAllocated)
+    assert(!leftReleasing)
+    assert(!rightReleasing)
 
-      // after 3 seconds:
-      //  lhs completes allocation (concurrency, serially it would happen after 4 seconds)
-      //  both resources have started cleanup (correctness, error propagates to both sides)
-      ticker.ctx.advanceAndTick(1.second)
-      assert(leftAllocated)
-      assert(leftReleasing)
-      assert(rightReleasing)
-      assert(!leftReleased)
-      assert(!rightReleased)
+    // after 2 seconds:
+    //  both resources have started cleanup (interruption, or rhs would start releasing after 3 seconds)
+    ticker.ctx.advanceAndTick(1.second)
+    assert(leftReleasing)
+    assert(rightReleasing)
+    assert(!leftReleased)
+    assert(!rightReleased)
 
-      // after 4 seconds:
-      //  both resource have terminated cleanup (concurrency, serially it would happen after 5 seconds)
-      ticker.ctx.advanceAndTick(1.second)
-      assert(leftReleased)
-      assert(rightReleased)
+    // after 3 seconds:
+    //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
+    ticker.ctx.advanceAndTick(1.second)
+    assert(leftReleased)
+    assert(rightReleased)
   }
 
-  test("Resource[IO, *] - both - propagate the exit case") {
-    import Resource.ExitCase
+  ticked("both - safety: rhs error during lhs uninterruptible region") { implicit ticker =>
+    var leftAllocated = false
+    var rightAllocated = false
+    var rightErrored = false
+    var leftReleasing = false
+    var rightReleasing = false
+    var leftReleased = false
+    var rightReleased = false
 
-    ticked("use successfully, test left") { implicit ticker =>
-      var got: ExitCase = null
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertCompleteAs(r.both(Resource.unit).use(_ => IO.unit), ())
-      assertEquals(got, ExitCase.Succeeded)
+    def wait(n: Int) = IO.sleep(n.seconds)
+    val lhs = Resource.make(wait(3) >> IO { leftAllocated = true }) { _ =>
+      IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
     }
+    val rhs = for {
+      _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
+        IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
+      }
+      _ <- Resource.make(
+        wait(1) >> IO { rightErrored = true } >> IO.raiseError[Unit](new Exception))(_ =>
+        IO.unit)
+    } yield ()
 
-    ticked("use successfully, test right") { implicit ticker =>
-      var got: ExitCase = null
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertCompleteAs(Resource.unit.both(r).use(_ => IO.unit), ())
-      assertEquals(got, ExitCase.Succeeded)
-    }
+    lhs.both(rhs).use(_ => wait(1)).handleError(_ => ()).unsafeToFuture()
 
-    ticked("use errored, test left") { implicit ticker =>
-      var got: ExitCase = null
-      val ex = new Exception
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertFailAs(r.both(Resource.unit).use(_ => IO.raiseError(ex)), ex)
-      assertEquals(got, ExitCase.Errored(ex))
-    }
+    // after 1 second:
+    //  rhs has partially allocated, lhs executing
+    ticker.ctx.tick()
+    ticker.ctx.advanceAndTick(1.second)
+    assert(!leftAllocated)
+    assert(rightAllocated)
+    assert(!rightErrored)
+    assert(!leftReleasing)
+    assert(!rightReleasing)
 
-    ticked("use errored, test right") { implicit ticker =>
-      var got: ExitCase = null
-      val ex = new Exception
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertFailAs(Resource.unit.both(r).use(_ => IO.raiseError(ex)), ex)
-      assertEquals(got, ExitCase.Errored(ex))
-    }
+    // after 2 seconds:
+    //  rhs has failed, release blocked since lhs is in uninterruptible allocation
+    ticker.ctx.advanceAndTick(1.second)
+    assert(!leftAllocated)
+    assert(rightAllocated)
+    assert(rightErrored)
+    assert(!leftReleasing)
+    assert(!rightReleasing)
 
-    ticked("right errored, test left") { implicit ticker =>
-      var got: ExitCase = null
-      val ex = new Exception
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertFailAs(r.both(Resource.eval(IO.sleep(1.second) *> IO.raiseError(ex))).use_, ex)
-      assertEquals(got, ExitCase.Errored(ex))
-    }
+    // after 3 seconds:
+    //  lhs completes allocation (concurrency, serially it would happen after 4 seconds)
+    //  both resources have started cleanup (correctness, error propagates to both sides)
+    ticker.ctx.advanceAndTick(1.second)
+    assert(leftAllocated)
+    assert(leftReleasing)
+    assert(rightReleasing)
+    assert(!leftReleased)
+    assert(!rightReleased)
 
-    ticked("left errored, test right") { implicit ticker =>
-      var got: ExitCase = null
-      val ex = new Exception
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertFailAs(Resource.eval(IO.sleep(1.second) *> IO.raiseError(ex)).both(r).use_, ex)
-      assertEquals(got, ExitCase.Errored(ex))
-    }
-
-    ticked("use canceled, test left") { implicit ticker =>
-      var got: ExitCase = null
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertSelfCancel(r.both(Resource.unit).use(_ => IO.canceled))
-      assertEquals(got, ExitCase.Canceled)
-    }
-
-    ticked("use canceled, test right") { implicit ticker =>
-      var got: ExitCase = null
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertSelfCancel(Resource.unit.both(r).use(_ => IO.canceled))
-      assertEquals(got, ExitCase.Canceled)
-    }
-
-    ticked("right canceled, test left") { implicit ticker =>
-      var got: ExitCase = null
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertSelfCancel(r.both(Resource.eval(IO.sleep(1.second) *> IO.canceled)).use_)
-      assertEquals(got, ExitCase.Canceled)
-    }
-
-    ticked("left canceled, test right") { implicit ticker =>
-      var got: ExitCase = null
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertSelfCancel(Resource.eval(IO.sleep(1.second) *> IO.canceled).both(r).use_)
-      assertEquals(got, ExitCase.Canceled)
-    }
+    // after 4 seconds:
+    //  both resource have terminated cleanup (concurrency, serially it would happen after 5 seconds)
+    ticker.ctx.advanceAndTick(1.second)
+    assert(leftReleased)
+    assert(rightReleased)
   }
 
-  ticked("Resource[IO, *] - releases both resources on combineK") { implicit ticker =>
+  import Resource.ExitCase
+
+  ticked("both - propagate the exit case - use successfully, test left") { implicit ticker =>
+    var got: ExitCase = null
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertCompleteAs(r.both(Resource.unit).use(_ => IO.unit), ())
+    assertEquals(got, ExitCase.Succeeded)
+  }
+
+  ticked("both - propagate the exit case - use successfully, test right") { implicit ticker =>
+    var got: ExitCase = null
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertCompleteAs(Resource.unit.both(r).use(_ => IO.unit), ())
+    assertEquals(got, ExitCase.Succeeded)
+  }
+
+  ticked("both - propagate the exit case - use errored, test left") { implicit ticker =>
+    var got: ExitCase = null
+    val ex = new Exception
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertFailAs(r.both(Resource.unit).use(_ => IO.raiseError(ex)), ex)
+    assertEquals(got, ExitCase.Errored(ex))
+  }
+
+  ticked("both - propagate the exit case - use errored, test right") { implicit ticker =>
+    var got: ExitCase = null
+    val ex = new Exception
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertFailAs(Resource.unit.both(r).use(_ => IO.raiseError(ex)), ex)
+    assertEquals(got, ExitCase.Errored(ex))
+  }
+
+  ticked("both - propagate the exit case - right errored, test left") { implicit ticker =>
+    var got: ExitCase = null
+    val ex = new Exception
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertFailAs(r.both(Resource.eval(IO.sleep(1.second) *> IO.raiseError(ex))).use_, ex)
+    assertEquals(got, ExitCase.Errored(ex))
+  }
+
+  ticked("both - propagate the exit case - left errored, test right") { implicit ticker =>
+    var got: ExitCase = null
+    val ex = new Exception
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertFailAs(Resource.eval(IO.sleep(1.second) *> IO.raiseError(ex)).both(r).use_, ex)
+    assertEquals(got, ExitCase.Errored(ex))
+  }
+
+  ticked("both - propagate the exit case - use canceled, test left") { implicit ticker =>
+    var got: ExitCase = null
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertSelfCancel(r.both(Resource.unit).use(_ => IO.canceled))
+    assertEquals(got, ExitCase.Canceled)
+  }
+
+  ticked("both - propagate the exit case - use canceled, test right") { implicit ticker =>
+    var got: ExitCase = null
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertSelfCancel(Resource.unit.both(r).use(_ => IO.canceled))
+    assertEquals(got, ExitCase.Canceled)
+  }
+
+  ticked("both - propagate the exit case - right canceled, test left") { implicit ticker =>
+    var got: ExitCase = null
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertSelfCancel(r.both(Resource.eval(IO.sleep(1.second) *> IO.canceled)).use_)
+    assertEquals(got, ExitCase.Canceled)
+  }
+
+  ticked("both - propagate the exit case - left canceled, test right") { implicit ticker =>
+    var got: ExitCase = null
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertSelfCancel(Resource.eval(IO.sleep(1.second) *> IO.canceled).both(r).use_)
+    assertEquals(got, ExitCase.Canceled)
+  }
+
+  ticked("releases both resources on combineK") { implicit ticker =>
     var acquired: Set[Int] = Set.empty
     var released: Set[Int] = Set.empty
     def observe(a: Int) =
@@ -718,7 +702,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
   }
 
   ticked(
-    "Resource[IO, *] - releases both resources on combineK when using a SemigroupK instance that discards allocated values") {
+    "releases both resources on combineK when using a SemigroupK instance that discards allocated values") {
     implicit ticker =>
       implicit val sgk: SemigroupK[IO] = new SemigroupK[IO] {
         override def combineK[A](x: IO[A], y: IO[A]): IO[A] = x <* y
@@ -732,17 +716,16 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       assertEquals(released, acquired)
   }
 
-  ticked("Resource[IO, *] - combineK - behave like orElse when underlying effect does") {
-    implicit ticker =>
-      Prop.forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
-        val lhs = r1.orElse(r2)
-        val rhs = r1 <+> r2
+  ticked("combineK - behave like orElse when underlying effect does") { implicit ticker =>
+    Prop.forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
+      val lhs = r1.orElse(r2)
+      val rhs = r1 <+> r2
 
-        lhs eqv rhs
-      }
+      lhs eqv rhs
+    }
   }
 
-  ticked("Resource[IO, *] - combineK - behave like underlying effect") { implicit ticker =>
+  ticked("combineK - behave like underlying effect") { implicit ticker =>
     forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
       val lhs = Resource.eval(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
       val rhs = (Resource.eval(ot1) <+> Resource.eval(ot2)).use(OptionT.pure[IO](_)).value
@@ -751,42 +734,41 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     }
   }
 
-  test("Resource[IO, *] - combineK - propagate the exit case") {
-    import Resource.ExitCase
-
-    ticked("use successfully, test left") { implicit ticker =>
+  ticked("combineK - propagate the exit case - use successfully, test left") {
+    implicit ticker =>
       var got: ExitCase = null
       val r = Resource.onFinalizeCase(ec => IO { got = ec })
       assertCompleteAs(r.combineK(Resource.unit).use(_ => IO.unit), ())
       assertEquals(got, ExitCase.Succeeded)
-    }
+  }
 
-    ticked("use errored, test left") { implicit ticker =>
-      var got: ExitCase = null
-      val ex = new Exception
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertFailAs(r.combineK(Resource.unit).use(_ => IO.raiseError(ex)), ex)
-      assertEquals(got, ExitCase.Errored(ex))
-    }
+  ticked("combineK - propagate the exit case - use errored, test left") { implicit ticker =>
+    var got: ExitCase = null
+    val ex = new Exception
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertFailAs(r.combineK(Resource.unit).use(_ => IO.raiseError(ex)), ex)
+    assertEquals(got, ExitCase.Errored(ex))
+  }
 
-    ticked("left errored, test left") { implicit ticker =>
-      var got: ExitCase = null
-      val ex = new Exception
-      val r = Resource.onFinalizeCase(ec => IO { got = ec }) *>
-        Resource.eval(IO.raiseError(ex))
-      assertCompleteAs(r.combineK(Resource.unit).use_, ())
-      assertEquals(got, ExitCase.Succeeded)
-    }
+  ticked("combineK - propagate the exit case - left errored, test left") { implicit ticker =>
+    var got: ExitCase = null
+    val ex = new Exception
+    val r = Resource.onFinalizeCase(ec => IO { got = ec }) *>
+      Resource.eval(IO.raiseError(ex))
+    assertCompleteAs(r.combineK(Resource.unit).use_, ())
+    assertEquals(got, ExitCase.Succeeded)
+  }
 
-    ticked("left errored, test right") { implicit ticker =>
-      var got: ExitCase = null
-      val ex = new Exception
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertCompleteAs(Resource.eval(IO.raiseError(ex)).combineK(r).use_, ())
-      assertEquals(got, ExitCase.Succeeded)
-    }
+  ticked("combineK - propagate the exit case - left errored, test right") { implicit ticker =>
+    var got: ExitCase = null
+    val ex = new Exception
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertCompleteAs(Resource.eval(IO.raiseError(ex)).combineK(r).use_, ())
+    assertEquals(got, ExitCase.Succeeded)
+  }
 
-    ticked("left errored, use errored, test right") { implicit ticker =>
+  ticked("combineK - propagate the exit case - left errored, use errored, test right") {
+    implicit ticker =>
       var got: ExitCase = null
       val ex = new Exception
       val r = Resource.onFinalizeCase(ec => IO { got = ec })
@@ -794,22 +776,22 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
         Resource.eval(IO.raiseError(new Exception)).combineK(r).use(_ => IO.raiseError(ex)),
         ex)
       assertEquals(got, ExitCase.Errored(ex))
-    }
+  }
 
-    ticked("use canceled, test left") { implicit ticker =>
-      var got: ExitCase = null
-      val r = Resource.onFinalizeCase(ec => IO { got = ec })
-      assertSelfCancel(r.combineK(Resource.unit).use(_ => IO.canceled))
-      assertEquals(got, ExitCase.Canceled)
-    }
+  ticked("combineK - propagate the exit case - use canceled, test left") { implicit ticker =>
+    var got: ExitCase = null
+    val r = Resource.onFinalizeCase(ec => IO { got = ec })
+    assertSelfCancel(r.combineK(Resource.unit).use(_ => IO.canceled))
+    assertEquals(got, ExitCase.Canceled)
+  }
 
-    ticked("left errored, use canceled, test right") { implicit ticker =>
+  ticked("combineK - propagate the exit case - left errored, use canceled, test right") {
+    implicit ticker =>
       var got: ExitCase = null
       val r = Resource.onFinalizeCase(ec => IO { got = ec })
       assertSelfCancel(
         Resource.eval(IO.raiseError(new Exception)).combineK(r).use(_ => IO.canceled))
       assertEquals(got, ExitCase.Canceled)
-    }
   }
 
   ticked("surround - wrap an effect in a usage and ignore the value produced by resource") {
@@ -822,7 +804,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
   }
 
   ticked(
-    "Resource[IO, *] - surroundK - wrap an effect in a usage, ignore the value produced by resource and return FunctionK") {
+    "surroundK - wrap an effect in a usage, ignore the value produced by resource and return FunctionK") {
     implicit ticker =>
       val r = Resource.eval(IO.pure(0))
       val surroundee = IO("hello")
@@ -832,13 +814,12 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
       surrounded eqv surroundee
   }
 
-  ticked("Resource[IO, *] - evalOn - run acquire and release on provided ExecutionContext") {
-    implicit ticker =>
-      forAll { (executionContext: ExecutionContext) =>
-        val assertion =
-          IO.executionContext.flatMap(ec => IO(assertEquals(ec, executionContext)).void)
-        Resource.make(assertion)(_ => assertion).evalOn(executionContext).use_.as(true)
-      }
+  ticked("evalOn - run acquire and release on provided ExecutionContext") { implicit ticker =>
+    forAll { (executionContext: ExecutionContext) =>
+      val assertion =
+        IO.executionContext.flatMap(ec => IO(assertEquals(ec, executionContext)).void)
+      Resource.make(assertion)(_ => assertion).evalOn(executionContext).use_.as(true)
+    }
   }
 
   {
@@ -1197,8 +1178,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
     }
 
     // TODO enable once `PureConc` finalizer bug is fixed.
-    test(
-      "Concurrent[Resource] - does not leak if canceled right after delayed acquire is canceled".ignore) {
+    testUnit("does not leak if canceled right after delayed acquire is canceled".ignore) {
       import cats.effect.kernel.testkit.pure._
       type F[A] = PureConc[Throwable, A]
       val F = Concurrent[F]
@@ -1217,7 +1197,7 @@ class ResourceSuite extends BaseSuite with DisciplineSuite {
         releaseRun <- released.get
       } yield acquireRun && releaseRun
 
-      run(go) == Outcome.succeeded(Some(true))
+      assertEquals(run(go), Outcome.succeeded[Option, Throwable, Boolean](Some(true)))
     }
   }
 

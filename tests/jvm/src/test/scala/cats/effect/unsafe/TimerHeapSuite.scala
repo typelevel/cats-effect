@@ -34,7 +34,7 @@ class TimerHeapSuite extends BaseSuite {
   private val cb4 = newCb()
   private val cb5 = newCb()
 
-  test("correctly insert / pollFirstIfTriggered") {
+  testUnit("correctly insert / pollFirstIfTriggered") {
     val m = new TimerHeap
     val out = new Array[Right[Nothing, Unit] => Unit](1)
     assert(m.pollFirstIfTriggered(Long.MinValue) eq null)
@@ -68,7 +68,7 @@ class TimerHeapSuite extends BaseSuite {
     assert(m.pollFirstIfTriggered(Long.MaxValue) eq null)
   }
 
-  test("correctly insert / remove (cancel)") {
+  testUnit("correctly insert / remove (cancel)") {
     val m = new TimerHeap
     val out = new Array[Right[Nothing, Unit] => Unit](1)
     val r0 = m.insert(0L, 1L, cb0, out)
@@ -114,7 +114,7 @@ class TimerHeapSuite extends BaseSuite {
     assert(m.pollFirstIfTriggered(Long.MaxValue) eq null)
   }
 
-  test("behave correctly when nanoTime wraps around") {
+  testUnit("behave correctly when nanoTime wraps around") {
     val m = new TimerHeap
     val startFrom = Long.MaxValue - 100L
     var nanoTime = startFrom

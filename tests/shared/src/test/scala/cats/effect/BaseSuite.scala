@@ -16,9 +16,25 @@
 
 package cats.effect
 
-import munit.FunSuite
+import munit.{FunSuite, Location, TestOptions}
 
 trait BaseSuite extends FunSuite with Runners {
+
+  @deprecated("Please use a type safe alternative, such as 'real' or 'ticked'", "3.6.0")
+  override def test(name: String)(body: => Any)(implicit loc: Location): Unit =
+    super.test(name)(body)
+
+  @deprecated("Please use a type safe alternative, such as 'real' or 'ticked'", "3.6.0")
+  override def test(options: TestOptions)(body: => Any)(implicit loc: Location): Unit =
+    super.test(options)(body)
+
+  @annotation.nowarn("cat=deprecation")
+  def testUnit(name: String)(body: => Unit)(implicit loc: Location): Unit =
+    test(name)(body)
+
+  @annotation.nowarn("cat=deprecation")
+  def testUnit(options: TestOptions)(body: => Unit)(implicit loc: Location): Unit =
+    test(options)(body)
 
   override def munitValueTransforms: List[ValueTransform] =
     super.munitValueTransforms ++ List(

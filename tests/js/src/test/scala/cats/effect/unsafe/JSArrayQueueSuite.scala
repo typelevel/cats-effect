@@ -25,7 +25,7 @@ import munit.ScalaCheckSuite
 
 class JSArrayQueueSuite extends BaseSuite with ScalaCheckSuite {
 
-  test("be fifo") {
+  property("be fifo") {
     forAll { (stuff: List[Option[Int]]) =>
       val queue = new JSArrayQueue[Int]
       val taken = new ListBuffer[Int]
@@ -42,7 +42,7 @@ class JSArrayQueueSuite extends BaseSuite with ScalaCheckSuite {
     }
   }
 
-  test("iterate over contents in foreach") {
+  property("iterate over contents in foreach") {
     forAll { (stuff: List[Option[Int]]) =>
       val queue = new JSArrayQueue[Int]
       val shadow = new Queue[Int]

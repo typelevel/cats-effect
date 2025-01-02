@@ -19,7 +19,7 @@ package unsafe
 
 class IORuntimeConfigSuite extends BaseSuite {
 
-  test("Reject invalid values of cancelation check- and auto yield threshold") {
+  testUnit("Reject invalid values of cancelation check- and auto yield threshold") {
     intercept[IllegalArgumentException](
       IORuntimeConfig(cancelationCheckThreshold = -1, autoYieldThreshold = -1))
     intercept[IllegalArgumentException](
@@ -37,14 +37,16 @@ class IORuntimeConfigSuite extends BaseSuite {
     IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 3)
     IORuntimeConfig(cancelationCheckThreshold = 2, autoYieldThreshold = 2)
     IORuntimeConfig(cancelationCheckThreshold = 2, autoYieldThreshold = 4)
+    ()
   }
 
-  test("Reject invalid values even in the copy method") {
+  testUnit("Reject invalid values even in the copy method") {
     val cfg = IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2)
     intercept[IllegalArgumentException](cfg.copy(cancelationCheckThreshold = 0))
     intercept[IllegalArgumentException](cfg.copy(cancelationCheckThreshold = -1))
     intercept[IllegalArgumentException](cfg.copy(autoYieldThreshold = 1))
     intercept[IllegalArgumentException](
       cfg.copy(cancelationCheckThreshold = 2, autoYieldThreshold = 3))
+    ()
   }
 }

@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 
 class SleepersSuite extends BaseSuite {
 
-  test("have a trigger time in the future") {
+  testUnit("have a trigger time in the future") {
     val sleepers = new TimerHeap
     val now = 100.millis.toNanos
     val delay = 500.millis.toNanos
@@ -61,7 +61,7 @@ class SleepersSuite extends BaseSuite {
     new Function1[Right[Nothing, Unit], Unit] { def apply(x: Right[Nothing, Unit]) = () }
   }
 
-  test("be ordered according to the trigger time") {
+  testUnit("be ordered according to the trigger time") {
     val sleepers = new TimerHeap
 
     val now1 = 100.millis.toNanos
@@ -94,7 +94,7 @@ class SleepersSuite extends BaseSuite {
     assertEquals(ordering, expectedOrdering)
   }
 
-  test("be ordered correctly even if Long overflows") {
+  testUnit("be ordered correctly even if Long overflows") {
     val sleepers = new TimerHeap
 
     val now1 = Long.MaxValue - 20L

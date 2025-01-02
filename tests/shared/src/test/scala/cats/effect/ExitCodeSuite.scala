@@ -18,7 +18,7 @@ package cats.effect
 
 class ExitCodeSuite extends BaseSuite {
 
-  test("ExitCode.unapply is exhaustive") {
+  testUnit("ExitCode.unapply is exhaustive") {
     ExitCode(0) match { // if not, should be a fatal warning in CI
       case ExitCode(_) => assert(true)
     }

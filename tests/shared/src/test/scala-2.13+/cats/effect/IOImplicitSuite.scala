@@ -18,17 +18,17 @@ package cats.effect
 
 class IOImplicitSuite extends BaseSuite {
 
-  test("Can resolve IO sequence ops without import of cats.syntax.all") { // compilation test
+  testUnit("Can resolve IO sequence ops without import of cats.syntax.all") { // compilation test
     for {
       _ <- List(IO(1)).sequence_
       _ <- Option(IO(1)).sequence
       _ <- Option(IO(1)).sequence_
       _ <- List(IO(List(1))).flatSequence
     } yield ()
-    true
+    ()
   }
 
-  test("Can resolve IO.Par ops without import of cats.syntax.all") { // compilation test
+  testUnit("Can resolve IO.Par ops without import of cats.syntax.all") { // compilation test
     for {
       _ <- Option(IO(1)).parSequence
       _ <- Option(IO(1)).parSequence_
@@ -48,6 +48,6 @@ class IOImplicitSuite extends BaseSuite {
       _ <- (IO(1), IO(2), IO(3)).parTupled
       _ <- (IO(1), IO(2), IO(3)).parFlatMapN { case (x, y, z) => IO.pure(x + y + z) }
     } yield ()
-    true
+    ()
   }
 }

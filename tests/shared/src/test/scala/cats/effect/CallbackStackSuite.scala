@@ -18,7 +18,7 @@ package cats.effect
 
 class CallbackStackSuite extends BaseSuite with DetectPlatform {
 
-  test("correctly report the number removed") {
+  testUnit("correctly report the number removed") {
     val stack = CallbackStack.of[Unit](null)
     val handle = stack.push(_ => ())
     stack.push(_ => ())
