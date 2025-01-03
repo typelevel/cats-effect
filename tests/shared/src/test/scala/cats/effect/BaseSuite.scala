@@ -24,14 +24,6 @@ import munit.{FunSuite, Location, ScalaCheckSuite, TestOptions}
 
 trait BaseSuite extends FunSuite with Runners {
 
-  /*@deprecated("Please use a type safe alternative, such as 'real' or 'ticked'", "3.6.0")
-  override def test(name: String)(body: => Any)(implicit loc: Location): Unit =
-    super.test(name)(body)
-
-  @deprecated("Please use a type safe alternative, such as 'real' or 'ticked'", "3.6.0")
-  override def test(options: TestOptions)(body: => Any)(implicit loc: Location): Unit =
-    super.test(options)(body)*/
-
   def testUnit(name: String)(body: => Unit)(implicit loc: Location): Unit =
     test(name)(body)
 
@@ -50,7 +42,7 @@ trait BaseSuite extends FunSuite with Runners {
         }
       ),
       new ValueTransform(
-        "Other",
+        "Unexpected test result type",
         {
           case r if !r.isInstanceOf[Unit] && !r.isInstanceOf[Prop] =>
             sys.error(s"Unexpected value of type ${r.getClass.getName}: $r")
