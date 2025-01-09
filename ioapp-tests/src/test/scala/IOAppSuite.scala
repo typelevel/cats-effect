@@ -23,7 +23,7 @@ import java.io.File
 
 import munit.FunSuite
 
-class IOAppSpec extends FunSuite {
+class IOAppSuite extends FunSuite {
 
   abstract class Platform(val id: String) { outer =>
     def builder(proto: String, args: List[String]): ProcessBuilder

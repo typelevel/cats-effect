@@ -20,7 +20,7 @@ import cats.effect.kernel.{Async, Concurrent, Deferred, GenConcurrent, Ref, Sync
 
 import munit.FunSuite
 
-class SyntaxSpec extends FunSuite {
+class SyntaxSuite extends FunSuite {
 
   test("concurrent data structure construction syntax") {}
 
