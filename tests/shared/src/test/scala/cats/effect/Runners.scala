@@ -23,7 +23,7 @@ import cats.syntax.all._
 
 import org.scalacheck.Gen
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.reflect.{classTag, ClassTag}
 
@@ -35,6 +35,7 @@ trait Runners extends TestInstances with RunnersPlatform {
 
   def executionTimeout: FiniteDuration = 20.seconds
   override def munitTimeout: Duration = executionTimeout
+  override def munitExecutionContext: ExecutionContext = ExecutionContext.global
 
   def ticked(options: TestOptions)(body: Ticker => Unit)(implicit loc: Location): Unit =
     test(options)(body(Ticker(TestContext())))
