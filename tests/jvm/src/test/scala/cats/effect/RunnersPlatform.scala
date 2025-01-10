@@ -18,9 +18,13 @@ package cats.effect
 
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 
+import scala.concurrent.ExecutionContext
+
 trait RunnersPlatform { self: munit.Suite =>
 
   private[this] var runtime0: IORuntime = _
+
+  override def munitExecutionContext: ExecutionContext = ExecutionContext.global
 
   protected def runtime(): IORuntime = runtime0
 
