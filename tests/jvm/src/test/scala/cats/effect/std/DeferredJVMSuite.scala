@@ -44,7 +44,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite {
 
   implicit val runtime: IORuntime = IORuntime.global
 
-  def before: Any =
+  override def beforeEach(context: BeforeEach): Unit =
     service = Executors.newFixedThreadPool(
       parallelism,
       new ThreadFactory {
@@ -58,7 +58,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite {
       }
     )
 
-  def after: Any = {
+  override def afterEach(context: AfterEach): Unit = {
     service.shutdown()
     assert(service.awaitTermination(60, TimeUnit.SECONDS), "has active threads")
   }
