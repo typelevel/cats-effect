@@ -686,15 +686,14 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       assertCompleteAs(IO.async[Int](cb => IO(cb(Right(42))).as(None)).map(_ + 2), 44)
   }
 
-      // format: off
-      ticked("async - produce a failure when the registration raises an error after callback") { implicit ticker =>
-        case object TestException extends RuntimeException
+  ticked("async - produce a failure when the registration raises an error after callback") {
+    implicit ticker =>
+      case object TestException extends RuntimeException
 
-        assertFailAs(IO.async[Int](cb => IO(cb(Right(42)))
-          .flatMap(_ => IO.raiseError(TestException)))
-          .void, TestException)
-      }
-      // format: on
+      assertFailAs(
+        IO.async[Int](cb => IO(cb(Right(42))).flatMap(_ => IO.raiseError(TestException))).void,
+        TestException)
+  }
 
   ticked("async - repeated async callback") { implicit ticker =>
     case object TestException extends RuntimeException
@@ -1576,35 +1575,33 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       assert(success)
   }
 
-      // format: off
-      ticked("finalization - not finalize after uncancelable with suppressed cancelation (succeeded)") { implicit ticker =>
-        var finalized = false
+  ticked(
+    "finalization - not finalize after uncancelable with suppressed cancelation (succeeded)") {
+    implicit ticker =>
+      var finalized = false
 
-        val test =
-          IO.uncancelable(_ => IO.canceled >> IO.pure(42))
-            .onCancel(IO { finalized = true })
-            .void
+      val test =
+        IO.uncancelable(_ => IO.canceled >> IO.pure(42)).onCancel(IO { finalized = true }).void
 
-        assertSelfCancel(test )
-        assert(!finalized)
-      }
-      // format: on
+      assertSelfCancel(test)
+      assert(!finalized)
+  }
 
-      // format: off
-      ticked("finalization - not finalize after uncancelable with suppressed cancelation (errored)") { implicit ticker =>
-        case object TestException extends RuntimeException
+  ticked(
+    "finalization - not finalize after uncancelable with suppressed cancelation (errored)") {
+    implicit ticker =>
+      case object TestException extends RuntimeException
 
-        var finalized = false
+      var finalized = false
 
-        val test =
-          IO.uncancelable(_ => IO.canceled >> IO.raiseError(TestException))
-            .onCancel(IO { finalized = true })
-            .void
+      val test =
+        IO.uncancelable(_ => IO.canceled >> IO.raiseError(TestException))
+          .onCancel(IO { finalized = true })
+          .void
 
-        assertSelfCancel(test )
-        assert(!finalized)
-      }
-      // format: on
+      assertSelfCancel(test)
+      assert(!finalized)
+  }
 
   ticked("finalization - finalize on uncaught errors in bracket use clauses") {
     implicit ticker =>
