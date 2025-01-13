@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * In general, this heap is not threadsafe and modifications (insertion/removal) may only be
  * performed on its owner WorkerThread. The exception is that the callback value of nodes may be
- * `null`ed by other threads and published via data race.
+ * `null` ed by other threads and published via data race.
  *
  * Other threads may traverse the heap with the `steal` method during which they may `null` some
  * callbacks. This is entirely subject to data races.

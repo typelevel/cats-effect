@@ -388,8 +388,8 @@ object MapRef extends MapRefCompanionPlatform {
         }
 
       def tryModify[B](
-          f: Option[V] => (Option[V], B))
-          : F[Option[B]] = // we need the suspend because we do effects inside
+          f: Option[V] => (Option[V], B)
+      ): F[Option[B]] = // we need the suspend because we do effects inside
         sync.delay {
           val init = map.get(k)
           init match {

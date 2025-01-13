@@ -20,7 +20,7 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 /**
- * Builder object for creating custom `IORuntime`s. Useful for creating [[IORuntime]] based on
+ * Builder object for creating custom `IORuntime` s. Useful for creating [[IORuntime]] based on
  * the default one but with some wrappers around execution contexts or custom shutdown hooks.
  */
 final class IORuntimeBuilder protected (

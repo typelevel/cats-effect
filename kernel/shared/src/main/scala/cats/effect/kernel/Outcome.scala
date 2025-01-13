@@ -63,10 +63,9 @@ import scala.util.{Either, Left, Right}
  * does not perform further effects. In the case of `IO` that means that the outcome has been
  * constructed as `Outcome.Succeeded(IO.pure(result))`.
  *
- * 2. Errored(e) The fiber exited with an error.
- *
- * 3. Canceled() The fiber was canceled, either externally or self-canceled via
- * `MonadCancel[F]#canceled`.
+ *   2. Errored(e) The fiber exited with an error.
+ *   3. Canceled() The fiber was canceled, either externally or self-canceled via
+ *      `MonadCancel[F]#canceled`.
  */
 sealed trait Outcome[F[_], E, A] extends Product with Serializable {
   import Outcome._

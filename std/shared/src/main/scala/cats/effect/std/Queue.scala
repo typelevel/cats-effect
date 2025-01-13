@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Typelevel
+ * Copyright 2020-2024 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ object Queue {
    * @return
    *   an empty, bounded queue
    */
-  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, ?]): F[Queue[F, A]] = {
+  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertNonNegative(capacity)
 
     // async queue can't handle capacity == 1 and allocates eagerly, so cap at 64k
@@ -91,7 +91,7 @@ object Queue {
   }
 
   private[effect] def boundedForConcurrent[F[_], A](capacity: Int)(
-      implicit F: GenConcurrent[F, ?]): F[Queue[F, A]] =
+      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     F.ref(State.empty[F, A]).map(new BoundedQueue(capacity, _))
 
   private[effect] def boundedForAsync[F[_], A](capacity: Int)(
@@ -99,14 +99,14 @@ object Queue {
     F.delay(new BoundedAsyncQueue(capacity))
 
   private[effect] def unboundedForConcurrent[F[_], A](
-      implicit F: GenConcurrent[F, ?]): F[Queue[F, A]] =
+      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     boundedForConcurrent[F, A](Int.MaxValue)
 
   private[effect] def unboundedForAsync[F[_], A](implicit F: Async[F]): F[Queue[F, A]] =
     F.delay(new UnboundedAsyncQueue())
 
   private[effect] def droppingForConcurrent[F[_], A](capacity: Int)(
-      implicit F: GenConcurrent[F, ?]): F[Queue[F, A]] =
+      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     F.ref(State.empty[F, A]).map(new DroppingQueue(capacity, _))
 
   private[effect] def droppingForAsync[F[_], A](capacity: Int)(
@@ -129,10 +129,7 @@ object Queue {
    */
   def unsafeBounded[F[_], A](capacity: Int)(
       implicit F: Async[F]): F[unsafe.BoundedQueue[F, A]] = {
-    require(
-      capacity > 1 && capacity < Short.MaxValue.toInt * 2,
-      "capacity must be > 1 and < 32768"
-    )
+    require(capacity > 1 && capacity < Short.MaxValue.toInt * 2)
     F.delay(new BoundedAsyncQueue(capacity))
   }
 
@@ -146,7 +143,7 @@ object Queue {
    * @return
    *   a synchronous queue
    */
-  def synchronous[F[_], A](implicit F: GenConcurrent[F, ?]): F[Queue[F, A]] =
+  def synchronous[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     F.ref(SyncState.empty[F, A]).map(new Synchronous(_))
 
   /**
@@ -157,7 +154,7 @@ object Queue {
    * @return
    *   an empty, unbounded queue
    */
-  def unbounded[F[_], A](implicit F: GenConcurrent[F, ?]): F[Queue[F, A]] =
+  def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     F match {
       case f0: Async[F] =>
         unboundedForAsync(f0)
@@ -193,7 +190,7 @@ object Queue {
    * @return
    *   an empty, bounded, dropping queue
    */
-  def dropping[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, ?]): F[Queue[F, A]] = {
+  def dropping[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertPositive(capacity, "Dropping")
     // async queue can't handle capacity == 1 and allocates eagerly, so cap at 64k
     if (1 < capacity && capacity < Short.MaxValue.toInt * 2) {
@@ -221,8 +218,8 @@ object Queue {
    * @return
    *   an empty, bounded, sliding queue
    */
-  def circularBuffer[F[_], A](capacity: Int)(
-      implicit F: GenConcurrent[F, ?]): F[Queue[F, A]] = {
+  def circularBuffer[F[_], A](
+      capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertPositive(capacity, "CircularBuffer")
     F.ref(State.empty[F, A]).map(new CircularBufferQueue(capacity, _))
   }
@@ -240,7 +237,7 @@ object Queue {
     else ()
 
   private final class Synchronous[F[_], A](stateR: Ref[F, SyncState[F, A]])(
-      implicit F: GenConcurrent[F, ?])
+      implicit F: GenConcurrent[F, _])
       extends Queue[F, A] {
 
     def offer(a: A): F[Unit] =
@@ -382,7 +379,7 @@ object Queue {
   private sealed abstract class AbstractQueue[F[_], A](
       capacity: Int,
       state: Ref[F, State[F, A]]
-  )(implicit F: GenConcurrent[F, ?])
+  )(implicit F: GenConcurrent[F, _])
       extends Queue[F, A] {
 
     protected def onOfferNoCapacity(
@@ -509,10 +506,10 @@ object Queue {
   }
 
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: GenConcurrent[F, ?]
+      implicit F: GenConcurrent[F, _]
   ) extends AbstractQueue(capacity, state) {
 
-    require(capacity > 0, "capacity must be > 0")
+    require(capacity > 0)
 
     protected def onOfferNoCapacity(
         s: State[F, A],
@@ -543,7 +540,7 @@ object Queue {
   }
 
   private final class DroppingQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: GenConcurrent[F, ?]
+      implicit F: GenConcurrent[F, _]
   ) extends AbstractQueue(capacity, state) {
 
     protected def onOfferNoCapacity(
@@ -560,7 +557,7 @@ object Queue {
   }
 
   private final class CircularBufferQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: GenConcurrent[F, ?]
+      implicit F: GenConcurrent[F, _]
   ) extends AbstractQueue(capacity, state) {
 
     protected def onOfferNoCapacity(
@@ -598,7 +595,7 @@ object Queue {
   private abstract class BaseBoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F])
       extends Queue[F, A] {
 
-    require(capacity > 1, "capacity must be > 1")
+    require(capacity > 1)
 
     protected[this] val buffer = new UnsafeBounded[A](capacity)
 
@@ -1012,7 +1009,7 @@ object Queue {
 
   // ported with love from https://github.com/JCTools/JCTools/blob/master/jctools-core/src/main/java/org/jctools/queues/MpmcArrayQueue.java
   private[effect] final class UnsafeBounded[A](bound: Int) {
-    require(bound > 1, "bound must be > 1")
+    require(bound > 1)
 
     private[this] val buffer = new Array[AnyRef](bound)
 

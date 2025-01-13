@@ -128,7 +128,7 @@ import cats.syntax.all._
  *
  * None of the boundaries above are cancelation boundaries as cancelation is masked.
  *
- * 2. The boundary after `uncancelable`
+ *   2. The boundary after `uncancelable`
  *
  * {{{
  *   F.uncancelable(poll => foo(poll)).flatMap(f)
@@ -161,7 +161,7 @@ import cats.syntax.all._
  * always be awkward. Given this, it is better to pick a semantic that allows safe composition
  * of regions.
  *
- * 3. The boundary after `poll`
+ *   3. The boundary after `poll`
  *
  * {{{
  *   F.uncancelable(poll => poll(fa).flatMap(f))
@@ -227,7 +227,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * Indicates the default "root scope" semantics of the `F` in question. For types which do
    * ''not'' implement auto-cancelation, this value may be set to `CancelScope.Uncancelable`,
    * which behaves as if all values `F[A]` are wrapped in an implicit "outer" `uncancelable`
-   * which cannot be polled. Most `IO`-like types will define this to be `Cancelable`.
+   * which cannot be polled. Most `IO` -like types will define this to be `Cancelable`.
    */
   def rootCancelScope: CancelScope
 

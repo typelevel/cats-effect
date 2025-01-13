@@ -185,7 +185,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   /**
    * Materializes any sequenced exceptions into value space, where they may be handled.
    *
-   * This is analogous to the `catch` clause in `try`/`catch`, being the inverse of
+   * This is analogous to the `catch` clause in `try` /`catch`, being the inverse of
    * `IO.raiseError`. Thus:
    *
    * {{{
@@ -1309,7 +1309,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * The effect returns `Either[Option[IO[Unit]], A]` where:
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
-   *   - left side `Option[IO[Unit]] `is an optional finalizer to be run in the event that the
+   *   - left side `Option[IO[Unit]] ` is an optional finalizer to be run in the event that the
    *     fiber running `asyncCheckAttempt(k)` is canceled.
    *
    * For example, here is a simplified version of `IO.fromCompletableFuture`:

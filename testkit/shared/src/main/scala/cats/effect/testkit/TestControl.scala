@@ -37,9 +37,9 @@ import java.util.concurrent.atomic.AtomicReference
  * [[TestControl.executeEmbed]]).
  *
  * In other words, `TestControl` is sort of like a "handle" to the runtime internals within the
- * context of a specific `IO`'s execution. It makes it possible for users to manipulate and
+ * context of a specific `IO` 's execution. It makes it possible for users to manipulate and
  * observe the execution of the `IO` under test from an external vantage point. It is important
- * to understand that the ''outer'' `IO`s (e.g. those returned by the [[tick]] or [[results]]
+ * to understand that the ''outer'' `IO` s (e.g. those returned by the [[tick]] or [[results]]
  * methods) are ''not'' running under the test control environment, and instead they are meant
  * to be run by some outer runtime. Interactions between the outer runtime and the inner runtime
  * (potentially via mechanisms like [[cats.effect.std.Queue]] or
@@ -204,7 +204,7 @@ final class TestControl[A] private (
    * Analogous to, though critically not the same as, running an [[IO]] on a single-threaded
    * production runtime.
    *
-   * This function will terminate for `IO`s which deadlock ''asynchronously'', but any program
+   * This function will terminate for `IO` s which deadlock ''asynchronously'', but any program
    * which runs in a loop without fully suspending will cause this function to run indefinitely.
    * Also note that any `IO` which interacts with some external asynchronous scheduler (such as
    * NIO) will be considered deadlocked for the purposes of this runtime.
@@ -288,8 +288,8 @@ object TestControl {
   /**
    * Executes a given [[IO]] under fully mocked runtime control. Produces a `TestControl` which
    * can be used to manipulate the mocked runtime and retrieve the results. Note that the outer
-   * `IO` (and the `IO`s produced by the `TestControl`) do ''not'' evaluate under mocked runtime
-   * control and must be evaluated by some external harness, usually some test framework
+   * `IO` (and the `IO` s produced by the `TestControl`) do ''not'' evaluate under mocked
+   * runtime control and must be evaluated by some external harness, usually some test framework
    * integration.
    *
    * A simple example (returns an `IO` which must, itself, be run) using MUnit assertion syntax:
