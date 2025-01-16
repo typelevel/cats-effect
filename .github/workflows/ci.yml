@@ -27,12 +27,8 @@ jobs:
     name: Test
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-          - ubuntu-22.04-arm
-          - windows-latest
-          - macos-14
-        scala: [3.3.4, 2.12.20, 2.13.15]
+        os: [ubuntu-latest, windows-latest, macos-14]
+        scala: [3.3.4, 2.12.20, 2.13.16]
         java:
           - temurin@8
           - temurin@11
@@ -45,6 +41,8 @@ jobs:
             java: temurin@11
           - scala: 3.3.4
             java: temurin@21
+          - scala: 3.3.4
+            java: graalvm@21
           - scala: 2.12.20
             java: temurin@11
           - scala: 2.12.20
@@ -52,14 +50,6 @@ jobs:
           - scala: 2.12.20
             java: temurin@21
           - scala: 2.12.20
-            java: graalvm@21
-          - os: ubuntu-22.04-arm
-            java: temurin@8
-          - os: ubuntu-22.04-arm
-            java: temurin@11
-          - os: ubuntu-22.04-arm
-            java: temurin@21
-          - os: ubuntu-22.04-arm
             java: graalvm@21
           - os: windows-latest
             scala: 3.3.4
@@ -75,8 +65,6 @@ jobs:
             ci: ciJVM
           - os: macos-14
             java: temurin@8
-          - os: macos-14
-            java: temurin@11
           - ci: ciFirefox
             scala: 3.3.4
           - ci: ciChrome
@@ -93,8 +81,6 @@ jobs:
             java: temurin@21
           - ci: ciJS
             java: graalvm@21
-          - os: ubuntu-22.04-arm
-            ci: ciJS
           - os: windows-latest
             ci: ciJS
           - os: macos-14
@@ -107,8 +93,6 @@ jobs:
             java: temurin@21
           - ci: ciFirefox
             java: graalvm@21
-          - os: ubuntu-22.04-arm
-            ci: ciFirefox
           - os: windows-latest
             ci: ciFirefox
           - os: macos-14
@@ -121,57 +105,18 @@ jobs:
             java: temurin@21
           - ci: ciChrome
             java: graalvm@21
-          - os: ubuntu-22.04-arm
-            ci: ciChrome
           - os: windows-latest
             ci: ciChrome
           - os: macos-14
             ci: ciChrome
           - ci: ciNative
             java: temurin@11
-            os: ubuntu-latest
-          - ci: ciNative
-            java: temurin@11
-            os: ubuntu-22.04-arm
-          - ci: ciNative
-            java: temurin@11
-            os: windows-latest
-          - ci: ciNative
-            java: temurin@11
-            os: macos-14
           - ci: ciNative
             java: temurin@17
-            os: ubuntu-latest
-          - ci: ciNative
-            java: temurin@17
-            os: windows-latest
           - ci: ciNative
             java: temurin@21
-            os: ubuntu-latest
-          - ci: ciNative
-            java: temurin@21
-            os: ubuntu-22.04-arm
-          - ci: ciNative
-            java: temurin@21
-            os: windows-latest
-          - ci: ciNative
-            java: temurin@21
-            os: macos-14
           - ci: ciNative
             java: graalvm@21
-            os: ubuntu-latest
-          - ci: ciNative
-            java: graalvm@21
-            os: ubuntu-22.04-arm
-          - ci: ciNative
-            java: graalvm@21
-            os: windows-latest
-          - ci: ciNative
-            java: graalvm@21
-            os: macos-14
-          - os: ubuntu-22.04-arm
-            ci: ciNative
-            scala: 2.12.20
           - os: windows-latest
             ci: ciNative
           - os: macos-14
@@ -304,7 +249,7 @@ jobs:
       - shell: bash
         run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.15' || matrix.scala == '3.3.4') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17'
+      - if: (matrix.scala == '2.13.16' || matrix.scala == '3.3.4') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' docs/mdoc
 
@@ -323,13 +268,8 @@ jobs:
         shell: bash
         run: example/test-native.sh ${{ matrix.scala }}
 
-      - name: Test GraalVM Native Image
-        if: (matrix.scala == '2.13.15' || matrix.scala == '3.3.4') && matrix.java == 'graalvm@21' && matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: sbt '++ ${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
-
       - name: Scalafix tests
-        if: matrix.scala == '2.13.15' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.16' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix
