@@ -77,7 +77,7 @@ import scala.util.Try
  *   }
  * }}}
  *
- * It is valid to define `val run` rather than `def run` because `IO` 's evaluation is lazy: it
+ * It is valid to define `val run` rather than `def run` because `IO`'s evaluation is lazy: it
  * will only run when the `main` method is invoked by the runtime.
  *
  * In the event that the process receives an interrupt signal (`SIGINT`) due to Ctrl-C (or any
@@ -121,7 +121,7 @@ import scala.util.Try
  *
  * However, with that said, there really is no substitute to benchmarking your own application.
  * Every application and scenario is unique, and you will always get the absolute best results
- * by performing your own tuning rather than trusting someone else's defaults. `IOApp` 's
+ * by performing your own tuning rather than trusting someone else's defaults. `IOApp`'s
  * defaults are very ''good'', but they are not perfect in all cases. One common example of this
  * is applications which maintain network or file I/O worker threads which are under heavy load
  * in steady-state operations. In such a performance profile, it is usually better to reduce the

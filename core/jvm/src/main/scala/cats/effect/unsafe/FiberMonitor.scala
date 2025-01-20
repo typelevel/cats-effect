@@ -36,10 +36,9 @@ import scala.concurrent.ExecutionContext
  *      `IO#evalOn`).
  *   1. Because `java.util.Collections.synchronizedMap` is a simple wrapper around any map which
  *      just synchronizes the access to the map through the built in JVM `synchronized`
- *      mechanism, we need several instances of these synchronized `WeakHashMap` s just to
- *      reduce contention between threads. A particular instance is selected using a thread
- *      local source of randomness using an instance of
- *      `java.util.concurrent.ThreadLocalRandom`.
+ *      mechanism, we need several instances of these synchronized `WeakHashMap`s just to reduce
+ *      contention between threads. A particular instance is selected using a thread local
+ *      source of randomness using an instance of `java.util.concurrent.ThreadLocalRandom`.
  */
 private[effect] sealed class FiberMonitor(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag

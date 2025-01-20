@@ -45,7 +45,7 @@ import cats.syntax.all._
  * [[https://tpolecat.github.io/skunk/ Skunk]] and [[https://http4s.org Http4s]], but otherwise
  * it represents a relatively typical example of what the main class for a realistic Cats Effect
  * application might look like. Notably, the whole thing is enclosed in `Resource`, which is
- * `use` d at the very end. This kind of pattern is so common that `ResourceApp` defines a
+ * `use`d at the very end. This kind of pattern is so common that `ResourceApp` defines a
  * special trait which represents it. We can rewrite the above example:
  *
  * {{{

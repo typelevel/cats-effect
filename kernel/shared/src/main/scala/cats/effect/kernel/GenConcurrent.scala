@@ -37,7 +37,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
    * and cache the result. If `get` is sequenced multiple times `fa` will only be evaluated
    * once.
    *
-   * If all `get` s are canceled prior to `fa` completing, it will be canceled and evaluated
+   * If all `get`s are canceled prior to `fa` completing, it will be canceled and evaluated
    * again the next time `get` is sequenced.
    */
   def memoize[A](fa: F[A]): F[F[A]] = {

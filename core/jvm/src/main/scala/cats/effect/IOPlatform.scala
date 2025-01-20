@@ -57,7 +57,7 @@ abstract private[effect] class IOPlatform[+A] extends Serializable { self: IO[A]
    * The first line will run `program` for at most five seconds, interrupt the calculation, and
    * run the finalizers for as long as they need to complete. The second line will run `program`
    * for at most five seconds and then immediately release the latch, without interrupting
-   * `program` 's ongoing execution.
+   * `program`'s ongoing execution.
    *
    * In other words, this function probably doesn't do what you think it does, and you probably
    * don't want to use it outside of tests.

@@ -87,7 +87,7 @@ sealed abstract class SyncIO[+A] private () extends Serializable {
   /**
    * Materializes any sequenced exceptions into value space, where they may be handled.
    *
-   * This is analogous to the `catch` clause in `try` /`catch`, being the inverse of
+   * This is analogous to the `catch` clause in `try`/`catch`, being the inverse of
    * `SyncIO.raiseError`. Thus:
    *
    * {{{

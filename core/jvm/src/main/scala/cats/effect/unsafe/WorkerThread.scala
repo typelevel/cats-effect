@@ -160,7 +160,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
    * continues with the worker thread run loop.
    *
    * @param fiber
-   *   the fiber that `cede` s/`autoCede`s
+   *   the fiber that `cede`s/`autoCede`s
    */
   def reschedule(fiber: Runnable): Unit = {
     if ((cedeBypass eq null) && queue.isEmpty()) {

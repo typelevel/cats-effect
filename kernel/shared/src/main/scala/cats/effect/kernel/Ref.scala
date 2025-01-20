@@ -321,7 +321,7 @@ object Ref {
     F.delay(unsafe(a))
 
   /**
-   * Creates an instance focused on a component of another `Ref` 's value. Delegates every get
+   * Creates an instance focused on a component of another `Ref`'s value. Delegates every get
    * and modification to underlying `Ref`, so both instances are always in sync.
    *
    * Example:

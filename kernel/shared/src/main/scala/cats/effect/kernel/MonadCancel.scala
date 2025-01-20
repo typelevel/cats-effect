@@ -227,7 +227,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * Indicates the default "root scope" semantics of the `F` in question. For types which do
    * ''not'' implement auto-cancelation, this value may be set to `CancelScope.Uncancelable`,
    * which behaves as if all values `F[A]` are wrapped in an implicit "outer" `uncancelable`
-   * which cannot be polled. Most `IO` -like types will define this to be `Cancelable`.
+   * which cannot be polled. Most `IO`-like types will define this to be `Cancelable`.
    */
   def rootCancelScope: CancelScope
 

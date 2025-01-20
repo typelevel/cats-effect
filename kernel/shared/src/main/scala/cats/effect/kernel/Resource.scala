@@ -443,7 +443,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
     Resource.makeCase(F.unit)((_, ec) => f(ec)).flatMap(_ => this)
 
   /**
-   * Given a `Resource`, possibly built by composing multiple `Resource` s monadically, returns
+   * Given a `Resource`, possibly built by composing multiple `Resource`s monadically, returns
    * the acquired resource, as well as a cleanup function that takes an
    * [[Resource.ExitCase exit case]] and runs all the finalizers for releasing it.
    *
@@ -530,7 +530,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   }
 
   /**
-   * Given a `Resource`, possibly built by composing multiple `Resource` s monadically, returns
+   * Given a `Resource`, possibly built by composing multiple `Resource`s monadically, returns
    * the acquired resource, as well as an action that runs all the finalizers for releasing it.
    *
    * If the outer `F` fails or is interrupted, `allocated` guarantees that the finalizers will
