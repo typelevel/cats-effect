@@ -69,7 +69,7 @@ multi-tasking](https://en.wikipedia.org/wiki/Cooperative_multitasking) (as
 opposed to pre-emptive) so it is the responsibility of a fiber to yield control
 of the CPU by suspending its runloop periodically. In practice this is rarely an
 issue as fibers automatically yield at asynchronous boundaries (eg I/O) but it
-does means that it is actually possible for a fiber to take control of a CPU
+does mean that it is actually possible for a fiber to take control of a CPU
 core and never give it back if it executes some heavily CPU-bound operations like
 
 ```scala
