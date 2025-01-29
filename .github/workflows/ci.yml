@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-14]
-        scala: [3.3.4, 2.12.20, 2.13.16]
+        scala: [3.3.5, 2.12.20, 2.13.16]
         java:
           - temurin@8
           - temurin@11
@@ -37,11 +37,11 @@ jobs:
           - graalvm@21
         ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
-          - scala: 3.3.4
+          - scala: 3.3.5
             java: temurin@11
-          - scala: 3.3.4
+          - scala: 3.3.5
             java: temurin@21
-          - scala: 3.3.4
+          - scala: 3.3.5
             java: graalvm@21
           - scala: 2.12.20
             java: temurin@11
@@ -52,10 +52,10 @@ jobs:
           - scala: 2.12.20
             java: graalvm@21
           - os: windows-latest
-            scala: 3.3.4
+            scala: 3.3.5
             ci: ciJVM
           - os: macos-14
-            scala: 3.3.4
+            scala: 3.3.5
             ci: ciJVM
           - os: windows-latest
             scala: 2.12.20
@@ -66,9 +66,9 @@ jobs:
           - os: macos-14
             java: temurin@8
           - ci: ciFirefox
-            scala: 3.3.4
+            scala: 3.3.5
           - ci: ciChrome
-            scala: 3.3.4
+            scala: 3.3.5
           - ci: ciFirefox
             scala: 2.12.20
           - ci: ciChrome
@@ -232,24 +232,24 @@ jobs:
         run: sbt githubWorkflowCheck
 
       - name: Check that scalafix has been run on JVM
-        if: matrix.ci == 'ciJVM' && matrix.scala != '3.3.4' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
+        if: matrix.ci == 'ciJVM' && matrix.scala != '3.3.5' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootJVM/scalafixAll --check'
 
       - name: Check that scalafix has been run on JS
-        if: matrix.ci == 'ciJS' && matrix.scala != '3.3.4' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
+        if: matrix.ci == 'ciJS' && matrix.scala != '3.3.5' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootJS/scalafixAll --check'
 
       - name: Check that scalafix has been run on Native
-        if: matrix.ci == 'ciNative' && matrix.scala != '3.3.4' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
+        if: matrix.ci == 'ciNative' && matrix.scala != '3.3.5' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootNative/scalafixAll --check'
 
       - shell: bash
         run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.16' || matrix.scala == '3.3.4') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17'
+      - if: (matrix.scala == '2.13.16' || matrix.scala == '3.3.5') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' docs/mdoc
 
@@ -379,32 +379,32 @@ jobs:
         if: matrix.java == 'graalvm@21' && steps.setup-java-graalvm-21.outputs.cache-hit == 'false'
         run: sbt +update
 
-      - name: Download target directories (3.3.4, ciJVM)
+      - name: Download target directories (3.3.5, ciJVM)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.4-ciJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.5-ciJVM
 
-      - name: Inflate target directories (3.3.4, ciJVM)
+      - name: Inflate target directories (3.3.5, ciJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (3.3.4, ciNative)
+      - name: Download target directories (3.3.5, ciNative)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.4-ciNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.5-ciNative
 
-      - name: Inflate target directories (3.3.4, ciNative)
+      - name: Inflate target directories (3.3.5, ciNative)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (3.3.4, ciJS)
+      - name: Download target directories (3.3.5, ciJS)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.4-ciJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.5-ciJS
 
-      - name: Inflate target directories (3.3.4, ciJS)
+      - name: Inflate target directories (3.3.5, ciJS)
         run: |
           tar xf targets.tar
           rm targets.tar
