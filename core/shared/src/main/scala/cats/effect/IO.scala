@@ -117,8 +117,6 @@ import Platform.static
  */
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
-  private[effect] def tag: Byte
-
   /**
    * Like [[*>]], but keeps the result of the source.
    *
@@ -1202,6 +1200,66 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TupleParallelSyntax {
 
+  private[effect] val DispatchTable: ClassValue[Byte] = new ClassValue[Byte] {
+    // these technically get held indefinitely even though they don't *need* to be
+    // in theory, this shouldn't matter though, and it makes `computeValue` faster reducing warmup
+    private[this] val PureClass = classOf[IO.Pure[?]]
+    private[this] val ErrorClass = classOf[IO.Error]
+    private[this] val DelayClass = classOf[IO.Delay[?]]
+    private[this] val ReadTimeClass = classOf[IO.RealTime.type]
+    private[this] val MonotonicClass = classOf[IO.Monotonic.type]
+    private[this] val ReadEcClass = classOf[IO.ReadEC.type]
+    private[this] val MapClass = classOf[IO.Map[?, ?]]
+    private[this] val FlatMapClass = classOf[IO.FlatMap[?, ?]]
+    private[this] val AttemptClass = classOf[IO.Attempt[?]]
+    private[this] val HandleErrorWithClass = classOf[IO.HandleErrorWith[?]]
+    private[this] val CanceledClass = classOf[IO.Canceled.type]
+    private[this] val OnCancelClass = classOf[IO.OnCancel[?]]
+    private[this] val UncancelableClass = classOf[IO.Uncancelable[?]]
+    private[this] val UnmaskRunLoopClass = classOf[IO.Uncancelable.UnmaskRunLoop[?]]
+    private[this] val IOContClass = classOf[IO.IOCont[?, ?]]
+    private[this] val GetClass = classOf[IO.IOCont.Get[?]]
+    private[this] val CedeClass = classOf[IO.Cede.type]
+    private[this] val StartClass = classOf[IO.Start[?]]
+    private[this] val RacePairClass = classOf[IO.RacePair[?, ?]]
+    private[this] val SleepClass = classOf[IO.Sleep]
+    private[this] val EvalOnClass = classOf[IO.EvalOn[?]]
+    private[this] val BlockingClass = classOf[IO.Blocking[?]]
+    private[this] val LocalClass = classOf[IO.Local[?]]
+    private[this] val IOTraceClass = classOf[IO.IOTrace.type]
+    private[this] val ReadRTClass = classOf[IO.ReadRT.type]
+    private[this] val EndFiberClass = classOf[IO.EndFiber.type]
+
+    override def computeValue(clazz: Class[_]): Byte = (clazz: @unchecked) match {
+      case PureClass => 0
+      case ErrorClass => 1
+      case DelayClass => 2
+      case ReadTimeClass => 3
+      case MonotonicClass => 4
+      case ReadEcClass => 5
+      case MapClass => 6
+      case FlatMapClass => 7
+      case AttemptClass => 8
+      case HandleErrorWithClass => 9
+      case CanceledClass => 10
+      case OnCancelClass => 11
+      case UncancelableClass => 12
+      case UnmaskRunLoopClass => 13
+      case IOContClass => 14
+      case GetClass => 15
+      case CedeClass => 16
+      case StartClass => 17
+      case RacePairClass => 18
+      case SleepClass => 19
+      case EvalOnClass => 20
+      case BlockingClass => 21
+      case LocalClass => 22
+      case IOTraceClass => 23
+      case ReadRTClass => 24
+      case EndFiberClass => -1
+    }
+  }
+
   implicit final def catsSyntaxParallelSequence1[T[_], A](
       toia: T[IO[A]]): ParallelSequenceOps1[T, IO, A] = new ParallelSequenceOps1(toia)
 
@@ -2202,136 +2260,86 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   // implementations
 
   private[effect] final case class Pure[+A](value: A) extends IO[A] {
-    def tag = 0
     override def toString: String = s"IO($value)"
   }
 
-  private[effect] final case class Error(t: Throwable) extends IO[Nothing] {
-    def tag = 1
-  }
+  private[effect] final case class Error(t: Throwable) extends IO[Nothing]
 
   private[effect] final case class Delay[+A](thunk: () => A, event: TracingEvent)
-      extends IO[A] {
-    def tag = 2
-  }
+      extends IO[A]
 
-  private[effect] case object RealTime extends IO[FiniteDuration] {
-    def tag = 3
-  }
+  private[effect] case object RealTime extends IO[FiniteDuration]
 
-  private[effect] case object Monotonic extends IO[FiniteDuration] {
-    def tag = 4
-  }
+  private[effect] case object Monotonic extends IO[FiniteDuration]
 
-  private[effect] case object ReadEC extends IO[ExecutionContext] {
-    def tag = 5
-  }
+  private[effect] case object ReadEC extends IO[ExecutionContext]
 
   private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A, event: TracingEvent)
-      extends IO[A] {
-    def tag = 6
-  }
+      extends IO[A]
 
   private[effect] final case class FlatMap[E, +A](
       ioe: IO[E],
       f: E => IO[A],
       event: TracingEvent)
-      extends IO[A] {
-    def tag = 7
-  }
+      extends IO[A]
 
-  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
-    def tag = 8
-  }
+  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]]
 
   private[effect] final case class HandleErrorWith[+A](
       ioa: IO[A],
       f: Throwable => IO[A],
       event: TracingEvent)
-      extends IO[A] {
-    def tag = 9
-  }
+      extends IO[A]
 
-  private[effect] case object Canceled extends IO[Unit] {
-    def tag = 10
-  }
+  private[effect] case object Canceled extends IO[Unit]
 
-  private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
-    def tag = 11
-  }
+  private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A]
 
   private[effect] final case class Uncancelable[+A](
       body: Poll[IO] => IO[A],
       event: TracingEvent)
-      extends IO[A] {
-    def tag = 12
-  }
+      extends IO[A]
+
   private[effect] object Uncancelable {
     // INTERNAL, it's only created by the runloop itself during the execution of `Uncancelable`
-    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int, self: IOFiber[?]) extends IO[A] {
-      def tag = 13
-    }
+    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int, self: IOFiber[?]) extends IO[A]
   }
 
   // Low level construction that powers `async`
   private[effect] final case class IOCont[K, R](body: Cont[IO, K, R], event: TracingEvent)
-      extends IO[R] {
-    def tag = 14
-  }
+      extends IO[R]
+
   private[effect] object IOCont {
     // INTERNAL, it's only created by the runloop itself during the execution of `IOCont`
-    final case class Get[A](state: ContState) extends IO[A] {
-      def tag = 15
-    }
+    final case class Get[A](state: ContState) extends IO[A]
   }
 
-  private[effect] case object Cede extends IO[Unit] {
-    def tag = 16
-  }
+  private[effect] case object Cede extends IO[Unit]
 
-  private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]] {
-    def tag = 17
-  }
+  private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]]
 
   private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] {
-    def tag = 18
-  }
+      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]]
 
-  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
-    def tag = 19
-  }
+  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit]
 
-  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
-    def tag = 20
-  }
+  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A]
 
   private[effect] final case class Blocking[+A](
       hint: Sync.Type,
       thunk: () => A,
       event: TracingEvent)
-      extends IO[A] {
-    def tag = 21
-  }
+      extends IO[A]
 
   private[effect] final case class Local[+A](f: IOLocalState => (IOLocalState, A))
-      extends IO[A] {
-    def tag = 22
-  }
+      extends IO[A]
 
-  private[effect] case object IOTrace extends IO[Trace] {
-    def tag = 23
-  }
+  private[effect] case object IOTrace extends IO[Trace]
 
-  private[effect] case object ReadRT extends IO[IORuntime] {
-    def tag = 24
-  }
+  private[effect] case object ReadRT extends IO[IORuntime]
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
-  private[effect] case object EndFiber extends IO[Nothing] {
-    def tag = -1
-  }
-
+  private[effect] case object EndFiber extends IO[Nothing]
 }
 
 private object SyncStep {
