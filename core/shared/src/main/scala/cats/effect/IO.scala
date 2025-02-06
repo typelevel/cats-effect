@@ -1230,7 +1230,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     private[this] val ReadRTClass = classOf[IO.ReadRT.type]
     private[this] val EndFiberClass = classOf[IO.EndFiber.type]
 
-    override def computeValue(clazz: Class[_]): Byte = (clazz: @unchecked) match {
+    override def computeValue(clazz: Class[?]): Byte = (clazz: @unchecked) match {
       case PureClass => 0
       case ErrorClass => 1
       case DelayClass => 2
@@ -2265,8 +2265,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
   private[effect] final case class Error(t: Throwable) extends IO[Nothing]
 
-  private[effect] final case class Delay[+A](thunk: () => A, event: TracingEvent)
-      extends IO[A]
+  private[effect] final case class Delay[+A](thunk: () => A, event: TracingEvent) extends IO[A]
 
   private[effect] case object RealTime extends IO[FiniteDuration]
 
@@ -2331,8 +2330,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
       event: TracingEvent)
       extends IO[A]
 
-  private[effect] final case class Local[+A](f: IOLocalState => (IOLocalState, A))
-      extends IO[A]
+  private[effect] final case class Local[+A](f: IOLocalState => (IOLocalState, A)) extends IO[A]
 
   private[effect] case object IOTrace extends IO[Trace]
 
