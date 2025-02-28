@@ -32,8 +32,8 @@ trait BaseSuite extends FunSuite with Runners {
 
   override def munitValueTransforms: List[ValueTransform] =
     super.munitValueTransforms ++ List(
-      new ValueTransform("IO", { case _: IO[_] => sys.error("Non-evaluated IO") }),
-      new ValueTransform("SyncIO", { case _: SyncIO[_] => sys.error("Non-evaluated SyncIO") }),
+      new ValueTransform("IO", { case _: IO[?] => sys.error("Non-evaluated IO") }),
+      new ValueTransform("SyncIO", { case _: SyncIO[?] => sys.error("Non-evaluated SyncIO") }),
       new ValueTransform(
         "Prop",
         {

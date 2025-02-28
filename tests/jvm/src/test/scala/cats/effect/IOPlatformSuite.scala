@@ -27,11 +27,13 @@ import cats.effect.unsafe.{
   WorkStealingThreadPool
 }
 import cats.effect.unsafe.metrics.PollerMetrics
-import cats.syntax.all.*
+import cats.syntax.all._
+
 import org.scalacheck.Prop.forAll
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.*
+import scala.concurrent.duration._
+
 import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
@@ -273,7 +275,7 @@ trait IOPlatformSuite extends DetectPlatform {
 
     realWithRuntime("run a timer which crosses into a blocking region") { rt =>
       rt.scheduler match {
-        case sched: WorkStealingThreadPool[_] =>
+        case sched: WorkStealingThreadPool[?] =>
           // we structure this test by calling the runtime directly to avoid nondeterminism
           val delay = IO.async[Unit] { cb =>
             IO {
@@ -297,7 +299,7 @@ trait IOPlatformSuite extends DetectPlatform {
 
     realWithRuntime("run timers exactly once when crossing into a blocking region") { rt =>
       rt.scheduler match {
-        case sched: WorkStealingThreadPool[_] =>
+        case sched: WorkStealingThreadPool[?] =>
           IO defer {
             val ai = new AtomicInteger(0)
 
@@ -316,7 +318,7 @@ trait IOPlatformSuite extends DetectPlatform {
 
     realWithRuntime("run a timer registered on a blocker") { rt =>
       rt.scheduler match {
-        case sched: WorkStealingThreadPool[_] =>
+        case sched: WorkStealingThreadPool[?] =>
           // we structure this test by calling the runtime directly to avoid nondeterminism
           val delay = IO.async[Unit] { cb =>
             IO {
