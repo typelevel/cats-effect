@@ -26,10 +26,11 @@ class SupervisorSuite extends BaseSuite with DetectPlatform {
   supervisorTests("concurrent", Supervisor.applyForConcurrent)
   supervisorTests("async", Supervisor.applyForAsync)
 
-  private def supervisorTests(name: String,
-      constructor: (
-          Boolean,
-          Option[Outcome[IO, Throwable, ?] => Boolean]) => Resource[IO, Supervisor[IO]]) = {
+  private def supervisorTests(
+      name: String,
+      constructor: (Boolean, Option[Outcome[IO, Throwable, ?] => Boolean]) => Resource[
+        IO,
+        Supervisor[IO]]) = {
 
     ticked(s"$name - start a fiber that completes successfully") { implicit ticker =>
       val test = constructor(false, None).use { supervisor =>

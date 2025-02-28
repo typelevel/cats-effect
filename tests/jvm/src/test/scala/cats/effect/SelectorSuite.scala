@@ -95,7 +95,7 @@ class SelectorSuite extends BaseSuite {
 
     try {
       val test = Selector
-          .get
+        .get
         .flatMap { selector =>
           mkPipe.allocated.flatMap {
             case (pipe, close) =>

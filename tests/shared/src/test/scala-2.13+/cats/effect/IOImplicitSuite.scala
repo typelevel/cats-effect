@@ -18,7 +18,9 @@ package cats.effect
 
 class IOImplicitSuite extends BaseSuite {
 
-  testUnit("Can resolve IO sequence ops without import of cats.syntax.all") { // compilation test
+  testUnit(
+    "Can resolve IO sequence ops without import of cats.syntax.all"
+  ) { // compilation test
     for {
       _ <- List(IO(1)).sequence_
       _ <- Option(IO(1)).sequence

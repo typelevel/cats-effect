@@ -66,8 +66,9 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
       val fa: F[String] = F.pure("a")
       val fb: F[String] = F.pure("b")
       val fc: F[Unit] = F.raiseError[Unit](42)
-      assert(pure.run(ParallelF.value(
-        ParallelF(fa).product(ParallelF(fb)).product(ParallelF(fc)))) === Outcome.Errored(42))
+      assert(
+        pure.run(ParallelF.value(
+          ParallelF(fa).product(ParallelF(fb)).product(ParallelF(fc)))) === Outcome.Errored(42))
     }
 
     test("ignore unmasking in finalizers") {

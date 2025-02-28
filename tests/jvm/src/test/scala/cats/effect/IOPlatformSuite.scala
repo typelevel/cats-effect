@@ -20,19 +20,18 @@ import cats.effect.std.Semaphore
 import cats.effect.unsafe.{
   IORuntime,
   IORuntimeConfig,
+  PollResult,
   PollingContext,
   PollingSystem,
   SleepSystem,
   WorkStealingThreadPool
 }
 import cats.effect.unsafe.metrics.PollerMetrics
-import cats.syntax.all._
-
+import cats.syntax.all.*
 import org.scalacheck.Prop.forAll
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-
+import scala.concurrent.duration.*
 import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
@@ -453,7 +452,8 @@ trait IOPlatformSuite extends DetectPlatform {
           reportFailure0 = _.printStackTrace(),
           blockedThreadDetectionEnabled = false,
           shutdownTimeout = 1.second,
-          system = SleepSystem
+          system = SleepSystem,
+          uncaughtExceptionHandler = (_, t) => t.printStackTrace()
         )
 
         val runtime = IORuntime
@@ -488,46 +488,54 @@ trait IOPlatformSuite extends DetectPlatform {
       ()
     }
 
-    testUnit("wake parked thread for polled events") {
+    trait DummyPoller {
+      def poll: IO[Unit]
+    }
 
-      trait DummyPoller {
-        def poll: IO[Unit]
+    object DummySystem extends PollingSystem {
+      type Api = DummyPoller
+      type Poller = AtomicReference[List[Either[Throwable, Unit] => Unit]]
+
+      def close() = ()
+
+      def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Unit])
+      def needsPoll(poller: Poller) = poller.get.nonEmpty
+      def closePoller(poller: Poller) = ()
+      def metrics(poller: Poller): PollerMetrics = PollerMetrics.noop
+
+      def interrupt(targetThread: Thread, targetPoller: Poller) =
+        SleepSystem.interrupt(targetThread, SleepSystem.makePoller())
+
+      def poll(poller: Poller, nanos: Long) = {
+        poller.get() match {
+          case Nil =>
+            SleepSystem.poll(SleepSystem.makePoller(), nanos)
+          case _ => PollResult.Complete
+        }
       }
 
-      object DummySystem extends PollingSystem {
-        type Api = DummyPoller
-        type Poller = AtomicReference[List[Either[Throwable, Unit] => Unit]]
-
-        def close() = ()
-
-        def makePoller() = new AtomicReference(List.empty[Either[Throwable, Unit] => Unit])
-        def needsPoll(poller: Poller) = poller.get.nonEmpty
-        def closePoller(poller: Poller) = ()
-        def metrics(poller: Poller): PollerMetrics = PollerMetrics.noop
-
-        def interrupt(targetThread: Thread, targetPoller: Poller) =
-          SleepSystem.interrupt(targetThread, SleepSystem.makePoller())
-
-        def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit) = {
-          poller.getAndSet(Nil) match {
-            case Nil =>
-              SleepSystem.poll(SleepSystem.makePoller(), nanos, reportFailure)
-            case cbs =>
-              cbs.foreach(_.apply(Right(())))
-              true
-          }
+      def processReadyEvents(poller: Poller) = {
+        poller.getAndSet(Nil) match {
+          case Nil =>
+            false
+          case cbs =>
+            cbs.foreach(_.apply(Right(())))
+            true
         }
+      }
 
-        def makeApi(ctx: PollingContext[Poller]): DummySystem.Api =
-          new DummyPoller {
-            def poll = IO.async_[Unit] { cb =>
-              ctx.accessPoller { poller =>
-                poller.getAndUpdate(cb :: _)
-                ()
-              }
+      def makeApi(ctx: PollingContext[Poller]): DummySystem.Api =
+        new DummyPoller {
+          def poll = IO.async_[Unit] { cb =>
+            ctx.accessPoller { poller =>
+              poller.getAndUpdate(cb :: _)
+              ()
             }
           }
-      }
+        }
+    }
+
+    testUnit("wake parked thread for polled events") {
 
       val (pool, poller, shutdown) =
         IORuntime.createWorkStealingComputeThreadPool(threads = 2, pollingSystem = DummySystem)
@@ -542,6 +550,86 @@ trait IOPlatformSuite extends DetectPlatform {
             blockAndPoll.replicateA(100).as(true)
           }
         assert(test.unsafeRunSync())
+      } finally {
+        runtime.shutdown()
+      }
+    }
+
+    testUnit("poll punctually on a single-thread runtime with concurrent sleepers") {
+
+      val (pool, poller, shutdown) =
+        IORuntime.createWorkStealingComputeThreadPool(threads = 1, pollingSystem = DummySystem)
+
+      implicit val runtime: IORuntime =
+        IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()
+
+      try {
+        val test = IO.sleep(1.minute).background.surround {
+          IO.pollers.map(_.head.asInstanceOf[DummyPoller]).flatMap { poller =>
+            // in #4225 the fiber rescheduled during this poll does not execute until the next timer fires
+            poller.poll.as(true)
+          }
+        }
+
+        // NOTE!!!
+        // We cannot use a timeout *on* the runtime, because that causes the polling fiber
+        // to become unstuck sooner and pass the test
+        assertEquals(test.unsafeRunTimed(1.second), Some(true))
+      } finally {
+        runtime.shutdown()
+      }
+    }
+
+    testUnit("external work does not starve poll") {
+
+      val (pool, poller, shutdown) =
+        IORuntime.createWorkStealingComputeThreadPool(threads = 1, pollingSystem = DummySystem)
+
+      implicit val runtime: IORuntime =
+        IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()
+
+      try {
+        def mkExternalWork: Runnable = { () =>
+          val latch = new CountDownLatch(1)
+          ExecutionContext.global.execute { () =>
+            pool.execute(mkExternalWork)
+            latch.countDown()
+          }
+          try {
+            latch.await() // wait until next task is in external queue
+          } catch {
+            case _: InterruptedException => // ignore, runtime is shutting down
+          }
+        }
+
+        val test = IO(mkExternalWork.run()) *>
+          IO.pollers.map(_.head.asInstanceOf[DummyPoller]).flatMap { poller =>
+            poller.poll.as(true)
+          }
+
+        assertEquals(test.unsafeRunTimed(1.second), Some(true))
+      } finally {
+        runtime.shutdown()
+      }
+    }
+
+    testUnit("blocking work does not starve poll") {
+
+      val (pool, poller, shutdown) =
+        IORuntime.createWorkStealingComputeThreadPool(threads = 1, pollingSystem = DummySystem)
+
+      implicit val runtime: IORuntime =
+        IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()
+
+      try {
+        def mkBlockingWork: IO[Unit] = IO.defer(mkBlockingWork.start) *> IO.blocking(())
+
+        val test = mkBlockingWork *>
+          IO.pollers.map(_.head.asInstanceOf[DummyPoller]).flatMap { poller =>
+            poller.poll.replicateA_(100).as(true)
+          }
+
+        assertEquals(test.unsafeRunTimed(1.second), Some(true))
       } finally {
         runtime.shutdown()
       }
