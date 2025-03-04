@@ -17,6 +17,7 @@
 package cats.effect.std
 
 import cats.effect.kernel._
+import cats.syntax.all._
 
 /**
  * A `JobManager` allows you to launch `Jobs` in the background using a unique identifier. Then
@@ -60,4 +61,39 @@ object JobManager {
      */
     def getStatus: F[S]
   }
+
+  private final case class RunningJob[F[_], S](
+      status: F[S],
+      cancel: F[Unit]
+  )
+
+  def apply[F[_], Id, S](implicit F: Concurrent[F]): Resource[F, JobManager[F, Id, S]] =
+    for {
+      supervisor <- Supervisor[F](await = true)
+      jobsMap <- Resource.eval(MapRef[F, Id, RunningJob[F, S]])
+    } yield new JobManager[F, Id, S] {
+      override def startJob(id: Id, jobR: Resource[F, Job[F, S]]): F[Unit] = {
+        val runJob = jobR.use { job =>
+          supervisor.supervise(job.run).flatMap { fiber =>
+            jobsMap(id)
+              .getAndSet(
+                RunningJob(
+                  status = job.getStatus,
+                  cancel = fiber.cancel
+                ).some
+              )
+              .flatMap(_.traverse_(_.cancel)) >>
+              fiber.join
+          }
+        }
+
+        supervisor.supervise(runJob).void
+      }
+
+      override def getJobStatus(id: Id): F[Option[S]] =
+        jobsMap(id).get.flatMap(_.traverse(_.status))
+
+      override def cancelJob(id: Id): F[Unit] =
+        jobsMap(id).getAndSet(None).flatMap(_.traverse_(_.cancel))
+    }
 }
