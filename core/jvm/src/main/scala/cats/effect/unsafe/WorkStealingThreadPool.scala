@@ -576,7 +576,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
  *   true if the batches were successfully offered
  */
   private[unsafe] def offerAllBatchesToExternalQueue(batches: Array[AnyRef], random: ThreadLocalRandom): Boolean = {
-  // Declare the return value explicitly
+  
   val returnValue: Boolean = {
     val result = externalQueue.offerAll(batches, random)
     if (result) {
