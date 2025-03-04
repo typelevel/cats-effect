@@ -1,12 +1,12 @@
 /*
  * Copyright 2020-2025 Typelevel
- *
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,12 +16,12 @@
 
 /*
  * scalajs-java-securerandom (https://github.com/scala-js/scala-js-java-securerandom)
- *
+ *
  * Copyright EPFL.
- *
+ *
  * Licensed under Apache License 2.0
  * (https://www.apache.org/licenses/LICENSE-2.0).
- *
+ *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
  */
@@ -45,7 +45,7 @@ private[std] trait SecureRandomCompanionPlatform {
      * can only ever increase the entropy. It is never allowed to decrease it.
      * Given that we don't have access to an API to strengthen the entropy of the
      * underlying PRNG, it's fine to ignore it instead.
-     *
+     *
      * Note that the doc of `SecureRandom` says that it will seed itself upon
      * first call to `nextBytes` or `next`, if it has not been seeded yet. This
      * suggests that an *initial* call to `setSeed` would make a `SecureRandom`

@@ -1,12 +1,12 @@
 /*
  * Copyright 2020-2025 Typelevel
- *
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,13 +31,13 @@ import Platform.static
 
 /*
  * Rationale on memory barrier exploitation in this class...
- *
+ *
  * This class extends `java.util.concurrent.atomic.AtomicBoolean`
  * (through `IOFiberPlatform`) in order to forego the allocation
  * of a separate `AtomicBoolean` object. All credit goes to
  * Viktor Klang.
  * https://viktorklang.com/blog/Futures-in-Scala-2.12-part-8.html
- *
+ *
  * The runloop is held by a single thread at any moment in
  * time. This is ensured by the `suspended` AtomicBoolean,
  * which is set to `true` when evaluation of an `Async` causes
@@ -46,14 +46,14 @@ import Platform.static
  * and relocating that runloop can itself only be achieved by
  * passing through that same read/write barrier (a CAS on
  * `suspended`).
- *
+ *
  * Separate from this, the runloop may be *relocated* to a different
  * thread – for example, when evaluating Cede. When this happens,
  * we pass through a read/write barrier within the Executor as
  * we enqueue the action to restart the runloop, and then again
  * when that action is dequeued on the new thread. This ensures
  * that everything is appropriately published.
- *
+ *
  * By this argument, the `conts` stack is non-volatile and can be
  * safely implemented with an array. It is only accessed by one
  * thread at a time (so there are no atomicity concerns), and it
@@ -609,7 +609,7 @@ private final class IOFiber[A](
            * polymorphism to statically forbid concurrent operations
            * on `get`, which are unsafe since `get` closes over the
            * runloop.
-           *
+           *
            */
           val body = cur.body
 
@@ -622,20 +622,20 @@ private final class IOFiber[A](
            * If `cb` finishes after `get`, `get` just terminates by
            * suspending, and `cb` will resume the runloop via
            * `asyncContinue`.
-           *
+           *
            * If `get` wins, it gets the result from the `state`
            * `AtomicReference` and it continues, while the callback just
            * terminates (`stateLoop`, when `(tag ne null) && (tag ne waiting)`)
-           *
+           *
            * The two sides communicate with each other through
            * `state` to know who should take over, and through
            * `suspended` (which is manipulated via suspend and
            * resume), to negotiate ownership of the runloop.
-           *
+           *
            * In case of interruption, neither side will continue,
            * and they will negotiate ownership with `cancel` to decide who
            * should run the finalisers (i.e. call `asyncCancel`).
-           *
+           *
            */
           val state = new ContState(finalizing)
 
@@ -654,7 +654,7 @@ private final class IOFiber[A](
              * `state` has been set by `get, `but `suspend()` has not yet run.
              * If `state` is set then `suspend()` should be right behind it
              * *unless* we have been canceled.
-             *
+             *
              * If we were canceled, `cb`, `cancel` and `get` are in a 3-way race
              * to run the finalizers.
              */
@@ -720,14 +720,14 @@ private final class IOFiber[A](
              * null - initial
              * waiting - (Get) waiting
              * anything else - (Cb) result
-             *
+             *
              * If state is "initial" or "waiting", update the state,
              * and then if `get` has been flatMapped somewhere already
              * and is waiting for a result (i.e. it has suspended),
              * acquire runloop to continue.
-             *
+             *
              * If not, `cb` arrived first, so it just sets the result and die off.
-             *
+             *
              * If `state` is "result", the callback has been already invoked, so no-op
              * (guards from double calls).
              */
@@ -824,7 +824,7 @@ private final class IOFiber[A](
               /*
                * if we can re-acquire the run-loop, we can finalize,
                * otherwise somebody else acquired it and will eventually finalize.
-               *
+               *
                * In this path, `get`, the `cb` callback and `cancel`
                * all race via `resume` to decide who should run the
                * finalisers.
@@ -843,16 +843,16 @@ private final class IOFiber[A](
              * State was no longer "initial" (null), as the CAS above failed; so the
              * callback has already been invoked and the state is "result".
              * We leave the "result" state unmodified so that `get` is idempotent.
-             *
+             *
              * Note that it's impossible for `state` to be "waiting" here:
              * - `cont` doesn't allow concurrent calls to `get`, so there can't be
              *    another `get` in "waiting" when we execute this.
-             *
+             *
              * - If a previous `get` happened before this code, and we are in a `flatMap`
              *   or `handleErrorWith`, it means the callback has completed once
              *   (unblocking the first `get` and letting us execute), and the state is still
              *   "result".
-             *
+             *
              * - If a previous `get` has been canceled and we are being called within an
              *  `onCancel` of that `get`, the finalizer installed on the `Get` node by `Cont`
              *   has restored the state to "initial" before the execution of this method,
@@ -1178,7 +1178,7 @@ private final class IOFiber[A](
    * This implementation has the same semantics as the above, except that it guarantees
    * a write memory barrier in all cases, even when resumption fails. This in turn
    * makes it suitable as a publication mechanism (as we're using it).
-   *
+   *
    * On x86, this should have almost exactly the same performance as a CAS even taking
    * into account the extra barrier (which x86 doesn't need anyway). On ARM without LSE
    * it should actually be *faster* because CAS isn't primitive but get-and-set is.

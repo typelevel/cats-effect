@@ -1,12 +1,12 @@
 /*
  * Copyright 2020-2025 Typelevel
- *
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -364,7 +364,7 @@ object Queue {
    * already has a value, so if the offerer is canceled, it's not at all unusual for that value to
    * be "lost". The taker starts out *without* a value, so it's the taker-cancelation situation
    * where we must take extra care to ensure atomicity.
-   *
+   *
    * The booleans here indicate whether the taker was canceled after acquiring the value. This
    * allows the taker to signal back to the offerer whether it should retry (because the taker was
    * canceled), while the offerer is careful to block until that signal is received. The tradeoff

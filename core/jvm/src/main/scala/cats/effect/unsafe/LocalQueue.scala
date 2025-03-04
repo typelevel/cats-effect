@@ -1,12 +1,12 @@
 /*
  * Copyright 2020-2025 Typelevel
- *
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,7 +19,7 @@
  * runtime. The original source code in Rust is licensed under the MIT license
  * and available at:
  * https://docs.rs/crate/tokio/0.2.22/source/src/runtime/queue.rs.
- *
+ *
  * For more details behind the design decisions of that queue implementation,
  * please consult:
  * https://tokio.rs/blog/2019-10-scheduler#the-next-generation-tokio-scheduler.
@@ -236,8 +236,8 @@ private final class LocalQueue extends LocalQueuePadding {
         }
 
         external.offer(fiber, random)
-        val thread = Thread.currentThread().asInstanceOf[WorkerThread[_]]
-        val pool = thread.owner.asInstanceOf[WorkStealingThreadPool[_]]
+        val thread = Thread.currentThread().asInstanceOf[WorkerThread[?]]
+        val pool = thread.owner.asInstanceOf[WorkStealingThreadPool[?]]
         pool.singletonsSubmittedCount.incrementAndGet()
         pool.singletonsPresentCount.incrementAndGet()
         return
@@ -288,10 +288,10 @@ private final class LocalQueue extends LocalQueuePadding {
         external.offerAll(batches, random)
         // Loop again for a chance to insert the original fiber to be enqueued
         // on the local queue.
-        val thread = Thread.currentThread().asInstanceOf[WorkerThread[_]]
-val pool = thread.owner.asInstanceOf[WorkStealingThreadPool[_]]
-pool.batchesSubmittedCount.addAndGet(BatchesInHalfQueueCapacity)
-pool.batchesPresentCount.addAndGet(BatchesInHalfQueueCapacity)
+        val thread = Thread.currentThread().asInstanceOf[WorkerThread[?]]
+        val pool = thread.owner.asInstanceOf[WorkStealingThreadPool[?]]
+        pool.batchesSubmittedCount.addAndGet(BatchesInHalfQueueCapacity)
+        pool.batchesPresentCount.addAndGet(BatchesInHalfQueueCapacity)
       }
 
       // None of the three final outcomes have been reached, loop again for a
@@ -712,13 +712,13 @@ pool.batchesPresentCount.addAndGet(BatchesInHalfQueueCapacity)
         }
 
         // Get the WorkStealingThreadPool instance
-      val thread = Thread.currentThread().asInstanceOf[WorkerThread[_]]
-  val pool = thread.owner.asInstanceOf[WorkStealingThreadPool[_]]
+        val thread = Thread.currentThread().asInstanceOf[WorkerThread[?]]
+        val pool = thread.owner.asInstanceOf[WorkStealingThreadPool[?]]
 
 // Use the pool's method to offer the batch and update metrics
-       external.offer(batch, random)
-pool.batchesSubmittedCount.incrementAndGet()
-pool.batchesPresentCount.incrementAndGet()
+        external.offer(batch, random)
+        pool.batchesSubmittedCount.incrementAndGet()
+        pool.batchesPresentCount.incrementAndGet()
         return
       }
     }

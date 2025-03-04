@@ -1,12 +1,12 @@
 /*
  * Copyright 2020-2025 Typelevel
- *
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,7 +21,7 @@
  * https://docs.rs/crate/tokio/0.2.22/source/src/runtime/thread_pool/worker.rs
  * and
  * https://docs.rs/crate/tokio/0.2.22/source/src/runtime/thread_pool/idle.rs.
- *
+ *
  * For the design decisions behind the `tokio` runtime, please consult the
  * following resource:
  * https://tokio.rs/blog/2019-10-scheduler.
@@ -76,7 +76,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     private[unsafe] val system: PollingSystem.WithPoller[P],
     reportFailure0: Throwable => Unit,
     private[unsafe] val uncaughtExceptionHandler: Thread.UncaughtExceptionHandler
-    
 ) extends ExecutionContextExecutor
     with Scheduler
     with UnsealedPollingContext[P] {
@@ -532,62 +531,66 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    * @param fiber
    *   the fiber to be executed on the thread pool
    */
- private[this] def scheduleExternal(fiber: Runnable): Unit = {
-  val random = ThreadLocalRandom.current()
-  externalQueue.offer(fiber, random)
-  singletonsSubmittedCount.incrementAndGet()
-  singletonsPresentCount.incrementAndGet()
-  notifyParked(random)
-  ()
-}
-
-/**
- * Offers a batch of runnables to the external queue and updates batch metrics.
- *
- * @param batch
- *   the batch of runnables to be offered to the external queue
- * @param random
- *   a reference to an uncontended source of randomness
- * @return
- *   true if the batch was successfully offered
- */
- private[unsafe] def offerBatchToExternalQueue(batch: Array[Runnable], random: ThreadLocalRandom): Boolean = {
-  // Declare the return value explicitly
-  val returnValue: Boolean = {
-    val result = externalQueue.offer(batch, random)
-    if (result) {
-      batchesSubmittedCount.incrementAndGet()
-      batchesPresentCount.incrementAndGet()
-    }
-    result
+  private[this] def scheduleExternal(fiber: Runnable): Unit = {
+    val random = ThreadLocalRandom.current()
+    externalQueue.offer(fiber, random)
+    singletonsSubmittedCount.incrementAndGet()
+    singletonsPresentCount.incrementAndGet()
+    notifyParked(random)
+    ()
   }
-  returnValue
-}
 
-
-/**
- * Offers multiple batches of runnables to the external queue and updates batch metrics.
- *
- * @param batches
- *   the batches of runnables to be offered to the external queue
- * @param random
- *   a reference to an uncontended source of randomness
- * @return
- *   true if the batches were successfully offered
- */
-  private[unsafe] def offerAllBatchesToExternalQueue(batches: Array[AnyRef], random: ThreadLocalRandom): Boolean = {
-  
-  val returnValue: Boolean = {
-    val result = externalQueue.offerAll(batches, random)
-    if (result) {
-      val batchCount = batches.length
-      batchesSubmittedCount.addAndGet(batchCount)
-      batchesPresentCount.addAndGet(batchCount)
+  /**
+   * Offers a batch of runnables to the external queue and updates batch metrics.
+   *
+   * @param batch
+   *   the batch of runnables to be offered to the external queue
+   * @param random
+   *   a reference to an uncontended source of randomness
+   * @return
+   *   true if the batch was successfully offered
+   */
+  private[unsafe] def offerBatchToExternalQueue(
+      batch: Array[Runnable],
+      random: ThreadLocalRandom): Boolean = {
+    // Declare the return value explicitly
+    val returnValue: Boolean = {
+      val result = externalQueue.offer(batch, random)
+      if (result) {
+        batchesSubmittedCount.incrementAndGet()
+        batchesPresentCount.incrementAndGet()
+      }
+      result
     }
-    result
+    returnValue
   }
-  returnValue
-}
+
+  /**
+   * Offers multiple batches of runnables to the external queue and updates batch metrics.
+   *
+   * @param batches
+   *   the batches of runnables to be offered to the external queue
+   * @param random
+   *   a reference to an uncontended source of randomness
+   * @return
+   *   true if the batches were successfully offered
+   */
+  private[unsafe] def offerAllBatchesToExternalQueue(
+      batches: Array[AnyRef],
+      random: ThreadLocalRandom): Boolean = {
+
+    val returnValue: Boolean = {
+      val result = externalQueue.offerAll(batches, random)
+      if (result) {
+        val batchCount = batches.length
+        batchesSubmittedCount.addAndGet(batchCount)
+        batchesPresentCount.addAndGet(batchCount)
+      }
+      result
+    }
+    returnValue
+  }
+
   /**
    * Returns a snapshot of the fibers currently live on this thread pool.
    *
@@ -903,7 +906,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     }
     sum
   }
-  
+
   /**
    * Returns the total number of singleton tasks submitted to the external queue.
    *
@@ -936,10 +939,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    */
   private[unsafe] def getBatchesPresentCount(): Long = batchesPresentCount.get()
 }
- 
 
-
- 
 private object WorkStealingThreadPool {
 
   private val IdCounter: AtomicLong = new AtomicLong(0)

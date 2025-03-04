@@ -1,12 +1,12 @@
 /*
  * Copyright 2020-2025 Typelevel
- *
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -216,7 +216,7 @@ object Dispatcher {
    * number of CPUs and select a random queue (in impure code) as a target. This reduces contention
    * at the cost of ordering, which is not guaranteed in parallel mode. With the sequential modes, there
    * is only a single worker.
-   *
+   *
    * On the impure side, the queue bit is the easy part: it's just a `UnsafeUnbounded` (queue) which
    * accepts Registration(s). It's easiest to think of this a bit like an actor model, where the
    * `Worker` is the actor and the enqueue is the send. Whenever we send a unit of work, that
@@ -225,15 +225,15 @@ object Dispatcher {
    * message. There are certain race conditions involved in canceling work on the queue and work
    * which is in the process of being taken off the queue, and those race conditions are negotiated
    * between the impure code and the `Worker`.
-   *
+   *
    * On the pure side, the three different `Executor`s are very distinct. In parallel mode, it's easy:
    * we have a separate `Supervisor` which doesn't respawn actions, and we use that supervisor to
    * spawn a new fiber for each task unit. Cancelation in this mode is easy: we just cancel the fiber.
-   *
+   *
    * Sequential mode is the simplest of all: all work is executed in-place and cannot be canceled.
    * The cancelation action in all cases is simply `unit` because the impure submission will not be
    * seen until after the work is completed *anyway*, so there's no point in being fancy.
-   *
+   *
    * For sequential-cancelable mode, we spawn a *single* executor fiber on the main supervisor (which respawns).
    * This fiber is paired with a pure unbounded queue and a shutoff latch. New work is placed on the
    * queue, which the fiber takes from in order and executes in-place. If the work self-cancels or

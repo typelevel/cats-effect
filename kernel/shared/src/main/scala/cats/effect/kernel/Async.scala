@@ -1,12 +1,12 @@
 /*
  * Copyright 2020-2025 Typelevel
- *
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -303,7 +303,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   /*
    * NOTE: This is a very low level api, end users should use `async` instead.
    * See cats.effect.kernel.Cont for more detail.
-   *
+   *
    * If you are an implementor, and you have `async` or `asyncCheckAttempt`,
    * `Async.defaultCont` provides an implementation of `cont` in terms of `async`.
    * Note that if you use `defaultCont` you _have_ to override `async/asyncCheckAttempt`.

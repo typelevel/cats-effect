@@ -1,12 +1,12 @@
 /*
  * Copyright 2020-2025 Typelevel
- *
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -52,7 +52,7 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
    * uncomposable, and it's better to pick a semantic for uncancelable
    * which allows regional composition, since this avoids "gaps" in
    * otherwise-safe code.
-   *
+   *
    * The argument is that cancelation is a *hint* not a mandate. This
    * holds for self-cancelation just as much as external-cancelation.
    * Thus, laws about where the cancelation is visible are always going

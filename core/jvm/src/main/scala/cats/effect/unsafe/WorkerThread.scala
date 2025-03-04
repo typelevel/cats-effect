@@ -1,12 +1,12 @@
 /*
  * Copyright 2020-2025 Typelevel
- *
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -319,40 +319,40 @@ private[effect] final class WorkerThread[P <: AnyRef](
     /*
      * This method is called when the local queue is empty, and will return only when work is
      * found.
-     *
+     *
      * STEP 1: Fall back to checking the external queue after a failed dequeue from the local
      * queue. Depending on the outcome of this check, the `WorkerThread` transitions to
      * executing fibers from the local queue in the case of a successful dequeue from the
      * external queue. Otherwise, the `WorkerThread` continues with asking for permission to
      * steal from other `WorkerThread`s.
-     *
+     *
      * Depending on the outcome of this request, the `WorkerThread` starts looking for fibers to
      * steal from the local queues of other worker threads (if permission was granted), or parks
      * directly. In this case, there is less bookkeeping to be done compared to the case where a
      * worker was searching for work prior to parking.
-     *
+     *
      * STEP 2 (conditional): The `WorkerThread` has been allowed to steal fibers from other
      * worker threads. If the attempt is successful, the first fiber is executed directly and
      * the `WorkerThread` transitions to executing fibers from the local queue. If the attempt
      * is unsuccessful, the worker thread announces to the pool that it was unable to find any
      * work and parks.
-     *
+     *
      * STEP 3 (while loop): After the worker thread has been unparked, it transitions to looking
      * for work in the external queue while also holding a permission to steal fibers from other
      * worker threads.
-     *
+     *
      * STEP 3.1: The `WorkerThread` has been unparked an is looking for work in the external
      * queue. If it manages to find work there, it announces to the work stealing thread pool
      * that it is no longer searching for work and continues to execute fibers from the local
      * queue. Otherwise, it transitions to searching for work to steal from the local queues of
      * other worker threads because the permission to steal is implicitly held by threads that
      * have been unparked.
-     *
+     *
      * STEP 3.2: The `WorkerThread` has been allowed to steal fibers from other worker threads.
      * If the attempt is successful, the first fiber is executed directly and the `WorkerThread`
      * transitions to executing fibers from the local queue. If the attempt is unsuccessful, the
      * worker thread announces to the pool that it was unable to find any work and parks.
-     *
+     *
      * A note on the implementation. Some of the steps seem like they have overlapping logic.
      * This is indeed true, but it is a conscious decision. The logic is carefully unrolled and
      * compiled into a shallow while loop.
