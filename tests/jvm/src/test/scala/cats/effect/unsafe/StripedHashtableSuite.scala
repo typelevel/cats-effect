@@ -81,7 +81,7 @@ class StripedHashtableSuite extends BaseSuite {
                   }
                 )
               }
-            }
+            }            git reset HEAD .scala-build/
           }
       }
     }
