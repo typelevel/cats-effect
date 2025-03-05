@@ -923,7 +923,14 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    *   the number of batch tasks currently in the external queue
    */
   private[unsafe] def getBatchesPresentCount(): Long = batchesPresentCount.get()
-
+  
+private[unsafe] def logQueueMetrics(): Unit = {
+  println(s"[Thread Pool ${id}] Queue Metrics:")
+  println(s"  Singletons submitted: ${singletonsSubmittedCount.get()}")
+  println(s"  Singletons present: ${singletonsPresentCount.get()}")
+  println(s"  Batches submitted: ${batchesSubmittedCount.get()}")
+  println(s"  Batches present: ${batchesPresentCount.get()}")
+}
 }
    
 private object WorkStealingThreadPool {

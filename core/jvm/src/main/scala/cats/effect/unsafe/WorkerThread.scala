@@ -302,7 +302,12 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
   private[unsafe] def ownsPoller(poller: P): Boolean =
     poller eq _poller
-
+/**
+ * Returns the thread pool that owns this worker thread.
+ *
+ * @return reference to the owning WorkStealingThreadPool
+ */
+private[unsafe] def getPool(): WorkStealingThreadPool[P] = pool
   private[unsafe] def ownsTimers(timers: TimerHeap): Boolean =
     sleepers eq timers
 

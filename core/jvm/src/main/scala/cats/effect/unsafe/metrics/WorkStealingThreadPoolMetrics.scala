@@ -297,6 +297,9 @@ object WorkStealingThreadPoolMetrics {
     def batchesSubmittedCount(): Long = wstp.getBatchesSubmittedCount()
     def singletonsPresentCount(): Long = wstp.getSingletonsPresentCount()
     def batchesPresentCount(): Long = wstp.getBatchesPresentCount()
+  def singletonsSubmittedCount(): Long = wstp.getSingletonsSubmittedCount()
+ 
+ 
     val workerThreads: List[WorkerThreadMetrics] =
       List.range(0, workerThreadCount()).map(workerThreadMetrics(wstp, _))
   }
