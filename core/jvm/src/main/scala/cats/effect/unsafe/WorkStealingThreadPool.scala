@@ -39,7 +39,8 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
 import java.time.Instant
 import java.time.temporal.ChronoField
-import java.util.concurrent.{LinkedTransferQueue, ThreadLocalRandom}
+import java.util.Comparator
+import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{
   AtomicBoolean,
   AtomicInteger,
@@ -131,8 +132,8 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    */
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
-  private[unsafe] val cachedThreads: LinkedTransferQueue[WorkerThread[P]] =
-    new LinkedTransferQueue
+  private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread[P]] =
+    new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread[P]](_.nameIndex))
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -750,9 +751,9 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
 
       var t: WorkerThread[P] = null
       while ({
-        t = cachedThreads.poll()
-        t ne null
-      }) {
+          t = cachedThreads.pollFirst()
+          t ne null
+        }) {
         t.interrupt()
         // don't bother joining, cached threads are not doing anything interesting
       }

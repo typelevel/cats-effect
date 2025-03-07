@@ -137,10 +137,10 @@ class TimerHeapSuite extends BaseSuite {
     nanoTime += 100L
     val callbacks = callbacksBuilder.result()
     while ({
-      val cb = m.pollFirstIfTriggered(nanoTime)
-      triggeredBuilder ++= Option(cb)
-      cb ne null
-    }) {}
+        val cb = m.pollFirstIfTriggered(nanoTime)
+        triggeredBuilder ++= Option(cb)
+        cb ne null
+      }) {}
     val triggered = triggeredBuilder.result()
 
     val nonCanceled = callbacks.grouped(2).map(_.last).toVector
