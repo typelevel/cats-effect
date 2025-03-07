@@ -100,11 +100,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     new Array[AnyRef](threadCount).asInstanceOf[Array[P]]
   private[unsafe] val metrices: Array[WorkerThread.Metrics] = new Array(threadCount)
 
-  // Metrics for tracking batches vs singletons in the external queue
-  private[unsafe] val batchesSubmittedCount: AtomicLong = new AtomicLong(0)
-  private[unsafe] val singletonsSubmittedCount: AtomicLong = new AtomicLong(0)
-  private[unsafe] val batchesPresentCount: AtomicLong = new AtomicLong(0)
-  private[unsafe] val singletonsPresentCount: AtomicLong = new AtomicLong(0)
 
 
   def accessPoller(cb: P => Unit): Unit = {
@@ -129,8 +124,8 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     } else false
   }
 
-  private[this] val externalQueue: ScalQueue[AnyRef] =
-    new ScalQueue(threadCount << 2)
+ private[this] val externalQueue: ScalQueue = 
+  ScalQueue(threadCount << 2)
 
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
@@ -243,11 +238,9 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     val element = externalQueue.poll(random)
     if (element.isInstanceOf[Array[Runnable]]) {
       val batch = element.asInstanceOf[Array[Runnable]]
-      batchesPresentCount.decrementAndGet()
       destQueue.enqueueBatch(batch, destWorker)
     } else if (element.isInstanceOf[Runnable]) {
       val fiber = element.asInstanceOf[Runnable]
-      singletonsPresentCount.decrementAndGet()
       if (isStackTracing) {
         destWorker.active = fiber
         parkedSignals(dest).lazySet(false)
@@ -535,9 +528,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
   private[this] def scheduleExternal(fiber: Runnable): Unit = {
     val random = ThreadLocalRandom.current()
     externalQueue.offer(fiber, random)
-    singletonsSubmittedCount.incrementAndGet()
-    singletonsPresentCount.incrementAndGet()
-    externalQueue.offer(fiber, random)
     notifyParked(random)
     ()
     
@@ -555,8 +545,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    */
    private[unsafe] def offerBatchToExternalQueue(batch: Array[Runnable], random: ThreadLocalRandom): Boolean = {
   externalQueue.offer(batch, random)   
-  batchesSubmittedCount.incrementAndGet()
-  batchesPresentCount.incrementAndGet()
   true // Assume success
 }
   /**
@@ -569,14 +557,12 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    * @return
    *   true if the batches were successfully offered
    */
-  private[unsafe] def offerAllBatchesToExternalQueue(batches: Array[AnyRef], random: ThreadLocalRandom): Boolean = {
-  externalQueue.offerAll(batches, random)  
-  val batchCount = batches.length
-  batchesSubmittedCount.addAndGet(batchCount)
-  batchesPresentCount.addAndGet(batchCount)
+ private[unsafe] def offerAllBatchesToExternalQueue(batches: Array[AnyRef], random: ThreadLocalRandom): Boolean = {
+  for (batch <- batches) {
+    externalQueue.offer(batch.asInstanceOf[Array[Runnable]], random)
+  }
   true // Assume success
 }
-
   /**
    * Returns a snapshot of the fibers currently live on this thread pool.
    *
@@ -806,8 +792,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
 
       // Drain the external queue.
       externalQueue.clear()
-      singletonsPresentCount.set(0)
-      batchesPresentCount.set(0)
       if (interruptCalling) currentThread.interrupt()
     }
   }
@@ -892,44 +876,45 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     }
     sum
   }
-  /**
-   * Returns the total number of singleton tasks submitted to the external queue.
-   *
-   * @return
-   *   the total number of singleton tasks submitted to the external queue
-   */
-  private[unsafe] def getSingletonsSubmittedCount(): Long = singletonsSubmittedCount.get()
 
-  /**
-   * Returns the total number of batch tasks submitted to the external queue.
-   *
-   * @return
-   *   the total number of batch tasks submitted to the external queue
-   */
-  private[unsafe] def getBatchesSubmittedCount(): Long = batchesSubmittedCount.get()
+/**
+ * Returns the total number of singleton tasks submitted to the external queue.
+ *
+ * @return
+ *   the total number of singleton tasks submitted to the external queue
+ */
+private[unsafe] def getSingletonsSubmittedCount(): Long = externalQueue.getSingletonsSubmittedCount()
 
-  /**
-   * Returns the number of singleton tasks currently in the external queue.
-   *
-   * @return
-   *   the number of singleton tasks currently in the external queue
-   */
-  private[unsafe] def getSingletonsPresentCount(): Long = singletonsPresentCount.get()
+/**
+ * Returns the total number of batch tasks submitted to the external queue.
+ *
+ * @return
+ *   the total number of batch tasks submitted to the external queue
+ */
+private[unsafe] def getBatchesSubmittedCount(): Long = externalQueue.getBatchesSubmittedCount()
 
-  /**
-   * Returns the number of batch tasks currently in the external queue.
-   *
-   * @return
-   *   the number of batch tasks currently in the external queue
-   */
-  private[unsafe] def getBatchesPresentCount(): Long = batchesPresentCount.get()
-  
+/**
+ * Returns the number of singleton tasks currently in the external queue.
+ *
+ * @return
+ *   the number of singleton tasks currently in the external queue
+ */
+private[unsafe] def getSingletonsPresentCount(): Long = externalQueue.getSingletonsPresentCount()
+
+/**
+ * Returns the number of batch tasks currently in the external queue.
+ *
+ * @return
+ *   the number of batch tasks currently in the external queue
+ */
+private[unsafe] def getBatchesPresentCount(): Long = externalQueue.getBatchesPresentCount()
+ 
 private[unsafe] def logQueueMetrics(): Unit = {
   println(s"[Thread Pool ${id}] Queue Metrics:")
-  println(s"  Singletons submitted: ${singletonsSubmittedCount.get()}")
-  println(s"  Singletons present: ${singletonsPresentCount.get()}")
-  println(s"  Batches submitted: ${batchesSubmittedCount.get()}")
-  println(s"  Batches present: ${batchesPresentCount.get()}")
+  println(s"  Singletons submitted: ${getSingletonsSubmittedCount()}")
+  println(s"  Singletons present: ${getSingletonsPresentCount()}")
+  println(s"  Batches submitted: ${getBatchesSubmittedCount()}")
+  println(s"  Batches present: ${getBatchesPresentCount()}")
 }
 }
    
