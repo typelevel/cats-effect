@@ -158,9 +158,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
 
     if (element != null) {
       if (element.isInstanceOf[Array[?]]) {
-        batchesPresentCount.decrementAndGet()
+        val _ = batchesPresentCount.decrementAndGet()
       } else {
-        singletonsPresentCount.decrementAndGet()
+        val _ = singletonsPresentCount.decrementAndGet()
       }
     }
 
@@ -195,9 +195,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
 
     if (done) {
       if (a.isInstanceOf[Array[?]]) {
-        batchesPresentCount.decrementAndGet()
+        val _ = batchesPresentCount.decrementAndGet()
       } else {
-        singletonsPresentCount.decrementAndGet()
+        val _ = singletonsPresentCount.decrementAndGet()
       }
     }
 
