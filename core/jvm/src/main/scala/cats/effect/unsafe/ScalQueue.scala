@@ -183,7 +183,7 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
    * @param a
    *   the element to be removed
    */
-  def remove(a: A): Boolean = {
+  def remove(a: A): Unit = {
     val nq = numQueues
     var i = 0
     var done = false
@@ -201,7 +201,6 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
       }
     }
 
-    done
   }
 
   /**
