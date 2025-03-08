@@ -236,8 +236,6 @@ private final class LocalQueue extends LocalQueuePadding {
         }
 
         external.offer(fiber, random)
-        val thread = Thread.currentThread().asInstanceOf[WorkerThread[_]]
-      val pool = thread.getPool().asInstanceOf[WorkStealingThreadPool[_]]
         return
       }
 
@@ -283,12 +281,10 @@ private final class LocalQueue extends LocalQueuePadding {
 
         // Enqueue all of the batches of fibers on the batched queue with a bulk
         // add operation.
-       //  (loop through each batch)
-for (batch <- batches) {
-  external.offer(batch, random)
-}
-        val thread = Thread.currentThread().asInstanceOf[WorkerThread[_]]
-        val pool = thread.getPool().asInstanceOf[WorkStealingThreadPool[_]]
+        //  (loop through each batch)
+        for (batch <- batches) {
+          external.offer(batch, random)
+        }
       }
 
       // None of the three final outcomes have been reached, loop again for a
@@ -707,12 +703,7 @@ for (batch <- batches) {
           totalSpilloverCount += SpilloverBatchSize
           Tail.updater.lazySet(this, tl)
         }
-      // Get the WorkStealingThreadPool instance
-      val thread = Thread.currentThread().asInstanceOf[WorkerThread[_]]
-      val pool = thread.getPool().asInstanceOf[WorkStealingThreadPool[_]]
-
-      // Use the pool's method to offer the batch and update metrics
-       external.offer(batch, random)
+        external.offer(batch, random)
         return
       }
     }

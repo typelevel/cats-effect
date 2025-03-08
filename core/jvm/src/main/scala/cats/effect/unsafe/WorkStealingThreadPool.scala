@@ -100,8 +100,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     new Array[AnyRef](threadCount).asInstanceOf[Array[P]]
   private[unsafe] val metrices: Array[WorkerThread.Metrics] = new Array(threadCount)
 
-
-
   def accessPoller(cb: P => Unit): Unit = {
 
     // figure out where we are
@@ -123,9 +121,9 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       worker.ownsPoller(poller)
     } else false
   }
- private[this] val externalQueue: ScalQueue[AnyRef] = 
-  ScalQueue[AnyRef](threadCount << 2)
-  
+  private[this] val externalQueue: ScalQueue[AnyRef] =
+    ScalQueue[AnyRef](threadCount << 2)
+
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
    * active (unparked) worker threads. The 16 least significant bits track the number of worker
@@ -529,7 +527,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     externalQueue.offer(fiber, random)
     notifyParked(random)
     ()
-    
+
   }
 
   /**
@@ -542,10 +540,13 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    * @return
    *   true if the batch was successfully offered
    */
-   private[unsafe] def offerBatchToExternalQueue(batch: Array[Runnable], random: ThreadLocalRandom): Boolean = {
-  externalQueue.offer(batch, random)   
-  true // Assume success
-}
+  private[unsafe] def offerBatchToExternalQueue(
+      batch: Array[Runnable],
+      random: ThreadLocalRandom): Boolean = {
+    externalQueue.offer(batch, random)
+    true // Assume success
+  }
+
   /**
    * Offers multiple batches of runnables to the external queue and updates batch metrics.
    *
@@ -556,12 +557,15 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    * @return
    *   true if the batches were successfully offered
    */
- private[unsafe] def offerAllBatchesToExternalQueue(batches: Array[AnyRef], random: ThreadLocalRandom): Boolean = {
-  for (batch <- batches) {
-    externalQueue.offer(batch.asInstanceOf[Array[Runnable]], random)
+  private[unsafe] def offerAllBatchesToExternalQueue(
+      batches: Array[AnyRef],
+      random: ThreadLocalRandom): Boolean = {
+    for (batch <- batches) {
+      externalQueue.offer(batch.asInstanceOf[Array[Runnable]], random)
+    }
+    true // Assume success
   }
-  true // Assume success
-}
+
   /**
    * Returns a snapshot of the fibers currently live on this thread pool.
    *
@@ -876,35 +880,38 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     sum
   }
 
- /**
- * Returns the total number of singleton tasks submitted to the external queue.
- */
-private[unsafe] def getSingletonsSubmittedCount(): Long = externalQueue.getSingletonsSubmittedCount()
+  /**
+   * Returns the total number of singleton tasks submitted to the external queue.
+   */
+  private[unsafe] def getSingletonsSubmittedCount(): Long =
+    externalQueue.getSingletonsSubmittedCount()
 
-/**
- * Returns the total number of batch tasks submitted to the external queue.
- */
-private[unsafe] def getBatchesSubmittedCount(): Long = externalQueue.getBatchesSubmittedCount()
+  /**
+   * Returns the total number of batch tasks submitted to the external queue.
+   */
+  private[unsafe] def getBatchesSubmittedCount(): Long =
+    externalQueue.getBatchesSubmittedCount()
 
-/**
- * Returns the number of singleton tasks currently in the external queue.
- */
-private[unsafe] def getSingletonsPresentCount(): Long = externalQueue.getSingletonsPresentCount()
+  /**
+   * Returns the number of singleton tasks currently in the external queue.
+   */
+  private[unsafe] def getSingletonsPresentCount(): Long =
+    externalQueue.getSingletonsPresentCount()
 
-/**
- * Returns the number of batch tasks currently in the external queue.
- */
-private[unsafe] def getBatchesPresentCount(): Long = externalQueue.getBatchesPresentCount()
- 
-private[unsafe] def logQueueMetrics(): Unit = {
-  println(s"[Thread Pool ${id}] Queue Metrics:")
-  println(s"  Singletons submitted: ${getSingletonsSubmittedCount()}")
-  println(s"  Singletons present: ${getSingletonsPresentCount()}")
-  println(s"  Batches submitted: ${getBatchesSubmittedCount()}")
-  println(s"  Batches present: ${getBatchesPresentCount()}")
+  /**
+   * Returns the number of batch tasks currently in the external queue.
+   */
+  private[unsafe] def getBatchesPresentCount(): Long = externalQueue.getBatchesPresentCount()
+
+  private[unsafe] def logQueueMetrics(): Unit = {
+    println(s"[Thread Pool ${id}] Queue Metrics:")
+    println(s"  Singletons submitted: ${getSingletonsSubmittedCount()}")
+    println(s"  Singletons present: ${getSingletonsPresentCount()}")
+    println(s"  Batches submitted: ${getBatchesSubmittedCount()}")
+    println(s"  Batches present: ${getBatchesPresentCount()}")
+  }
 }
-}
-   
+
 private object WorkStealingThreadPool {
 
   private val IdCounter: AtomicLong = new AtomicLong(0)

@@ -18,23 +18,23 @@ package cats.effect
 package unsafe
 
 /**
- * Demo program to verify that the WorkStealingThreadPool metrics 
- * for singletons and batches are working correctly.
+ * Demo program to verify that the WorkStealingThreadPool metrics for singletons and batches are
+ * working correctly.
  */
 object WorkStealingPoolMetricsDemo {
   def main(args: Array[String]): Unit = {
     // Create a custom runtime
     val builder = IORuntime.builder()
     val runtime = builder.build()
-    val pool = runtime.compute.asInstanceOf[WorkStealingThreadPool[_]]
-    
+    val pool = runtime.compute.asInstanceOf[WorkStealingThreadPool[?]]
+
     try {
       // Get initial values
       val initialSingletonsSubmitted = pool.getSingletonsSubmittedCount()
       val initialSingletonsPresentCount = pool.getSingletonsPresentCount()
       val initialBatchesSubmitted = pool.getBatchesSubmittedCount()
       val initialBatchesPresentCount = pool.getBatchesPresentCount()
-      
+
       // Log initial state
       println("=== WorkStealingThreadPool Metrics Verification ===")
       println("\nInitial metrics:")
@@ -42,7 +42,7 @@ object WorkStealingPoolMetricsDemo {
       println(s"  Singletons present: $initialSingletonsPresentCount")
       println(s"  Batches submitted: $initialBatchesSubmitted")
       println(s"  Batches present: $initialBatchesPresentCount")
-      
+
       // Simple blocking task to increment the counters (much simpler than IO)
       println("\nSubmitting 10,000 singleton tasks...")
       for (_ <- 1 to 10000) {
@@ -50,39 +50,41 @@ object WorkStealingPoolMetricsDemo {
           Thread.sleep(1)
         })
       }
-      
+
       // Give some time for tasks to be processed
       println("Waiting for tasks to be processed...")
       Thread.sleep(2000)
-      
+
       // Check values after singleton submissions
       val afterSingletonsSubmitted = pool.getSingletonsSubmittedCount()
       val afterSingletonsPresentCount = pool.getSingletonsPresentCount()
       val afterBatchesSubmitted = pool.getBatchesSubmittedCount()
       val afterBatchesPresentCount = pool.getBatchesPresentCount()
-      
+
       // Log state after singleton submissions
       println("\nAfter singleton submissions:")
       println(s"  Singletons submitted: $afterSingletonsSubmitted")
       println(s"  Singletons present: $afterSingletonsPresentCount")
       println(s"  Batches submitted: $afterBatchesSubmitted")
       println(s"  Batches present: $afterBatchesPresentCount")
-      
+
       // Log the changes
       println("\nChanges after singleton submissions:")
-      println(s"  Singleton submissions increased by ${afterSingletonsSubmitted - initialSingletonsSubmitted}")
-      println(s"  Batch submissions increased by ${afterBatchesSubmitted - initialBatchesSubmitted}")
-      
+      println(
+        s"  Singleton submissions increased by ${afterSingletonsSubmitted - initialSingletonsSubmitted}")
+      println(
+        s"  Batch submissions increased by ${afterBatchesSubmitted - initialBatchesSubmitted}")
+
       // Verify singleton counter works
       if (afterSingletonsSubmitted > initialSingletonsSubmitted) {
         println("\n✓ Singleton submissions counter works correctly")
       } else {
         println("\n✗ Singleton submissions counter did not increase as expected")
       }
-      
+
       // Try to generate batch submissions by creating more work than local queues can handle
       println("\nAttempting to generate batch submissions by overflowing local queues...")
-      
+
       // Create a worker that will process a lot of tasks rapidly
       val worker = new Runnable {
         def run(): Unit = {
@@ -90,7 +92,7 @@ object WorkStealingPoolMetricsDemo {
           for (i <- 0 until 50000) {
             tasks(i) = () => { /* Empty task for maximum speed */ }
           }
-          
+
           // Submit all tasks rapidly to try to overflow local queues
           println("Submitting 50,000 tasks in rapid succession...")
           for (task <- tasks) {
@@ -98,35 +100,39 @@ object WorkStealingPoolMetricsDemo {
           }
         }
       }
-      
+
       // Execute the worker and give it time to run
       pool.execute(worker)
       println("Waiting for batch overflow tasks to be processed...")
       Thread.sleep(2000)
-      
+
       // Check if any batches were generated
       val finalBatchesSubmitted = pool.getBatchesSubmittedCount()
       val finalBatchesPresentCount = pool.getBatchesPresentCount()
-      
+
       // Log final state
       println("\nFinal metrics after batch test:")
       println(s"  Batches submitted: $finalBatchesSubmitted")
       println(s"  Batches present: $finalBatchesPresentCount")
-      println(s"  Batch submissions increased by ${finalBatchesSubmitted - afterBatchesSubmitted}")
-      
+      println(
+        s"  Batch submissions increased by ${finalBatchesSubmitted - afterBatchesSubmitted}")
+
       // Final report of metrics capabilities
       println("\n=== Metrics Verification Summary ===")
       println("✓ Singleton submissions counter works correctly")
-      println(s"${if (finalBatchesSubmitted > afterBatchesSubmitted) "✓" else "~"} Batch submissions counter " +
-              s"${if (finalBatchesSubmitted > afterBatchesSubmitted) "works correctly" else "implementation verified but not triggered in test"}")
-      
+      println(
+        s"${if (finalBatchesSubmitted > afterBatchesSubmitted) "✓" else "~"} Batch submissions counter " +
+          s"${if (finalBatchesSubmitted > afterBatchesSubmitted) "works correctly"
+            else "implementation verified but not triggered in test"}")
+
       if (finalBatchesSubmitted == afterBatchesSubmitted) {
         println("\nNote: No batch submissions were detected during the test.")
         println("This is expected in some environments where the thread pool configuration")
         println("or test conditions don't cause local queue overflow.")
-        println("The important verification is that the metrics code exists and can be called successfully.")
+        println(
+          "The important verification is that the metrics code exists and can be called successfully.")
       }
-      
+
     } finally {
       // Clean up
       println("\nShutting down runtime...")

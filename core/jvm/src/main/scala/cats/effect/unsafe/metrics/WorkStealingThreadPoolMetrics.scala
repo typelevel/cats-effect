@@ -84,37 +84,38 @@ sealed trait WorkStealingThreadPoolMetrics {
    *   the value may differ between invocations
    */
   def suspendedFiberCount(): Long
-/**
- * Returns the total number of singleton tasks submitted to the external queue.
- * 
- * @note
- *   the value may differ between invocations
- */
-def singletonsSubmittedCount(): Long
 
-/**
- * Returns the total number of batch tasks submitted to the external queue.
- * 
- * @note
- *   the value may differ between invocations
- */
-def batchesSubmittedCount(): Long
+  /**
+   * Returns the total number of singleton tasks submitted to the external queue.
+   *
+   * @note
+   *   the value may differ between invocations
+   */
+  def singletonsSubmittedCount(): Long
 
-/**
- * Returns the number of singleton tasks currently in the external queue.
- * 
- * @note
- *   the value may differ between invocations
- */
-def singletonsPresentCount(): Long
+  /**
+   * Returns the total number of batch tasks submitted to the external queue.
+   *
+   * @note
+   *   the value may differ between invocations
+   */
+  def batchesSubmittedCount(): Long
 
-/**
- * Returns the number of batch tasks currently in the external queue.
- * 
- * @note
- *   the value may differ between invocations
- */
-def batchesPresentCount(): Long
+  /**
+   * Returns the number of singleton tasks currently in the external queue.
+   *
+   * @note
+   *   the value may differ between invocations
+   */
+  def singletonsPresentCount(): Long
+
+  /**
+   * Returns the number of batch tasks currently in the external queue.
+   *
+   * @note
+   *   the value may differ between invocations
+   */
+  def batchesPresentCount(): Long
 
   /**
    * The list of worker-specific metrics of this work-stealing thread pool.
@@ -297,9 +298,8 @@ object WorkStealingThreadPoolMetrics {
     def batchesSubmittedCount(): Long = wstp.getBatchesSubmittedCount()
     def singletonsPresentCount(): Long = wstp.getSingletonsPresentCount()
     def batchesPresentCount(): Long = wstp.getBatchesPresentCount()
-  def singletonsSubmittedCount(): Long = wstp.getSingletonsSubmittedCount()
- 
- 
+    def singletonsSubmittedCount(): Long = wstp.getSingletonsSubmittedCount()
+
     val workerThreads: List[WorkerThreadMetrics] =
       List.range(0, workerThreadCount()).map(workerThreadMetrics(wstp, _))
   }

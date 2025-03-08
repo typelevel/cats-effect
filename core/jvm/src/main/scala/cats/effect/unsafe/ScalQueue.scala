@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicLong
  * @param threadCount
  *   the number of threads to load balance between
  */
- private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
+private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
 
   // Metrics counters for tracking external queue submissions
   private val singletonsSubmittedCount = new AtomicLong(0)
@@ -71,14 +71,14 @@ import java.util.concurrent.atomic.AtomicLong
   def offer(a: A, random: ThreadLocalRandom): Unit = {
     val idx = random.nextInt(numQueues)
     queues(idx).offer(a)
-    
+
     // Track metrics - if it's a runnable but not an array, it's a singleton task
-    if (!a.isInstanceOf[Array[_]]) {
+    if (!a.isInstanceOf[Array[?]]) {
       singletonsSubmittedCount.incrementAndGet()
-      singletonsPresentCount.incrementAndGet()
+      val _ = singletonsPresentCount.incrementAndGet()
     } else {
       batchesSubmittedCount.incrementAndGet()
-      batchesPresentCount.incrementAndGet()
+      val _ = batchesPresentCount.incrementAndGet()
     }
   }
 
@@ -113,10 +113,10 @@ import java.util.concurrent.atomic.AtomicLong
       queues(idx).offer(fiber)
       i += 1
     }
-    
+
     // Track as batch submissions
     batchesSubmittedCount.incrementAndGet()
-    batchesPresentCount.incrementAndGet()
+    val _ = batchesPresentCount.incrementAndGet()
   }
 
   /**
@@ -141,7 +141,7 @@ import java.util.concurrent.atomic.AtomicLong
     }
 
     if (element != null) {
-      if (element.isInstanceOf[Array[_]]) {
+      if (element.isInstanceOf[Array[?]]) {
         batchesPresentCount.decrementAndGet()
       } else {
         singletonsPresentCount.decrementAndGet()
@@ -176,15 +176,15 @@ import java.util.concurrent.atomic.AtomicLong
       done = queues(i).remove(a)
       i += 1
     }
-    
+
     if (done) {
-      if (a.isInstanceOf[Array[_]]) {
+      if (a.isInstanceOf[Array[?]]) {
         batchesPresentCount.decrementAndGet()
       } else {
         singletonsPresentCount.decrementAndGet()
       }
     }
-    
+
     done
   }
 
@@ -241,27 +241,27 @@ import java.util.concurrent.atomic.AtomicLong
       queues(i).clear()
       i += 1
     }
-    
+
     // Reset present counters when clearing the queue
     singletonsPresentCount.set(0)
     batchesPresentCount.set(0)
   }
-  
+
   /**
    * Returns the total number of singleton tasks submitted to this queue.
    */
   def getSingletonsSubmittedCount(): Long = singletonsSubmittedCount.get()
-  
+
   /**
    * Returns the number of singleton tasks currently in this queue.
    */
   def getSingletonsPresentCount(): Long = singletonsPresentCount.get()
-  
+
   /**
    * Returns the total number of batch tasks submitted to this queue.
    */
   def getBatchesSubmittedCount(): Long = batchesSubmittedCount.get()
-  
+
   /**
    * Returns the number of batch tasks currently in this queue.
    */
@@ -269,6 +269,7 @@ import java.util.concurrent.atomic.AtomicLong
 }
 
 object ScalQueue {
+
   /**
    * Creates a new Scal queue.
    *
