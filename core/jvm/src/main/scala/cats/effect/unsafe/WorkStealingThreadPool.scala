@@ -123,10 +123,9 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       worker.ownsPoller(poller)
     } else false
   }
-
- private[this] val externalQueue: ScalQueue = 
-  ScalQueue(threadCount << 2)
-
+ private[this] val externalQueue: ScalQueue[AnyRef] = 
+  ScalQueue[AnyRef](threadCount << 2)
+  
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
    * active (unparked) worker threads. The 16 least significant bits track the number of worker
@@ -877,35 +876,23 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     sum
   }
 
-/**
+ /**
  * Returns the total number of singleton tasks submitted to the external queue.
- *
- * @return
- *   the total number of singleton tasks submitted to the external queue
  */
 private[unsafe] def getSingletonsSubmittedCount(): Long = externalQueue.getSingletonsSubmittedCount()
 
 /**
  * Returns the total number of batch tasks submitted to the external queue.
- *
- * @return
- *   the total number of batch tasks submitted to the external queue
  */
 private[unsafe] def getBatchesSubmittedCount(): Long = externalQueue.getBatchesSubmittedCount()
 
 /**
  * Returns the number of singleton tasks currently in the external queue.
- *
- * @return
- *   the number of singleton tasks currently in the external queue
  */
 private[unsafe] def getSingletonsPresentCount(): Long = externalQueue.getSingletonsPresentCount()
 
 /**
  * Returns the number of batch tasks currently in the external queue.
- *
- * @return
- *   the number of batch tasks currently in the external queue
  */
 private[unsafe] def getBatchesPresentCount(): Long = externalQueue.getBatchesPresentCount()
  

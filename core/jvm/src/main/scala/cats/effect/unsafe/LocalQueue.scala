@@ -238,8 +238,6 @@ private final class LocalQueue extends LocalQueuePadding {
         external.offer(fiber, random)
         val thread = Thread.currentThread().asInstanceOf[WorkerThread[_]]
       val pool = thread.getPool().asInstanceOf[WorkStealingThreadPool[_]]
-        pool.singletonsSubmittedCount.incrementAndGet()
-        pool.singletonsPresentCount.incrementAndGet()
         return
       }
 
@@ -285,13 +283,12 @@ private final class LocalQueue extends LocalQueuePadding {
 
         // Enqueue all of the batches of fibers on the batched queue with a bulk
         // add operation.
-        external.offerAll(batches, random)
+       //  (loop through each batch)
+for (batch <- batches) {
+  external.offer(batch, random)
+}
         val thread = Thread.currentThread().asInstanceOf[WorkerThread[_]]
         val pool = thread.getPool().asInstanceOf[WorkStealingThreadPool[_]]
-        pool.batchesSubmittedCount.addAndGet(BatchesInHalfQueueCapacity)
-        pool.batchesPresentCount.addAndGet(BatchesInHalfQueueCapacity)
-        // Loop again for a chance to insert the original fiber to be enqueued
-        // on the local queue.
       }
 
       // None of the three final outcomes have been reached, loop again for a
@@ -716,8 +713,6 @@ private final class LocalQueue extends LocalQueuePadding {
 
       // Use the pool's method to offer the batch and update metrics
        external.offer(batch, random)
-       pool.batchesSubmittedCount.incrementAndGet()
-       pool.batchesPresentCount.incrementAndGet()
         return
       }
     }

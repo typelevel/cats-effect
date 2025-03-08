@@ -1,22 +1,7 @@
-/*
- * Copyright 2020-2025 Typelevel
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package cats.effect.unsafe
 
 import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A striped queue implementation inspired by the [[https://scal.cs.uni-salzburg.at/dq/ Scal]]
@@ -31,12 +16,14 @@ import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
  * @param threadCount
  *   the number of threads to load balance between
  */
-private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
+ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
+
   // Metrics counters for tracking external queue submissions
   private val singletonsSubmittedCount = new AtomicLong(0)
   private val singletonsPresentCount = new AtomicLong(0)
   private val batchesSubmittedCount = new AtomicLong(0)
   private val batchesPresentCount = new AtomicLong(0)
+
   /**
    * Calculates the next power of 2 using bitwise operations. This value actually represents the
    * bitmask for the next power of 2 and can be used for indexing into the array of concurrent
@@ -73,39 +60,66 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues
   }
 
-    /**
-   * Enqueues a single element (singleton task) on the Scal queue.
+  /**
+   * Enqueues a single element on the Scal queue.
    *
-   * @param runnable
+   * @param a
    *   the element to be enqueued
    * @param random
    *   an uncontended source of randomness, used for randomly choosing a destination queue
    */
-  def offer(runnable: Runnable, random: ThreadLocalRandom): Unit = {
+  def offer(a: A, random: ThreadLocalRandom): Unit = {
     val idx = random.nextInt(numQueues)
-    queues(idx).offer(runnable)
-    singletonsSubmittedCount.incrementAndGet()
-    singletonsPresentCount.incrementAndGet()
+    queues(idx).offer(a)
+    
+    // Track metrics - if it's a runnable but not an array, it's a singleton task
+    if (!a.isInstanceOf[Array[_]]) {
+      singletonsSubmittedCount.incrementAndGet()
+      singletonsPresentCount.incrementAndGet()
+    } else {
+      batchesSubmittedCount.incrementAndGet()
+      batchesPresentCount.incrementAndGet()
+    }
   }
 
-
-   /**
-   * Enqueues a batch of elements (batch task) on the Scal queue.
+  /**
+   * Enqueues a batch of elements in a striped fashion.
    *
-   * @param runnables
+   * @note
+   *   By convention, the array of elements cannot contain any null references, which are
+   *   unsupported by the underlying concurrent queues.
+   *
+   * @note
+   *   This method has a somewhat high overhead when enqueueing every single element. However,
+   *   this is acceptable in practice because this method is only used on the slowest path when
+   *   blocking operations are anticipated, which is not what the fiber runtime is optimized
+   *   for. This overhead can be substituted for the overhead of allocation of array list
+   *   instances which contain some of the fibers of the batch, so that they can be enqueued
+   *   with a bulk operation on each of the concurrent queues. Maybe this can be explored in the
+   *   future, but remains to be seen if it is a worthwhile tradeoff.
+   *
+   * @param as
    *   the batch of elements to be enqueued
    * @param random
    *   an uncontended source of randomness, used for randomly choosing a destination queue
    */
-  def offer(runnables: Array[Runnable], random: ThreadLocalRandom): Unit = {
-    val idx = random.nextInt(numQueues)
-    queues(idx).offer(runnables)
+  def offerAll(as: Array[A], random: ThreadLocalRandom): Unit = {
+    val nq = numQueues
+    val len = as.length
+    var i = 0
+    while (i < len) {
+      val fiber = as(i)
+      val idx = random.nextInt(nq)
+      queues(idx).offer(fiber)
+      i += 1
+    }
+    
+    // Track as batch submissions
     batchesSubmittedCount.incrementAndGet()
     batchesPresentCount.incrementAndGet()
   }
 
-
-     /**
+  /**
    * Dequeues an element from this Scal queue.
    *
    * @param random
@@ -114,11 +128,11 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
    * @return
    *   an element from this Scal queue or `null` if this queue is empty
    */
-  def poll(random: ThreadLocalRandom): AnyRef = {
+  def poll(random: ThreadLocalRandom): A = {
     val nq = numQueues
     val from = random.nextInt(nq)
     var i = 0
-    var element: AnyRef = null
+    var element = null.asInstanceOf[A]
 
     while ((element eq null) && i < nq) {
       val idx = (from + i) & mask
@@ -137,7 +151,7 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     element
   }
 
-   /**
+  /**
    * Removes an element from this queue.
    *
    * @note
@@ -150,21 +164,21 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
    *   mechanism of the [[WorkStealingThreadPool]]. The runtime complexity of this method is
    *   acceptable for that purpose because threads are limited resources.
    *
-   * @param element
+   * @param a
    *   the element to be removed
    */
-  def remove(element: AnyRef): Boolean = {
+  def remove(a: A): Boolean = {
     val nq = numQueues
     var i = 0
     var done = false
 
     while (!done && i < nq) {
-      done = queues(i).remove(element)
+      done = queues(i).remove(a)
       i += 1
     }
     
     if (done) {
-      if (element.isInstanceOf[Array[_]]) {
+      if (a.isInstanceOf[Array[_]]) {
         batchesPresentCount.decrementAndGet()
       } else {
         singletonsPresentCount.decrementAndGet()
@@ -227,10 +241,13 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
       queues(i).clear()
       i += 1
     }
+    
+    // Reset present counters when clearing the queue
     singletonsPresentCount.set(0)
     batchesPresentCount.set(0)
   }
-    /**
+  
+  /**
    * Returns the total number of singleton tasks submitted to this queue.
    */
   def getSingletonsSubmittedCount(): Long = singletonsSubmittedCount.get()
@@ -260,5 +277,5 @@ object ScalQueue {
    * @return
    *   a new Scal queue instance
    */
-  def apply(threadCount: Int): ScalQueue = new ScalQueue(threadCount)
+  def apply[A <: AnyRef](threadCount: Int): ScalQueue[A] = new ScalQueue(threadCount)
 }
