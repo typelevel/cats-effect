@@ -89,8 +89,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues(idx).offer(a)
 
     // Track as singleton task
-    singletonsSubmittedCount.incrementAndGet(); ()
-    singletonsPresentCount.incrementAndGet(); ()
+    singletonsSubmittedCount.incrementAndGet();
+    singletonsPresentCount.incrementAndGet();
+    ()
   }
 
   /**
@@ -106,8 +107,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues(idx).offer(batch.asInstanceOf[A])
 
     // Track as batch task
-    batchesSubmittedCount.incrementAndGet(); ()
-    batchesPresentCount.incrementAndGet(); ()
+    batchesSubmittedCount.incrementAndGet();
+    batchesPresentCount.incrementAndGet();
+    ()
   }
 
   /**
@@ -143,8 +145,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     }
 
     // Track as batch submissions
-    batchesSubmittedCount.incrementAndGet(); ()
-    batchesPresentCount.incrementAndGet(); ()
+    batchesSubmittedCount.incrementAndGet();
+    batchesPresentCount.incrementAndGet();
+    ()
   }
 
   /**
@@ -172,10 +175,11 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
       // We still need to check the type here since we don't know whether we're
       // dequeuing a singleton or a batch
       if (element.isInstanceOf[Array[?]]) {
-        batchesPresentCount.decrementAndGet(); ()
+        batchesPresentCount.decrementAndGet();
       } else {
-        singletonsPresentCount.decrementAndGet(); ()
+        singletonsPresentCount.decrementAndGet();
       }
+      ()
     }
 
     element
@@ -211,10 +215,11 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
       // We still need to check the type here since we don't know whether we're
       // removing a singleton or a batch
       if (a.isInstanceOf[Array[?]]) {
-        batchesPresentCount.decrementAndGet(); ()
+        batchesPresentCount.decrementAndGet();
       } else {
-        singletonsPresentCount.decrementAndGet(); ()
+        singletonsPresentCount.decrementAndGet();
       }
+      ()
     }
   }
 
