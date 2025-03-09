@@ -89,8 +89,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues(idx).offer(a)
 
     // Track as singleton task
-    val _ = singletonsSubmittedCount.incrementAndGet()
-    val _ = singletonsPresentCount.incrementAndGet()
+    val _ = singletonsSubmittedCount.incrementAndGet();
+    val _ = singletonsPresentCount.incrementAndGet();
   }
 
   /**
@@ -106,8 +106,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues(idx).offer(batch.asInstanceOf[A])
 
     // Track as batch task
-    val _ = batchesSubmittedCount.incrementAndGet()
-    val _ = batchesPresentCount.incrementAndGet()
+    val _ = batchesSubmittedCount.incrementAndGet();
+    val _ = batchesPresentCount.incrementAndGet();
   }
 
   /**
@@ -143,8 +143,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     }
 
     // Track as batch submissions
-    val _ = batchesSubmittedCount.incrementAndGet()
-    val _ = batchesPresentCount.incrementAndGet()
+    val _ = batchesSubmittedCount.incrementAndGet();
+    val _ = batchesPresentCount.incrementAndGet();
   }
 
   /**
