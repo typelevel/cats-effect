@@ -543,7 +543,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
   private[unsafe] def offerBatchToExternalQueue(
       batch: Array[Runnable],
       random: ThreadLocalRandom): Boolean = {
-    externalQueue.offer(batch, random)
+    externalQueue.offerBatch(batch, random)
     true // Assume success
   }
 
@@ -561,7 +561,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       batches: Array[AnyRef],
       random: ThreadLocalRandom): Boolean = {
     for (batch <- batches) {
-      externalQueue.offer(batch.asInstanceOf[Array[Runnable]], random)
+      externalQueue.offerBatch(batch.asInstanceOf[Array[Runnable]], random)
     }
     true // Assume success
   }

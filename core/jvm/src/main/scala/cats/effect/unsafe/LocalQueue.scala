@@ -283,7 +283,7 @@ private final class LocalQueue extends LocalQueuePadding {
         // add operation.
         //  (loop through each batch)
         for (batch <- batches) {
-          external.offer(batch, random)
+          external.offerBatch(batch, random)
         }
       }
 
@@ -703,7 +703,7 @@ private final class LocalQueue extends LocalQueuePadding {
           totalSpilloverCount += SpilloverBatchSize
           Tail.updater.lazySet(this, tl)
         }
-        external.offer(batch, random)
+        external.offerBatch(batch, random)
         return
       }
     }

@@ -77,7 +77,7 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
   }
 
   /**
-   * Enqueues a single element on the Scal queue.
+   * Enqueues a single element (singleton task) on the Scal queue.
    *
    * @param a
    *   the element to be enqueued
@@ -88,14 +88,26 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     val idx = random.nextInt(numQueues)
     queues(idx).offer(a)
 
-    // Track metrics - if it's a runnable but not an array, it's a singleton task
-    if (!a.isInstanceOf[Array[?]]) {
-      singletonsSubmittedCount.incrementAndGet()
-      val _ = singletonsPresentCount.incrementAndGet()
-    } else {
-      batchesSubmittedCount.incrementAndGet()
-      val _ = batchesPresentCount.incrementAndGet()
-    }
+    // Track as singleton task
+    val _ = singletonsSubmittedCount.incrementAndGet()
+    val _ = singletonsPresentCount.incrementAndGet()
+  }
+
+  /**
+   * Enqueues a batch element (Array of tasks) on the Scal queue.
+   *
+   * @param batch
+   *   the batch to be enqueued
+   * @param random
+   *   an uncontended source of randomness, used for randomly choosing a destination queue
+   */
+  def offerBatch[B <: A](batch: Array[B], random: ThreadLocalRandom): Unit = {
+    val idx = random.nextInt(numQueues)
+    queues(idx).offer(batch.asInstanceOf[A])
+
+    // Track as batch task
+    val _ = batchesSubmittedCount.incrementAndGet()
+    val _ = batchesPresentCount.incrementAndGet()
   }
 
   /**
@@ -131,7 +143,7 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     }
 
     // Track as batch submissions
-    batchesSubmittedCount.incrementAndGet()
+    val _ = batchesSubmittedCount.incrementAndGet()
     val _ = batchesPresentCount.incrementAndGet()
   }
 
@@ -157,6 +169,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     }
 
     if (element != null) {
+      // We still need to check the type here since we don't know whether we're
+      // dequeuing a singleton or a batch
       if (element.isInstanceOf[Array[?]]) {
         val _ = batchesPresentCount.decrementAndGet()
       } else {
@@ -194,13 +208,14 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     }
 
     if (done) {
+      // We still need to check the type here since we don't know whether we're
+      // removing a singleton or a batch
       if (a.isInstanceOf[Array[?]]) {
         val _ = batchesPresentCount.decrementAndGet()
       } else {
         val _ = singletonsPresentCount.decrementAndGet()
       }
     }
-
   }
 
   /**
