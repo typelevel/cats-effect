@@ -89,8 +89,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues(idx).offer(a)
 
     // Track as singleton task
-    val _ = singletonsSubmittedCount.incrementAndGet();
-    val _ = singletonsPresentCount.incrementAndGet();
+    val _1 = singletonsSubmittedCount.incrementAndGet();
+    val _2 = singletonsPresentCount.incrementAndGet();
   }
 
   /**
@@ -106,8 +106,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues(idx).offer(batch.asInstanceOf[A])
 
     // Track as batch task
-    val _ = batchesSubmittedCount.incrementAndGet();
-    val _ = batchesPresentCount.incrementAndGet();
+    val _1 = batchesSubmittedCount.incrementAndGet();
+    val _2 = batchesPresentCount.incrementAndGet();
   }
 
   /**
@@ -143,8 +143,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     }
 
     // Track as batch submissions
-    val _ = batchesSubmittedCount.incrementAndGet();
-    val _ = batchesPresentCount.incrementAndGet();
+    val _1 = batchesSubmittedCount.incrementAndGet();
+    val _2 = batchesPresentCount.incrementAndGet();
   }
 
   /**
@@ -172,9 +172,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
       // We still need to check the type here since we don't know whether we're
       // dequeuing a singleton or a batch
       if (element.isInstanceOf[Array[?]]) {
-        val _ = batchesPresentCount.decrementAndGet()
+        val _1 = batchesPresentCount.decrementAndGet()
       } else {
-        val _ = singletonsPresentCount.decrementAndGet()
+        val _2 = singletonsPresentCount.decrementAndGet()
       }
     }
 
@@ -211,9 +211,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
       // We still need to check the type here since we don't know whether we're
       // removing a singleton or a batch
       if (a.isInstanceOf[Array[?]]) {
-        val _ = batchesPresentCount.decrementAndGet()
+        val _1 = batchesPresentCount.decrementAndGet()
       } else {
-        val _ = singletonsPresentCount.decrementAndGet()
+        val _2 = singletonsPresentCount.decrementAndGet()
       }
     }
   }
