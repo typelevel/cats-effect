@@ -89,8 +89,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues(idx).offer(a)
 
     // Track as singleton task
-    singletonsSubmittedCount.incrementAndGet(): Unit;
-    singletonsPresentCount.incrementAndGet(): Unit;
+    singletonsSubmittedCount.incrementAndGet(); ()
+    singletonsPresentCount.incrementAndGet(); ()
   }
 
   /**
@@ -106,8 +106,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues(idx).offer(batch.asInstanceOf[A])
 
     // Track as batch task
-    batchesSubmittedCount.incrementAndGet(): Unit;
-    batchesPresentCount.incrementAndGet(): Unit;
+    batchesSubmittedCount.incrementAndGet(); ()
+    batchesPresentCount.incrementAndGet(); ()
   }
 
   /**
@@ -143,8 +143,8 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
     }
 
     // Track as batch submissions
-    batchesSubmittedCount.incrementAndGet(): Unit;
-    batchesPresentCount.incrementAndGet(): Unit;
+    batchesSubmittedCount.incrementAndGet(); ()
+    batchesPresentCount.incrementAndGet(); ()
   }
 
   /**
@@ -172,9 +172,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
       // We still need to check the type here since we don't know whether we're
       // dequeuing a singleton or a batch
       if (element.isInstanceOf[Array[?]]) {
-        batchesPresentCount.decrementAndGet(): Unit;
+        batchesPresentCount.decrementAndGet(); ()
       } else {
-        singletonsPresentCount.decrementAndGet(): Unit;
+        singletonsPresentCount.decrementAndGet(); ()
       }
     }
 
@@ -211,9 +211,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
       // We still need to check the type here since we don't know whether we're
       // removing a singleton or a batch
       if (a.isInstanceOf[Array[?]]) {
-        batchesPresentCount.decrementAndGet(): Unit;
+        batchesPresentCount.decrementAndGet(); ()
       } else {
-        singletonsPresentCount.decrementAndGet(): Unit;
+        singletonsPresentCount.decrementAndGet(); ()
       }
     }
   }
