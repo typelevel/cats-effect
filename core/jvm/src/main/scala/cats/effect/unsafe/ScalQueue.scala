@@ -144,9 +144,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
       i += 1
     }
 
-    // Track as batch submissions
-    batchesSubmittedCount.incrementAndGet();
-    batchesPresentCount.incrementAndGet();
+   // Track as individual submissions (len singletons)
+ singletonsSubmittedCount.addAndGet(len.toLong);
+singletonsPresentCount.addAndGet(len.toLong);
     ()
   }
 
