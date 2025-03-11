@@ -100,22 +100,22 @@ sealed trait WorkStealingThreadPoolMetrics {
  * Represents metrics for the external task queue in a work-stealing thread pool.
  */
 sealed trait ExternalQueueMetrics {
-  
+
   /**
    * Returns the total number of singleton tasks submitted to the queue.
    */
   def singletonsSubmittedCount(): Long
-  
+
   /**
    * Returns the number of singleton tasks currently in the queue.
    */
   def singletonsPresentCount(): Long
-  
+
   /**
    * Returns the total number of batch tasks submitted to the queue.
    */
   def batchesSubmittedCount(): Long
-  
+
   /**
    * Returns the number of batch tasks currently in the queue.
    */
@@ -123,7 +123,7 @@ sealed trait ExternalQueueMetrics {
 }
 
 object ExternalQueueMetrics {
-  
+
   private[metrics] def apply[A <: AnyRef](queue: ScalQueue[A]): ExternalQueueMetrics =
     new ExternalQueueMetrics {
       def singletonsSubmittedCount(): Long = queue.getSingletonsSubmittedCount()
@@ -305,7 +305,7 @@ object WorkStealingThreadPoolMetrics {
     def blockedWorkerThreadCount(): Int = wstp.getBlockedWorkerThreadCount()
     def localQueueFiberCount(): Long = wstp.getLocalQueueFiberCount()
     def suspendedFiberCount(): Long = wstp.getSuspendedFiberCount()
-    
+
     // Use the ExternalQueueMetrics interface to access metrics
     val externalQueue: ExternalQueueMetrics = ExternalQueueMetrics(wstp.externalQueue)
 

@@ -121,7 +121,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       worker.ownsPoller(poller)
     } else false
   }
- private[unsafe] val externalQueue: ScalQueue[Runnable] = ScalQueue[Runnable](threadCount << 2)
+  private[unsafe] val externalQueue: ScalQueue[Runnable] = ScalQueue[Runnable](threadCount << 2)
 
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
@@ -231,17 +231,17 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
 
     // The worker thread could not steal any work. Fall back to checking the
     // external queue.
-  val element = externalQueue.poll(random)
-if (element != null) {
-  // Since externalQueue is now ScalQueue[Runnable], element is always a Runnable
-  if (isStackTracing) {
-    destWorker.active = element
-    parkedSignals(dest).lazySet(false)
-  }
-  element
-} else {
-  null
-}
+    val element = externalQueue.poll(random)
+    if (element != null) {
+      // Since externalQueue is now ScalQueue[Runnable], element is always a Runnable
+      if (isStackTracing) {
+        destWorker.active = element
+        parkedSignals(dest).lazySet(false)
+      }
+      element
+    } else {
+      null
+    }
   }
 
   /**
@@ -524,7 +524,6 @@ if (element != null) {
     ()
 
   }
- 
 
   /**
    * Returns a snapshot of the fibers currently live on this thread pool.
@@ -538,16 +537,16 @@ if (element != null) {
       Map[Runnable, Trace],
       Map[WorkerThread[P], (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
       Map[Runnable, Trace]) = {
- val externalFibers: Map[Runnable, Trace] = externalQueue
-  .snapshot()
-  .iterator
-  .flatMap(r => 
-    captureTrace(r) match {
-      case Some((_, trace)) => Some((r, trace))
-      case None => None
-    }
-  )
-  .toMap
+    val externalFibers: Map[Runnable, Trace] = externalQueue
+      .snapshot()
+      .asInstanceOf[Array[Runnable]]
+      .iterator
+      .flatMap(r =>
+        captureTrace(r) match {
+          case Some((_, trace)) => Some((r, trace))
+          case None => None
+        })
+      .toMap
 
     val map = mutable
       .Map
