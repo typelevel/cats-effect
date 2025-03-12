@@ -164,7 +164,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
     val nq = numQueues
     val from = random.nextInt(nq)
     var i = 0
-    var element = null.asInstanceOf[AnyRef]
+    var element: AnyRef = null
 
     while ((element eq null) && i < nq) {
       val idx = (from + i) & mask
