@@ -175,7 +175,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
     if (element != null) {
       // We still need to check the type here since we don't know whether we're
       // dequeuing a singleton or a batch
-      if (element.isInstanceOf[Array[?]]) {
+      if (element.isInstanceOf[Array[Runnable]]) {
         batchesPresentCount.decrementAndGet();
       } else {
         singletonsPresentCount.decrementAndGet();
