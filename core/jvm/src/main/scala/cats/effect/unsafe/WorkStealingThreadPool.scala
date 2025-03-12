@@ -751,9 +751,9 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
 
       var t: WorkerThread[P] = null
       while ({
-          t = cachedThreads.pollFirst()
-          t ne null
-        }) {
+        t = cachedThreads.pollFirst()
+        t ne null
+      }) {
         t.interrupt()
         // don't bother joining, cached threads are not doing anything interesting
       }
