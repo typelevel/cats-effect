@@ -124,7 +124,7 @@ sealed trait ExternalQueueMetrics {
 
 object ExternalQueueMetrics {
 
-  private[metrics] def apply[A <: AnyRef](queue: ScalQueue[A]): ExternalQueueMetrics =
+  private[metrics] def apply(queue: ScalQueue): ExternalQueueMetrics =
     new ExternalQueueMetrics {
       def singletonsSubmittedCount(): Long = queue.getSingletonsSubmittedCount()
       def singletonsPresentCount(): Long = queue.getSingletonsPresentCount()

@@ -193,10 +193,7 @@ private final class LocalQueue extends LocalQueuePadding {
    *   a reference to an uncontended source of randomness, to be passed along to the striped
    *   concurrent queues when executing their enqueue operations
    */
-  def enqueue(
-      fiber: Runnable,
-      external: ScalQueue[Runnable],
-      random: ThreadLocalRandom): Unit = {
+  def enqueue(fiber: Runnable, external: ScalQueue, random: ThreadLocalRandom): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -661,7 +658,7 @@ private final class LocalQueue extends LocalQueuePadding {
    *   a reference to an uncontended source of randomness, to be passed along to the striped
    *   concurrent queues when executing their enqueue operations
    */
-  def drainBatch(external: ScalQueue[Runnable], random: ThreadLocalRandom): Unit = {
+  def drainBatch(external: ScalQueue, random: ThreadLocalRandom): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 

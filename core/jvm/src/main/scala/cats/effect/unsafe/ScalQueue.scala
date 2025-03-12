@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicLong
  * @param threadCount
  *   the number of threads to load balance between
  */
-private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
+private[effect] final class ScalQueue(threadCount: Int) {
 
   // Metrics counters for tracking external queue submissions
   private val singletonsSubmittedCount = new AtomicLong(0)
@@ -65,9 +65,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
   /**
    * The concurrent queues backing this Scal queue.
    */
-  private[this] val queues: Array[ConcurrentLinkedQueue[A]] = {
+  private[this] val queues: Array[ConcurrentLinkedQueue[AnyRef]] = {
     val nq = numQueues
-    val queues = new Array[ConcurrentLinkedQueue[A]](nq)
+    val queues = new Array[ConcurrentLinkedQueue[AnyRef]](nq)
     var i = 0
     while (i < nq) {
       queues(i) = new ConcurrentLinkedQueue()
@@ -84,9 +84,9 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
    * @param random
    *   an uncontended source of randomness, used for randomly choosing a destination queue
    */
-  def offer(a: A, random: ThreadLocalRandom): Unit = {
+  def offer(a: Runnable, random: ThreadLocalRandom): Unit = {
     val idx = random.nextInt(numQueues)
-    queues(idx).offer(a)
+    queues(idx).offer(a.asInstanceOf[AnyRef])
 
     // Track as singleton task
     singletonsSubmittedCount.incrementAndGet();
@@ -102,10 +102,10 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
    * @param random
    *   an uncontended source of randomness, used for randomly choosing a destination queue
    */
-  def offerBatch[B <: A](batch: Array[B], random: ThreadLocalRandom): Unit = {
-    val idx = random.nextInt(numQueues)
-    queues(idx).offer(batch.asInstanceOf[A])
 
+  def offerBatch(batch: Array[Runnable], random: ThreadLocalRandom): Unit = {
+    val idx = random.nextInt(numQueues)
+    queues(idx).offer(batch.asInstanceOf[AnyRef])
     // Track as batch task
     batchesSubmittedCount.incrementAndGet();
     batchesPresentCount.incrementAndGet();
@@ -133,18 +133,19 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
    * @param random
    *   an uncontended source of randomness, used for randomly choosing a destination queue
    */
-  def offerAll(as: Array[A], random: ThreadLocalRandom): Unit = {
+  // In offerAll method:
+  def offerAll(as: Array[Runnable], random: ThreadLocalRandom): Unit = {
     val nq = numQueues
     val len = as.length
     var i = 0
     while (i < len) {
       val fiber = as(i)
       val idx = random.nextInt(nq)
-      queues(idx).offer(fiber)
+      queues(idx).offer(fiber.asInstanceOf[AnyRef]) // Cast to AnyRef
       i += 1
     }
 
-    // Track as individual submissions (len singletons)
+    // Track as individual submissions
     singletonsSubmittedCount.addAndGet(len.toLong);
     singletonsPresentCount.addAndGet(len.toLong);
     ()
@@ -159,11 +160,11 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
    * @return
    *   an element from this Scal queue or `null` if this queue is empty
    */
-  def poll(random: ThreadLocalRandom): A = {
+  def poll(random: ThreadLocalRandom): AnyRef = {
     val nq = numQueues
     val from = random.nextInt(nq)
     var i = 0
-    var element = null.asInstanceOf[A]
+    var element = null.asInstanceOf[AnyRef]
 
     while ((element eq null) && i < nq) {
       val idx = (from + i) & mask
@@ -201,7 +202,7 @@ private[effect] final class ScalQueue[A <: AnyRef](threadCount: Int) {
    * @param a
    *   the element to be removed
    */
-  def remove(a: A): Unit = {
+  def remove(a: AnyRef): Unit = {
     val nq = numQueues
     var i = 0
     var done = false
@@ -313,5 +314,5 @@ object ScalQueue {
    * @return
    *   a new Scal queue instance
    */
-  def apply[A <: AnyRef](threadCount: Int): ScalQueue[A] = new ScalQueue(threadCount)
+  def apply(threadCount: Int): ScalQueue = new ScalQueue(threadCount)
 }

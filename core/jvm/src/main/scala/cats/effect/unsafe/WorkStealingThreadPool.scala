@@ -121,7 +121,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       worker.ownsPoller(poller)
     } else false
   }
-  private[unsafe] val externalQueue: ScalQueue[Runnable] = ScalQueue[Runnable](threadCount << 2)
+  private[unsafe] val externalQueue: ScalQueue = ScalQueue(threadCount << 2)
 
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
@@ -235,10 +235,10 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     if (element != null) {
       // Since externalQueue is now ScalQueue[Runnable], element is always a Runnable
       if (isStackTracing) {
-        destWorker.active = element
+        destWorker.active = element.asInstanceOf[Runnable]
         parkedSignals(dest).lazySet(false)
       }
-      element
+      element.asInstanceOf[Runnable]
     } else {
       null
     }

@@ -51,7 +51,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
     private[unsafe] var parked: AtomicBoolean,
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
-    private[this] val external: ScalQueue[Runnable],
+    private[this] val external: ScalQueue,
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
     private[this] var sleepers: TimerHeap,
@@ -384,12 +384,12 @@ private[effect] final class WorkerThread[P <: AnyRef](
         } else if (element != null) {
           // Existing code for handling individual Runnable
           if (isStackTracing) {
-            _active = element
+            _active = element.asInstanceOf[Runnable]
             parked.lazySet(false)
           }
 
           // The dequeued element is a Runnable (fiber). Execute it immediately.
-          try element.run()
+          try element.asInstanceOf[Runnable].run()
           catch {
             case t if UnsafeNonFatal(t) => pool.reportFailure(t)
             case t: Throwable => IOFiber.onFatalFailure(t)
@@ -499,14 +499,14 @@ private[effect] final class WorkerThread[P <: AnyRef](
           // Existing code for handling individual Runnable
           // Announce that the current thread is no longer looking for work.
           if (isStackTracing) {
-            _active = element
+            _active = element.asInstanceOf[Runnable]
             parked.lazySet(false)
           }
 
           pool.transitionWorkerFromSearching(rnd)
 
           // The dequeued element is a Runnable (fiber). Execute it immediately.
-          try element.run()
+          try element.asInstanceOf[Runnable].run()
           catch {
             case t if UnsafeNonFatal(t) => pool.reportFailure(t)
             case t: Throwable => IOFiber.onFatalFailure(t)
@@ -810,12 +810,12 @@ private[effect] final class WorkerThread[P <: AnyRef](
             }
           } else if (element != null) {
             if (isStackTracing) {
-              _active = element
+              _active = element.asInstanceOf[Runnable]
               parked.lazySet(false)
             }
 
             // The dequeued element is a Runnable (fiber). Execute it immediately.
-            try element.run()
+            try element.asInstanceOf[Runnable].run()
             catch {
               case t if UnsafeNonFatal(t) => pool.reportFailure(t)
               case t: Throwable => IOFiber.onFatalFailure(t)
