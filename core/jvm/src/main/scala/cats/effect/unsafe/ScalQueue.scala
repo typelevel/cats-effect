@@ -215,7 +215,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
     if (done) {
       // We still need to check the type here since we don't know whether we're
       // removing a singleton or a batch
-      if (a.isInstanceOf[Array[?]]) {
+      if (a.isInstanceOf[Array[Runnable]]) {
         batchesPresentCount.decrementAndGet();
       } else {
         singletonsPresentCount.decrementAndGet();
