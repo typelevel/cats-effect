@@ -230,11 +230,11 @@ private[effect] final class ScalQueue(threadCount: Int) {
    * @return
    *   a set of the currently enqueued elements
    */
-  def snapshot(): Set[AnyRef] = {
+  def snapshot(): Array[Runnable] = {
     val elements = queues.flatMap(_.toArray)
 
-    // Filter out any Set instances to avoid casting issues
-    elements.filterNot(_.isInstanceOf[Set[?]]).toSet
+    // Filter out elements that aren't Runnable
+    elements.collect { case r: Runnable => r }.toArray
   }
 
   /**
