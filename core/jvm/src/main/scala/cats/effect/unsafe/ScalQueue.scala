@@ -231,11 +231,11 @@ private[effect] final class ScalQueue(threadCount: Int) {
    *   a set of the currently enqueued elements
    */
   def snapshot(): Set[AnyRef] = {
-  val elements = queues.flatMap(_.toArray)
-  
-  // Filter out any Set instances to avoid casting issues
-  elements.filterNot(_.isInstanceOf[Set[_]]).toSet
-}
+    val elements = queues.flatMap(_.toArray)
+
+    // Filter out any Set instances to avoid casting issues
+    elements.filterNot(_.isInstanceOf[Set[?]]).toSet
+  }
 
   /**
    * Checks if this Scal queue is empty.
