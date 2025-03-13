@@ -121,7 +121,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       worker.ownsPoller(poller)
     } else false
   }
-  private[unsafe] val externalQueue: ScalQueue = ScalQueue(threadCount << 2)
+  private[unsafe] val externalQueue: ScalQueue = new ScalQueue(threadCount << 2)
 
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
@@ -232,16 +232,22 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     // The worker thread could not steal any work. Fall back to checking the
     // external queue.
     val element = externalQueue.poll(random)
-    if (element != null) {
-      // Since externalQueue is now ScalQueue[Runnable], element is always a Runnable
+    if (element.isInstanceOf[Array[Runnable]]) {
+      val batch = element.asInstanceOf[Array[Runnable]]
+      destQueue.enqueueBatch(batch, destWorker)
+    } else if (element.isInstanceOf[Runnable]) {
+      val fiber = element.asInstanceOf[Runnable]
+
       if (isStackTracing) {
-        destWorker.active = element.asInstanceOf[Runnable]
+        destWorker.active = fiber
         parkedSignals(dest).lazySet(false)
       }
-      element.asInstanceOf[Runnable]
+
+      fiber
     } else {
       null
     }
+
   }
 
   /**
@@ -539,13 +545,13 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       Map[Runnable, Trace]) = {
     val externalFibers: Map[Runnable, Trace] = externalQueue
       .snapshot()
-      .asInstanceOf[Array[Runnable]]
       .iterator
-      .flatMap(r =>
-        captureTrace(r) match {
-          case Some((_, trace)) => Some((r, trace))
-          case None => None
-        })
+      .flatMap {
+        case batch: Array[Runnable] =>
+          batch.flatMap(r => captureTrace(r)).toMap[Runnable, Trace]
+        case r: Runnable => captureTrace(r).toMap[Runnable, Trace]
+        case _ => Map.empty[Runnable, Trace]
+      }
       .toMap
 
     val map = mutable

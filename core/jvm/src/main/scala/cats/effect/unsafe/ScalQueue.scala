@@ -141,13 +141,40 @@ private[effect] final class ScalQueue(threadCount: Int) {
     while (i < len) {
       val fiber = as(i)
       val idx = random.nextInt(nq)
-      queues(idx).offer(fiber.asInstanceOf[AnyRef]) // Cast to AnyRef
+      queues(idx).offer(fiber)
       i += 1
     }
 
     // Track as individual submissions
     singletonsSubmittedCount.addAndGet(len.toLong);
     singletonsPresentCount.addAndGet(len.toLong);
+    ()
+  }
+
+  /**
+   * Offers multiple batches of tasks to this Scal queue.
+   *
+   * @param batches
+   *   an array of runnable batches to be offered to the queue
+   * @param random
+   *   a reference to an uncontended source of randomness, to be passed along to the striped
+   *   concurrent queues when executing their offer operations
+   */
+  def offerAllBatches(batches: Array[Array[Runnable]], random: ThreadLocalRandom): Unit = {
+    val nq = numQueues
+    val len = batches.length
+    var i = 0
+    while (i < len) {
+      val batch = batches(i)
+      val idx = random.nextInt(nq)
+      queues(idx).offer(batch)
+
+      // Track as batch task
+      batchesSubmittedCount.incrementAndGet()
+      batchesPresentCount.incrementAndGet()
+
+      i += 1
+    }
     ()
   }
 
@@ -230,12 +257,8 @@ private[effect] final class ScalQueue(threadCount: Int) {
    * @return
    *   a set of the currently enqueued elements
    */
-  def snapshot(): Array[Runnable] = {
-    val elements = queues.flatMap(_.toArray)
-
-    // Filter out elements that aren't Runnable
-    elements.collect { case r: Runnable => r }.toArray
-  }
+  def snapshot(): Set[AnyRef] =
+    queues.flatMap(_.toArray).toSet
 
   /**
    * Checks if this Scal queue is empty.
@@ -318,5 +341,5 @@ object ScalQueue {
    * @return
    *   a new Scal queue instance
    */
-  def apply(threadCount: Int): ScalQueue = new ScalQueue(threadCount)
+
 }

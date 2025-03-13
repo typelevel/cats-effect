@@ -362,7 +362,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
         // Check the external queue after a failed dequeue from the local
         // queue (due to the local queue being empty).
         val element = external.poll(rnd)
-        if ((element: AnyRef).isInstanceOf[Array[Runnable]]) {
+        if (element.isInstanceOf[Array[Runnable]]) {
           val batch = element.asInstanceOf[Array[Runnable]]
           // The dequeued element was a batch of fibers. Enqueue the whole
           // batch on the local queue and execute the first fiber.
@@ -381,15 +381,16 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
           // Transition to executing fibers from the local queue.
           return
-        } else if (element != null) {
-          // Existing code for handling individual Runnable
+        } else if (element.isInstanceOf[Runnable]) {
+          val fiber = element.asInstanceOf[Runnable]
+
           if (isStackTracing) {
-            _active = element.asInstanceOf[Runnable]
+            _active = fiber
             parked.lazySet(false)
           }
 
-          // The dequeued element is a Runnable (fiber). Execute it immediately.
-          try element.asInstanceOf[Runnable].run()
+          // The dequeued element is a single fiber. Execute it immediately.
+          try fiber.run()
           catch {
             case t if UnsafeNonFatal(t) => pool.reportFailure(t)
             case t: Throwable => IOFiber.onFatalFailure(t)
@@ -476,7 +477,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
       while (!done.get()) {
         val element = external.poll(rnd)
-        if ((element: AnyRef).isInstanceOf[Array[Runnable]]) {
+        if (element.isInstanceOf[Array[Runnable]]) {
           val batch = element.asInstanceOf[Array[Runnable]]
           // Announce that the current thread is no longer looking for work.
           pool.transitionWorkerFromSearching(rnd)
@@ -495,18 +496,19 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
           // Transition to executing fibers from the local queue.
           return
-        } else if (element != null) {
-          // Existing code for handling individual Runnable
+        } else if (element.isInstanceOf[Runnable]) {
+          val fiber = element.asInstanceOf[Runnable]
           // Announce that the current thread is no longer looking for work.
+
           if (isStackTracing) {
-            _active = element.asInstanceOf[Runnable]
+            _active = fiber
             parked.lazySet(false)
           }
 
           pool.transitionWorkerFromSearching(rnd)
 
-          // The dequeued element is a Runnable (fiber). Execute it immediately.
-          try element.asInstanceOf[Runnable].run()
+          // The dequeued element is a single fiber. Execute it immediately.
+          try fiber.run()
           catch {
             case t if UnsafeNonFatal(t) => pool.reportFailure(t)
             case t: Throwable => IOFiber.onFatalFailure(t)
@@ -789,7 +791,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
           now = System.nanoTime()
         } else {
           val element = external.poll(rnd)
-          if ((element: AnyRef).isInstanceOf[Array[Runnable]]) {
+          if (element.isInstanceOf[Array[Runnable]]) {
             val batch = element.asInstanceOf[Array[Runnable]]
             // The dequeued element was a batch of fibers. Enqueue the whole
             // batch on the local queue and execute the first fiber.
@@ -808,14 +810,16 @@ private[effect] final class WorkerThread[P <: AnyRef](
               case t if UnsafeNonFatal(t) => pool.reportFailure(t)
               case t: Throwable => IOFiber.onFatalFailure(t)
             }
-          } else if (element != null) {
+          } else if (element.isInstanceOf[Runnable]) {
+            val fiber = element.asInstanceOf[Runnable]
+
             if (isStackTracing) {
-              _active = element.asInstanceOf[Runnable]
+              _active = fiber
               parked.lazySet(false)
             }
 
-            // The dequeued element is a Runnable (fiber). Execute it immediately.
-            try element.asInstanceOf[Runnable].run()
+            // The dequeued element is a single fiber. Execute it immediately.
+            try fiber.run()
             catch {
               case t if UnsafeNonFatal(t) => pool.reportFailure(t)
               case t: Throwable => IOFiber.onFatalFailure(t)

@@ -698,7 +698,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // package-private classes moved to the `cats.effect.unsafe.metrics` package
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation$"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvationMBean")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvationMBean"),
+      ProblemFilters.exclude[Problem]("cats.effect.unsafe.ScalQueue*")
+
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
