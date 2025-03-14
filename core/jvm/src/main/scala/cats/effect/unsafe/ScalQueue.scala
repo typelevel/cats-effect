@@ -86,7 +86,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
    */
   def offer(a: Runnable, random: ThreadLocalRandom): Unit = {
     val idx = random.nextInt(numQueues)
-    queues(idx).offer(a.asInstanceOf[AnyRef])
+    queues(idx).offer(a)
 
     // Track as singleton task
     singletonsSubmittedCount.incrementAndGet();
