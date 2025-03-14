@@ -34,16 +34,6 @@ import java.util.concurrent.atomic.AtomicLong
  */
 private[effect] final class ScalQueue(threadCount: Int) {
 
-  // Metrics counters for tracking external queue submissions
-  private[this] val singletonsSubmittedCounts: Array[AtomicLong] =
-    Array.fill(numQueues)(new AtomicLong(0))
-  private[this] val singletonsPresentCounts: Array[AtomicLong] =
-    Array.fill(numQueues)(new AtomicLong(0))
-  private[this] val batchesSubmittedCounts: Array[AtomicLong] =
-    Array.fill(numQueues)(new AtomicLong(0))
-  private[this] val batchesPresentCounts: Array[AtomicLong] =
-    Array.fill(numQueues)(new AtomicLong(0))
-
   /**
    * Calculates the next power of 2 using bitwise operations. This value actually represents the
    * bitmask for the next power of 2 and can be used for indexing into the array of concurrent
@@ -65,6 +55,16 @@ private[effect] final class ScalQueue(threadCount: Int) {
    * `threadCount` is a power of 2, otherwise the next power of 2 larger than `threadCount`).
    */
   private[this] val numQueues: Int = mask + 1
+
+  // Metrics counters for tracking external queue submissions
+  private[this] val singletonsSubmittedCounts: Array[AtomicLong] =
+    Array.fill(numQueues)(new AtomicLong(0))
+  private[this] val singletonsPresentCounts: Array[AtomicLong] =
+    Array.fill(numQueues)(new AtomicLong(0))
+  private[this] val batchesSubmittedCounts: Array[AtomicLong] =
+    Array.fill(numQueues)(new AtomicLong(0))
+  private[this] val batchesPresentCounts: Array[AtomicLong] =
+    Array.fill(numQueues)(new AtomicLong(0))
 
   /**
    * The concurrent queues backing this Scal queue.
@@ -113,8 +113,9 @@ private[effect] final class ScalQueue(threadCount: Int) {
     queues(idx).offer(batch)
 
     // Track as batch task - using striped counter
-    batchesSubmittedCounts(idx).incrementAndGet()
-    batchesPresentCounts(idx).incrementAndGet()
+    batchesSubmittedCounts(idx).incrementAndGet();
+    batchesPresentCounts(idx).incrementAndGet();
+    ()
   }
 
   /**
