@@ -105,7 +105,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
 
   def offerBatch(batch: Array[Runnable], random: ThreadLocalRandom): Unit = {
     val idx = random.nextInt(numQueues)
-    queues(idx).offer(batch.asInstanceOf[AnyRef])
+    queues(idx).offer(batch)
     // Track as batch task
     batchesSubmittedCount.incrementAndGet();
     batchesPresentCount.incrementAndGet();
