@@ -330,16 +330,3 @@ private[effect] final class ScalQueue(threadCount: Int) {
    */
   def getBatchesPresentCount(): Long = batchesPresentCount.get()
 }
-
-object ScalQueue {
-
-  /**
-   * Creates a new Scal queue.
-   *
-   * @param threadCount
-   *   the number of threads to load balance between
-   * @return
-   *   a new Scal queue instance
-   */
-
-}

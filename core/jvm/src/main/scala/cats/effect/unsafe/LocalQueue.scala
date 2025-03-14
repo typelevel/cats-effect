@@ -282,6 +282,9 @@ private final class LocalQueue extends LocalQueuePadding {
         // Enqueue all of the batches of fibers on the batched queue with a bulk
         // add operation.
         external.offerAllBatches(batches, random)
+        // Loop again for a chance to insert the original fiber to be enqueued
+        // on the local queue.
+
       }
 
       // None of the three final outcomes have been reached, loop again for a

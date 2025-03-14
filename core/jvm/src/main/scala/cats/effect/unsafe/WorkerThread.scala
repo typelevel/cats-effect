@@ -476,6 +476,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
       }
 
       while (!done.get()) {
+        // Check the external queue after being unparked
         val element = external.poll(rnd)
         if (element.isInstanceOf[Array[Runnable]]) {
           val batch = element.asInstanceOf[Array[Runnable]]
@@ -484,6 +485,10 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
           // The dequeued element was a batch of fibers. Enqueue the whole
           // batch on the local queue and execute the first fiber.
+          // It is safe to directly enqueue the whole batch because we know
+          // that in this state of the worker thread state machine, the
+          // local queue is empty.
+
           val fiber = queue.enqueueBatch(batch, self)
           // Many fibers have been exchanged between the external and the
           // local queue. Notify other worker threads.
@@ -790,6 +795,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
           // update the current time
           now = System.nanoTime()
         } else {
+          // Obtain a fiber or batch of fibers from the external queue.
           val element = external.poll(rnd)
           if (element.isInstanceOf[Array[Runnable]]) {
             val batch = element.asInstanceOf[Array[Runnable]]
