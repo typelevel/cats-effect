@@ -35,10 +35,14 @@ import java.util.concurrent.atomic.AtomicLong
 private[effect] final class ScalQueue(threadCount: Int) {
 
   // Metrics counters for tracking external queue submissions
-  private val singletonsSubmittedCount = new AtomicLong(0)
-  private val singletonsPresentCount = new AtomicLong(0)
-  private val batchesSubmittedCount = new AtomicLong(0)
-  private val batchesPresentCount = new AtomicLong(0)
+  private[this] val singletonsSubmittedCounts: Array[AtomicLong] =
+    Array.fill(numQueues)(new AtomicLong(0))
+  private[this] val singletonsPresentCounts: Array[AtomicLong] =
+    Array.fill(numQueues)(new AtomicLong(0))
+  private[this] val batchesSubmittedCounts: Array[AtomicLong] =
+    Array.fill(numQueues)(new AtomicLong(0))
+  private[this] val batchesPresentCounts: Array[AtomicLong] =
+    Array.fill(numQueues)(new AtomicLong(0))
 
   /**
    * Calculates the next power of 2 using bitwise operations. This value actually represents the
@@ -88,9 +92,9 @@ private[effect] final class ScalQueue(threadCount: Int) {
     val idx = random.nextInt(numQueues)
     queues(idx).offer(a)
 
-    // Track as singleton task
-    singletonsSubmittedCount.incrementAndGet();
-    singletonsPresentCount.incrementAndGet();
+    // Track as singleton task - using the same index for striped counters
+    singletonsSubmittedCounts(idx).incrementAndGet()
+    singletonsPresentCounts(idx).incrementAndGet()
     ()
   }
 
@@ -104,12 +108,13 @@ private[effect] final class ScalQueue(threadCount: Int) {
    */
 
   def offerBatch(batch: Array[Runnable], random: ThreadLocalRandom): Unit = {
-    val idx = random.nextInt(numQueues)
+    val nq = numQueues
+    val idx = random.nextInt(nq)
     queues(idx).offer(batch)
-    // Track as batch task
-    batchesSubmittedCount.incrementAndGet();
-    batchesPresentCount.incrementAndGet();
-    ()
+
+    // Track as batch task - using striped counter
+    batchesSubmittedCounts(idx).incrementAndGet()
+    batchesPresentCounts(idx).incrementAndGet()
   }
 
   /**
@@ -133,7 +138,6 @@ private[effect] final class ScalQueue(threadCount: Int) {
    * @param random
    *   an uncontended source of randomness, used for randomly choosing a destination queue
    */
-  // In offerAll method:
   def offerAll(as: Array[Runnable], random: ThreadLocalRandom): Unit = {
     val nq = numQueues
     val len = as.length
@@ -142,12 +146,13 @@ private[effect] final class ScalQueue(threadCount: Int) {
       val fiber = as(i)
       val idx = random.nextInt(nq)
       queues(idx).offer(fiber)
+
+      // Track as singleton task - using striped counter
+      singletonsSubmittedCounts(idx).incrementAndGet()
+      singletonsPresentCounts(idx).incrementAndGet()
+
       i += 1
     }
-
-    // Track as individual submissions
-    singletonsSubmittedCount.addAndGet(len.toLong);
-    singletonsPresentCount.addAndGet(len.toLong);
     ()
   }
 
@@ -169,9 +174,9 @@ private[effect] final class ScalQueue(threadCount: Int) {
       val idx = random.nextInt(nq)
       queues(idx).offer(batch)
 
-      // Track as batch task
-      batchesSubmittedCount.incrementAndGet()
-      batchesPresentCount.incrementAndGet()
+      // Track as batch task - using striped counter
+      batchesSubmittedCounts(idx).incrementAndGet()
+      batchesPresentCounts(idx).incrementAndGet()
 
       i += 1
     }
@@ -192,10 +197,14 @@ private[effect] final class ScalQueue(threadCount: Int) {
     val from = random.nextInt(nq)
     var i = 0
     var element: AnyRef = null
+    var pollIdx = -1 // Track which queue we polled from
 
     while ((element eq null) && i < nq) {
       val idx = (from + i) & mask
       element = queues(idx).poll()
+      if (element ne null) {
+        pollIdx = idx // Remember which queue we got the element from
+      }
       i += 1
     }
 
@@ -203,9 +212,9 @@ private[effect] final class ScalQueue(threadCount: Int) {
       // We still need to check the type here since we don't know whether we're
       // dequeuing a singleton or a batch
       if (element.isInstanceOf[Array[Runnable]]) {
-        batchesPresentCount.decrementAndGet();
+        batchesPresentCounts(pollIdx).decrementAndGet()
       } else {
-        singletonsPresentCount.decrementAndGet();
+        singletonsPresentCounts(pollIdx).decrementAndGet()
       }
       ()
     }
@@ -233,9 +242,13 @@ private[effect] final class ScalQueue(threadCount: Int) {
     val nq = numQueues
     var i = 0
     var done = false
+    var removeIdx = -1 // Track which queue we removed from
 
     while (!done && i < nq) {
       done = queues(i).remove(a)
+      if (done) {
+        removeIdx = i // Remember which queue the element was removed from
+      }
       i += 1
     }
 
@@ -243,9 +256,9 @@ private[effect] final class ScalQueue(threadCount: Int) {
       // We still need to check the type here since we don't know whether we're
       // removing a singleton or a batch
       if (a.isInstanceOf[Array[Runnable]]) {
-        batchesPresentCount.decrementAndGet();
+        batchesPresentCounts(removeIdx).decrementAndGet()
       } else {
-        singletonsPresentCount.decrementAndGet();
+        singletonsPresentCounts(removeIdx).decrementAndGet()
       }
       ()
     }
@@ -302,31 +315,65 @@ private[effect] final class ScalQueue(threadCount: Int) {
     var i = 0
     while (i < nq) {
       queues(i).clear()
+
+      // Reset metrics for this stripe
+      singletonsPresentCounts(i).set(0)
+      batchesPresentCounts(i).set(0)
+
       i += 1
     }
 
-    // Reset present counters when clearing the queue
-    singletonsPresentCount.set(0)
-    batchesPresentCount.set(0)
   }
 
   /**
    * Returns the total number of singleton tasks submitted to this queue.
    */
-  def getSingletonsSubmittedCount(): Long = singletonsSubmittedCount.get()
+  def getSingletonsSubmittedCount(): Long = {
+    var total = 0L
+    var i = 0
+    while (i < numQueues) {
+      total += singletonsSubmittedCounts(i).get()
+      i += 1
+    }
+    total
+  }
 
   /**
    * Returns the number of singleton tasks currently in this queue.
    */
-  def getSingletonsPresentCount(): Long = singletonsPresentCount.get()
+  def getSingletonsPresentCount(): Long = {
+    var total = 0L
+    var i = 0
+    while (i < numQueues) {
+      total += singletonsPresentCounts(i).get()
+      i += 1
+    }
+    total
+  }
 
   /**
    * Returns the total number of batch tasks submitted to this queue.
    */
-  def getBatchesSubmittedCount(): Long = batchesSubmittedCount.get()
+  def getBatchesSubmittedCount(): Long = {
+    var total = 0L
+    var i = 0
+    while (i < numQueues) {
+      total += batchesSubmittedCounts(i).get()
+      i += 1
+    }
+    total
+  }
 
   /**
    * Returns the number of batch tasks currently in this queue.
    */
-  def getBatchesPresentCount(): Long = batchesPresentCount.get()
+  def getBatchesPresentCount(): Long = {
+    var total = 0L
+    var i = 0
+    while (i < numQueues) {
+      total += batchesPresentCounts(i).get()
+      i += 1
+    }
+    total
+  }
 }
