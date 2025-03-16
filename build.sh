@@ -2,6 +2,22 @@
 
 set -euxo pipefail
 
+function check_dependency() {
+  if ! command -v "$1" &> /dev/null; then
+    echo "ERROR: $1 is required but not found in PATH"
+    echo "Common fix:"
+    echo "  - For Debian/Ubuntu: apt-get install $2"
+    echo "  - For macOS: brew install $2"
+    echo "  - For NixOS: Add $2 to your development environment"
+    exit 1
+  fi
+}
+
+check_dependency "gifsicle" "gifsicle"
+check_dependency "autoreconf" "autoconf"
+check_dependency "npm" "nodejs"
+check_dependency "sbt" "sbt"
+
 cmd="${1:-build}"
 
 mkdir -p docs
