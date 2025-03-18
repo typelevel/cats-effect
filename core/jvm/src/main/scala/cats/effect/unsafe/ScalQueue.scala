@@ -283,7 +283,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
           fiberPresentCounts(idx).addAndGet(-batchSize.toLong);
           ()
         } else {
-          singletonsPresentCounts(idx).decrementAndGet(); ()
+          singletonsPresentCounts(idx).decrementAndGet();
           // Decrement fiber present count by 1
           fiberPresentCounts(idx).decrementAndGet();
           ()
@@ -329,7 +329,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
           fiberPresentCounts(i).addAndGet(-batchSize.toLong);
           ()
         } else {
-          singletonsPresentCounts(i).decrementAndGet(); ()
+          singletonsPresentCounts(i).decrementAndGet();
           // Decrement fiber present count by 1
           fiberPresentCounts(i).decrementAndGet(); ()
         }
