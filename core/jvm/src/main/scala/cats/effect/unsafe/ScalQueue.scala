@@ -280,11 +280,13 @@ private[effect] final class ScalQueue(threadCount: Int) {
           batchesPresentCounts(idx).decrementAndGet()
           // Decrement fiber present count by batch size
           val batchSize = element.asInstanceOf[Array[Runnable]].length
-          fiberPresentCounts(idx).addAndGet(-batchSize.toLong)
+          fiberPresentCounts(idx).addAndGet(-batchSize.toLong);
+          ()
         } else {
-          singletonsPresentCounts(idx).decrementAndGet()
+          singletonsPresentCounts(idx).decrementAndGet(); ()
           // Decrement fiber present count by 1
-          fiberPresentCounts(idx).decrementAndGet()
+          fiberPresentCounts(idx).decrementAndGet();
+          ()
         }
       }
 
@@ -324,11 +326,12 @@ private[effect] final class ScalQueue(threadCount: Int) {
           batchesPresentCounts(i).decrementAndGet()
           // Decrement fiber present count by batch size
           val batchSize = a.asInstanceOf[Array[Runnable]].length
-          fiberPresentCounts(i).addAndGet(-batchSize.toLong)
+          fiberPresentCounts(i).addAndGet(-batchSize.toLong);
+          ()
         } else {
-          singletonsPresentCounts(i).decrementAndGet()
+          singletonsPresentCounts(i).decrementAndGet(); ()
           // Decrement fiber present count by 1
-          fiberPresentCounts(i).decrementAndGet()
+          fiberPresentCounts(i).decrementAndGet(); ()
         }
       }
 
