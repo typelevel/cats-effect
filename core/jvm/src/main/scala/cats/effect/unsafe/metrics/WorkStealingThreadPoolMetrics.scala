@@ -104,22 +104,22 @@ sealed trait ExternalQueueMetrics {
   /**
    * Returns the total number of singleton tasks submitted to the queue.
    */
-  def singletonsSubmittedCount(): Long
+  def totalSingletonCount(): Long
 
   /**
    * Returns the number of singleton tasks currently in the queue.
    */
-  def singletonsPresentCount(): Long
+  def singletonCount(): Long
 
   /**
    * Returns the total number of batch tasks submitted to the queue.
    */
-  def batchesSubmittedCount(): Long
+  def totalBatchCount(): Long
 
   /**
    * Returns the number of batch tasks currently in the queue.
    */
-  def batchesPresentCount(): Long
+  def batchCount(): Long
 }
 
 object ExternalQueueMetrics {
