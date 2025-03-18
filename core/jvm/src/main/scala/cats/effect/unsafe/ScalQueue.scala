@@ -57,14 +57,66 @@ private[effect] final class ScalQueue(threadCount: Int) {
   private[this] val numQueues: Int = mask + 1
 
   // Metrics counters for tracking external queue submissions
-  private[this] val singletonsSubmittedCounts: Array[AtomicLong] =
-    Array.fill(numQueues)(new AtomicLong(0))
-  private[this] val singletonsPresentCounts: Array[AtomicLong] =
-    Array.fill(numQueues)(new AtomicLong(0))
-  private[this] val batchesSubmittedCounts: Array[AtomicLong] =
-    Array.fill(numQueues)(new AtomicLong(0))
-  private[this] val batchesPresentCounts: Array[AtomicLong] =
-    Array.fill(numQueues)(new AtomicLong(0))
+  private[this] val singletonsSubmittedCounts: Array[AtomicLong] = {
+    val counts = new Array[AtomicLong](numQueues)
+    var i = 0
+    while (i < numQueues) {
+      counts(i) = new AtomicLong(0)
+      i += 1
+    }
+    counts
+  }
+
+  private[this] val singletonsPresentCounts: Array[AtomicLong] = {
+    val counts = new Array[AtomicLong](numQueues)
+    var i = 0
+    while (i < numQueues) {
+      counts(i) = new AtomicLong(0)
+      i += 1
+    }
+    counts
+  }
+
+  private[this] val batchesSubmittedCounts: Array[AtomicLong] = {
+    val counts = new Array[AtomicLong](numQueues)
+    var i = 0
+    while (i < numQueues) {
+      counts(i) = new AtomicLong(0)
+      i += 1
+    }
+    counts
+  }
+
+  private[this] val batchesPresentCounts: Array[AtomicLong] = {
+    val counts = new Array[AtomicLong](numQueues)
+    var i = 0
+    while (i < numQueues) {
+      counts(i) = new AtomicLong(0)
+      i += 1
+    }
+    counts
+  }
+
+// For tracking total fibers (both singleton and in batches)
+  private[this] val totalFiberSubmittedCounts: Array[AtomicLong] = {
+    val counts = new Array[AtomicLong](numQueues)
+    var i = 0
+    while (i < numQueues) {
+      counts(i) = new AtomicLong(0)
+      i += 1
+    }
+    counts
+  }
+
+  private[this] val fiberPresentCounts: Array[AtomicLong] = {
+    val counts = new Array[AtomicLong](numQueues)
+    var i = 0
+    while (i < numQueues) {
+      counts(i) = new AtomicLong(0)
+      i += 1
+    }
+    counts
+  }
 
   /**
    * The concurrent queues backing this Scal queue.
@@ -95,6 +147,10 @@ private[effect] final class ScalQueue(threadCount: Int) {
     // Track as singleton task - using the same index for striped counters
     singletonsSubmittedCounts(idx).incrementAndGet()
     singletonsPresentCounts(idx).incrementAndGet()
+
+    // Also increment total fiber counts
+    totalFiberSubmittedCounts(idx).incrementAndGet()
+    fiberPresentCounts(idx).incrementAndGet()
     ()
   }
 
@@ -108,13 +164,17 @@ private[effect] final class ScalQueue(threadCount: Int) {
    */
 
   def offerBatch(batch: Array[Runnable], random: ThreadLocalRandom): Unit = {
-    val nq = numQueues
-    val idx = random.nextInt(nq)
+    val idx = random.nextInt(numQueues)
     queues(idx).offer(batch)
 
-    // Track as batch task - using striped counter
-    batchesSubmittedCounts(idx).incrementAndGet();
-    batchesPresentCounts(idx).incrementAndGet();
+    // Track as batch task
+    batchesSubmittedCounts(idx).incrementAndGet()
+    batchesPresentCounts(idx).incrementAndGet()
+
+    // Also increment total fiber counts by batch size
+    val batchSize = batch.length
+    totalFiberSubmittedCounts(idx).addAndGet(batchSize.toLong)
+    fiberPresentCounts(idx).addAndGet(batchSize.toLong)
     ()
   }
 
@@ -148,9 +208,13 @@ private[effect] final class ScalQueue(threadCount: Int) {
       val idx = random.nextInt(nq)
       queues(idx).offer(fiber)
 
-      // Track as singleton task - using striped counter
+      // Track as singleton task
       singletonsSubmittedCounts(idx).incrementAndGet()
       singletonsPresentCounts(idx).incrementAndGet()
+
+      // Also increment total fiber counts
+      totalFiberSubmittedCounts(idx).incrementAndGet()
+      fiberPresentCounts(idx).incrementAndGet()
 
       i += 1
     }
@@ -175,9 +239,14 @@ private[effect] final class ScalQueue(threadCount: Int) {
       val idx = random.nextInt(nq)
       queues(idx).offer(batch)
 
-      // Track as batch task - using striped counter
+      // Track as batch task
       batchesSubmittedCounts(idx).incrementAndGet()
       batchesPresentCounts(idx).incrementAndGet()
+
+      // Also increment total fiber counts by batch size
+      val batchSize = batch.length
+      totalFiberSubmittedCounts(idx).addAndGet(batchSize.toLong)
+      fiberPresentCounts(idx).addAndGet(batchSize.toLong)
 
       i += 1
     }
@@ -193,31 +262,33 @@ private[effect] final class ScalQueue(threadCount: Int) {
    * @return
    *   an element from this Scal queue or `null` if this queue is empty
    */
+  // Update the poll method (around line 230)
+
   def poll(random: ThreadLocalRandom): AnyRef = {
     val nq = numQueues
     val from = random.nextInt(nq)
     var i = 0
     var element: AnyRef = null
-    var pollIdx = -1 // Track which queue we polled from
 
     while ((element eq null) && i < nq) {
       val idx = (from + i) & mask
       element = queues(idx).poll()
-      if (element ne null) {
-        pollIdx = idx // Remember which queue we got the element from
-      }
-      i += 1
-    }
 
-    if (element != null) {
-      // We still need to check the type here since we don't know whether we're
-      // dequeuing a singleton or a batch
-      if (element.isInstanceOf[Array[Runnable]]) {
-        batchesPresentCounts(pollIdx).decrementAndGet()
-      } else {
-        singletonsPresentCounts(pollIdx).decrementAndGet()
+      // If we found an element, decrement the appropriate counter
+      if (element ne null) {
+        if (element.isInstanceOf[Array[Runnable]]) {
+          batchesPresentCounts(idx).decrementAndGet()
+          // Decrement fiber present count by batch size
+          val batchSize = element.asInstanceOf[Array[Runnable]].length
+          fiberPresentCounts(idx).addAndGet(-batchSize.toLong)
+        } else {
+          singletonsPresentCounts(idx).decrementAndGet()
+          // Decrement fiber present count by 1
+          fiberPresentCounts(idx).decrementAndGet()
+        }
       }
-      ()
+
+      i += 1
     }
 
     element
@@ -243,25 +314,25 @@ private[effect] final class ScalQueue(threadCount: Int) {
     val nq = numQueues
     var i = 0
     var done = false
-    var removeIdx = -1 // Track which queue we removed from
 
     while (!done && i < nq) {
       done = queues(i).remove(a)
-      if (done) {
-        removeIdx = i // Remember which queue the element was removed from
-      }
-      i += 1
-    }
 
-    if (done) {
-      // We still need to check the type here since we don't know whether we're
-      // removing a singleton or a batch
-      if (a.isInstanceOf[Array[Runnable]]) {
-        batchesPresentCounts(removeIdx).decrementAndGet()
-      } else {
-        singletonsPresentCounts(removeIdx).decrementAndGet()
+      // If we removed the element, decrement the appropriate counter
+      if (done) {
+        if (a.isInstanceOf[Array[Runnable]]) {
+          batchesPresentCounts(i).decrementAndGet()
+          // Decrement fiber present count by batch size
+          val batchSize = a.asInstanceOf[Array[Runnable]].length
+          fiberPresentCounts(i).addAndGet(-batchSize.toLong)
+        } else {
+          singletonsPresentCounts(i).decrementAndGet()
+          // Decrement fiber present count by 1
+          fiberPresentCounts(i).decrementAndGet()
+        }
       }
-      ()
+
+      i += 1
     }
   }
 
@@ -312,18 +383,17 @@ private[effect] final class ScalQueue(threadCount: Int) {
    * Clears all concurrent queues that make up this Scal queue.
    */
   def clear(): Unit = {
-    val nq = numQueues
     var i = 0
-    while (i < nq) {
+    while (i < numQueues) {
       queues(i).clear()
 
-      // Reset metrics for this stripe
+      // Reset all counters for this stripe
       singletonsPresentCounts(i).set(0)
       batchesPresentCounts(i).set(0)
+      fiberPresentCounts(i).set(0)
 
       i += 1
     }
-
   }
 
   /**
@@ -373,6 +443,34 @@ private[effect] final class ScalQueue(threadCount: Int) {
     var i = 0
     while (i < numQueues) {
       total += batchesPresentCounts(i).get()
+      i += 1
+    }
+    total
+  }
+
+  /**
+   * Returns the total number of fibers (individual tasks + fibers in batches) submitted to this
+   * queue.
+   */
+  def getTotalFiberSubmittedCount(): Long = {
+    var total = 0L
+    var i = 0
+    while (i < numQueues) {
+      total += totalFiberSubmittedCounts(i).get()
+      i += 1
+    }
+    total
+  }
+
+  /**
+   * Returns the number of fibers (individual tasks + fibers in batches) currently in this
+   * queue.
+   */
+  def getFiberPresentCount(): Long = {
+    var total = 0L
+    var i = 0
+    while (i < numQueues) {
+      total += fiberPresentCounts(i).get()
       i += 1
     }
     total

@@ -488,7 +488,6 @@ private[effect] final class WorkerThread[P <: AnyRef](
           // It is safe to directly enqueue the whole batch because we know
           // that in this state of the worker thread state machine, the
           // local queue is empty.
-
           val fiber = queue.enqueueBatch(batch, self)
           // Many fibers have been exchanged between the external and the
           // local queue. Notify other worker threads.

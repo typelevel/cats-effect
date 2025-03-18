@@ -120,17 +120,17 @@ sealed trait ExternalQueueMetrics {
    * Returns the number of batch tasks currently in the queue.
    */
   def batchCount(): Long
-}
 
-object ExternalQueueMetrics {
+  /**
+   * Returns the total number of fibers (individual tasks + fibers in batches) submitted to the
+   * queue.
+   */
+  def totalFiberCount(): Long
 
-  private[metrics] def apply(queue: ScalQueue): ExternalQueueMetrics =
-    new ExternalQueueMetrics {
-      def singletonsSubmittedCount(): Long = queue.getSingletonsSubmittedCount()
-      def singletonsPresentCount(): Long = queue.getSingletonsPresentCount()
-      def batchesSubmittedCount(): Long = queue.getBatchesSubmittedCount()
-      def batchesPresentCount(): Long = queue.getBatchesPresentCount()
-    }
+  /**
+   * Returns the number of fibers (individual tasks + fibers in batches) currently in the queue.
+   */
+  def fiberCount(): Long
 }
 
 sealed trait WorkerThreadMetrics {
@@ -286,6 +286,20 @@ sealed trait TimerHeapMetrics {
 }
 
 object WorkStealingThreadPoolMetrics {
+
+  // Moved inside as suggested by @armanbilge
+  private object ExternalQueueMetrics {
+    private[metrics] def apply(queue: ScalQueue): ExternalQueueMetrics =
+      new ExternalQueueMetrics {
+        def totalSingletonCount(): Long = queue.getSingletonsSubmittedCount()
+        def singletonCount(): Long = queue.getSingletonsPresentCount()
+        def totalBatchCount(): Long = queue.getBatchesSubmittedCount()
+        def batchCount(): Long = queue.getBatchesPresentCount()
+        // Added the missing methods:
+        def totalFiberCount(): Long = queue.getTotalFiberSubmittedCount()
+        def fiberCount(): Long = queue.getFiberPresentCount()
+      }
+  }
 
   private[metrics] def apply(ec: ExecutionContext): Option[WorkStealingThreadPoolMetrics] =
     ec match {

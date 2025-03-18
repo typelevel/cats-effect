@@ -247,7 +247,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     } else {
       null
     }
-
   }
 
   /**
@@ -528,7 +527,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     externalQueue.offer(fiber, random)
     notifyParked(random)
     ()
-
   }
 
   /**
