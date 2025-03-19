@@ -286,8 +286,6 @@ sealed trait TimerHeapMetrics {
 }
 
 object WorkStealingThreadPoolMetrics {
-
-  // Moved inside as suggested by @armanbilge
   private object ExternalQueueMetrics {
     private[metrics] def apply(queue: ScalQueue): ExternalQueueMetrics =
       new ExternalQueueMetrics {
@@ -295,7 +293,6 @@ object WorkStealingThreadPoolMetrics {
         def singletonCount(): Long = queue.getSingletonsPresentCount()
         def totalBatchCount(): Long = queue.getBatchesSubmittedCount()
         def batchCount(): Long = queue.getBatchesPresentCount()
-        // Added the missing methods:
         def totalFiberCount(): Long = queue.getTotalFiberSubmittedCount()
         def fiberCount(): Long = queue.getFiberPresentCount()
       }
