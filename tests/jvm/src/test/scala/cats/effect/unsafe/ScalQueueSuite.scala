@@ -17,7 +17,6 @@
 package cats.effect.unsafe
 
 import cats.effect.{IO, IOSuite}
-import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
