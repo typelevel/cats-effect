@@ -402,7 +402,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
   /**
    * Returns the total number of singleton tasks submitted to this queue.
    */
-  def getSingletonsSubmittedCount(): Long = {
+  def getTotalSingletonCount(): Long = {
     var total = 0L
     var i = 0
     while (i < numQueues) {
@@ -415,7 +415,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
   /**
    * Returns the number of singleton tasks currently in this queue.
    */
-  def getSingletonsPresentCount(): Long = {
+  def getSingletonCount(): Long = {
     var total = 0L
     var i = 0
     while (i < numQueues) {
@@ -428,7 +428,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
   /**
    * Returns the total number of batch tasks submitted to this queue.
    */
-  def getBatchesSubmittedCount(): Long = {
+  def getTotalBatchCount(): Long = {
     var total = 0L
     var i = 0
     while (i < numQueues) {
@@ -441,7 +441,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
   /**
    * Returns the number of batch tasks currently in this queue.
    */
-  def getBatchesPresentCount(): Long = {
+  def getBatchCount(): Long = {
     var total = 0L
     var i = 0
     while (i < numQueues) {
@@ -455,7 +455,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
    * Returns the total number of fibers (individual tasks + fibers in batches) submitted to this
    * queue.
    */
-  def getTotalFiberSubmittedCount(): Long = {
+  def getTotalFiberCount(): Long = {
     var total = 0L
     var i = 0
     while (i < numQueues) {
@@ -469,7 +469,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
    * Returns the number of fibers (individual tasks + fibers in batches) currently in this
    * queue.
    */
-  def getFiberPresentCount(): Long = {
+  def getFiberCount(): Long = {
     var total = 0L
     var i = 0
     while (i < numQueues) {

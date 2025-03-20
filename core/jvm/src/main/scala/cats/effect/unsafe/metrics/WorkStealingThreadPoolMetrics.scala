@@ -286,17 +286,6 @@ sealed trait TimerHeapMetrics {
 }
 
 object WorkStealingThreadPoolMetrics {
-  private object ExternalQueueMetrics {
-    private[metrics] def apply(queue: ScalQueue): ExternalQueueMetrics =
-      new ExternalQueueMetrics {
-        def totalSingletonCount(): Long = queue.getSingletonsSubmittedCount()
-        def singletonCount(): Long = queue.getSingletonsPresentCount()
-        def totalBatchCount(): Long = queue.getBatchesSubmittedCount()
-        def batchCount(): Long = queue.getBatchesPresentCount()
-        def totalFiberCount(): Long = queue.getTotalFiberSubmittedCount()
-        def fiberCount(): Long = queue.getFiberPresentCount()
-      }
-  }
 
   private[metrics] def apply(ec: ExecutionContext): Option[WorkStealingThreadPoolMetrics] =
     ec match {
@@ -317,12 +306,22 @@ object WorkStealingThreadPoolMetrics {
     def localQueueFiberCount(): Long = wstp.getLocalQueueFiberCount()
     def suspendedFiberCount(): Long = wstp.getSuspendedFiberCount()
 
-    // Use the ExternalQueueMetrics interface to access metrics
-    val externalQueue: ExternalQueueMetrics = ExternalQueueMetrics(wstp.externalQueue)
+    val externalQueue: ExternalQueueMetrics = externalQueueMetrics(wstp.externalQueue)
 
     val workerThreads: List[WorkerThreadMetrics] =
       List.range(0, workerThreadCount()).map(workerThreadMetrics(wstp, _))
   }
+
+  private def externalQueueMetrics(queue: ScalQueue): ExternalQueueMetrics =
+    new ExternalQueueMetrics {
+
+      def totalSingletonCount(): Long = queue.getTotalSingletonCount()
+      def singletonCount(): Long = queue.getSingletonCount()
+      def totalBatchCount(): Long = queue.getTotalBatchCount()
+      def batchCount(): Long = queue.getBatchCount()
+      def totalFiberCount(): Long = queue.getTotalFiberCount()
+      def fiberCount(): Long = queue.getFiberCount()
+    }
 
   private def workerThreadMetrics[P <: AnyRef](
       wstp: WorkStealingThreadPool[P],
