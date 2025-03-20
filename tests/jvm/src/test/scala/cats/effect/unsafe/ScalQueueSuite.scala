@@ -21,7 +21,6 @@ import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
-import scala.concurrent.duration._
 
 class ScalQueueSuite extends IOSuite {
 
@@ -40,7 +39,6 @@ class ScalQueueSuite extends IOSuite {
         .build()
 
       try {
-
         val completionLatch = new CountDownLatch(1)
         val singletonLatch = new CountDownLatch(1)
         val testResult = new AtomicReference[Either[Throwable, Unit]](null)
@@ -73,7 +71,6 @@ class ScalQueueSuite extends IOSuite {
             val manyTasks = (0 until 257).map { i =>
               new Runnable {
                 def run(): Unit = {
-
                   val _ = i * i
                 }
               }
@@ -104,7 +101,6 @@ class ScalQueueSuite extends IOSuite {
             case t: Throwable =>
               testResult.set(Left(t))
           } finally {
-
             completionLatch.countDown()
           }
         })
