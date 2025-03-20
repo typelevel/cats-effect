@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 class ScalQueueSuite extends IOSuite {
 
   test("ScalQueue metrics track singleton submissions and batch overflows") {
-    // Create a single-threaded runtime directly to make testing deterministic
+ 
     val test = IO {
       val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
       val runtime = IORuntime
@@ -40,7 +40,7 @@ class ScalQueueSuite extends IOSuite {
         .build()
 
       try {
-        // Setup test coordination
+      
         val completionLatch = new CountDownLatch(1)
         val singletonLatch = new CountDownLatch(1)
         val testResult = new AtomicReference[Either[Throwable, Unit]](null)
@@ -73,19 +73,19 @@ class ScalQueueSuite extends IOSuite {
             val manyTasks = (0 until 257).map { i =>
               new Runnable {
                 def run(): Unit = {
-                  // Just do a small computation
+               
                   val _ = i * i
                 }
               }
             }.toArray
 
-            // Submit all tasks - this will overflow the local queue
+           
             manyTasks.foreach(compute.execute)
 
             // Give the runtime a chance to process the batch
             Thread.sleep(50)
 
-            // Get metrics after batch submission
+          
             val afterBatchTotalCount = queue.getTotalBatchCount()
             val afterFiberTotalCount = queue.getTotalFiberCount()
 
@@ -101,28 +101,28 @@ class ScalQueueSuite extends IOSuite {
               s"Expected total fiber count to increase by at least 258, but was $afterFiberTotalCount (initial: $initialTotalFiberCount)"
             )
 
-            // Test succeeded
+ 
             testResult.set(Right(()))
           } catch {
             case t: Throwable =>
               testResult.set(Left(t))
           } finally {
-            // Signal that test is complete
+ 
             completionLatch.countDown()
           }
         })
 
-        // Wait for the singleton task to start executing
+     
         if (!singletonLatch.await(1, java.util.concurrent.TimeUnit.SECONDS)) {
           throw new RuntimeException("Timed out waiting for singleton task to execute")
         }
 
-        // Wait for the test to complete
+   
         if (!completionLatch.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
           throw new RuntimeException("Timed out waiting for test to complete")
         }
 
-        // Propagate any errors from the test
+   
         Option(testResult.get()).foreach {
           case Right(_) => ()
           case Left(t) => throw t
