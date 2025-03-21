@@ -35,12 +35,17 @@ class ScalQueueSuite extends IOSuite {
     val initialBatchCount = queue.getTotalBatchCount()
     val initialFiberCount = queue.getTotalFiberCount()
 
+    // Verify initial metrics are all zero
+    assertEquals(initialSingletonCount, 0L, "Initial singleton count should be zero")
+    assertEquals(initialBatchCount, 0L, "Initial batch count should be zero")
+    assertEquals(initialFiberCount, 0L, "Initial fiber count should be zero")
+
     // Add a singleton task (a simple no-op Runnable)
     queue.offer(new Runnable { def run(): Unit = () }, random)
 
-    // Verify that the singleton count has increased by exactly 1
+    // Verify that the singleton count has increased to exactly 1
     val afterSingletonCount = queue.getTotalSingletonCount()
-    assertEquals(afterSingletonCount, initialSingletonCount + 1)
+    assertEquals(afterSingletonCount, 1L, "Singleton count should be exactly 1")
 
     // Create a batch of 10 no-op tasks
     val batchSize = 10
@@ -54,13 +59,16 @@ class ScalQueueSuite extends IOSuite {
     // Add the batch to the queue
     queue.offerBatch(batch, random)
 
-    // Verify that the batch count has increased
+    // Verify that the batch count has increased to exactly 1
     val afterBatchCount = queue.getTotalBatchCount()
-    assert(afterBatchCount > initialBatchCount)
+    assertEquals(afterBatchCount, 1L, "Batch count should be exactly 1")
 
     // Verify that the fiber count includes all tasks (singleton + batch)
     val afterFiberCount = queue.getTotalFiberCount()
-    assert(afterFiberCount >= initialFiberCount + 1 + batchSize)
+    assertEquals(
+      afterFiberCount,
+      1L + batchSize.toLong,
+      "Fiber count should include singleton and batch tasks")
 
     // Test striping by adding several more singleton tasks
     var j = 0
@@ -69,9 +77,12 @@ class ScalQueueSuite extends IOSuite {
       j += 1
     }
 
-    // Verify the updated singleton count
+    // Verify the updated singleton count is exactly 5 (1 initial + 4 more)
     val afterStripingSingletonCount = queue.getTotalSingletonCount()
-    assertEquals(afterStripingSingletonCount, afterSingletonCount + 4)
+    assertEquals(
+      afterStripingSingletonCount,
+      5L,
+      "Singleton count should be exactly 5 after striping")
 
     // Poll some tasks to verify they can be retrieved
     var polledCount = 0
@@ -99,7 +110,23 @@ class ScalQueueSuite extends IOSuite {
     }
 
     // Verify we were able to poll at least one task
-    assert(polledCount > 0)
+    assert(polledCount > 0, "Should have polled at least one task")
+
+    // Check current in-queue metrics before final drain
+    val currentSingletonCount = queue.getSingletonCount()
+    val currentBatchCount = queue.getBatchCount()
+    val currentFiberCount = queue.getFiberCount()
+
+    // Note: Some tasks may have been polled already, so we only verify total metrics are higher
+    assert(
+      currentSingletonCount <= afterStripingSingletonCount,
+      "Current singleton count should not exceed total singleton submissions")
+    assert(
+      currentBatchCount <= afterBatchCount,
+      "Current batch count should not exceed total batch submissions")
+    assert(
+      currentFiberCount <= afterFiberCount + 4L,
+      "Current fiber count should not exceed total fiber submissions")
 
     // Drain the queue completely
     element = queue.poll(random)
@@ -121,6 +148,14 @@ class ScalQueueSuite extends IOSuite {
     }
 
     // Verify the queue is now empty
-    assert(queue.isEmpty())
+    assert(queue.isEmpty(), "Queue should be empty after draining")
+
+    // Verify present counts are now zero
+    assertEquals(
+      queue.getSingletonCount(),
+      0L,
+      "Singleton present count should be zero after draining")
+    assertEquals(queue.getBatchCount(), 0L, "Batch present count should be zero after draining")
+    assertEquals(queue.getFiberCount(), 0L, "Fiber present count should be zero after draining")
   }
 }
