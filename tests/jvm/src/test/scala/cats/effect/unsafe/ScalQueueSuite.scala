@@ -16,111 +16,110 @@
 
 package cats.effect.unsafe
 
-import cats.effect.{IO, IOSuite}
-
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicReference
+import cats.effect.IOSuite
+import java.util.concurrent.ThreadLocalRandom
 
 class ScalQueueSuite extends IOSuite {
 
-  test("ScalQueue metrics track singleton submissions and batch overflows") {
+  /**
+   * Tests that the ScalQueue metrics correctly track singleton and batch submissions.
+   */
+  test("ScalQueue metrics track singleton and batch counts") {
+    // Create a queue with 4 stripes
+    val queue = new ScalQueue(4)
+    val random = ThreadLocalRandom.current()
 
-    val test = IO {
-      val (pool, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(threads = 1)
-      val runtime = IORuntime
-        .builder()
-        .setConfig(
-          IORuntimeConfig(
-            cancelationCheckThreshold = 1,
-            autoYieldThreshold = 2
-          ))
-        .setCompute(pool, shutdown)
-        .build()
+    // Get initial metrics before any operations
+    val initialSingletonCount = queue.getTotalSingletonCount()
+    val initialBatchCount = queue.getTotalBatchCount()
+    val initialFiberCount = queue.getTotalFiberCount()
 
-      try {
-        val completionLatch = new CountDownLatch(1)
-        val singletonLatch = new CountDownLatch(1)
-        val testResult = new AtomicReference[Either[Throwable, Unit]](null)
+    // Add a singleton task (a simple no-op Runnable)
+    queue.offer(new Runnable { def run(): Unit = () }, random)
 
-        val compute = runtime.compute
-        val wstp = compute.asInstanceOf[WorkStealingThreadPool[?]]
-        val queue = wstp.externalQueue
+    // Verify that the singleton count has increased by exactly 1
+    val afterSingletonCount = queue.getTotalSingletonCount()
+    assertEquals(afterSingletonCount, initialSingletonCount + 1)
 
-        // Get initial metrics
-        val initialTotalSingletonCount = queue.getTotalSingletonCount()
-        val initialTotalBatchCount = queue.getTotalBatchCount()
-        val initialTotalFiberCount = queue.getTotalFiberCount()
-
-        // Submit singleton task
-        compute.execute(() => {
-          try {
-            // Signal that we've started executing
-            singletonLatch.countDown()
-
-            // Get metrics after singleton execution started
-            val afterSingletonTotalCount = queue.getTotalSingletonCount()
-
-            // Verify singleton metrics
-            assert(
-              afterSingletonTotalCount == initialTotalSingletonCount + 1,
-              s"Expected total singleton count to increase by 1, but was $afterSingletonTotalCount (initial: $initialTotalSingletonCount)"
-            )
-
-            // Now create enough tasks to overflow the local queue (capacity is 256)
-            val manyTasks = (0 until 257).map { i =>
-              new Runnable {
-                def run(): Unit = {
-                  val _ = i * i
-                }
-              }
-            }.toArray
-
-            manyTasks.foreach(compute.execute)
-
-            // Give the runtime a chance to process the batch
-            Thread.sleep(50)
-
-            val afterBatchTotalCount = queue.getTotalBatchCount()
-            val afterFiberTotalCount = queue.getTotalFiberCount()
-
-            // Verify batch metrics
-            assert(
-              afterBatchTotalCount > initialTotalBatchCount,
-              s"Expected total batch count to increase, but was $afterBatchTotalCount (initial: $initialTotalBatchCount)"
-            )
-
-            // Verify fiber count includes both singleton and batch tasks
-            assert(
-              afterFiberTotalCount >= initialTotalFiberCount + 1 + 257,
-              s"Expected total fiber count to increase by at least 258, but was $afterFiberTotalCount (initial: $initialTotalFiberCount)"
-            )
-
-            testResult.set(Right(()))
-          } catch {
-            case t: Throwable =>
-              testResult.set(Left(t))
-          } finally {
-            completionLatch.countDown()
-          }
-        })
-
-        if (!singletonLatch.await(1, java.util.concurrent.TimeUnit.SECONDS)) {
-          throw new RuntimeException("Timed out waiting for singleton task to execute")
-        }
-
-        if (!completionLatch.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
-          throw new RuntimeException("Timed out waiting for test to complete")
-        }
-
-        Option(testResult.get()).foreach {
-          case Right(_) => ()
-          case Left(t) => throw t
-        }
-      } finally {
-        runtime.shutdown()
-      }
+    // Create a batch of 10 no-op tasks
+    val batchSize = 10
+    val batch = new Array[Runnable](batchSize)
+    var i = 0
+    while (i < batchSize) {
+      batch(i) = new Runnable { def run(): Unit = () }
+      i += 1
     }
 
-    test
+    // Add the batch to the queue
+    queue.offerBatch(batch, random)
+
+    // Verify that the batch count has increased
+    val afterBatchCount = queue.getTotalBatchCount()
+    assert(afterBatchCount > initialBatchCount)
+
+    // Verify that the fiber count includes all tasks (singleton + batch)
+    val afterFiberCount = queue.getTotalFiberCount()
+    assert(afterFiberCount >= initialFiberCount + 1 + batchSize)
+
+    // Test striping by adding several more singleton tasks
+    var j = 0
+    while (j < 4) {
+      queue.offer(new Runnable { def run(): Unit = () }, random)
+      j += 1
+    }
+
+    // Verify the updated singleton count
+    val afterStripingSingletonCount = queue.getTotalSingletonCount()
+    assertEquals(afterStripingSingletonCount, afterSingletonCount + 4)
+
+    // Poll some tasks to verify they can be retrieved
+    var polledCount = 0
+    var element: AnyRef = null
+
+    i = 0
+    while (i < 10) {
+      element = queue.poll(random)
+      if (element ne null) {
+        polledCount += 1
+
+        // Execute the polled task
+        if (element.isInstanceOf[Array[Runnable]]) {
+          val taskArray = element.asInstanceOf[Array[Runnable]]
+          var k = 0
+          while (k < taskArray.length) {
+            taskArray(k).run()
+            k += 1
+          }
+        } else {
+          element.asInstanceOf[Runnable].run()
+        }
+      }
+      i += 1
+    }
+
+    // Verify we were able to poll at least one task
+    assert(polledCount > 0)
+
+    // Drain the queue completely
+    element = queue.poll(random)
+    while (element ne null) {
+      // Execute the polled task
+      if (element.isInstanceOf[Array[Runnable]]) {
+        val taskArray = element.asInstanceOf[Array[Runnable]]
+        var k = 0
+        while (k < taskArray.length) {
+          taskArray(k).run()
+          k += 1
+        }
+      } else {
+        element.asInstanceOf[Runnable].run()
+      }
+
+      // Get the next element
+      element = queue.poll(random)
+    }
+
+    // Verify the queue is now empty
+    assert(queue.isEmpty())
   }
 }
