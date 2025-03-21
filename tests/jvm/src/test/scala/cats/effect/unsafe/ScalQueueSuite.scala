@@ -17,6 +17,7 @@
 package cats.effect.unsafe
 
 import cats.effect.IOSuite
+
 import java.util.concurrent.ThreadLocalRandom
 
 class ScalQueueSuite extends IOSuite {
