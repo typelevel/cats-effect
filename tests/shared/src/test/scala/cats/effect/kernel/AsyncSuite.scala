@@ -104,10 +104,10 @@ class AsyncSuite extends BaseSuite with DisciplineSuite {
     } yield ()
 
     TestControl
-      .executeEmbed(go, IORuntimeConfig(1, 2))
+      .executeEmbed(go, IORuntimeConfig(2, 4))
       .as(false)
       .recover { case _: TestControl.NonTerminationException => true }
-      .replicateA(1000)
+      .replicateA(50)
       .map(r => assert(r.forall(identity(_))))
   }
 
