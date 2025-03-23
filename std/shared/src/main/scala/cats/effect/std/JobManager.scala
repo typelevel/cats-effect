@@ -28,6 +28,9 @@ trait JobManager[F[_], Id, S] {
   /**
    * Creates and launches the given `Job` in the background. If another Job with the same id was
    * already running, it will be cancelled before starting this one.
+   *
+   * Note: This waits until the actual job's `run` process has started. In other words, you can
+   * query the `status` of the associated id immediately after.
    */
   def startJob(id: Id, job: Resource[F, JobManager.Job[F, S]]): F[Unit]
 
@@ -73,21 +76,35 @@ object JobManager {
       jobsMap <- Resource.eval(MapRef[F, Id, RunningJob[F, S]])
     } yield new JobManager[F, Id, S] {
       override def startJob(id: Id, jobR: Resource[F, Job[F, S]]): F[Unit] = {
-        val runJob = jobR.use { job =>
-          supervisor.supervise(job.run).flatMap { fiber =>
-            jobsMap(id)
-              .getAndSet(
-                RunningJob(
-                  status = job.getStatus,
-                  cancel = fiber.cancel
-                ).some
-              )
-              .flatMap(_.traverse_(_.cancel)) >>
-              fiber.join
-          }
-        }
+        Deferred[F, Unit].flatMap { waitForJobRegistration =>
+          // Running a job has the following steps:
+          // 1. Run the job setup (Resource acquire).
+          // 2. Launch the job in the background.
+          // 3. Register the job in the jobsMap.
+          // 4. In case there was another job already register with the same id, cancel it.
+          // 5. Wait for the job to finish.
+          // 6. Run the job cleanup (Resource release).
+          val runJob = jobR.use { job =>
+            supervisor.supervise(job.run).flatMap { jobFiber =>
+              val registerJob =
+                F.guarantee(
+                  jobsMap(id).getAndSet(
+                    RunningJob(
+                      status = job.getStatus,
+                      cancel = jobFiber.cancel
+                    ).some
+                  ),
+                  fin = waitForJobRegistration.complete(()).void
+                )
 
-        supervisor.supervise(runJob).void
+              registerJob.flatMap(_.traverse_(_.cancel)) >> jobFiber.join
+            }
+          }
+
+          // Starts the run job process in the background,
+          // but wait until it has been registered in the jobsMap.
+          supervisor.supervise(runJob) >> waitForJobRegistration.get
+        }
       }
 
       override def getJobStatus(id: Id): F[Option[S]] =
