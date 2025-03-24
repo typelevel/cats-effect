@@ -76,19 +76,17 @@ abstract private[effect] class IOPlatform[+A] extends Serializable { self: IO[A]
       ()
     }
 
-    def cancel() = fiber.cancel.unsafeRunAndForget()
-
     try {
       val result = blocking(queue.poll(limit.toNanos, TimeUnit.NANOSECONDS))
       if (result eq null) {
-        cancel()
+        fiber.cancel.unsafeRunSync()
         None
       } else {
         result.fold(throw _, Some(_))
       }
     } catch {
       case _: InterruptedException =>
-        cancel()
+        fiber.cancel.unsafeRunSync()
         None
     } finally {
       if (IOFiberConstants.TrackFiberContext)
