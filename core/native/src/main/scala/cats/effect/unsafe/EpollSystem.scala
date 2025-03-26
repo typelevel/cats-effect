@@ -207,35 +207,25 @@ object EpollSystem extends PollingSystem {
 
       override def totalOperationsCanceledCount(): Long = totalReadCanceled + totalWriteCanceled
 
-      override def acceptOperationsOutstandingCount(): Int =
-        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
+      override def acceptOperationsOutstandingCount(): Int = 0
 
-      override def totalAcceptOperationsSubmittedCount(): Long =
-        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
+      override def totalAcceptOperationsSubmittedCount(): Long = 0L
 
-      override def totalAcceptOperationsSucceededCount(): Long =
-        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
+      override def totalAcceptOperationsSucceededCount(): Long = 0L
 
-      override def totalAcceptOperationsErroredCount(): Long =
-        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
+      override def totalAcceptOperationsErroredCount(): Long = 0L
 
-      override def totalAcceptOperationsCanceledCount(): Long =
-        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
+      override def totalAcceptOperationsCanceledCount(): Long = 0L
 
-      override def connectOperationsOutstandingCount(): Int =
-        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
+      override def connectOperationsOutstandingCount(): Int = 0
 
-      override def totalConnectOperationsSubmittedCount(): Long =
-        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
+      override def totalConnectOperationsSubmittedCount(): Long = 0L
 
-      override def totalConnectOperationsSucceededCount(): Long =
-        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
+      override def totalConnectOperationsSucceededCount(): Long = 0L
 
-      override def totalConnectOperationsErroredCount(): Long =
-        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
+      override def totalConnectOperationsErroredCount(): Long = 0L
 
-      override def totalConnectOperationsCanceledCount(): Long =
-        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
+      override def totalConnectOperationsCanceledCount(): Long = 0L
 
       override def readOperationsOutstandingCount(): Int = readOutstanding
 
