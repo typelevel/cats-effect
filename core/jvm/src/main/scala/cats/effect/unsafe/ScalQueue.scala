@@ -56,67 +56,23 @@ private[effect] final class ScalQueue(threadCount: Int) {
    */
   private[this] val numQueues: Int = mask + 1
 
-  // Metrics counters for tracking external queue submissions
-  private[this] val singletonsSubmittedCounts: Array[AtomicLong] = {
-    val counts = new Array[AtomicLong](numQueues)
-    var i = 0
-    while (i < numQueues) {
-      counts(i) = new AtomicLong(0)
-      i += 1
-    }
-    counts
+  private def createAtomicLongArray(size: Int): Array[AtomicLong] = {
+  val counts = new Array[AtomicLong](size)
+  var i = 0
+  while (i < size) {
+    counts(i) = new AtomicLong(0)
+    i += 1
   }
+  counts
+}
 
-  private[this] val singletonsPresentCounts: Array[AtomicLong] = {
-    val counts = new Array[AtomicLong](numQueues)
-    var i = 0
-    while (i < numQueues) {
-      counts(i) = new AtomicLong(0)
-      i += 1
-    }
-    counts
-  }
-
-  private[this] val batchesSubmittedCounts: Array[AtomicLong] = {
-    val counts = new Array[AtomicLong](numQueues)
-    var i = 0
-    while (i < numQueues) {
-      counts(i) = new AtomicLong(0)
-      i += 1
-    }
-    counts
-  }
-
-  private[this] val batchesPresentCounts: Array[AtomicLong] = {
-    val counts = new Array[AtomicLong](numQueues)
-    var i = 0
-    while (i < numQueues) {
-      counts(i) = new AtomicLong(0)
-      i += 1
-    }
-    counts
-  }
-
-// For tracking total fibers (both singleton and in batches)
-  private[this] val totalFiberSubmittedCounts: Array[AtomicLong] = {
-    val counts = new Array[AtomicLong](numQueues)
-    var i = 0
-    while (i < numQueues) {
-      counts(i) = new AtomicLong(0)
-      i += 1
-    }
-    counts
-  }
-
-  private[this] val fiberPresentCounts: Array[AtomicLong] = {
-    val counts = new Array[AtomicLong](numQueues)
-    var i = 0
-    while (i < numQueues) {
-      counts(i) = new AtomicLong(0)
-      i += 1
-    }
-    counts
-  }
+  // Metrics counters for tracking external queue submissions and present counts
+private[this] val singletonsSubmittedCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+private[this] val singletonsPresentCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+private[this] val batchesSubmittedCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+private[this] val batchesPresentCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+private[this] val totalFiberSubmittedCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+private[this] val fiberPresentCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
 
   /**
    * The concurrent queues backing this Scal queue.
