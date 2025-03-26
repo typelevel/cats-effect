@@ -35,6 +35,8 @@ import scala.scalanative.unsigned._
 
 import java.io.IOException
 import java.util.{Collections, IdentityHashMap, Set}
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 object EpollSystem extends PollingSystem {
 
@@ -69,7 +71,7 @@ object EpollSystem extends PollingSystem {
 
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
-  def metrics(poller: Poller): PollerMetrics = PollerMetrics.noop
+  def metrics(poller: Poller): PollerMetrics = poller.metrics()
 
   private final class FileDescriptorPollerImpl private[EpollSystem] (
       ctx: PollingContext[Poller])
@@ -180,6 +182,62 @@ object EpollSystem extends PollingSystem {
   }
 
   final class Poller private[EpollSystem] (epfd: Int) {
+
+    private object metricsImpl extends PollerMetrics {
+
+      override def operationsOutstandingCount(): Int = ???
+
+      override def totalOperationsSubmittedCount(): Long = ???
+
+      override def totalOperationsSucceededCount(): Long = ???
+
+      override def totalOperationsErroredCount(): Long = ???
+
+      override def totalOperationsCanceledCount(): Long = ???
+
+      override def acceptOperationsOutstandingCount(): Int = ???
+
+      override def totalAcceptOperationsSubmittedCount(): Long = ???
+
+      override def totalAcceptOperationsSucceededCount(): Long = ???
+
+      override def totalAcceptOperationsErroredCount(): Long = ???
+
+      override def totalAcceptOperationsCanceledCount(): Long = ???
+
+      override def connectOperationsOutstandingCount(): Int = ???
+
+      override def totalConnectOperationsSubmittedCount(): Long = ???
+
+      override def totalConnectOperationsSucceededCount(): Long = ???
+
+      override def totalConnectOperationsErroredCount(): Long = ???
+
+      override def totalConnectOperationsCanceledCount(): Long = ???
+
+      override def readOperationsOutstandingCount(): Int = ???
+
+      override def totalReadOperationsSubmittedCount(): Long = ???
+
+      override def totalReadOperationsSucceededCount(): Long = ???
+
+      override def totalReadOperationsErroredCount(): Long = ???
+
+      override def totalReadOperationsCanceledCount(): Long = ???
+
+      override def writeOperationsOutstandingCount(): Int = ???
+
+      override def totalWriteOperationsSubmittedCount(): Long = ???
+
+      override def totalWriteOperationsSucceededCount(): Long = ???
+
+      override def totalWriteOperationsErroredCount(): Long = ???
+
+      override def totalWriteOperationsCanceledCount(): Long = ???
+
+    }
+
+    private[EpollSystem] def metrics(): PollerMetrics = metricsImpl
 
     private[this] val handles: Set[PollHandle] =
       Collections.newSetFromMap(new IdentityHashMap)
