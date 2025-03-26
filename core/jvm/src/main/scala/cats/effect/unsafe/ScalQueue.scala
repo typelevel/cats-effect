@@ -406,7 +406,7 @@ private[effect] final class ScalQueue(threadCount: Int) {
     var total = 0L
     var i = 0
     while (i < numQueues) {
-      total += singletonsSubmittedCounts(i).get()
+      total += totalSingletonCounts(i).get()
       i += 1
     }
     total
