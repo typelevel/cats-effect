@@ -57,22 +57,25 @@ private[effect] final class ScalQueue(threadCount: Int) {
   private[this] val numQueues: Int = mask + 1
 
   private def createAtomicLongArray(size: Int): Array[AtomicLong] = {
-  val counts = new Array[AtomicLong](size)
-  var i = 0
-  while (i < size) {
-    counts(i) = new AtomicLong(0)
-    i += 1
+    val counts = new Array[AtomicLong](size)
+    var i = 0
+    while (i < size) {
+      counts(i) = new AtomicLong(0)
+      i += 1
+    }
+    counts
   }
-  counts
-}
 
   // Metrics counters for tracking external queue submissions and present counts
-private[this] val singletonsSubmittedCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
-private[this] val singletonsPresentCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
-private[this] val batchesSubmittedCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
-private[this] val batchesPresentCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
-private[this] val totalFiberSubmittedCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
-private[this] val fiberPresentCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+  private[this] val singletonsSubmittedCounts: Array[AtomicLong] = createAtomicLongArray(
+    numQueues)
+  private[this] val singletonsPresentCounts: Array[AtomicLong] = createAtomicLongArray(
+    numQueues)
+  private[this] val batchesSubmittedCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+  private[this] val batchesPresentCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+  private[this] val totalFiberSubmittedCounts: Array[AtomicLong] = createAtomicLongArray(
+    numQueues)
+  private[this] val fiberPresentCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
 
   /**
    * The concurrent queues backing this Scal queue.
@@ -362,7 +365,7 @@ private[this] val fiberPresentCounts: Array[AtomicLong] = createAtomicLongArray(
     var total = 0L
     var i = 0
     while (i < numQueues) {
-      total += totalSingletonCounts(i).get()
+      total += singletonsSubmittedCounts(i).get()
       i += 1
     }
     total

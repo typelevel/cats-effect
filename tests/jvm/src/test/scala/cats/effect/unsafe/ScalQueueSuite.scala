@@ -23,22 +23,18 @@ import java.util.concurrent.ThreadLocalRandom
 class ScalQueueSuite extends IOSuite {
 
   /**
-   * Tests that the ScalQueue metrics correctly track singleton and batch submissions.
+   * Tests that the ScalQueue metrics correctly track singleton submissions.
    */
-  test("ScalQueue metrics track singleton and batch counts") {
+  test("ScalQueue metrics track singleton submissions") {
     // Create a queue with 4 stripes
     val queue = new ScalQueue(4)
     val random = ThreadLocalRandom.current()
 
     // Get initial metrics before any operations
     val initialSingletonCount = queue.getTotalSingletonCount()
-    val initialBatchCount = queue.getTotalBatchCount()
-    val initialFiberCount = queue.getTotalFiberCount()
 
     // Verify initial metrics are all zero
     assertEquals(initialSingletonCount, 0L, "Initial singleton count should be zero")
-    assertEquals(initialBatchCount, 0L, "Initial batch count should be zero")
-    assertEquals(initialFiberCount, 0L, "Initial fiber count should be zero")
 
     // Add a singleton task (a simple no-op Runnable)
     queue.offer(new Runnable { def run(): Unit = () }, random)
@@ -46,6 +42,40 @@ class ScalQueueSuite extends IOSuite {
     // Verify that the singleton count has increased to exactly 1
     val afterSingletonCount = queue.getTotalSingletonCount()
     assertEquals(afterSingletonCount, 1L, "Singleton count should be exactly 1")
+
+    // Test striping by adding several more singleton tasks
+    var j = 0
+    while (j < 4) {
+      queue.offer(new Runnable { def run(): Unit = () }, random)
+      j += 1
+    }
+
+    // Verify the updated singleton count is exactly 5 (1 initial + 4 more)
+    val afterStripingSingletonCount = queue.getTotalSingletonCount()
+    assertEquals(
+      afterStripingSingletonCount,
+      5L,
+      "Singleton count should be exactly 5 after striping")
+  }
+
+  /**
+   * Tests that the ScalQueue metrics correctly track batch submissions.
+   */
+  test("ScalQueue metrics track batch submissions") {
+    // Create a queue with 4 stripes
+    val queue = new ScalQueue(4)
+    val random = ThreadLocalRandom.current()
+
+    // Get initial metrics before any operations
+    val initialBatchCount = queue.getTotalBatchCount()
+    val initialFiberCount = queue.getTotalFiberCount()
+
+    // Verify initial metrics are all zero
+    assertEquals(initialBatchCount, 0L, "Initial batch count should be zero")
+    assertEquals(initialFiberCount, 0L, "Initial fiber count should be zero")
+
+    // Add a singleton task for later fiber count verification
+    queue.offer(new Runnable { def run(): Unit = () }, random)
 
     // Create a batch of 10 no-op tasks
     val batchSize = 10
@@ -69,6 +99,18 @@ class ScalQueueSuite extends IOSuite {
       afterFiberCount,
       1L + batchSize.toLong,
       "Fiber count should include singleton and batch tasks")
+  }
+
+  /**
+   * Tests that the ScalQueue metrics correctly track polling operations.
+   */
+  test("ScalQueue metrics track polling operations") {
+    // Create a queue with 4 stripes
+    val queue = new ScalQueue(4)
+    val random = ThreadLocalRandom.current()
+
+    // Add a singleton task
+    queue.offer(new Runnable { def run(): Unit = () }, random)
 
     // Test striping by adding several more singleton tasks
     var j = 0
@@ -77,12 +119,17 @@ class ScalQueueSuite extends IOSuite {
       j += 1
     }
 
-    // Verify the updated singleton count is exactly 5 (1 initial + 4 more)
-    val afterStripingSingletonCount = queue.getTotalSingletonCount()
-    assertEquals(
-      afterStripingSingletonCount,
-      5L,
-      "Singleton count should be exactly 5 after striping")
+    // Create a batch of 10 no-op tasks
+    val batchSize = 10
+    val batch = new Array[Runnable](batchSize)
+    var i = 0
+    while (i < batchSize) {
+      batch(i) = new Runnable { def run(): Unit = () }
+      i += 1
+    }
+
+    // Add the batch to the queue
+    queue.offerBatch(batch, random)
 
     // Poll some tasks to verify they can be retrieved
     var polledCount = 0
@@ -112,24 +159,55 @@ class ScalQueueSuite extends IOSuite {
     // Verify we were able to poll at least one task
     assert(polledCount > 0, "Should have polled at least one task")
 
-    // Check current in-queue metrics before final drain
+    // Check current in-queue metrics
     val currentSingletonCount = queue.getSingletonCount()
     val currentBatchCount = queue.getBatchCount()
     val currentFiberCount = queue.getFiberCount()
 
-    // Note: Some tasks may have been polled already, so we only verify total metrics are higher
+    // Note: Some tasks may have been polled already
     assert(
-      currentSingletonCount <= afterStripingSingletonCount,
+      currentSingletonCount <= 5,
       "Current singleton count should not exceed total singleton submissions")
     assert(
-      currentBatchCount <= afterBatchCount,
+      currentBatchCount <= 1,
       "Current batch count should not exceed total batch submissions")
     assert(
-      currentFiberCount <= afterFiberCount + 4L,
+      currentFiberCount <= 15,
       "Current fiber count should not exceed total fiber submissions")
+  }
+
+  /**
+   * Tests that the ScalQueue metrics correctly track queue draining.
+   */
+  test("ScalQueue metrics track queue draining") {
+    // Create a queue with 4 stripes
+    val queue = new ScalQueue(4)
+    val random = ThreadLocalRandom.current()
+
+    // Add a singleton task
+    queue.offer(new Runnable { def run(): Unit = () }, random)
+
+    // Test striping by adding several more singleton tasks
+    var j = 0
+    while (j < 4) {
+      queue.offer(new Runnable { def run(): Unit = () }, random)
+      j += 1
+    }
+
+    // Create a batch of 10 no-op tasks
+    val batchSize = 10
+    val batch = new Array[Runnable](batchSize)
+    var i = 0
+    while (i < batchSize) {
+      batch(i) = new Runnable { def run(): Unit = () }
+      i += 1
+    }
+
+    // Add the batch to the queue
+    queue.offerBatch(batch, random)
 
     // Drain the queue completely
-    element = queue.poll(random)
+    var element: AnyRef = queue.poll(random)
     while (element ne null) {
       // Execute the polled task
       if (element.isInstanceOf[Array[Runnable]]) {
