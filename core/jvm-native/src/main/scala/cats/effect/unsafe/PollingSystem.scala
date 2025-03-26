@@ -125,7 +125,7 @@ abstract class PollingSystem {
    * @param poller
    *   The poller for which metrics are being retrieved.
    * @return
-   *   An instance of [[PollerMetrics]] representing the current metrics of the poller.
+   *   An instance of PollerMetrics representing the current metrics of the poller.
    */
   def metrics(poller: Poller): PollerMetrics
 
