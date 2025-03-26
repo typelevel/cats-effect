@@ -35,8 +35,6 @@ import scala.scalanative.unsigned._
 
 import java.io.IOException
 import java.util.{Collections, IdentityHashMap, Set}
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
 
 object EpollSystem extends PollingSystem {
 
@@ -183,61 +181,121 @@ object EpollSystem extends PollingSystem {
 
   final class Poller private[EpollSystem] (epfd: Int) {
 
+    private var totalReadSubmitted = 0L
+    private var totalReadSucceeded = 0L
+    private var totalReadErrored = 0L
+    private var totalReadCanceled = 0L
+    private var readOutstanding = 0
+
+    private var totalWriteSubmitted = 0L
+    private var totalWriteSucceeded = 0L
+    private var totalWriteErrored = 0L
+    private var totalWriteCanceled = 0L
+    private var writeOutstanding = 0
+
     private object metricsImpl extends PollerMetrics {
 
-      override def operationsOutstandingCount(): Int = ???
+      override def operationsOutstandingCount(): Int = readOutstanding + writeOutstanding
 
-      override def totalOperationsSubmittedCount(): Long = ???
+      override def totalOperationsSubmittedCount(): Long =
+        totalReadSubmitted + totalWriteSubmitted
 
-      override def totalOperationsSucceededCount(): Long = ???
+      override def totalOperationsSucceededCount(): Long =
+        totalReadSucceeded + totalWriteSucceeded
 
-      override def totalOperationsErroredCount(): Long = ???
+      override def totalOperationsErroredCount(): Long = totalReadErrored + totalWriteErrored
 
-      override def totalOperationsCanceledCount(): Long = ???
+      override def totalOperationsCanceledCount(): Long = totalReadCanceled + totalWriteCanceled
 
-      override def acceptOperationsOutstandingCount(): Int = ???
+      override def acceptOperationsOutstandingCount(): Int =
+        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
 
-      override def totalAcceptOperationsSubmittedCount(): Long = ???
+      override def totalAcceptOperationsSubmittedCount(): Long =
+        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
 
-      override def totalAcceptOperationsSucceededCount(): Long = ???
+      override def totalAcceptOperationsSucceededCount(): Long =
+        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
 
-      override def totalAcceptOperationsErroredCount(): Long = ???
+      override def totalAcceptOperationsErroredCount(): Long =
+        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
 
-      override def totalAcceptOperationsCanceledCount(): Long = ???
+      override def totalAcceptOperationsCanceledCount(): Long =
+        throw new UnsupportedOperationException("Accept operation metrics are not supported.")
 
-      override def connectOperationsOutstandingCount(): Int = ???
+      override def connectOperationsOutstandingCount(): Int =
+        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
 
-      override def totalConnectOperationsSubmittedCount(): Long = ???
+      override def totalConnectOperationsSubmittedCount(): Long =
+        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
 
-      override def totalConnectOperationsSucceededCount(): Long = ???
+      override def totalConnectOperationsSucceededCount(): Long =
+        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
 
-      override def totalConnectOperationsErroredCount(): Long = ???
+      override def totalConnectOperationsErroredCount(): Long =
+        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
 
-      override def totalConnectOperationsCanceledCount(): Long = ???
+      override def totalConnectOperationsCanceledCount(): Long =
+        throw new UnsupportedOperationException("Connect operation metrics are not supported.")
 
-      override def readOperationsOutstandingCount(): Int = ???
+      override def readOperationsOutstandingCount(): Int = readOutstanding
 
-      override def totalReadOperationsSubmittedCount(): Long = ???
+      override def totalReadOperationsSubmittedCount(): Long = totalReadSubmitted
 
-      override def totalReadOperationsSucceededCount(): Long = ???
+      override def totalReadOperationsSucceededCount(): Long = totalReadSucceeded
 
-      override def totalReadOperationsErroredCount(): Long = ???
+      override def totalReadOperationsErroredCount(): Long = totalReadErrored
 
-      override def totalReadOperationsCanceledCount(): Long = ???
+      override def totalReadOperationsCanceledCount(): Long = totalReadCanceled
 
-      override def writeOperationsOutstandingCount(): Int = ???
+      override def writeOperationsOutstandingCount(): Int = writeOutstanding
 
-      override def totalWriteOperationsSubmittedCount(): Long = ???
+      override def totalWriteOperationsSubmittedCount(): Long = totalWriteSubmitted
 
-      override def totalWriteOperationsSucceededCount(): Long = ???
+      override def totalWriteOperationsSucceededCount(): Long = totalWriteSucceeded
 
-      override def totalWriteOperationsErroredCount(): Long = ???
+      override def totalWriteOperationsErroredCount(): Long = totalWriteErrored
 
-      override def totalWriteOperationsCanceledCount(): Long = ???
+      override def totalWriteOperationsCanceledCount(): Long = totalWriteCanceled
 
     }
 
     private[EpollSystem] def metrics(): PollerMetrics = metricsImpl
+
+    private[this] def incrementOperationCount(reads: Boolean, writes: Boolean): Unit = {
+      if (reads) {
+        totalReadSubmitted += 1
+        readOutstanding += 1
+      }
+      if (writes) {
+        totalWriteSubmitted += 1
+        writeOutstanding += 1
+      }
+    }
+
+    private[this] def handleOperationCompletion(
+        reads: Boolean,
+        writes: Boolean,
+        succeeded: Boolean): Unit = {
+      if (reads) {
+        readOutstanding -= 1
+        if (succeeded) totalReadSucceeded += 1 else totalReadErrored += 1
+      }
+      if (writes) {
+        writeOutstanding -= 1
+        if (succeeded) totalWriteSucceeded += 1 else totalWriteErrored += 1
+      }
+    }
+
+    private[this] def handleOperationCanceled(reads: Boolean, writes: Boolean): Unit = {
+      if (reads) {
+        readOutstanding -= 1
+        totalReadCanceled += 1
+      }
+      if (writes) {
+        writeOutstanding -= 1
+        totalWriteCanceled += 1
+      }
+    }
 
     private[this] val handles: Set[PollHandle] =
       Collections.newSetFromMap(new IdentityHashMap)
@@ -271,6 +329,14 @@ object EpollSystem extends PollingSystem {
       while (i < readyEventCount) {
         val event = events + i.toLong
         val handle = fromPtr(event.data)
+        val eventFlags = event.events.toInt
+
+        val succeded = eventFlags != 0
+        handleOperationCompletion(
+          reads = (eventFlags & EPOLLIN) != 0,
+          writes = (eventFlags & EPOLLOUT) != 0,
+          succeded)
+
         handle.notify(event.events.toInt)
         i += 1
       }
@@ -297,8 +363,10 @@ object EpollSystem extends PollingSystem {
           Left(new IOException(fromCString(strerror(errno))))
         else {
           handles.add(handle)
+          incrementOperationCount(reads, writes)
           val remove = IO {
             handles.remove(handle)
+            handleOperationCanceled(reads, writes)
             if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, null) != 0)
               throw new IOException(fromCString(strerror(errno)))
           }
