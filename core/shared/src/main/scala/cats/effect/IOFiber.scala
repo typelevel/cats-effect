@@ -1373,10 +1373,18 @@ private final class IOFiber[A](
     }
   }
 
-  // TODO figure out if the JVM ever optimizes this away
+  /**
+   * this is specially for JDK8 compatibility, when the JDK 8 support is eventually dropped,
+   * loadfence() try/catch could be replaced with VarHandle.acquireFence()
+   */
   private[this] def readBarrier(): Unit = {
-    suspended.get()
-    ()
+    if (Platform.isJvm) {
+      // Use the most efficient available barrier for the platform
+      try sun.misc.Unsafe.getUnsafe().loadFence()
+      catch { case _: Throwable => val _ = suspended.get() } // Fallback
+    } else {
+      val _ = suspended.get() // Non-JVM platforms
+    }
   }
 
   /* Implementations of resume methods */
