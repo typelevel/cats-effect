@@ -85,11 +85,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 <code>build.sbt</code>, or at least one with the same dependencies and compilation options:</p>
 <pre><code class="hljs css language-scala">name := <span class="hljs-string">"cats-effect-tutorial"</span>
 
-version := <span class="hljs-string">"3.5.7"</span>
+version := <span class="hljs-string">"3.6.0"</span>
 
 scalaVersion := <span class="hljs-string">"2.13.13"</span>
 
-libraryDependencies += <span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span> % <span class="hljs-string">"3.5.7"</span> withSources() withJavadoc()
+libraryDependencies += <span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span> % <span class="hljs-string">"3.6.0"</span> withSources() withJavadoc()
 
 scalacOptions ++= <span class="hljs-type">Seq</span>(
   <span class="hljs-string">"-feature"</span>,
@@ -185,7 +185,7 @@ released. So our <code>inputStream</code> function would look like this:</p>
 <span class="hljs-keyword">import</span> java.io.{<span class="hljs-type">File</span>, <span class="hljs-type">FileInputStream</span>}
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputStream</span></span>(f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileInputStream</span>] =
-  <span class="hljs-type">Resource</span>.fromAutoCloseable(<span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(f)))
+  <span class="hljs-type">Resource</span>.fromAutoCloseable(<span class="hljs-type">IO</span>.blocking(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(f)))
 </code></pre>
 <p>That code is way simpler, but with that code we would not have control over what
 would happen if the closing operation throws an exception. Also it could be that
@@ -200,11 +200,11 @@ of the release phase.</p>
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>(in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] = ???
 
 <span class="hljs-comment">// transfer will do the real work</span>
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>(origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] =
   inputOutputStreams(origin, destination).use { <span class="hljs-keyword">case</span> (in, out) =&gt;
-    transfer(in, out)
+    transfer(in, out, <span class="hljs-keyword">new</span> <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>](<span class="hljs-number">1024</span> * <span class="hljs-number">10</span>), <span class="hljs-number">0</span>)
   }
 </code></pre>
 <p>The new method <code>transfer</code> will perform the actual copying of data, once the
@@ -234,17 +234,17 @@ follows:</p>
 <span class="hljs-comment">// function inputOutputStreams not needed</span>
 
 <span class="hljs-comment">// transfer will do the real work</span>
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>(origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = {
-  <span class="hljs-keyword">val</span> inIO: <span class="hljs-type">IO</span>[<span class="hljs-type">InputStream</span>]  = <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(origin))
-  <span class="hljs-keyword">val</span> outIO:<span class="hljs-type">IO</span>[<span class="hljs-type">OutputStream</span>] = <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileOutputStream</span>(destination))
+  <span class="hljs-keyword">val</span> inIO: <span class="hljs-type">IO</span>[<span class="hljs-type">InputStream</span>]  = <span class="hljs-type">IO</span>.blocking(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(origin))
+  <span class="hljs-keyword">val</span> outIO:<span class="hljs-type">IO</span>[<span class="hljs-type">OutputStream</span>] = <span class="hljs-type">IO</span>.blocking(<span class="hljs-keyword">new</span> <span class="hljs-type">FileOutputStream</span>(destination))
 
   (inIO, outIO)              <span class="hljs-comment">// Stage 1: Getting resources</span>
     .tupled                  <span class="hljs-comment">// From (IO[InputStream], IO[OutputStream]) to IO[(InputStream, OutputStream)]</span>
     .bracket{
       <span class="hljs-keyword">case</span> (in, out) =&gt;
-        transfer(in, out)    <span class="hljs-comment">// Stage 2: Using resources (for copying data, in this case)</span>
+        transfer(in, out, <span class="hljs-keyword">new</span> <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>](<span class="hljs-number">1024</span> * <span class="hljs-number">10</span>), <span class="hljs-number">0</span>L) <span class="hljs-comment">// Stage 2: Using resources (for copying data, in this case)</span>
     } {
       <span class="hljs-keyword">case</span> (in, out) =&gt;      <span class="hljs-comment">// Stage 3: Freeing resources</span>
         (<span class="hljs-type">IO</span>(in.close()), <span class="hljs-type">IO</span>(out.close()))
@@ -273,25 +273,19 @@ multiple resources at once.</p>
 <code>transfer</code>. That function will have to define a loop that at each iteration
 reads data from the input stream into a buffer, and then writes the buffer
 contents into the output stream. At the same time, the loop will keep a counter
-of the bytes transferred. To reuse the same buffer we should define it outside
-the main loop, and leave the actual transmission of data to another function
-<code>transmit</code> that uses that loop. Something like:</p>
+of the bytes transferred.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
-<span class="hljs-keyword">import</span> cats.syntax.all._
 <span class="hljs-keyword">import</span> java.io._
 
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transmit</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] =
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] =
   <span class="hljs-keyword">for</span> {
-    amount &lt;- <span class="hljs-type">IO</span>.blocking(origin.read(buffer, <span class="hljs-number">0</span>, buffer.size))
-    count  &lt;- <span class="hljs-keyword">if</span>(amount &gt; <span class="hljs-number">-1</span>) <span class="hljs-type">IO</span>.blocking(destination.write(buffer, <span class="hljs-number">0</span>, amount)) &gt;&gt; transmit(origin, destination, buffer, acc + amount)
-              <span class="hljs-keyword">else</span> <span class="hljs-type">IO</span>.pure(acc) <span class="hljs-comment">// End of read stream reached (by java.io.InputStream contract), nothing to write</span>
-  } <span class="hljs-keyword">yield</span> count <span class="hljs-comment">// Returns the actual amount of bytes transmitted // Returns the actual amount of bytes transmitted</span>
-
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] =
-  transmit(origin, destination, <span class="hljs-keyword">new</span> <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>](<span class="hljs-number">1024</span> * <span class="hljs-number">10</span>), <span class="hljs-number">0</span>L)
+    amount &lt;- <span class="hljs-type">IO</span>.blocking(origin.read(buffer, <span class="hljs-number">0</span>, buffer.length))
+    count &lt;- <span class="hljs-keyword">if</span> (amount &gt; <span class="hljs-number">-1</span>) <span class="hljs-type">IO</span>.blocking(destination.write(buffer, <span class="hljs-number">0</span>, amount)) &gt;&gt; transfer(origin, destination, buffer, acc + amount)
+             <span class="hljs-keyword">else</span> <span class="hljs-type">IO</span>.pure(acc) <span class="hljs-comment">// End of read stream reached (by java.io.InputStream contract), nothing to write</span>
+  } <span class="hljs-keyword">yield</span> count <span class="hljs-comment">// Returns the actual amount of bytes transferred</span>
 </code></pre>
-<p>Take a look at <code>transmit</code>, observe that both input and output actions are
-created by invoking <code>IO.blocking</code> which return the actions encapsulated in a
+<p>Take a look at <code>transfer</code>, observe that both input and output actions are
+created by invoking <code>IO.blocking</code> which return the actions encapsulated in
 (suspended in) <code>IO</code>. We can also just embed the actions by calling <code>IO(action)</code>,
 but when dealing with input/output actions it is advised that you instead use
 <code>IO.blocking(action)</code>. This way we help cats-effect to better plan how to assign
@@ -303,7 +297,7 @@ the call to <code>read()</code> does not return a negative value that would sign
 end of the stream has been reached. <code>&gt;&gt;</code> is a Cats operator to sequence two
 operations where the output of the first is not needed by the second (<em>i.e.</em> it
 is equivalent to <code>first.flatMap(_ =&gt; second)</code>). In the code above that means
-that after each write operation we recursively call <code>transmit</code> again, but as
+that after each write operation we recursively call <code>transfer</code> again, but as
 <code>IO</code> is stack safe we are not concerned about stack overflow issues. At each
 iteration we increase the counter <code>acc</code> with the amount of bytes read at that
 iteration.</p>
@@ -315,7 +309,7 @@ should not be ignored, as it is a key feature of cats-effect. We will discuss
 cancelation in the next section.</p>
 <h3><a class="anchor" aria-hidden="true" id="dealing-with-cancelation"></a><a href="#dealing-with-cancelation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dealing with cancelation</h3>
 <p>Cancelation is a powerful but non-trivial cats-effect feature. In cats-effect,
-some <code>IO</code> instances can be canceled ( <em>e.g.</em> by other <code>IO</code> instances running
+some <code>IO</code> instances can be canceled (<em>e.g.</em> by other <code>IO</code> instances running
 concurrently) meaning that their evaluation will be aborted. If the programmer is
 careful, an alternative <code>IO</code> task will be run under cancelation, for example to
 deal with potential cleaning up activities.</p>
@@ -323,7 +317,7 @@ deal with potential cleaning up activities.</p>
 inside a <code>Resource.use</code> is canceled, the release section of that resource is
 run. In our example this means the input and output streams will be properly
 closed. Also, cats-effect does not cancel code inside <code>IO.blocking</code> instances.
-In the case of our <code>transmit</code> function this means the execution would be
+In the case of our <code>transfer</code> function this means the execution would be
 interrupted only between two calls to <code>IO.blocking</code>. If we want the execution of
 an IO instance to be interrupted when canceled, without waiting for it to
 finish, we must instantiate it using <code>IO.interruptible</code>.</p>
@@ -350,8 +344,7 @@ method can look like this:</p>
 
   <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">ExitCode</span>] =
     <span class="hljs-keyword">for</span> {
-      _      &lt;- <span class="hljs-keyword">if</span>(args.length &lt; <span class="hljs-number">2</span>) <span class="hljs-type">IO</span>.raiseError(<span class="hljs-keyword">new</span> <span class="hljs-type">IllegalArgumentException</span>(<span class="hljs-string">"Need origin and destination files"</span>))
-                <span class="hljs-keyword">else</span> <span class="hljs-type">IO</span>.unit
+      _ &lt;- <span class="hljs-type">IO</span>.raiseWhen(args.length &lt; <span class="hljs-number">2</span>)(<span class="hljs-keyword">new</span> <span class="hljs-type">IllegalArgumentException</span>(<span class="hljs-string">"Need origin and destination files"</span>))
       orig = <span class="hljs-keyword">new</span> <span class="hljs-type">File</span>(args(<span class="hljs-number">0</span>))
       dest = <span class="hljs-keyword">new</span> <span class="hljs-type">File</span>(args(<span class="hljs-number">1</span>))
       count &lt;- copy(orig, dest)
@@ -361,13 +354,14 @@ method can look like this:</p>
 </code></pre>
 <p>Heed how <code>run</code> verifies the <code>args</code> list passed. If there are fewer than two
 arguments, an error is raised. As <code>IO</code> implements <code>MonadError</code> we can at any
-moment call to <code>IO.raiseError</code> to interrupt a sequence of <code>IO</code> operations. The log
-message is printed by means of handy <code>IO.println</code> method.</p>
+moment call to <code>IO.raiseWhen</code> or <code>IO.raiseError</code> to interrupt a sequence of <code>IO</code>
+operations. The log message is printed by means of the handy <code>IO.println</code>
+method.</p>
 <h4><a class="anchor" aria-hidden="true" id="copy-program-code"></a><a href="#copy-program-code" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Copy program code</h4>
 <p>You can check the <a href="https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/copyfile/CopyFile.scala">final version of our copy program
 here</a>.</p>
 <p>The program can be run from <code>sbt</code> just by issuing this call:</p>
-<pre><code class="hljs css language-scala">&gt; runMain catseffecttutorial.<span class="hljs-type">CopyFile</span> origin.txt destination.txt
+<pre><code class="hljs css language-scala">&gt; runMain catseffecttutorial.copyfile.<span class="hljs-type">CopyFile</span> origin.txt destination.txt
 </code></pre>
 <p>It can be argued that using <code>IO{java.nio.file.Files.copy(...)}</code> would get an
 <code>IO</code> with the same characteristics of purity as our function. But there is a
@@ -395,20 +389,19 @@ replacing any use of <code>IO</code> by calls to the <code>delay</code> and <cod
 <span class="hljs-keyword">import</span> cats.syntax.all._
 <span class="hljs-keyword">import</span> java.io._
 
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transmit</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] =
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] =
   <span class="hljs-keyword">for</span> {
     amount &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].blocking(origin.read(buffer, <span class="hljs-number">0</span>, buffer.length))
-    count  &lt;- <span class="hljs-keyword">if</span>(amount &gt; <span class="hljs-number">-1</span>) <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].blocking(destination.write(buffer, <span class="hljs-number">0</span>, amount)) &gt;&gt; transmit(origin, destination, buffer, acc + amount)
+    count  &lt;- <span class="hljs-keyword">if</span>(amount &gt; <span class="hljs-number">-1</span>) <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].blocking(destination.write(buffer, <span class="hljs-number">0</span>, amount)) &gt;&gt; transfer(origin, destination, buffer, acc + amount)
               <span class="hljs-keyword">else</span> <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].pure(acc) <span class="hljs-comment">// End of read stream reached (by java.io.InputStream contract), nothing to write</span>
-  } <span class="hljs-keyword">yield</span> count <span class="hljs-comment">// Returns the actual amount of bytes transmitted</span>
+  } <span class="hljs-keyword">yield</span> count <span class="hljs-comment">// Returns the actual amount of bytes transferred</span>
 </code></pre>
 <p>We leave as an exercise to code the polymorphic versions of <code>inputStream</code>,
-<code>outputStream</code>, <code>inputOutputStreams</code>, <code>transfer</code> and <code>copy</code> functions.</p>
+<code>outputStream</code>, <code>inputOutputStreams</code> and <code>copy</code> functions.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
 <span class="hljs-keyword">import</span> java.io._
 
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transmit</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = ???
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = ???
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = ???
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputStream</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">FileInputStream</span>] = ???
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">outputStream</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">FileOutputStream</span>] = ???
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] = ???
@@ -432,15 +425,13 @@ your IO-kungfu:</p>
 <ol>
 <li>Modify the <code>IOApp</code> so it shows an error and abort the execution if the origin
 and destination files are the same, the origin file cannot be open for
-reading or the destination file cannot be opened for writing. Also, if the
+reading, or the destination file cannot be opened for writing. Also, if the
 destination file already exists, the program should ask for confirmation
 before overwriting that file.</li>
-<li>Modify <code>transmit</code> so the buffer size is not hardcoded but passed as
-parameter.</li>
 <li>Test safe cancelation, checking that the streams are indeed being properly
 closed. You can do that just by interrupting the program execution pressing
 <code>Ctrl-c</code>. To make sure you have the time to interrupt the program, introduce
-a delay of a few seconds in the <code>transmit</code> function (see <code>IO.sleep</code>). And to
+a delay of a few seconds in the <code>transfer</code> function (see <code>IO.sleep</code>). And to
 ensure that the release functionality in the <code>Resource</code>s is run you can add
 some log message there (see <code>IO.println</code>).</li>
 <li>Create a new program able to copy folders. If the origin folder has
@@ -474,7 +465,7 @@ the other hand when the execution of some fiber is blocked <em>e.g.</em> because
 must wait for a semaphore to be released, the thread running the fiber is
 recycled by cats-effect so it is available for other fibers. When the fiber
 execution can be resumed cats-effect will look for some free thread to continue
-the execution. The term &quot;<em>semantically blocked</em>&quot; is used sometimes to denote
+the execution. The term &quot;<em>fiber blocking</em>&quot; is used sometimes to denote
 that blocking the fiber does not involve halting any thread. Cats-effect also
 recycles threads of finished and canceled fibers. But keep in mind that, in
 contrast, if the fiber is truly blocked by some external action like waiting for
@@ -484,20 +475,24 @@ to signal that the wrapped code will block the thread.  Cats-effect uses that
 info as a hint to optimize <code>IO</code> scheduling.</p>
 <p>Another difference with threads is that fibers are very cheap entities. We can
 spawn millions of them at ease without impacting the performance.</p>
-<p>A worthy note is that you do not have to explicitly shut down fibers. If you spawn
-a fiber and it finishes actively running its <code>IO</code> it will get cleaned up by the
-garbage collector unless there is some other active memory reference to it. So basically
-you can treat a fiber as any other regular object, except that when the fiber is <em>running</em>
-(present tense), the cats-effect runtime itself keeps the fiber alive.</p>
-<p>This has some interesting implications as well. Like if you create an <code>IO.async</code> node and
-register the callback with something, and you're in a Fiber which has no strong object
-references anywhere else (i.e. you did some sort of fire-and-forget thing), then the callback
-itself is the only strong reference to the fiber. Meaning if the registration fails or the
-system you registered with throws it away, the fiber will just gracefully disappear.</p>
-<p>Cats-effect implements some concurrency primitives to coordinate concurrent
-fibers: <a href="/cats-effect/docs/std/deferred">Deferred</a>, <a href="/cats-effect/docs/std/ref">Ref</a>, <code>Semaphore</code>...</p>
-<p>Way more detailed info about concurrency in cats-effect can be found in <a href="https://github.com/slouc/concurrency-in-scala-with-ce">this
-other tutorial 'Concurrency in Scala with
+<p>A worthy note is that you do not have to explicitly shut down fibers. If you
+spawn a fiber and it finishes actively running its <code>IO</code> it will get cleaned up
+by the garbage collector unless there is some other active memory reference to
+it. So basically you can treat a fiber as any other regular object, except that
+when the fiber is <em>running</em> (present tense), the cats-effect runtime itself
+keeps the fiber alive.</p>
+<p>This has some interesting implications as well. Like if you create an <code>IO.async</code>
+node and register the callback with something, and you're in a fiber which has
+no strong object references anywhere else (i.e. you did some sort of
+fire-and-forget thing), then the callback itself is the only strong reference to
+the fiber. Meaning if the registration fails or the system you registered with
+throws it away, the fiber will just gracefully disappear.</p>
+<p>And a final hint: as with threads, often you will need to coordinate the work of
+concurrent fibers. Writing concurrent code is a difficult exercise, but
+cats-effect implements some concurrency primitives such as
+<a href="/cats-effect/docs/std/deferred">Deferred</a>, <a href="/cats-effect/docs/std/ref">Ref</a>, <a href="/cats-effect/docs/std/semaphore">Semaphore</a>...
+that will help you in that task. Way more detailed info about concurrency in
+cats-effect can be found in <a href="https://github.com/slouc/concurrency-in-scala-with-ce">this other tutorial 'Concurrency in Scala with
 Cats-Effect'</a>.</p>
 <p>Ok, now we have briefly discussed fibers we can start working on our
 producer-consumer problem.</p>
@@ -508,46 +503,47 @@ will be only one producer and one consumer. Producer will generate a sequence of
 integers (<code>1</code>, <code>2</code>, <code>3</code>...), consumer will just read that sequence.  Our shared
 queue will be an instance of an immutable <code>Queue[Int]</code>.</p>
 <p>Accesses to the queue can (and will!) be concurrent, thus we need some way to
-protect the queue so only one fiber at a time is handling it. The best way to
-ensure an ordered access to some shared data is <a href="/cats-effect/docs/std/ref">Ref</a>. A
-<code>Ref</code> instance wraps some given data and implements methods to manipulate that
-data in a safe manner. When some fiber is runnning one of those methods, any
-other call to any method of the <code>Ref</code> instance will be blocked.</p>
+protect the queue so only one fiber at a time is handling it. A good way to
+ensure an ordered access to some shared data is <a href="/cats-effect/docs/std/ref">Ref</a>. A <code>Ref</code>
+instance wraps some given data and implements methods to manipulate that data in
+a safe manner.</p>
 <p>The <code>Ref</code> wrapping our queue will be <code>Ref[F, Queue[Int]]</code> (for some <code>F[_]</code>).</p>
 <p>Now, our <code>producer</code> method will be:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
 <span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Console</span>
 <span class="hljs-keyword">import</span> cats.syntax.all._
-<span class="hljs-keyword">import</span> collection.immutable.<span class="hljs-type">Queue</span>
+<span class="hljs-keyword">import</span> scala.collection.immutable.<span class="hljs-type">Queue</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">producer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>: <span class="hljs-type">Console</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]], counter: <span class="hljs-type">Int</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
   <span class="hljs-keyword">for</span> {
-    _ &lt;- <span class="hljs-keyword">if</span>(counter % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>) <span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Produced <span class="hljs-subst">$counter</span> items"</span>) <span class="hljs-keyword">else</span> <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit
+    _ &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].whenA(counter % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>)(<span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Produced <span class="hljs-subst">$counter</span> items"</span>))
     _ &lt;- queueR.getAndUpdate(_.enqueue(counter + <span class="hljs-number">1</span>))
     _ &lt;- producer(queueR, counter + <span class="hljs-number">1</span>)
   } <span class="hljs-keyword">yield</span> ()
 </code></pre>
-<p>First line just prints some log message every <code>10000</code> items, so we know if it is
-'alive'. It uses type class <code>Console[_]</code>, which brings the capacity to print
-and read strings (<code>IO.println</code> just uses <code>Console[IO].println</code> underneath).</p>
+<p>First line just prints some log message every <code>10000</code> items, so we know if our
+producer is still 'alive'. We can as well do <code>if(cond) then Console... else Sync[F].unit</code> but this approach is more idiomatic. To print logs the code uses
+type class <code>Console[_]</code>, which brings the capacity to print and read strings
+(the <code>IO.println</code> call we used before just invokes <code>Console[IO].println</code> under
+the hood).</p>
 <p>Then our code calls <code>queueR.getAndUpdate</code> to add data into the queue. Note
 that <code>.getAndUpdate</code> provides the current queue, then we use <code>.enqueue</code> to
 insert the next value <code>counter+1</code>. This call returns a new queue with the value
 added that is stored by the ref instance. If some other fiber is accessing to
-<code>queueR</code> then the fiber is (semantically) blocked.</p>
+<code>queueR</code> then the fiber (but no thread) is blocked.</p>
 <p>The <code>consumer</code> method is a bit different. It will try to read data from the
 queue but it must be aware that the queue can be empty:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
 <span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Console</span>
 <span class="hljs-keyword">import</span> cats.syntax.all._
-<span class="hljs-keyword">import</span> collection.immutable.<span class="hljs-type">Queue</span>
+<span class="hljs-keyword">import</span> scala.collection.immutable.<span class="hljs-type">Queue</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>: <span class="hljs-type">Console</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
   <span class="hljs-keyword">for</span> {
     iO &lt;- queueR.modify{ queue =&gt;
       queue.dequeueOption.fold((queue, <span class="hljs-type">Option</span>.empty[<span class="hljs-type">Int</span>])){<span class="hljs-keyword">case</span> (i,queue) =&gt; (queue, <span class="hljs-type">Option</span>(i))}
     }
-    _ &lt;- <span class="hljs-keyword">if</span>(iO.exists(_ % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>)) <span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Consumed <span class="hljs-subst">${iO.get}</span> items"</span>) <span class="hljs-keyword">else</span> <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit
+    _ &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].whenA(iO.exists(_ % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>))(<span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Consumed <span class="hljs-subst">${iO.get}</span> items"</span>))
     _ &lt;- consumer(queueR)
   } <span class="hljs-keyword">yield</span> ()
 </code></pre>
@@ -561,7 +557,7 @@ recursively to start again.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
 <span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Console</span>
 <span class="hljs-keyword">import</span> cats.syntax.all._
-<span class="hljs-keyword">import</span> collection.immutable.<span class="hljs-type">Queue</span>
+<span class="hljs-keyword">import</span> scala.collection.immutable.<span class="hljs-type">Queue</span>
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">InefficientProducerConsumer</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
 
@@ -580,19 +576,17 @@ recursively to start again.</p>
 
 }
 </code></pre>
-<p>The full implementation of this naive producer consumer is available
-<a href="https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/producerconsumer/InefficientProducerConsumer.scala">here</a>.</p>
 <p>Our <code>run</code> function instantiates the shared queue wrapped in a <code>Ref</code> and boots
 the producer and consumer in parallel. To do to it uses <code>parMapN</code>, that creates
 and runs the fibers that will run the <code>IO</code>s passed as parameter. Then it takes
 the output of each fiber and applies a given function to them. In our case
-both producer and consumer shall run forever until user presses CTRL-C which
+both producer and consumer shall run forever until the user presses CTRL-C which
 will trigger a cancelation.</p>
 <p>Alternatively we could have used <code>start</code> method to explicitly create new
 <code>Fiber</code> instances that will run the producer and consumer, then use <code>join</code> to
 wait for them to finish, something like:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
-<span class="hljs-keyword">import</span> collection.immutable.<span class="hljs-type">Queue</span>
+<span class="hljs-keyword">import</span> scala.collection.immutable.<span class="hljs-type">Queue</span>
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">InefficientProducerConsumer</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
 
@@ -617,7 +611,7 @@ to see if it errored. Also, the other fibers will keep running unaware of what
 happened.</p>
 <p>Cats Effect provides additional <code>joinWith</code> or <code>joinWithNever</code> methods to make
 sure at least that the error is raised with the usual <code>MonadError</code> semantics
-(e.g., short-circuiting).  Now that we are raising the error, we also need to
+(<em>i.e.</em>, short-circuiting).  Now that we are raising the error, we also need to
 cancel the other running fibers. We can easily get ourselves trapped in a
 tangled mess of fibers to keep an eye on.  On top of that the error raised by a
 fiber is not promoted until the call to <code>joinWith</code> or <code>.joinWithNever</code> is
@@ -632,27 +626,80 @@ use, more concise, and easier to reason about. <em>Because of that, unless you
 have some specific and unusual requirements you should prefer to use higher
 level commands such as <code>parMapN</code> or <code>parSequence</code> to work with fibers</em>.</p>
 <p>Ok, we stick to our implementation based on <code>.parMapN</code>. Are we done? Does it
-Work? Well, it works... but it is far from ideal. If we run it we will find that
-the producer runs faster than the consumer so the queue is constantly growing.
-And, even if that was not the case, we must realize that the consumer will be
-continually running regardless if there are elements in the queue, which is far
-from ideal. We will try to improve it in the next section by using
-<a href="/cats-effect/docs/std/deferred">Deferred</a>. Also we will use several consumers and
-producers to balance production and consumption rate.</p>
+Work? Well, it works... but it is far from ideal.</p>
+<h4><a class="anchor" aria-hidden="true" id="issue-1-the-producer-outpaces-the-consumer"></a><a href="#issue-1-the-producer-outpaces-the-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Issue 1: the producer outpaces the consumer</h4>
+<p>Now, if you run the program you will notice that almost no consumer logs are
+shown, if any. This is a signal that the producer is running way faster than
+the consumer. And why is that? Well, this is because how <code>Ref.modify</code> works. It
+gets the current value, then it computes the update, and finally it tries to set
+the new value if the current one has not been changed (by some other fiber),
+otherwise it starts from the beginning. Unfortunately the producer is way faster
+running its <code>queueR.getAndUpdate</code> call than the consumer is running its
+<code>queueR.modify</code> call. So the consumer gets 'stuck' trying once and again to
+update the <code>queueR</code> content.</p>
+<p>Can we alleviate this? Sure! There are a few options you can implement:</p>
+<ol>
+<li>Making the producer artificially slower by introducing a call to <code>Async[F].sleep</code>
+(<em>e.g.</em> for 1 microsecond). Truth is, in real world scenarios a producer will
+not be as fast as in our example so this tweak is not that 'strange'. Note that
+to be able to use <code>sleep</code> now <code>F</code> requires an implicit <code>Async[F]</code> instance. The
+new producer will look like this:
+<pre><code class="hljs css language-scala mdoc:compile-only"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Console</span>
+<span class="hljs-keyword">import</span> cats.syntax.all._
+<span class="hljs-keyword">import</span> scala.collection.immutable.<span class="hljs-type">Queue</span>
+<span class="hljs-keyword">import</span> scala.concurrent.duration.<span class="hljs-type">DurationInt</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">producer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Async</span>: <span class="hljs-type">Console</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]], counter: <span class="hljs-type">Int</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+  <span class="hljs-keyword">for</span> {
+    _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].whenA(counter % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>)(<span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Produced <span class="hljs-subst">$counter</span> items"</span>))
+    _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].sleep(<span class="hljs-number">1.</span>microsecond) <span class="hljs-comment">// To prevent overwhelming consumers</span>
+    _ &lt;- queueR.getAndUpdate(_.enqueue(counter + <span class="hljs-number">1</span>))
+    _ &lt;- producer(queueR, counter + <span class="hljs-number">1</span>)
+  } <span class="hljs-keyword">yield</span> ()
+</code></pre></li>
+<li>Replace <code>Ref</code> with <code>AtomicCell</code> to keep the <code>Queue</code> instance. <code>AtomicCell</code>,
+like <code>Ref</code>, is a concurrent data structure to keep a reference to some data.
+But unlike <code>Ref</code> it ensures that only one fiber can operate on that reference
+at any given time. Thus the consumer won't have to try once and again to modify
+its content. On the other hand <code>AtomicCell</code> is slower than <code>Ref</code>. This is
+because <code>Ref</code> is nonblocking while <code>AtomicCell</code> will block calling fibers to
+ensure only one operates on its content.</li>
+<li>Make the queue bound by size so producers are forced to wait for consumers to
+extract data when the queue is full. We will do this later on in Section
+<a href="#producer-consumer-with-bounded-queue">Producer consumer with bounded
+queue</a>.</li>
+</ol>
+<p>By the way, you may be tempted to speed up the <code>queueR.modify</code> call in the
+consumer by using a mutable <code>Queue</code> instance. Do not! <code>Ref</code> <em>must</em> be used only
+with immutable data.</p>
+<h4><a class="anchor" aria-hidden="true" id="issue-2-consumer-runs-even-if-there-are-no-elements-in-the-queue"></a><a href="#issue-2-consumer-runs-even-if-there-are-no-elements-in-the-queue" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Issue 2: consumer runs even if there are no elements in the queue</h4>
+<p>The consumer will be continually running regardless if there are elements in the
+queue, which is far from ideal. If we have several consumers competing for the
+data the problem gets even worse. We will address this problem in the next
+section by using <a href="/cats-effect/docs/std/deferred">Deferred</a>.</p>
+<p>The full implementation of the naive producer consumer we have just created in
+this section is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/producerconsumer/InefficientProducerConsumer.scala">here</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="a-more-solid-implementation-of-the-producerconsumer-problem"></a><a href="#a-more-solid-implementation-of-the-producerconsumer-problem" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>A more solid implementation of the producer/consumer problem</h3>
 <p>In our producer/consumer code we already protect access to the queue (our shared
 resource) using a <code>Ref</code>. Now, instead of using <code>Option</code> to represent elements
 retrieved from a possibly empty queue, we should instead block the caller fiber
-somehow if queue is empty until some element can be returned. This will be done
-by creating and keeping instances of <code>Deferred</code>. A <code>Deferred[F, A]</code> instance can
-hold one single element of some type <code>A</code>. <code>Deferred</code> instances are created
-empty, and can be filled only once. If some fiber tries to read the element from
-an empty <code>Deferred</code> then it will be semantically blocked until some other fiber
-fills (completes) it.</p>
-<p>Thus, alongside the queue of produced but not yet consumed elements, we have to
-keep track of the <code>Deferred</code> instances created when the queue was empty that are
-waiting for elements to be available. These instances will be kept in a new
-queue <code>takers</code>. We will keep both queues in a new type <code>State</code>:</p>
+somehow if queue is empty until some element can be returned. This way we
+prevent having consumer fibers running even when there is no element to
+consume. This will be done by creating and keeping instances of <code>Deferred</code>. A
+<code>Deferred[F, A]</code> instance can hold one single element of some type <code>A</code>.
+<code>Deferred</code> instances are created empty, and can be filled only once. If some
+fiber tries to read the element from an empty <code>Deferred</code> then it will wait
+until some other fiber fills (completes) it. But recall that this waiting does
+not involve blocking any physical thread, that's the beauty of fibers!</p>
+<p>Also, we will step up our code so we can handle several producers and consumers
+in parallel.</p>
+<p>Ok, so, alongside the queue of produced but not yet consumed elements, we have
+to keep track of the <code>Deferred</code> instances (created because consumers found an
+emnpty queue) that are waiting for elements to be available. These instances
+will be kept in a new queue <code>takers</code>. We will keep both queues in a new type
+<code>State</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Deferred</span>
 <span class="hljs-keyword">import</span> scala.collection.immutable.<span class="hljs-type">Queue</span>
 <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">State</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">A</span>](<span class="hljs-params">queue: <span class="hljs-type">Queue</span>[<span class="hljs-type">A</span>], takers: <span class="hljs-type">Queue</span>[<span class="hljs-type">Deferred</span>[<span class="hljs-type">F</span>,<span class="hljs-type">A</span>]]</span>)</span>
@@ -690,7 +737,7 @@ then new consumer code will then be:</p>
 
   <span class="hljs-keyword">for</span> {
     i &lt;- take
-    _ &lt;- <span class="hljs-keyword">if</span>(i % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>) <span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Consumer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>) <span class="hljs-keyword">else</span> <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].unit
+    _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].whenA(i % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>)(<span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Consumer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>))
     _ &lt;- consumer(id, stateR)
   } <span class="hljs-keyword">yield</span> ()
 }
@@ -701,19 +748,20 @@ we will have now several producers and consumers running in parallel). The
 Note how it will block on <code>taker.get</code> when the queue is empty.</p>
 <p>The producer, for its part, will:</p>
 <ol>
-<li>If there are waiting <code>takers</code>, it will take the first in the queue and offer
-it the newly produced element (<code>taker.complete</code>).</li>
+<li>If there are waiting <code>takers</code>, it will take the first one in the takers queue
+and offer it the newly produced element (<code>taker.complete</code>).</li>
 <li>If no <code>takers</code> are present, it will just enqueue the produced element.</li>
 </ol>
 <p>Thus the producer will look like:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">Deferred</span>, <span class="hljs-type">Ref</span>, <span class="hljs-type">Sync</span>}
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">Async</span>, <span class="hljs-type">Deferred</span>, <span class="hljs-type">Ref</span>}
 <span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Console</span>
 <span class="hljs-keyword">import</span> cats.syntax.all._
 <span class="hljs-keyword">import</span> scala.collection.immutable.<span class="hljs-type">Queue</span>
+<span class="hljs-keyword">import</span> scala.concurrent.duration.<span class="hljs-type">DurationInt</span>
 
 <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">State</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">A</span>](<span class="hljs-params">queue: <span class="hljs-type">Queue</span>[<span class="hljs-type">A</span>], takers: <span class="hljs-type">Queue</span>[<span class="hljs-type">Deferred</span>[<span class="hljs-type">F</span>,<span class="hljs-type">A</span>]]</span>)</span>
 
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">producer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>: <span class="hljs-type">Console</span>](id: <span class="hljs-type">Int</span>, counterR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Int</span>], stateR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">State</span>[<span class="hljs-type">F</span>,<span class="hljs-type">Int</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">producer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Async</span>: <span class="hljs-type">Console</span>](id: <span class="hljs-type">Int</span>, counterR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Int</span>], stateR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">State</span>[<span class="hljs-type">F</span>,<span class="hljs-type">Int</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">offer</span></span>(i: <span class="hljs-type">Int</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
     stateR.modify {
@@ -721,17 +769,20 @@ it the newly produced element (<code>taker.complete</code>).</li>
         <span class="hljs-keyword">val</span> (taker, rest) = takers.dequeue
         <span class="hljs-type">State</span>(queue, rest) -&gt; taker.complete(i).void
       <span class="hljs-keyword">case</span> <span class="hljs-type">State</span>(queue, takers) =&gt;
-        <span class="hljs-type">State</span>(queue.enqueue(i), takers) -&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit
+        <span class="hljs-type">State</span>(queue.enqueue(i), takers) -&gt; <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].unit
     }.flatten
 
   <span class="hljs-keyword">for</span> {
     i &lt;- counterR.getAndUpdate(_ + <span class="hljs-number">1</span>)
     _ &lt;- offer(i)
-    _ &lt;- <span class="hljs-keyword">if</span>(i % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>) <span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Producer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>) <span class="hljs-keyword">else</span> <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit
+    _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].whenA(i % <span class="hljs-number">100000</span> == <span class="hljs-number">0</span>)(<span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Producer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>))
+    _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].sleep(<span class="hljs-number">1.</span>microsecond) <span class="hljs-comment">// To prevent overwhelming consumers</span>
     _ &lt;- producer(id, counterR, stateR)
   } <span class="hljs-keyword">yield</span> ()
 }
 </code></pre>
+<p>As in the previous section we introduce an artificial delay in order not to
+overwhelm consumers.</p>
 <p>Finally we modify our main program so it instantiates the counter and state
 <code>Ref</code>s. Also it will create several consumers and producers, 10 of each, and
 will start all of them in parallel:</p>
@@ -774,16 +825,12 @@ available
 are started in their own fiber by the call to <code>parSequence</code>, which will wait for
 all of them to finish and then return the value passed as parameter. As in the
 previous example this program shall run forever until the user presses CTRL-C.</p>
-<p>Having several consumers and producers improves the balance between consumers
-and producers... but still, on the long run, queue tends to grow in size. To
-fix this we will ensure the size of the queue is bounded, so whenever that max
-size is reached producers will block as consumers do when the queue is empty.</p>
 <h3><a class="anchor" aria-hidden="true" id="producer-consumer-with-bounded-queue"></a><a href="#producer-consumer-with-bounded-queue" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer consumer with bounded queue</h3>
-<p>Having a bounded queue implies that producers, when queue is full, will wait (be
-'semantically blocked') until there is some empty bucket available to be filled.
-So an implementation needs to keep track of these waiting producers. To do so we
-will add a new queue <code>offerers</code> that will be added to the <code>State</code> alongside
-<code>takers</code>.  For each waiting producer the <code>offerers</code> queue will keep a
+<p>Having a bounded queue implies that producers, when the queue is full, will wait
+(be 'fiber blocked') until there is some empty bucket available to be
+filled.  So an implementation needs to keep track of these waiting producers. To
+do so we will add a new queue <code>offerers</code> that will be added to the <code>State</code>
+alongside <code>takers</code>.  For each waiting producer the <code>offerers</code> queue will keep a
 <code>Deferred[F, Unit]</code> that will be used to block the producer until the element it
 offers can be added to <code>queue</code> or directly passed to some consumer (<code>taker</code>).
 Alongside the <code>Deferred</code> instance we need to keep as well the actual element
@@ -794,8 +841,8 @@ offered by the producer in the <code>offerers</code> queue. Thus <code>State</co
 <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">State</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">A</span>](<span class="hljs-params">queue: <span class="hljs-type">Queue</span>[<span class="hljs-type">A</span>], capacity: <span class="hljs-type">Int</span>, takers: <span class="hljs-type">Queue</span>[<span class="hljs-type">Deferred</span>[<span class="hljs-type">F</span>,<span class="hljs-type">A</span>]], offerers: <span class="hljs-type">Queue</span>[(<span class="hljs-type">A</span>, <span class="hljs-type">Deferred</span>[<span class="hljs-type">F</span>,<span class="hljs-type">Unit</span>]</span>)])</span>
 </code></pre>
 <p>Of course both consumer and producer have to be modified to handle this new
-queue <code>offerers</code>. A consumer can find four escenarios, depending on if <code>queue</code>
-and <code>offerers</code> are each one empty or not. For each escenario a consumer shall:</p>
+queue <code>offerers</code>. A consumer can find four scenarios, depending on if <code>queue</code>
+and <code>offerers</code> are each one empty or not. For each scenario a consumer shall:</p>
 <ol>
 <li>If <code>queue</code> is not empty:
 <ol>
@@ -847,7 +894,7 @@ the caller.</li>
 
   <span class="hljs-keyword">for</span> {
     i &lt;- take
-    _ &lt;- <span class="hljs-keyword">if</span>(i % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>) <span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Consumer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>) <span class="hljs-keyword">else</span> <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].unit
+    _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].whenA(i % <span class="hljs-number">100000</span> == <span class="hljs-number">0</span>)(<span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Consumer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>))
     _ &lt;- consumer(id, stateR)
   } <span class="hljs-keyword">yield</span> ()
 }
@@ -888,13 +935,19 @@ element will be enqueued there.</li>
   <span class="hljs-keyword">for</span> {
     i &lt;- counterR.getAndUpdate(_ + <span class="hljs-number">1</span>)
     _ &lt;- offer(i)
-    _ &lt;- <span class="hljs-keyword">if</span>(i % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>) <span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Producer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>) <span class="hljs-keyword">else</span> <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].unit
+    _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].whenA(i % <span class="hljs-number">100000</span> == <span class="hljs-number">0</span>)(<span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Producer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>))
     _ &lt;- producer(id, counterR, stateR)
   } <span class="hljs-keyword">yield</span> ()
 }
 </code></pre>
+<p>We have removed the <code>Async[F].sleep</code> call that we used to slow down producers
+because we do not need it any more. Even if producers could run faster than
+consumers they have to wait when the queue is full for consumers to extract data
+from the queue. So at the end of the day they will run at the same pace.</p>
 <p>As you see, producer and consumer are coded around the idea of keeping and
-modifying state, just as with unbounded queues.</p>
+modifying state, just as with unbounded queues. Also we do not need to introduce
+an artificial delay in producers, as soon as the queue gets full they will be
+'blocked' thus giving a chance to consumers to read data.</p>
 <p>As the final step we must adapt the main program to use these new consumers and
 producers. Let's say we limit the queue size to <code>100</code>, then we have:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
@@ -1013,7 +1066,7 @@ function has become:</p>
   <span class="hljs-keyword">for</span> {
     i &lt;- counterR.getAndUpdate(_ + <span class="hljs-number">1</span>)
     _ &lt;- offer(i)
-    _ &lt;- <span class="hljs-keyword">if</span>(i % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>) <span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Producer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>) <span class="hljs-keyword">else</span> <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].unit
+    _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].whenA(i % <span class="hljs-number">100000</span> == <span class="hljs-number">0</span>)(<span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Producer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>))
     _ &lt;- producer(id, counterR, stateR)
   } <span class="hljs-keyword">yield</span> ()
 }
@@ -1056,7 +1109,7 @@ be removed from the list of takers in the state. So our <code>consumer</code> is
 
   <span class="hljs-keyword">for</span> {
     i &lt;- take
-    _ &lt;- <span class="hljs-keyword">if</span>(i % <span class="hljs-number">10000</span> == <span class="hljs-number">0</span>) <span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Consumer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>) <span class="hljs-keyword">else</span> <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].unit
+    _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].whenA(i % <span class="hljs-number">100000</span> == <span class="hljs-number">0</span>)(<span class="hljs-type">Console</span>[<span class="hljs-type">F</span>].println(<span class="hljs-string">s"Consumer <span class="hljs-subst">$id</span> has reached <span class="hljs-subst">$i</span> items"</span>))
     _ &lt;- consumer(id, stateR)
   } <span class="hljs-keyword">yield</span> ()
 }
