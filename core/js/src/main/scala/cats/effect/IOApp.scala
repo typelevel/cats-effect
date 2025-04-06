@@ -143,7 +143,7 @@ import scala.util.Try
  * @see
  *   [[IOApp.Simple]]
  */
-trait IOApp {
+trait IOApp extends IOAppPlatform {
 
   private[this] var _runtime: unsafe.IORuntime = null
 
