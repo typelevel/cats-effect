@@ -69,6 +69,30 @@ object KqueueSystem extends PollingSystem {
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit =
     targetPoller.interrupt()
 
+  def interruptible[A](thunk: => A): A = {
+    val wasInterrupted = Thread.interrupted()
+
+    try {
+      if (wasInterrupted) Thread.currentThread().interrupt()
+
+      try {
+        thunk
+      } catch {
+        case e: InterruptedException =>
+          Thread.currentThread().interrupt()
+          throw new IOException("Operation was interrupted", e)
+        case e: NoSuchElementException
+            if e.getMessage == "interrupted" || e.getMessage == "None.get" =>
+          Thread.currentThread().interrupt()
+          throw e
+      } finally {
+        val _ = Thread.interrupted()
+      }
+    } finally {
+      if (wasInterrupted) Thread.currentThread().interrupt()
+    }
+  }
+
   def metrics(poller: Poller): PollerMetrics = PollerMetrics.noop
 
   private final class FileDescriptorPollerImpl private[KqueueSystem] (
