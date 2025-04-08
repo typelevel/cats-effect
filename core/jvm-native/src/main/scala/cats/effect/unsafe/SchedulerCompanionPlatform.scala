@@ -23,10 +23,14 @@ import java.time.temporal.ChronoField
 import java.util.concurrent.{Executors, ScheduledExecutorService}
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
-  def createDefaultScheduler(): (Scheduler, () => Unit) = {
+
+  def createDefaultScheduler(): (Scheduler, () => Unit) =
+    createDefaultScheduler("io-scheduler")
+
+  def createDefaultScheduler(threadPrefix: String): (Scheduler, () => Unit) = {
     val scheduler = Executors.newSingleThreadScheduledExecutor { r =>
       val t = new Thread(r)
-      t.setName("io-scheduler")
+      t.setName(threadPrefix)
       t.setDaemon(true)
       t.setPriority(Thread.MAX_PRIORITY)
       t

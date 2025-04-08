@@ -6,7 +6,7 @@ title: Getting Started
 Add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.5.7"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.6.0"
 ```
 
 Naturally, if you're using ScalaJS, you should replace the double `%%` with a triple `%%%`. If you're on Scala 2, it is *highly* recommended that you enable the [better-monadic-for](https://github.com/oleg-py/better-monadic-for) plugin, which fixes a number of surprising elements of the `for`-comprehension syntax in the Scala language:
@@ -68,7 +68,7 @@ We will learn more about constructs like `start` and `*>` in later pages, but fo
 Of course, the easiest way to play with Cats Effect is to try it out in a Scala REPL. We recommend using [Ammonite](https://ammonite.io/#Ammonite-REPL) for this kind of thing. To get started, run the following lines (if not using Ammonite, skip the first line and make sure that Cats Effect and its dependencies are correctly configured on the classpath):
 
 ```scala
-import $ivy.`org.typelevel::cats-effect:3.5.7`
+import $ivy.`org.typelevel::cats-effect:3.6.0`
 
 import cats.effect.unsafe.implicits._
 import cats.effect.IO

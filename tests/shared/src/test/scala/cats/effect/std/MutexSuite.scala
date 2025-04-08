@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
 final class MutexSuite extends BaseSuite with DetectPlatform {
 
-  final override def executionTimeout = 2.minutes
+  final override def executionTimeout = super.executionTimeout * 6
 
   tests("ConcurrentMutex", Mutex.apply[IO])
   tests("Mutex with dual constructors", Mutex.in[IO, IO])

@@ -25,7 +25,7 @@ import java.util.concurrent.CountDownLatch
 
 class StripedHashtableSuite extends BaseSuite {
 
-  override def executionTimeout: FiniteDuration = 30.seconds
+  override def executionTimeout: FiniteDuration = super.executionTimeout * 3 / 2
 
   def hashtableRuntime(): IORuntime = {
     lazy val rt: IORuntime = {

@@ -21,6 +21,9 @@ import scala.annotation.tailrec
 
 class IOLocalSuite extends BaseSuite {
 
+  // the stack safety test is pretty long
+  override def executionTimeout = super.executionTimeout * 2
+
   ioLocalTests(
     "IOLocal[Int]",
     (i: Int) => IOLocal(i).map(l => (l, l))

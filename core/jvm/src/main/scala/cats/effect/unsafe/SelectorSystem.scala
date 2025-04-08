@@ -88,7 +88,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
           if (cb != null) {
             cb(value)
             fibersRescheduled = true
-            if (error ne null) poller.countSucceededOperation(readyOps)
+            if (error eq null) poller.countSucceededOperation(readyOps)
             else poller.countErroredOperation(node.interest)
           } else {
             poller.countCanceledOperation(node.interest)

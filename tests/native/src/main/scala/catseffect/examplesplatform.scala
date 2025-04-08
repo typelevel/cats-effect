@@ -17,13 +17,13 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 
 package object examples {
-  def exampleExecutionContext = IORuntime.defaultComputeExecutionContext
+  def exampleExecutionContext = ExecutionContext.global
 }
 
 package examples {

@@ -23,24 +23,25 @@ sealed abstract class CI(
     scaladoc: Boolean,
     suffixCommands: List[String]) {
 
-  override val toString: String = {
-    val commands =
-      (List(
-        s"project $rootProject",
-        jsEnv.fold("")(env => s"set Global / useJSEnv := JSEnv.$env"),
-        "headerCheck",
-        "scalafmtSbtCheck",
-        "scalafmtCheckAll",
-        "javafmtCheckAll",
-        "clean"
-      ) ++ testCommands ++ List(
-        jsEnv.fold("")(_ => s"set Global / useJSEnv := JSEnv.NodeJS"),
-        if (mimaReport) "mimaReportBinaryIssues" else "",
-        if (scaladoc) "doc" else ""
-      )).filter(_.nonEmpty) ++ suffixCommands
+  val commands: List[String] =
+    (List(
+      s"project $rootProject",
+      jsEnv.fold("")(env => s"set Global / useJSEnv := JSEnv.$env"),
+      "headerCheck",
+      "scalafmtSbtCheck",
+      "scalafmtCheckAll",
+      "javafmtCheckAll",
+      "clean"
+    ) ++ testCommands ++ List(
+      jsEnv.fold("")(_ => s"set Global / useJSEnv := JSEnv.NodeJS"),
+      if (mimaReport) "mimaReportBinaryIssues" else "",
+      if (scaladoc) "doc" else ""
+    )).filter(_.nonEmpty) ++ suffixCommands
 
+  val commandAlias: (String, List[String]) = command -> commands
+
+  override val toString: String =
     commands.mkString("; ", "; ", "")
-  }
 }
 
 object CI {

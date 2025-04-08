@@ -17,6 +17,9 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.ExecutionContext
+import scala.scalajs.{js, LinkingInfo}
+
 private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
   /**
@@ -41,8 +44,8 @@ private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
 private final class FiberMonitorImpl(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
-    // operates. `null` if the compute pool of the `IORuntime` is not a `FiberExecutor`.
-    private[this] val compute: FiberExecutor
+    // operates. `null` if the compute pool of the `IORuntime` is not a `BatchingMacrotaskExecutor`.
+    private[this] val compute: BatchingMacrotaskExecutor
 ) extends FiberMonitor {
   private[this] val bag = new WeakBag[IOFiber[?]]()
 
@@ -92,4 +95,26 @@ private final class NoOpFiberMonitor extends FiberMonitor {
   def liveFiberSnapshot(print: String => Unit): Unit = ()
 }
 
-private[effect] object FiberMonitor extends FiberMonitorPlatform
+private[effect] object FiberMonitor {
+  def apply(compute: ExecutionContext): FiberMonitor = {
+    if (LinkingInfo.developmentMode && weakRefsAvailable) {
+      if (compute.isInstanceOf[BatchingMacrotaskExecutor]) {
+        val bmec = compute.asInstanceOf[BatchingMacrotaskExecutor]
+        new FiberMonitorImpl(bmec)
+      } else {
+        new FiberMonitorImpl(null)
+      }
+    } else {
+      new NoOpFiberMonitor()
+    }
+  }
+
+  private[this] final val Undefined = "undefined"
+
+  /**
+   * Feature-tests for all the required, well, features :)
+   */
+  private[unsafe] def weakRefsAvailable: Boolean =
+    js.typeOf(js.Dynamic.global.WeakRef) != Undefined &&
+      js.typeOf(js.Dynamic.global.FinalizationRegistry) != Undefined
+}

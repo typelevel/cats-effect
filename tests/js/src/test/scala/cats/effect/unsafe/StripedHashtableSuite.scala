@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 
 class StripedHashtableSuite extends BaseSuite {
 
-  override def executionTimeout: FiniteDuration = 2.minutes
+  override def executionTimeout: FiniteDuration = super.executionTimeout * 6
 
   def hashtableRuntime(): IORuntime =
     IORuntime(

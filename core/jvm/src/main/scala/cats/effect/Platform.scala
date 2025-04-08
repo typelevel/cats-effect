@@ -22,4 +22,5 @@ private object Platform {
   final val isNative = false
 
   type static = org.typelevel.scalaccompat.annotation.static3
+  class safePublish extends scala.annotation.Annotation
 }

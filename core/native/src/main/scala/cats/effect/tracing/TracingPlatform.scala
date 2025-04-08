@@ -17,23 +17,24 @@
 package cats.effect.tracing
 
 import scala.annotation.nowarn
-import scala.collection.mutable
 import scala.scalanative.meta.LinktimeInfo
+
+import java.util.concurrent.ConcurrentHashMap
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   import TracingConstants._
 
-  private[this] val cache = mutable.Map.empty[Class[?], TracingEvent].withDefaultValue(null)
+  private[this] val cache = new ConcurrentHashMap[Class[?], TracingEvent]
 
   def calculateTracingEvent(key: Any): TracingEvent =
     if (LinktimeInfo.debugMode) {
       if (isCachedStackTracing) {
         val cls = key.getClass
-        val current = cache(cls)
+        val current = cache.get(cls)
         if (current eq null) {
           val event = buildEvent()
-          cache(cls) = event
+          cache.put(cls, event)
           event
         } else current
       } else if (isFullStackTracing) {

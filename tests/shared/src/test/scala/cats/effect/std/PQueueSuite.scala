@@ -29,11 +29,8 @@ import cats.implicits._
 import org.scalacheck.Arbitrary.arbitrary
 
 import scala.collection.immutable.{Queue => ScalaQueue}
-import scala.concurrent.duration._
 
 class BoundedPQueueSuite extends BaseSuite with PQueueTests {
-
-  override def executionTimeout = 20.seconds
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 
@@ -112,8 +109,6 @@ class BoundedPQueueSuite extends BaseSuite with PQueueTests {
 }
 
 class UnboundedPQueueSuite extends BaseSuite with PQueueTests {
-
-  override def executionTimeout = 20.seconds
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 

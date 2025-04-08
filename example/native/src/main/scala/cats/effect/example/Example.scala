@@ -15,9 +15,10 @@
  */
 
 package cats.effect
+package example
 
-import cats.effect.unsafe._
-
-trait RunnersPlatform {
-  protected def runtime(): IORuntime = IORuntime.global
+object Example extends IOApp {
+  def run(args: List[String]): IO[ExitCode] =
+    (IO.println(args(0)).replicateA_(5) >>
+      IO.println(args(1)).replicateA_(5)).replicateA_(2).as(ExitCode(2))
 }

@@ -135,7 +135,7 @@ class BoundedQueueSuite extends BaseSuite with QueueTests[Queue] with DetectPlat
       _ <- IO.race(taker.joinWithNever, q.offer(()).delayBy(500.millis))
     } yield ()
 
-    test.parReplicateA_(if (isJS || isNative) 1 else 1000)
+    test.parReplicateA_(if (isJS) 1 else 1000)
   }
 
   private def boundedQueueTests(name: String, constructor: Int => IO[Queue[IO, Int]]) = {
@@ -300,7 +300,7 @@ class BoundedQueueSuite extends BaseSuite with QueueTests[Queue] with DetectPlat
     }
 
     real(s"$name - offer/take at high contention") {
-      val size = if (isJS || isNative) 10000 else 100000
+      val size = if (isJS) 10000 else 100000
 
       val action = constructor(size) flatMap { q =>
         def par(action: IO[Unit], num: Int): IO[Unit] =

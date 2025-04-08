@@ -17,11 +17,15 @@
 package cats.effect
 
 import cats.effect.metrics.CpuStarvationWarningMetrics
+import cats.effect.std.Console
+import cats.effect.unsafe.UnsafeNonFatal
 import cats.syntax.all._
 
-import scala.concurrent.CancellationException
-import scala.concurrent.duration._
+import scala.concurrent.{blocking, CancellationException, ExecutionContext}
 import scala.scalanative.meta.LinktimeInfo._
+
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -126,13 +130,6 @@ import scala.scalanative.meta.LinktimeInfo._
  * number of compute worker threads to "make room" for the I/O workers, such that they all sum
  * to the number of physical threads exposed by the kernel.
  *
- * @note
- *   The Scala Native runtime has several limitations compared to its JVM and JS counterparts
- *   and should generally be considered experimental at this stage. Limitations include:
- *   - No blocking threadpool: [[IO.blocking]] will simply block the main thread
- *   - No support for graceful termination: finalizers will not run on external cancelation
- *   - No support for tracing or fiber dumps
- *
  * @see
  *   [[IO]]
  * @see
@@ -168,13 +165,6 @@ trait IOApp {
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   /**
-   * Defines what to do when CpuStarvationCheck is triggered. Defaults to log a warning to
-   * System.err.
-   */
-  protected def onCpuStarvationWarn(metrics: CpuStarvationWarningMetrics): IO[Unit] =
-    CpuStarvationCheck.logWarning(metrics)
-
-  /**
    * The [[unsafe.PollingSystem]] used by the [[runtime]] which will evaluate the [[IO]]
    * produced by `run`. It is very unlikely that users will need to override this method.
    *
@@ -183,6 +173,101 @@ trait IOApp {
    */
   protected def pollingSystem: unsafe.PollingSystem =
     unsafe.IORuntime.createDefaultPollingSystem()
+
+  /**
+   * Controls the number of worker threads which will be allocated to the compute pool in the
+   * underlying runtime. In general, this should be no ''greater'' than the number of physical
+   * threads made available by the underlying kernel (which can be determined using
+   * `Runtime.getRuntime().availableProcessors()`). For any application which has significant
+   * additional non-compute thread utilization (such as asynchronous I/O worker threads), it may
+   * be optimal to reduce the number of compute threads by the corresponding amount such that
+   * the total number of active threads exactly matches the number of underlying physical
+   * threads.
+   *
+   * In practice, tuning this parameter is unlikely to affect your application performance
+   * beyond a few percentage points, and the default value is optimal (or close to optimal) in
+   * ''most'' common scenarios.
+   *
+   * '''This setting is specific to the JVM and Scala Native, and will not compile on
+   * JavaScript.'''
+   *
+   * For more details on Cats Effect's runtime threading model please see
+   * [[https://typelevel.org/cats-effect/docs/thread-model]].
+   */
+  protected def computeWorkerThreadCount: Int =
+    Math.max(2, Runtime.getRuntime().availableProcessors())
+
+  // arbitrary constant is arbitrary
+  private[this] lazy val queue = new ArrayBlockingQueue[AnyRef](32)
+
+  private[this] def handleTerminalFailure(t: Throwable): Unit = {
+    queue.clear()
+    queue.put(t)
+  }
+
+  /**
+   * Executes the provided actions on the main thread. Note that this is, by definition, a
+   * single-threaded executor, and should not be used for anything which requires a meaningful
+   * amount of performance. Additionally, and also by definition, this process conflicts with
+   * producing the results of an application. If one fiber calls `evalOn(MainThread)` while the
+   * main fiber is returning, the first one will "win" and will cause the second one to wait its
+   * turn. Once the main fiber produces results (or errors, or cancels), any remaining enqueued
+   * actions are ignored and discarded (a mostly irrelevant issue since the process is, at that
+   * point, terminating).
+   *
+   * This is ''not'' recommended for use in most applications, and is really only appropriate
+   * for scenarios where some third-party library is sensitive to the exact identity of the
+   * calling thread (for example, LWJGL). In these scenarios, it is recommended that the
+   * absolute minimum possible amount of work is handed off to the main thread.
+   */
+  protected def MainThread: ExecutionContext =
+    new ExecutionContext {
+      def reportFailure(t: Throwable): Unit =
+        t match {
+          case t if UnsafeNonFatal(t) =>
+            IOApp.this.reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
+
+          case t =>
+            handleTerminalFailure(t)
+        }
+
+      def execute(r: Runnable): Unit =
+        if (!queue.offer(r)) {
+          runtime.blocking.execute(() => queue.put(r))
+        }
+    }
+
+  /**
+   * Configures the action to perform when unhandled errors are caught by the runtime. An
+   * unhandled error is an error that is raised (and not handled) on a Fiber that nobody is
+   * joining.
+   *
+   * For example:
+   *
+   * {{{
+   *   import scala.concurrent.duration._
+   *   override def run: IO[Unit] = IO(throw new Exception("")).start *> IO.sleep(1.second)
+   * }}}
+   *
+   * In this case, the exception is raised on a Fiber with no listeners. Nobody would be
+   * notified about that error. Therefore it is unhandled, and it goes through the reportFailure
+   * mechanism.
+   *
+   * By default, `reportFailure` simply delegates to
+   * [[cats.effect.std.Console!.printStackTrace]]. It is safe to perform any `IO` action within
+   * this handler; it will not block the progress of the runtime. With that said, some care
+   * should be taken to avoid raising unhandled errors as a result of handling unhandled errors,
+   * since that will result in the obvious chaos.
+   */
+  protected def reportFailure(err: Throwable): IO[Unit] =
+    Console[IO].printStackTrace(err)
+
+  /**
+   * Defines what to do when CpuStarvationCheck is triggered. Defaults to log a warning to
+   * System.err.
+   */
+  protected def onCpuStarvationWarn(metrics: CpuStarvationWarningMetrics): IO[Unit] =
+    CpuStarvationCheck.logWarning(metrics)
 
   /**
    * The entry point for your application. Will be called by the runtime when the process is
@@ -205,14 +290,29 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
-        val (loop, poller, loopDown) = IORuntime.createEventLoop(pollingSystem)
+        val (compute, poller, compDown) =
+          IORuntime.createWorkStealingComputeThreadPool(
+            threads = computeWorkerThreadCount,
+            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
+            blockedThreadDetectionEnabled = false, // TODO
+            pollingSystem = pollingSystem
+          )
+
+        val (blocking, blockDown) =
+          IORuntime.createDefaultBlockingExecutionContext(
+            threadPrefix = "io-blocking",
+            reportFailure =
+              (t: Throwable) => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
+          )
+
         IORuntime(
-          loop,
-          loop,
-          loop,
+          compute,
+          blocking,
+          compute,
           List(poller),
-          () => {
-            loopDown()
+          { () =>
+            compDown()
+            blockDown()
             IORuntime.resetGlobal()
           },
           runtimeConfig)
@@ -232,16 +332,11 @@ trait IOApp {
           "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
     }
 
-    // An infinite heartbeat to keep main alive.  This is similar to
-    // `IO.never`, except `IO.never` doesn't schedule any tasks and is
-    // insufficient to keep main alive.  The tick is fast enough that
-    // it isn't silently discarded, as longer ticks are, but slow
-    // enough that we don't interrupt often.  1 hour was chosen
-    // empirically.
-    lazy val keepAlive: IO[Nothing] =
-      IO.sleep(1.hour) >> keepAlive
+    val counter = new AtomicInteger(1)
 
-    val awaitInterruptOrStayAlive =
+    val ioa = run(args.toList)
+
+    val awaitInterrupt =
       if (isLinux || isMac)
         FileDescriptorPoller.find.flatMap {
           case Some(poller) =>
@@ -255,10 +350,10 @@ trait IOApp {
               IO.sleep(runtime.config.shutdownHookTimeout) *> IO(System.exit(code.code))
 
             interruptOrTerm.map(_.merge).flatTap(hardExit(_).start)
-          case None => keepAlive
+          case None => IO.never
         }
       else
-        keepAlive
+        IO.never
 
     val fiberDumper =
       if (isLinux || isMac)
@@ -274,30 +369,93 @@ trait IOApp {
       .run(runtimeConfig, runtime.metrics.cpuStarvationSampler, onCpuStarvationWarn)
       .background
 
-    Spawn[IO]
-      .raceOutcome[ExitCode, ExitCode](
-        (fiberDumper *> starvationChecker).surround(run(args.toList)),
-        awaitInterruptOrStayAlive
+    val queue = this.queue
+
+    val _ = Spawn[IO]
+      .race(
+        (fiberDumper *> starvationChecker).surround(ioa),
+        awaitInterrupt
       )
       .map(_.merge)
-      .flatMap {
-        case Outcome.Canceled() =>
-          IO.raiseError(new CancellationException("IOApp main fiber was canceled"))
-        case Outcome.Errored(t) => IO.raiseError(t)
-        case Outcome.Succeeded(code) => code
-      }
       .unsafeRunFiber(
-        System.exit(0),
-        t => {
-          t.printStackTrace()
-          System.exit(1)
+        {
+          if (counter.decrementAndGet() == 0) {
+            queue.clear()
+          }
+          queue.put(new CancellationException("IOApp main fiber was canceled"))
         },
-        c => System.exit(c.code)
+        { t =>
+          if (counter.decrementAndGet() == 0) {
+            queue.clear()
+          }
+          queue.put(t)
+        },
+        { a =>
+          if (counter.decrementAndGet() == 0) {
+            queue.clear()
+          }
+          queue.put(a)
+        }
       )(runtime)
 
-    ()
+    var done = false
+
+    while (!done) {
+      val result = blocking(queue.take())
+      result match {
+        case ec: ExitCode =>
+          // Clean up after ourselves, relevant for running IOApps in sbt,
+          // otherwise scheduler threads will accumulate over time.
+          runtime.shutdown()
+
+          if (ec == ExitCode.Success) {
+            // Return naturally from main. This allows any non-daemon
+            // threads to gracefully complete their work, and managed
+            // environments to execute their own shutdown hooks.
+          } else {
+            System.exit(ec.code)
+          }
+
+          done = true
+
+        case _: CancellationException =>
+          // Do not report cancelation exceptions but still exit with an error code.
+          System.exit(1)
+
+        case t: Throwable =>
+          if (UnsafeNonFatal(t)) {
+            throw t
+          } else {
+            t.printStackTrace()
+            halt(1)
+          }
+
+        case r: Runnable =>
+          try {
+            r.run()
+          } catch {
+            case t if UnsafeNonFatal(t) =>
+              IOApp.this.reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
+
+            case t: Throwable =>
+              t.printStackTrace()
+              halt(1)
+          }
+
+        case _ =>
+          throw new IllegalStateException(s"${result.getClass.getName} in MainThread queue")
+      }
+    }
   }
 
+  private[this] def halt(status: Int): Unit = {
+    // TODO: This should be `Runtime#halt` (i.e.,
+    // TODO: not call shutdown hooks), but that is
+    // TODO: unavailable on scala-native. Note,
+    // TODO: that `stdlib.exit` seems to be the
+    // TODO: same as `System.exit` currently.
+    System.exit(status)
+  }
 }
 
 object IOApp {

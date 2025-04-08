@@ -16,9 +16,11 @@
 
 package cats.effect
 
-trait IOPlatformSuite { self: BaseScalaCheckSuite =>
+trait IOPlatformSuite extends IOConcurrencySuite { this: BaseSuite =>
 
   def platformTests() = {
+    concurrencyTests()
+
     ticked("realTimeInstant should return an Instant constructed from realTime") {
       implicit ticker =>
         val op = for {

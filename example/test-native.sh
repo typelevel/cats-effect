@@ -15,7 +15,7 @@ expected=$(mktemp)
 cd example/native/target/scala-$(echo $1 | sed -E 's/^(2\.[0-9]+)\.[0-9]+$/\1/')/
 
 set +e
-./cats-effect-example-out left right > $output
+./cats-effect-example left right > $output
 result=$?
 set -e
 

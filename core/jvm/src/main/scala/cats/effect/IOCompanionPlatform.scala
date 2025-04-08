@@ -19,7 +19,7 @@ package cats.effect
 import cats.effect.std.Console
 import cats.effect.tracing.Tracing
 
-import java.time.Instant
+import java.time.{Instant, ZonedDateTime}
 import java.util.concurrent.{CompletableFuture, CompletionStage}
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
@@ -123,6 +123,8 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
     asyncForIO.fromCompletionStage(completionStage)
 
   def realTimeInstant: IO[Instant] = asyncForIO.realTimeInstant
+
+  def realTimeZonedDateTime: IO[ZonedDateTime] = asyncForIO.realTimeZonedDateTime
 
   /**
    * Reads a line as a string from the standard input using the platform's default charset, as

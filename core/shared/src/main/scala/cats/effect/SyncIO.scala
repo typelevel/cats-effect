@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.{Align, Eval, Functor, Now, Show, StackSafeMonad}
 import cats.data.Ior
+import cats.effect.std.SecureRandom
 import cats.effect.syntax.monadCancel._
 import cats.effect.unsafe.UnsafeNonFatal
 import cats.kernel.{Monoid, Semigroup}
@@ -496,6 +497,13 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
 
   val realTime: SyncIO[FiniteDuration] =
     RealTime
+
+  /**
+   * Creates a new instance of SecureRandom in a SyncIO context. This is cryptographically
+   * secure and thread-safe.
+   */
+  implicit lazy val secureRandom: SecureRandom[SyncIO] =
+    SecureRandom.unsafeJavaSecuritySecureRandom[SyncIO]()
 
   private[this] val _unit: SyncIO[Unit] =
     Pure(())

@@ -51,6 +51,27 @@ class RandomSuite extends BaseSuite {
       } yield assert(randDoubles.forall(randDouble => randDouble >= min && randDouble <= max))
     }
 
+    real(s"$name - betweenDouble - handle overflow") {
+      for {
+        random <- randomGen
+        randDoubles <- random.betweenDouble(Double.MinValue, Double.MaxValue).replicateA(100)
+      } yield assert {
+        randDoubles.forall { randDouble =>
+          // this specific value means there was an unhandled overflow:
+          randDouble != 1.7976931348623155e308
+        }
+      }
+    }
+
+    real(s"$name - betweenDouble - handle underflow") {
+      for {
+        random <- randomGen
+        randDouble <- random.betweenDouble(
+          Double.MinPositiveValue,
+          java.lang.Math.nextUp(Double.MinPositiveValue))
+      } yield assert(randDouble == Double.MinPositiveValue)
+    }
+
     real(s"$name - betweenFloat - generate a random float within a range") {
       val min: Float = 0.0f
       val max: Float = 1.0f
@@ -59,6 +80,27 @@ class RandomSuite extends BaseSuite {
         random <- randomGen
         randFloats <- random.betweenFloat(min, max).replicateA(numIterations)
       } yield assert(randFloats.forall(randFloat => randFloat >= min && randFloat <= max))
+    }
+
+    real(s"$name - betweenFloat - handle overflow") {
+      for {
+        random <- randomGen
+        randFloats <- random.betweenFloat(Float.MinValue, Float.MaxValue).replicateA(100)
+      } yield assert {
+        randFloats.forall { randFloat =>
+          // this specific value means there was an unhandled overflow:
+          randFloat != 3.4028233e38f
+        }
+      }
+    }
+
+    real(s"$name - betweenFloat - handle underflow") {
+      for {
+        random <- randomGen
+        randFloat <- random.betweenFloat(
+          Float.MinPositiveValue,
+          java.lang.Math.nextUp(Float.MinPositiveValue))
+      } yield assert(randFloat == Float.MinPositiveValue)
     }
 
     real(s"$name - betweenInt - generate a random integer within a range") {

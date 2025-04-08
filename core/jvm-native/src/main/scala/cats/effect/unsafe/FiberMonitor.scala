@@ -215,12 +215,12 @@ private[effect] final class NoOpFiberMonitor extends FiberMonitor(null) {
 }
 
 private[effect] object FiberMonitor {
-  def apply(compute: ExecutionContext): FiberMonitor = {
+  def apply(compute: ExecutionContext): FiberMonitor = if (Platform.isJvm) {
     if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool[?]]) {
       val wstp = compute.asInstanceOf[WorkStealingThreadPool[?]]
       new FiberMonitor(wstp)
     } else {
       new FiberMonitor(null)
     }
-  }
+  } else new NoOpFiberMonitor
 }

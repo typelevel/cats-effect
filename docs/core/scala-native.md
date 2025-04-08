@@ -22,7 +22,7 @@ lazy val root = project.in(file("."))
   .enablePlugins(ScalaNativePlugin)
   .settings(
     name                := "cats-effect-3-hello-world",
-    libraryDependencies += "org.typelevel" %%% "cats-effect" % "3.5.7",
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % "3.6.0",
     Compile / mainClass := Some("com.example.Main")
  )
 

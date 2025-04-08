@@ -20,7 +20,6 @@ import cats.effect.std.CountDownLatch
 import cats.syntax.all._
 
 import scala.concurrent.duration._
-import scala.scalanative.libc.errno._
 import scala.scalanative.posix.errno._
 import scala.scalanative.posix.fcntl._
 import scala.scalanative.posix.string._
@@ -41,14 +40,14 @@ class FileDescriptorPollerSuite extends BaseSuite {
     def read(buf: Array[Byte], offset: Int, length: Int): IO[Unit] =
       readHandle
         .pollReadRec(()) { _ =>
-          IO(guard(unistd.read(readFd, buf.atUnsafe(offset), length.toULong)))
+          IO(guard(unistd.read(readFd, buf.atUnsafe(offset), length.toCSize)))
         }
         .void
 
     def write(buf: Array[Byte], offset: Int, length: Int): IO[Unit] =
       writeHandle
         .pollWriteRec(()) { _ =>
-          IO(guard(unistd.write(writeFd, buf.atUnsafe(offset), length.toULong)))
+          IO(guard(unistd.write(writeFd, buf.atUnsafe(offset), length.toCSize)))
         }
         .void
 
@@ -69,7 +68,7 @@ class FileDescriptorPollerSuite extends BaseSuite {
     Resource
       .make {
         IO {
-          val fd = stackalloc[CInt](2.toULong)
+          val fd = stackalloc[CInt](2)
           if (unistd.pipe(fd) != 0)
             throw new IOException(fromCString(strerror(errno)))
           (fd(0), fd(1))
@@ -121,7 +120,7 @@ class FileDescriptorPollerSuite extends BaseSuite {
           .surround {
             IO { // trigger all the pipes at once
               pipes.foreach { pipe =>
-                unistd.write(pipe.writeFd, Array[Byte](42).atUnsafe(0), 1.toULong)
+                unistd.write(pipe.writeFd, Array[Byte](42).atUnsafe(0), 1.toCSize)
               }
             }.background.surround(latch.await)
           }

@@ -30,7 +30,7 @@ import munit.DisciplineSuite
 //We allow these tests to have a longer timeout than IOSpec as they run lots of iterations
 class IOPropSuite extends BaseSuite with DisciplineSuite {
 
-  override def executionTimeout: FiniteDuration = 2.minutes
+  override def executionTimeout: FiniteDuration = super.executionTimeout * 6
 
   realProp(
     "parTraverseN should give the same result as parTraverse",

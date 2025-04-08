@@ -102,7 +102,7 @@ class RefSuite extends BaseSuite with DetectPlatform { outer =>
     assertCompleteAs(op, true)
   }
 
-  if (!isJS && !isNative) // concurrent modification impossible
+  if (!isJS) // concurrent modification impossible
     ticked("tryUpdate - should fail to update if modification has occurred") {
       implicit ticker =>
         val updateRefUnsafely: Ref[IO, Int] => Unit = { (ref: Ref[IO, Int]) =>

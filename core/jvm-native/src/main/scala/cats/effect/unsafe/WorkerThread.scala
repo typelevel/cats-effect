@@ -727,30 +727,19 @@ private[effect] final class WorkerThread[P <: AnyRef](
         metrics = null
         transferState = null
 
-        // Add this thread to the cached threads data structure, to be picked up
-        // by another thread in the future.
-        pool.cachedThreads.add(this)
         try {
+          // Try to transfer this thread via the cached threads data structure, to be picked up
+          // by another thread in the future.
           val len = runtimeBlockingExpiration.length
           val unit = runtimeBlockingExpiration.unit
-          var newState = stateTransfer.poll(len, unit)
-          if (newState eq null) {
-            // The timeout elapsed and no one woke up this thread. Try to remove
-            // the thread from the cached threads data structure.
-            if (pool.cachedThreads.remove(this)) {
-              // The thread was successfully removed. It's time to exit.
-              pool.blockedWorkerThreadCounter.decrementAndGet()
-              return
-            } else {
-              // Someone else concurrently stole this thread from the cached
-              // data structure and will transfer the data soon. Time to wait
-              // for it again.
-              newState = stateTransfer.take()
-              init(newState)
-            }
-          } else {
-            // Some other thread woke up this thread. Time to take its place.
+          if (pool.cachedThreads.tryTransfer(this, len, unit)) {
+            // Someone accepted the transfer of this thread and will transfer the state soon.
+            val newState = stateTransfer.take()
             init(newState)
+          } else {
+            // The timeout elapsed and no one woke up this thread. It's time to exit.
+            pool.blockedWorkerThreadCounter.decrementAndGet()
+            return
           }
         } catch {
           case _: InterruptedException =>
@@ -939,7 +928,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
       // Set the name of this thread to a blocker prefixed name.
       setName(s"$prefix-$nameIndex")
 
-      val cached = pool.cachedThreads.pollFirst()
+      val cached = pool.cachedThreads.poll()
       if (cached ne null) {
         // There is a cached worker thread that can be reused.
         val idx = index

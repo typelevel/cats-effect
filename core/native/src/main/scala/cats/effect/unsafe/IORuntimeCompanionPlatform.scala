@@ -16,38 +16,78 @@
 
 package cats.effect.unsafe
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
+import scala.concurrent.duration._
 import scala.scalanative.meta.LinktimeInfo
+
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
-  def defaultComputeExecutionContext: ExecutionContext = EventLoopExecutorScheduler.global
+  private[this] final val DefaultBlockerPrefix = "io-compute-blocker"
 
-  def defaultScheduler: Scheduler = EventLoopExecutorScheduler.global
+  def createWorkStealingComputeThreadPool(
+      threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
+      threadPrefix: String = "io-compute",
+      blockerThreadPrefix: String = DefaultBlockerPrefix,
+      runtimeBlockingExpiration: Duration = 60.seconds,
+      reportFailure: Throwable => Unit = _.printStackTrace(),
+      blockedThreadDetectionEnabled: Boolean = false,
+      shutdownTimeout: Duration = 1.second,
+      pollingSystem: PollingSystem = createDefaultPollingSystem(),
+      uncaughtExceptionHandler: Thread.UncaughtExceptionHandler = (_, ex) =>
+        ex.printStackTrace()
+  ): (ExecutionContextExecutor with Scheduler, pollingSystem.Api, () => Unit) = {
 
-  def createEventLoop(
-      system: PollingSystem
-  ): (ExecutionContext with Scheduler, system.Api, () => Unit) = {
-    val loop = new EventLoopExecutorScheduler[system.Poller](64, system)
-    val poller = loop.poller
-    val api = system.makeApi(
-      new UnsealedPollingContext[system.Poller] {
-        def accessPoller(cb: system.Poller => Unit) = cb(poller)
-        def ownPoller(poller: system.Poller) = true
-      }
-    )
-    (loop, api, () => loop.shutdown())
+    val threadPool =
+      new WorkStealingThreadPool[pollingSystem.Poller](
+        threads,
+        threadPrefix,
+        blockerThreadPrefix,
+        runtimeBlockingExpiration,
+        blockedThreadDetectionEnabled && (threads > 1),
+        shutdownTimeout,
+        pollingSystem,
+        reportFailure,
+        uncaughtExceptionHandler
+      )
+
+    (threadPool, pollingSystem.makeApi(threadPool), { () => threadPool.shutdown() })
   }
 
-  def createDefaultPollingSystem(): PollingSystem =
+  def createDefaultScheduler(threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) =
+    Scheduler.createDefaultScheduler(threadPrefix)
+
+  def createDefaultPollingSystem(): PollingSystem = {
     if (LinktimeInfo.isLinux)
       EpollSystem
     else if (LinktimeInfo.isMac)
       KqueueSystem
     else
       SleepSystem
+  }
 
-  private[this] var _global: IORuntime = null
+  def createDefaultBlockingExecutionContext(
+      threadPrefix: String = "io-blocking"
+  ): (ExecutionContext, () => Unit) =
+    createDefaultBlockingExecutionContext(threadPrefix, _.printStackTrace())
+
+  private[effect] def createDefaultBlockingExecutionContext(
+      threadPrefix: String,
+      reportFailure: Throwable => Unit
+  ): (ExecutionContext, () => Unit) = {
+    val threadCount = new AtomicInteger(0)
+    val executor = Executors.newCachedThreadPool { (r: Runnable) =>
+      val t = new Thread(r)
+      t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
+      t.setDaemon(true)
+      t
+    }
+    (ExecutionContext.fromExecutor(executor, reportFailure), { () => executor.shutdown() })
+  }
+
+  @volatile private[this] var _global: IORuntime = null
 
   private[effect] def installGlobal(global: => IORuntime): Boolean = {
     if (_global == null) {
@@ -64,17 +104,15 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (loop, poller, loopDown) = createEventLoop(createDefaultPollingSystem())
-        IORuntime(
-          loop,
-          loop,
-          loop,
-          List(poller),
-          () => {
-            loopDown()
-            resetGlobal()
-          },
-          IORuntimeConfig())
+        val (compute, poller, computeDown) = createWorkStealingComputeThreadPool()
+        val (blocking, blockingDown) = createDefaultBlockingExecutionContext()
+        val shutdown = () => {
+          computeDown()
+          blockingDown()
+          resetGlobal()
+        }
+
+        IORuntime(compute, blocking, compute, List(poller), shutdown, IORuntimeConfig())
       }
       ()
     }

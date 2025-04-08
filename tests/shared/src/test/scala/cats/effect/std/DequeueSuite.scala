@@ -23,11 +23,8 @@ import cats.implicits._
 import org.scalacheck.Arbitrary.arbitrary
 
 import scala.collection.immutable.{Queue => ScalaQueue}
-import scala.concurrent.duration._
 
 class BoundedDequeueSuite extends BaseSuite with DequeueTests {
-
-  override def executionTimeout = 20.seconds
 
   boundedDequeueTests(
     "BoundedDequeue (forward)",
