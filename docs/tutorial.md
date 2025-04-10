@@ -753,7 +753,7 @@ in parallel.
 
 Ok, so, alongside the queue of produced but not yet consumed elements, we have
 to keep track of the `Deferred` instances (created because consumers found an
-emnpty queue) that are waiting for elements to be available. These instances
+empty queue) that are waiting for elements to be available. These instances
 will be kept in a new queue `takers`. We will keep both queues in a new type
 `State`:
 
