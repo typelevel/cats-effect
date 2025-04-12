@@ -71,16 +71,17 @@ private[effect] final class ScalQueue(threadCount: Int) {
   private[this] val singletonCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
   private[this] val totalBatchCounts: Array[AtomicLong] = createAtomicLongArray(
     numQueues
-  )  
+  )
   private[this] val batchCounts: Array[AtomicLong] = createAtomicLongArray(
     numQueues
-  )  
+  )
   private[this] val totalFiberCounts: Array[AtomicLong] = createAtomicLongArray(
     numQueues
-  )  
+  )
   private[this] val fiberCounts: Array[AtomicLong] = createAtomicLongArray(
     numQueues
-  )  
+  )
+
   /**
    * The concurrent queues backing this Scal queue.
    */
@@ -226,7 +227,6 @@ private[effect] final class ScalQueue(threadCount: Int) {
    * @return
    *   an element from this Scal queue or `null` if this queue is empty
    */
-   
 
   def poll(random: ThreadLocalRandom): AnyRef = {
     val nq = numQueues

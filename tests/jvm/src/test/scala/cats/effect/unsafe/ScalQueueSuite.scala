@@ -140,24 +140,12 @@ class ScalQueueSuite extends IOSuite {
       element = queue.poll(random)
       if (element ne null) {
         polledCount += 1
-
-        // Execute the polled task
-        if (element.isInstanceOf[Array[Runnable]]) {
-          val taskArray = element.asInstanceOf[Array[Runnable]]
-          var k = 0
-          while (k < taskArray.length) {
-            taskArray(k).run()
-            k += 1
-          }
-        } else {
-          element.asInstanceOf[Runnable].run()
-        }
       }
       i += 1
     }
 
     // Verify we were able to poll at least one task
-    assert(polledCount > 0, "Should have polled at least one task")
+    assertEquals(polledCount, 10, "Should have polled exactly 10 tasks")
 
     // Check current in-queue metrics
     val currentSingletonCount = queue.getSingletonCount()
@@ -209,17 +197,6 @@ class ScalQueueSuite extends IOSuite {
     // Drain the queue completely
     var element: AnyRef = queue.poll(random)
     while (element ne null) {
-      // Execute the polled task
-      if (element.isInstanceOf[Array[Runnable]]) {
-        val taskArray = element.asInstanceOf[Array[Runnable]]
-        var k = 0
-        while (k < taskArray.length) {
-          taskArray(k).run()
-          k += 1
-        }
-      } else {
-        element.asInstanceOf[Runnable].run()
-      }
 
       // Get the next element
       element = queue.poll(random)
