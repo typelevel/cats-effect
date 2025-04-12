@@ -16,11 +16,14 @@
 
 package cats.effect.unsafe
 
-import scala.scalanative.meta.LinktimeInfo.isMultithreadingEnabled
-import munit.FunSuite
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+
+import scala.scalanative.meta.LinktimeInfo.isMultithreadingEnabled
+
 import java.io.IOException
+
+import munit.FunSuite
 
 class PollerInterruptSpec extends FunSuite {
   if (isMultithreadingEnabled) {
@@ -29,15 +32,11 @@ class PollerInterruptSpec extends FunSuite {
       assertEquals(result, 42)
     }
 
-    /**
-     * this appears to convert all thread interruptions (including InterruptedException) to
-     * NoSuchElementException("interrupted"), which differs from JVM behavior. This affects
-     * interoperability with JVM libraries expecting standard interruption patterns.
-     */
     test("raw interruption type") {
       val ex = intercept[Throwable] {
         IO.interruptible {
           Thread.currentThread().interrupt()
+          // This simulates Scala Native's interruption behavior
           throw new NoSuchElementException("interrupted")
         }.unsafeRunSync()
       }
@@ -67,11 +66,11 @@ class PollerInterruptSpec extends FunSuite {
       try {
         val ex = intercept[Throwable] {
           IO.interruptible[Unit] {
+            // Simulate native interruption
             throw new NoSuchElementException("interrupted")
           }.unsafeRunSync()
         }
 
-        // On Native we expect either the original exception or a wrapped version
         assert(
           ex.isInstanceOf[NoSuchElementException] ||
             ex.isInstanceOf[IOException],
@@ -89,6 +88,7 @@ class PollerInterruptSpec extends FunSuite {
 
         intercept[RuntimeException] {
           IO.interruptible[Int] {
+            // Test exception handling
             throw new RuntimeException("boom")
           }.unsafeRunSync()
         }
@@ -97,6 +97,8 @@ class PollerInterruptSpec extends FunSuite {
       }
     }
   } else {
-    test("interruptible tests skipped - multithreading disabled")
+    test("interruptible tests skipped - multithreading disabled") {
+      // Explicit empty test body
+    }
   }
 }
