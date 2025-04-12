@@ -37,7 +37,7 @@ class ScalQueueSuite extends IOSuite {
     assertEquals(initialSingletonCount, 0L, "Initial singleton count should be zero")
 
     // Add a singleton task (a simple no-op Runnable)
-    queue.offer(new Runnable { def run(): Unit = () }, random)
+    queue.offer(() => (), random)
 
     // Verify that the singleton count has increased to exactly 1
     val afterSingletonCount = queue.getTotalSingletonCount()
@@ -46,7 +46,7 @@ class ScalQueueSuite extends IOSuite {
     // Test striping by adding several more singleton tasks
     var j = 0
     while (j < 4) {
-      queue.offer(new Runnable { def run(): Unit = () }, random)
+      queue.offer(() => (), random)
       j += 1
     }
 
@@ -67,6 +67,7 @@ class ScalQueueSuite extends IOSuite {
     val random = ThreadLocalRandom.current()
 
     // Get initial metrics before any operations
+
     val initialBatchCount = queue.getTotalBatchCount()
     val initialFiberCount = queue.getTotalFiberCount()
 
@@ -82,7 +83,7 @@ class ScalQueueSuite extends IOSuite {
     val batch = new Array[Runnable](batchSize)
     var i = 0
     while (i < batchSize) {
-      batch(i) = new Runnable { def run(): Unit = () }
+      batch(i) = () => ()
       i += 1
     }
 
@@ -110,12 +111,12 @@ class ScalQueueSuite extends IOSuite {
     val random = ThreadLocalRandom.current()
 
     // Add a singleton task
-    queue.offer(new Runnable { def run(): Unit = () }, random)
+    queue.offer(() => (), random)
 
     // Test striping by adding several more singleton tasks
     var j = 0
     while (j < 4) {
-      queue.offer(new Runnable { def run(): Unit = () }, random)
+      queue.offer(() => (), random)
       j += 1
     }
 
@@ -124,7 +125,7 @@ class ScalQueueSuite extends IOSuite {
     val batch = new Array[Runnable](batchSize)
     var i = 0
     while (i < batchSize) {
-      batch(i) = new Runnable { def run(): Unit = () }
+      batch(i) = () => ()
       i += 1
     }
 
@@ -173,12 +174,12 @@ class ScalQueueSuite extends IOSuite {
     val random = ThreadLocalRandom.current()
 
     // Add a singleton task
-    queue.offer(new Runnable { def run(): Unit = () }, random)
+    queue.offer(() => (), random)
 
     // Test striping by adding several more singleton tasks
     var j = 0
     while (j < 4) {
-      queue.offer(new Runnable { def run(): Unit = () }, random)
+      queue.offer(() => (), random)
       j += 1
     }
 
@@ -187,7 +188,7 @@ class ScalQueueSuite extends IOSuite {
     val batch = new Array[Runnable](batchSize)
     var i = 0
     while (i < batchSize) {
-      batch(i) = new Runnable { def run(): Unit = () }
+      batch(i) = () => ()
       i += 1
     }
 
