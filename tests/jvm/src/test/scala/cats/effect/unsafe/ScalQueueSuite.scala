@@ -75,7 +75,7 @@ class ScalQueueSuite extends IOSuite {
     assertEquals(initialFiberCount, 0L, "Initial fiber count should be zero")
 
     // Add a singleton task for later fiber count verification
-    queue.offer(new Runnable { def run(): Unit = () }, random)
+    queue.offer(() => (), random)
 
     // Create a batch of 10 no-op tasks
     val batchSize = 10
