@@ -145,7 +145,7 @@ class ScalQueueSuite extends IOSuite {
     }
 
     // Verify we were able to poll at least one task
-    assertEquals(polledCount, 10, "Should have polled exactly 10 tasks")
+    assertEquals(polledCount, 6, "Should have polled exactly 6 items (5 singletons + 1 batch)")
 
     // Check current in-queue metrics
     val currentSingletonCount = queue.getSingletonCount()
