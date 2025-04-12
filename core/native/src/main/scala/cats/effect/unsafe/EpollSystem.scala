@@ -74,21 +74,15 @@ object EpollSystem extends PollingSystem {
     val wasInterrupted = Thread.interrupted()
 
     try {
-      if (wasInterrupted) Thread.currentThread().interrupt()
-
       try {
         thunk
       } catch {
-        case e: InterruptedException =>
-          Thread.currentThread().interrupt()
-          throw new IOException("Operation was interrupted", e)
-        case e: NoSuchElementException
-            if e.getMessage == "interrupted" || e.getMessage == "None.get" =>
-          // SN throws this for interruptions - preserve but don't wrap
+        case e: NoSuchElementException if e.getMessage == "interrupted" =>
           Thread.currentThread().interrupt()
           throw e
-      } finally {
-        val _ = Thread.interrupted()
+        case e: InterruptedException =>
+          Thread.currentThread().interrupt()
+          throw e
       }
     } finally {
       if (wasInterrupted) Thread.currentThread().interrupt()
