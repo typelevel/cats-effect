@@ -69,18 +69,10 @@ private[effect] final class ScalQueue(threadCount: Int) {
   // Metrics counters for tracking external queue submissions and present counts
   private[this] val totalSingletonCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
   private[this] val singletonCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
-  private[this] val totalBatchCounts: Array[AtomicLong] = createAtomicLongArray(
-    numQueues
-  )
-  private[this] val batchCounts: Array[AtomicLong] = createAtomicLongArray(
-    numQueues
-  )
-  private[this] val totalFiberCounts: Array[AtomicLong] = createAtomicLongArray(
-    numQueues
-  )
-  private[this] val fiberCounts: Array[AtomicLong] = createAtomicLongArray(
-    numQueues
-  )
+  private[this] val totalBatchCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+  private[this] val batchCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+  private[this] val totalFiberCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
+  private[this] val fiberCounts: Array[AtomicLong] = createAtomicLongArray(numQueues)
 
   /**
    * The concurrent queues backing this Scal queue.

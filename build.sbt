@@ -725,8 +725,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // internal API change, makes CpuStarvationMetrics available on all platforms
       ProblemFilters.exclude[MissingClassProblem](
         "cats.effect.metrics.JvmCpuStarvationMetrics$NoOpCpuStarvationMetrics"),
-// introduced by #4292 , external queue metrics
-// WorkStealingThreadPoolMetrics is a sealed trait, so we control all of its implementations.
+      // introduced by #4292, external queue metrics
+      // WorkStealingThreadPoolMetrics is a sealed trait, so we control all of its implementations.
       ProblemFilters.exclude[ReversedMissingMethodProblem](
         "cats.effect.unsafe.metrics.WorkStealingThreadPoolMetrics.externalQueue"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvationMetrics"),
