@@ -697,7 +697,7 @@ not involve blocking any physical thread, that's the beauty of fibers!</p>
 in parallel.</p>
 <p>Ok, so, alongside the queue of produced but not yet consumed elements, we have
 to keep track of the <code>Deferred</code> instances (created because consumers found an
-emnpty queue) that are waiting for elements to be available. These instances
+empty queue) that are waiting for elements to be available. These instances
 will be kept in a new queue <code>takers</code>. We will keep both queues in a new type
 <code>State</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Deferred</span>
