@@ -42,8 +42,8 @@ import cats.mtl.Local
  * }}}
  *
  * {{{
- *  def inc(name: String, local: IOLocal[Int]): IO[Unit] =
- *    local.update(_ + 1) >> local.get.flatMap(current => IO.println(s"fiber $$name: $$current"))
+ *  def inc(n: Int, local: IOLocal[Int]): IO[Unit] =
+ *    local.update(_ + 1) >> local.get.flatMap(current => IO.println(s"update $$n: $$current"))
  *
  *  for {
  *    local   <- IOLocal(42)
