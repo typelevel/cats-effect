@@ -19,4 +19,5 @@ object JSEnv {
   case object Firefox extends JSEnv
   case object Chrome extends JSEnv
   case object NodeJS extends JSEnv
+  case object WASM extends JSEnv
 }

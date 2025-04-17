@@ -22,6 +22,7 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
+import org.scalajs.linker.interface.OutputPatterns
 import sbtcrossproject.CrossProject
 import scala.scalanative.build._
 
@@ -295,6 +296,14 @@ lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
 
+lazy val nodeJSWasmEnv = new NodeJSEnv(
+  NodeJSEnv
+    .Config()
+    .withArgs(List("--experimental-wasm-exnref"))
+    .withEnv(Map("WASM_MODE" -> "true"))
+    .withSourceMap(true)
+)
+
 ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
@@ -309,6 +318,8 @@ ThisBuild / jsEnv := {
       val options = new ChromeOptions()
       options.setHeadless(true)
       new SeleniumJSEnv(options)
+    case WASM =>
+      nodeJSWasmEnv
   }
 }
 
@@ -985,10 +996,23 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
     githubWorkflowArtifactUpload := false
   )
   .jsSettings(
-    Compile / scalaJSUseMainModuleInitializer := true,
-    Compile / mainClass := Some("catseffect.examples.JSRunner"),
-    // The default configured mapSourceURI is used for trace filtering
-    scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
+    Test / jsEnv := new NodeJSEnv(
+      NodeJSEnv
+        .Config()
+        .withArgs(
+          List(
+            "--experimental-wasm-exnref",
+            "--experimental-wasm-imported-strings",
+            "--turboshaft-wasm"
+          ))
+        .withSourceMap(true)
+    ),
+    scalaJSLinkerConfig ~= {
+      _.withExperimentalUseWebAssembly(true)
+        .withModuleKind(ModuleKind.ESModule)
+        .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
+        .withClosureCompiler(false)
+    }
   )
   .jvmSettings(
     fork := true,
