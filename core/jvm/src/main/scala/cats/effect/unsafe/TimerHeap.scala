@@ -34,8 +34,6 @@ import scala.annotation.tailrec
 import java.util.Arrays
 import java.util.concurrent.atomic.AtomicInteger
 
-import Platform.safePublish
-
 /**
  * A specialized heap that serves as a priority queue for timers i.e. callbacks with trigger
  * times.
@@ -488,7 +486,6 @@ private final class TimerHeap extends AtomicInteger {
 
   override def toString() = if (size > 0) "TimerHeap(...)" else "TimerHeap()"
 
-  @safePublish
   private final class Node(
       val triggerTime: Long,
       private[this] var callback: Right[Nothing, Unit] => Unit,

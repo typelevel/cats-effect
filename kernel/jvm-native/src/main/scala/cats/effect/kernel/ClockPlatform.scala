@@ -16,13 +16,10 @@
 
 package cats.effect.kernel
 
-import java.time.{Instant, ZoneOffset, ZonedDateTime}
+import java.time.Instant
 
 private[effect] trait ClockPlatform[F[_]] extends Serializable { self: Clock[F] =>
   def realTimeInstant: F[Instant] = {
     self.applicative.map(self.realTime)(d => Instant.EPOCH.plusNanos(d.toNanos))
   }
-
-  def realTimeZonedDateTime: F[ZonedDateTime] =
-    self.applicative.map(realTimeInstant)(d => ZonedDateTime.ofInstant(d, ZoneOffset.UTC))
 }

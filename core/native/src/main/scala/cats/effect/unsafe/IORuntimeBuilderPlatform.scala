@@ -31,32 +31,23 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
     this
   }
 
-  // TODO unify this with the defaults in IORuntime.global and IOApp
   protected def platformSpecificBuild: IORuntime = {
-    val (compute, poller, computeShutdown) =
+    val defaultShutdown: () => Unit = () => ()
+    lazy val (loop, poller, loopDown) = IORuntime.createEventLoop(
+      customPollingSystem.getOrElse(IORuntime.createDefaultPollingSystem())
+    )
+    val (compute, pollers, computeShutdown) =
       customCompute
-        .map {
-          case (c, s) =>
-            (c, Nil, s)
-        }
-        .getOrElse {
-          val (c, p, s) =
-            IORuntime.createWorkStealingComputeThreadPool(
-              pollingSystem =
-                customPollingSystem.getOrElse(IORuntime.createDefaultPollingSystem()),
-              reportFailure = failureReporter
-            )
-          (c, List(p), s)
-        }
-    val xformedCompute = computeTransform(compute)
-
-    val (scheduler, schedulerShutdown) = xformedCompute match {
-      case sched: Scheduler => customScheduler.getOrElse((sched, () => ()))
-      case _ => customScheduler.getOrElse(IORuntime.createDefaultScheduler())
-    }
-
-    val (blocking, blockingShutdown) =
-      customBlocking.getOrElse(IORuntime.createDefaultBlockingExecutionContext())
+        .map { case (c, s) => (c, Nil, s) }
+        .getOrElse(
+          (
+            loop,
+            List(poller),
+            loopDown
+          ))
+    val (blocking, blockingShutdown) = customBlocking.getOrElse((compute, defaultShutdown))
+    val (scheduler, schedulerShutdown) =
+      customScheduler.getOrElse((loop, defaultShutdown))
     val shutdown = () => {
       computeShutdown()
       blockingShutdown()
@@ -70,7 +61,7 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
       computeTransform(compute),
       blockingTransform(blocking),
       scheduler,
-      poller ::: extraPollers.map(_._1),
+      pollers ::: extraPollers.map(_._1),
       shutdown,
       runtimeConfig
     )

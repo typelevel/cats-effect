@@ -39,7 +39,8 @@ import scala.scalajs.{js, LinkingInfo}
 private[effect] final class BatchingMacrotaskExecutor(
     batchSize: Int,
     reportFailure0: Throwable => Unit
-) extends ExecutionContextExecutor {
+) extends ExecutionContextExecutor
+    with FiberExecutor {
 
   private[this] val queueMicrotask: js.Function1[js.Function0[Any], Any] =
     if (js.typeOf(js.Dynamic.global.queueMicrotask) == "function")

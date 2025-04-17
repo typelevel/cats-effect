@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
 class ParasiticECSuite extends BaseSuite with TestInstances {
 
-  override def executionTimeout: FiniteDuration = super.executionTimeout * 3
+  override def executionTimeout: FiniteDuration = 60.seconds
 
   real("evaluate fibers correctly in presence of a parasitic execution context") {
     val test = {

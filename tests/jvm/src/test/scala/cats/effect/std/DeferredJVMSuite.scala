@@ -28,13 +28,11 @@ import java.util.concurrent.atomic.AtomicLong
 
 import munit.FunSuite
 
-class DeferredParallelism1Tests extends BaseDeferredParallelismTests(1)
-class DeferredParallelism2Tests extends BaseDeferredParallelismTests(2)
-class DeferredParallelism4Tests extends BaseDeferredParallelismTests(4)
+class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
+class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
+class DeferredJVMParallelism4Tests extends BaseDeferredJVMTests(4)
 
-abstract class BaseDeferredParallelismTests(parallelism: Int)
-    extends FunSuite
-    with DetectPlatform {
+abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite {
   var service: ExecutorService = _
 
   implicit val context: ExecutionContext = new ExecutionContext {
@@ -65,14 +63,9 @@ abstract class BaseDeferredParallelismTests(parallelism: Int)
     assert(service.awaitTermination(60, TimeUnit.SECONDS), "has active threads")
   }
 
-  // pasta from Runners
-  def timeoutCoefficient: Long = if (isNative) 5 else 1
-
   // ----------------------------------------------------------------------------
   val iterations = if (isCI) 1000 else 10000
-  val timeout = (if (isCI) 30.seconds else 10.seconds) * timeoutCoefficient
-
-  override def munitTimeout: Duration = timeout * iterations.toLong
+  val timeout = if (isCI) 30.seconds else 10.seconds
 
   def cleanupOnError[A](task: IO[A], f: FiberIO[?]) =
     task guaranteeCase {

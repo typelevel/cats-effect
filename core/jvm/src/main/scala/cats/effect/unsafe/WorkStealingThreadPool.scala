@@ -37,7 +37,10 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-import java.util.concurrent.{LinkedTransferQueue, ThreadLocalRandom}
+import java.time.Instant
+import java.time.temporal.ChronoField
+import java.util.Comparator
+import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{
   AtomicBoolean,
   AtomicInteger,
@@ -75,8 +78,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     private[unsafe] val uncaughtExceptionHandler: Thread.UncaughtExceptionHandler
 ) extends ExecutionContextExecutor
     with Scheduler
-    with UnsealedPollingContext[P]
-    with WorkStealingThreadPoolPlatform[P] {
+    with UnsealedPollingContext[P] {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
@@ -130,8 +132,8 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    */
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
-  private[unsafe] val cachedThreads: LinkedTransferQueue[WorkerThread[P]] =
-    new LinkedTransferQueue
+  private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread[P]] =
+    new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread[P]](_.nameIndex))
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -628,6 +630,11 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
 
   override def nowMillis(): Long = System.currentTimeMillis()
 
+  override def nowMicros(): Long = {
+    val now = Instant.now()
+    now.getEpochSecond() * 1000000 + now.getLong(ChronoField.MICRO_OF_SECOND)
+  }
+
   /**
    * Tries to call the current worker's `sleep`, but falls back to `sleepExternal` if needed.
    */
@@ -704,7 +711,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       while (i < threadCount) {
         val workerThread = workerThreads.get(i)
         if (workerThread ne currentThread) {
-          system.interrupt(workerThread, pollers(i))
           workerThread.interrupt()
         }
         i += 1
@@ -745,7 +751,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
 
       var t: WorkerThread[P] = null
       while ({
-        t = cachedThreads.poll()
+        t = cachedThreads.pollFirst()
         t ne null
       }) {
         t.interrupt()

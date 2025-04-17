@@ -50,3 +50,4 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
     NameTransformer.decode(name)
 
 }
+

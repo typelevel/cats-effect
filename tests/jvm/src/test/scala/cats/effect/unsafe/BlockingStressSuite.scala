@@ -27,7 +27,7 @@ import java.util.concurrent.CountDownLatch
 
 class BlockingStressSuite extends BaseSuite {
 
-  override def executionTimeout: FiniteDuration = super.executionTimeout * 3 / 2
+  override def executionTimeout: FiniteDuration = 30.seconds
 
   // This test spawns a lot of helper threads.
   private val count = 1000

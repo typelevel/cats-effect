@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 class UnsafeBoundedSuite extends BaseSuite {
   import Queue.UnsafeBounded
 
-  override def executionTimeout = super.executionTimeout * 3 / 2
+  override def executionTimeout = 30.seconds
 
   // NB: emperically, it seems this needs to be > availableProcessors() to be effective
   val length = 1000

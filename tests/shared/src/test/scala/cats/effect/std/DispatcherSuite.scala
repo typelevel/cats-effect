@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class DispatcherSuite extends BaseSuite with DetectPlatform {
 
-  override def executionTimeout = super.executionTimeout * 3 / 2
+  override def executionTimeout = 30.seconds
 
   {
     val D = Dispatcher.sequential[IO](await = true)

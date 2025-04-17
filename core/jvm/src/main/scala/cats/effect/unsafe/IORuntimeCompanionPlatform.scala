@@ -24,7 +24,7 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
 
 import java.lang.management.ManagementFactory
-import java.util.concurrent.Executors
+import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
 
 import javax.management.ObjectName
@@ -251,8 +251,19 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     (ExecutionContext.fromExecutor(executor, reportFailure), { () => executor.shutdown() })
   }
 
-  def createDefaultScheduler(threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) =
-    Scheduler.createDefaultScheduler(threadPrefix)
+  def createDefaultScheduler(threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) = {
+    val scheduler = new ScheduledThreadPoolExecutor(
+      1,
+      { r =>
+        val t = new Thread(r)
+        t.setName(threadPrefix)
+        t.setDaemon(true)
+        t.setPriority(Thread.MAX_PRIORITY)
+        t
+      })
+    scheduler.setRemoveOnCancelPolicy(true)
+    (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
+  }
 
   def createDefaultPollingSystem(): PollingSystem = SelectorSystem()
 

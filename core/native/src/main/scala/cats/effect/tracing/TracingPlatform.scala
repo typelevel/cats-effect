@@ -16,9 +16,9 @@
 
 package cats.effect.tracing
 
+import cats.effect.kernel.Cont
 import scala.annotation.nowarn
 import scala.scalanative.meta.LinktimeInfo
-
 import java.util.concurrent.ConcurrentHashMap
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
@@ -27,22 +27,41 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   private[this] val cache = new ConcurrentHashMap[Class[?], TracingEvent]
 
-  def calculateTracingEvent(key: Any): TracingEvent =
+  // Native doesn't need WASM-specific handling
+  private[this] def isWasm: Boolean = false
+
+  def calculateTracingEvent[A](f: Function0[A]): TracingEvent = {
     if (LinktimeInfo.debugMode) {
-      if (isCachedStackTracing) {
-        val cls = key.getClass
-        val current = cache.get(cls)
-        if (current eq null) {
-          val event = buildEvent()
-          cache.put(cls, event)
-          event
-        } else current
-      } else if (isFullStackTracing) {
-        buildEvent()
-      } else {
-        null
-      }
+      calculateTracingEvent(f.getClass())
     } else null
+  }
+
+  def calculateTracingEvent[A, B](f: Function1[A, B]): TracingEvent = {
+    if (LinktimeInfo.debugMode) {
+      calculateTracingEvent(f.getClass())
+    } else null
+  }
+
+  def calculateTracingEvent[F[_], A, B](cont: Cont[F, A, B]): TracingEvent = {
+    if (LinktimeInfo.debugMode) {
+      calculateTracingEvent(cont.getClass())
+    } else null
+  }
+
+  private[this] def calculateTracingEvent(cls: Class[?]): TracingEvent = {
+    if (isCachedStackTracing) {
+      val current = cache.get(cls)
+      if (current eq null) {
+        val event = buildEvent()
+        cache.put(cls, event)
+        event
+      } else current
+    } else if (isFullStackTracing) {
+      buildEvent()
+    } else {
+      null
+    }
+  }
 
   @nowarn("msg=never used")
   private[tracing] def applyStackTraceFilter(
@@ -52,5 +71,5 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     isInternalClass(callSiteClassName)
 
   private[tracing] def decodeMethodName(name: String): String = name
-
 }
+

@@ -45,6 +45,8 @@ jobs:
             java: temurin@11
           - scala: 3.3.5
             java: temurin@21
+          - scala: 3.3.5
+            java: graalvm@21
           - scala: 2.12.20
             java: temurin@11
           - scala: 2.12.20
@@ -322,11 +324,6 @@ jobs:
         if: matrix.ci == 'ciNative' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: example/test-native.sh ${{ matrix.scala }}
-
-      - name: Test GraalVM Native Image
-        if: (matrix.scala == '2.13.16' || matrix.scala == '3.3.5') && matrix.java == 'graalvm@21' && matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: sbt '++ ${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
 
       - name: Scalafix tests
         if: matrix.scala == '2.13.16' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
@@ -670,5 +667,5 @@ jobs:
       - name: Submit Dependencies
         uses: scalacenter/sbt-dependency-submission@v2
         with:
-          modules-ignore: cats-effect-benchmarks_3 cats-effect-benchmarks_2.12 cats-effect-benchmarks_2.13 cats-effect_3 cats-effect_2.12 cats-effect_2.13 cats-effect-example_sjs1_3 cats-effect-example_sjs1_2.12 cats-effect-example_sjs1_2.13 rootjs_3 rootjs_2.12 rootjs_2.13 ioapptestsnative_3 ioapptestsnative_2.12 ioapptestsnative_2.13 cats-effect-graalvm-example_3 cats-effect-graalvm-example_2.12 cats-effect-graalvm-example_2.13 cats-effect-tests_sjs1_3 cats-effect-tests_sjs1_2.12 cats-effect-tests_sjs1_2.13 rootjvm_3 rootjvm_2.12 rootjvm_2.13 rootnative_3 rootnative_2.12 rootnative_2.13 cats-effect-example_native0.5_3 cats-effect-example_native0.5_2.12 cats-effect-example_native0.5_2.13 cats-effect-example_3 cats-effect-example_2.12 cats-effect-example_2.13 cats-effect-tests_3 cats-effect-tests_2.12 cats-effect-tests_2.13 ioapptestsjvm_3 ioapptestsjvm_2.12 ioapptestsjvm_2.13 ioapptestsjs_3 ioapptestsjs_2.12 ioapptestsjs_2.13 cats-effect-tests_native0.5_3 cats-effect-tests_native0.5_2.12 cats-effect-tests_native0.5_2.13
+          modules-ignore: cats-effect-benchmarks_3 cats-effect-benchmarks_2.12 cats-effect-benchmarks_2.13 cats-effect_3 cats-effect_2.12 cats-effect_2.13 cats-effect-example_sjs1_3 cats-effect-example_sjs1_2.12 cats-effect-example_sjs1_2.13 rootjs_3 rootjs_2.12 rootjs_2.13 ioapptestsnative_3 ioapptestsnative_2.12 ioapptestsnative_2.13 cats-effect-graalvm-example_3 cats-effect-graalvm-example_2.12 cats-effect-graalvm-example_2.13 cats-effect-tests_sjs1_3 cats-effect-tests_sjs1_2.12 cats-effect-tests_sjs1_2.13 rootjvm_3 rootjvm_2.12 rootjvm_2.13 rootnative_3 rootnative_2.12 rootnative_2.13 cats-effect-example_native0.4_3 cats-effect-example_native0.4_2.12 cats-effect-example_native0.4_2.13 cats-effect-example_3 cats-effect-example_2.12 cats-effect-example_2.13 cats-effect-tests_3 cats-effect-tests_2.12 cats-effect-tests_2.13 ioapptestsjvm_3 ioapptestsjvm_2.12 ioapptestsjvm_2.13 ioapptestsjs_3 ioapptestsjs_2.12 ioapptestsjs_2.13 cats-effect-tests_native0.4_3 cats-effect-tests_native0.4_2.12 cats-effect-tests_native0.4_2.13
           configs-ignore: test scala-tool scala-doc-tool test-internal

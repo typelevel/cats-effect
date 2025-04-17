@@ -331,41 +331,25 @@ object Random extends RandomCompanionPlatform {
     SecureRandom.javaSecuritySecureRandom[F].widen[Random[F]]
 
   private[std] sealed abstract class RandomCommon[F[_]: Sync] extends Random[F] {
-    def betweenDouble(minInclusive: Double, maxExclusive: Double): F[Double] = {
+    def betweenDouble(minInclusive: Double, maxExclusive: Double): F[Double] =
       for {
         _ <- require(minInclusive < maxExclusive, "Invalid bounds")
         d <- nextDouble
       } yield {
-        val diff = maxExclusive - minInclusive
-        val next = if (diff != java.lang.Double.POSITIVE_INFINITY) {
-          (d * diff) + minInclusive
-        } else { // overflow:
-          val maxHalf = maxExclusive / 2.0
-          val minHalf = minInclusive / 2.0
-          ((d * (maxHalf - minHalf)) + minHalf) * 2.0
-        }
+        val next = d * (maxExclusive - minInclusive) + minInclusive
         if (next < maxExclusive) next
         else Math.nextAfter(maxExclusive, Double.NegativeInfinity)
       }
-    }
 
-    def betweenFloat(minInclusive: Float, maxExclusive: Float): F[Float] = {
+    def betweenFloat(minInclusive: Float, maxExclusive: Float): F[Float] =
       for {
         _ <- require(minInclusive < maxExclusive, "Invalid bounds")
         f <- nextFloat
       } yield {
-        val diff = maxExclusive - minInclusive
-        val next = if (diff != java.lang.Float.POSITIVE_INFINITY) {
-          (f * diff) + minInclusive
-        } else { // overflow:
-          val maxHalf = maxExclusive / 2.0f
-          val minHalf = minInclusive / 2.0f
-          ((f * (maxHalf - minHalf)) + minHalf) * 2.0f
-        }
+        val next = f * (maxExclusive - minInclusive) + minInclusive
         if (next < maxExclusive) next
         else Math.nextAfter(maxExclusive, Float.NegativeInfinity)
       }
-    }
 
     def betweenInt(minInclusive: Int, maxExclusive: Int): F[Int] =
       require(minInclusive < maxExclusive, "Invalid bounds") *> {

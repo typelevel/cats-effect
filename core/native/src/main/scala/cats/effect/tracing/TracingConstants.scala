@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect
-package tracing
+package cats.effect.tracing
 
 private[effect] object TracingConstants {
 
@@ -26,5 +25,9 @@ private[effect] object TracingConstants {
 
   final val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
 
-  final val isStackTracing = isFullStackTracing || isCachedStackTracing
+  final val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
+
+  // Native doesn't need WASM-specific constants since it's not running in WASM mode
+  final val WASM_IDENTICAL_FUNCTION: AnyRef = new Object()
+  final val WASM_IDENTICAL_EVENT: TracingEvent = new TracingEvent.StackTrace()
 }

@@ -15,6 +15,7 @@
  */
 
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
 import com.github.sbt.git.SbtGit.GitKeys._
@@ -22,15 +23,13 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
+import org.scalajs.linker.interface.OutputPatterns
 import sbtcrossproject.CrossProject
-import scala.scalanative.build._
 
 import JSEnv._
 
-lazy val inCI = Option(System.getenv("CI")).contains("true")
-
 // sbt-git workarounds
-ThisBuild / useConsoleForROGit := !inCI
+ThisBuild / useConsoleForROGit := !Option(System.getenv("CI")).contains("true")
 
 ThisBuild / git.gitUncommittedChanges := {
   if ((ThisBuild / githubIsWorkflowBuild).value) {
@@ -43,11 +42,12 @@ ThisBuild / git.gitUncommittedChanges := {
   }
 }
 
-ThisBuild / tlBaseVersion := "3.7"
+ThisBuild / tlBaseVersion := "3.6"
 ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
+ThisBuild / tlSonatypeUseLegacyHost := false
 
 ThisBuild / startYear := Some(2020)
 
@@ -204,12 +204,6 @@ ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
     name = Some("Test Example Native App Using Binary"),
     cond = Some(s"matrix.ci == 'ciNative' && matrix.os == '$PrimaryOS'")
   ),
-  WorkflowStep.Sbt(
-    List("graalVMExample/nativeImage", "graalVMExample/nativeImageRun"),
-    name = Some("Test GraalVM Native Image"),
-    cond = Some(
-      s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.java == '${GraalVM.render}' && matrix.os == '$PrimaryOS'")
-  ),
   WorkflowStep.Run(
     List("cd scalafix", "sbt test"),
     name = Some("Scalafix tests"),
@@ -233,7 +227,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
-    if !(scala == Scala3 && (java == LatestJava || java == GraalVM))
+    if !(scala == Scala3 && java == LatestJava)
   } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val armFilters =
@@ -295,6 +289,14 @@ lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
 
+lazy val nodeJSWasmEnv = new NodeJSEnv(
+  NodeJSEnv
+    .Config()
+    .withArgs(List("--experimental-wasm-exnref"))
+    .withEnv(Map("WASM_MODE" -> "true"))
+    .withSourceMap(true)
+)
+
 ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
@@ -309,6 +311,8 @@ ThisBuild / jsEnv := {
       val options = new ChromeOptions()
       options.setHeadless(true)
       new SeleniumJSEnv(options)
+    case WASM =>
+      nodeJSWasmEnv
   }
 }
 
@@ -325,52 +329,28 @@ ThisBuild / autoAPIMappings := true
 
 ThisBuild / Test / testOptions += Tests.Argument("+l")
 
-val CatsVersion = "2.13.0"
-val CatsMtlVersion = "1.5.0"
-val ScalaCheckVersion = "1.18.1"
-val CoopVersion = "1.3.0"
-val MUnitVersion = "1.1.0"
-val MUnitScalaCheckVersion = "1.1.0"
-val DisciplineMUnitVersion = "2.0.0"
+val CatsVersion = "2.11.0"
+val CatsMtlVersion = "1.3.1"
+val ScalaCheckVersion = "1.17.1"
+val CoopVersion = "1.2.0"
+val MUnitVersion = "1.0.0-M11"
+val MUnitScalaCheckVersion = "1.0.0-M11"
+val DisciplineMUnitVersion = "2.0.0-M3"
 
 val MacrotaskExecutorVersion = "1.1.1"
 
-Global / tlCommandAliases ++= Map(
-  CI.JVM.commandAlias,
-  CI.Native.commandAlias,
-  CI.JS.commandAlias,
-  CI.Firefox.commandAlias,
-  CI.Chrome.commandAlias
-)
+tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
+addCommandAlias("release", "tlRelease")
 
-Global / tlCommandAliases ++= Map(
-  "ci" -> CI.AllCIs.flatMap(_.commands)
-)
+addCommandAlias(CI.JVM.command, CI.JVM.toString)
+addCommandAlias(CI.Native.command, CI.Native.toString)
+addCommandAlias(CI.JS.command, CI.JS.toString)
+addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
+addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
-Global / tlCommandAliases ++= Map(
-  "release" -> List("tlRelease")
-)
-
-Global / tlCommandAliases ++= Map(
-  "prePR" -> List(
-    "root/clean",
-    "+root/headerCreate",
-    "root/scalafixAll",
-    "scalafmtSbt",
-    "+root/scalafmtAll"
-  )
-)
-
-lazy val nativeTestSettings = Seq(
-  nativeConfig ~= { c => // TODO: remove this when it seems to work
-    c.withSourceLevelDebuggingConfig(_.enableAll) // enable generation of debug information
-      .withOptimize(false) // disable Scala Native optimizer
-      .withMode(Mode.debug) // compile using LLVM without optimizations
-      .withCompileOptions(c.compileOptions ++ Seq("-gdwarf-4"))
-  },
-  envVars ++= { if (inCI) Map("GC_MAXIMUM_HEAP_SIZE" -> "8g") else Map.empty[String, String] },
-  parallelExecution := !inCI
-)
+tlReplaceCommandAlias(
+  "prePR",
+  "; root/clean; +root/headerCreate; root/scalafixAll; scalafmtSbt; +root/scalafmtAll")
 
 val jsProjects: Seq[ProjectReference] =
   Seq(
@@ -455,7 +435,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
   .nativeSettings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.6.0"
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.5.0"
   )
 
 /**
@@ -901,12 +881,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[MissingClassProblem](
           "cats.effect.metrics.JsCpuStarvationMetrics"),
         ProblemFilters.exclude[MissingClassProblem](
-          "cats.effect.metrics.JsCpuStarvationMetrics$"),
-        // all package-private classes; introduced when we made Native multithreaded
-        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.FiberExecutor"),
-        ProblemFilters.exclude[IncompatibleMethTypeProblem](
-          "cats.effect.unsafe.FiberMonitorImpl.this"),
-        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.FiberMonitorPlatform")
+          "cats.effect.metrics.JsCpuStarvationMetrics$")
       )
     },
     mimaBinaryIssueFilters ++= {
@@ -963,12 +938,11 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion
     )
   )
-  .nativeSettings(nativeTestSettings)
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
  */
-lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("tests"))
   .dependsOn(core, laws % Test, kernelTestkit % Test, testkit % Test)
   .enablePlugins(NoPublishPlugin)
@@ -985,10 +959,23 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
     githubWorkflowArtifactUpload := false
   )
   .jsSettings(
-    Compile / scalaJSUseMainModuleInitializer := true,
-    Compile / mainClass := Some("catseffect.examples.JSRunner"),
-    // The default configured mapSourceURI is used for trace filtering
-    scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
+    Test / jsEnv := new NodeJSEnv(
+      NodeJSEnv
+        .Config()
+        .withArgs(
+          List(
+            "--experimental-wasm-exnref",
+            "--experimental-wasm-imported-strings",
+            "--turboshaft-wasm"
+          ))
+        .withSourceMap(true)
+    ),
+    scalaJSLinkerConfig ~= {
+      _.withExperimentalUseWebAssembly(true)
+        .withModuleKind(ModuleKind.ESModule)
+        .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
+        .withClosureCompiler(false)
+    }
   )
   .jvmSettings(
     fork := true,
@@ -996,7 +983,9 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
   )
   .nativeSettings(
     Compile / mainClass := Some("catseffect.examples.NativeRunner"),
-    nativeTestSettings
+    Test / unmanagedSourceDirectories += {
+      (LocalRootProject / baseDirectory).value / "tests" / "shared" / "src" / "native" / "test" / "scala"
+    }
   )
 
 def configureIOAppTests(p: Project): Project =
@@ -1007,7 +996,7 @@ def configureIOAppTests(p: Project): Project =
       buildInfoPackage := "cats.effect",
       buildInfoKeys ++= Seq(
         "jsRunner" -> (tests.js / Compile / fastOptJS / artifactPath).value,
-        "nativeRunner" -> (tests.native / Compile / crossTarget).value / (tests.native / Compile / moduleName).value
+        "nativeRunner" -> (tests.native / Compile / nativeLink / artifactPath).value
       )
     )
 

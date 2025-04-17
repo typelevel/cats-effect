@@ -16,8 +16,25 @@
 
 package cats.effect.tracing
 
-private[effect] sealed trait TracingEvent extends Serializable
+private[effect] sealed trait TracingEvent extends Serializable {
+  def getStackTrace(): Array[StackTraceElement]
+}
 
 private[effect] object TracingEvent {
-  final class StackTrace extends Throwable with TracingEvent
+  final class StackTrace extends Throwable with TracingEvent {
+    override def getStackTrace(): Array[StackTraceElement] = super.getStackTrace()
+  }
+
+  final class WasmTrace private[tracing] (
+      val stackTrace: Array[StackTraceElement],
+      val isIdentical: Boolean = false
+  ) extends TracingEvent {
+    override def getStackTrace(): Array[StackTraceElement] = stackTrace
+    override def toString: String = s"WasmTrace(${stackTrace.mkString(",")})"
+  }
+
+  object WasmTrace {
+    def apply(stackTrace: Array[StackTraceElement], isIdentical: Boolean = false): WasmTrace =
+      new WasmTrace(stackTrace, isIdentical)
+  }
 }

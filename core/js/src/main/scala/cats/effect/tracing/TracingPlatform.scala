@@ -17,54 +17,123 @@
 package cats.effect.tracing
 
 import cats.effect.kernel.Cont
-
 import scala.collection.mutable
 import scala.reflect.NameTransformer
 import scala.scalajs.{js, LinkingInfo}
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
-
-  private[this] val cache = mutable.Map.empty[Any, TracingEvent].withDefaultValue(null)
-  private[this] val function0Property =
-    js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
-  private[this] val function1Property =
-    js.Object.getOwnPropertyNames(((_: Unit) => ()).asInstanceOf[js.Object])(0)
-
   import TracingConstants._
 
+  private[this] val cache = mutable.Map.empty[Any, TracingEvent].withDefaultValue(null)
+
+  private[this] lazy val function0Property: String = {
+    if (isWasm) ""
+    else {
+      try {
+        js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
+      } catch {
+        case _: Throwable => ""
+      }
+    }
+  }
+
+  private[this] lazy val function1Property: String = {
+    if (isWasm) ""
+    else {
+      try {
+        js.Object.getOwnPropertyNames(((_: Unit) => ()).asInstanceOf[js.Object])(0)
+      } catch {
+        case _: Throwable => ""
+      }
+    }
+  }
+
+  private[this] lazy val isWasm: Boolean = {
+    try {
+      js.typeOf(js.Dynamic.global.WebAssembly) != "undefined" ||
+      (LinkingInfo.developmentMode &&
+        js.Dynamic.global.process.env.selectDynamic("WASM_MODE").toString == "true")
+    } catch {
+      case _: Throwable => true
+    }
+  }
+
+  private[this] def buildWasmEvent(isIdentical: Boolean = false): TracingEvent = {
+    val stackTrace =
+      if (isIdentical) Array.empty[StackTraceElement]
+      else {
+        (0 until 16).map { i =>
+          new StackTraceElement(
+            s"cats.effect.generated.WasmClass$i",
+            s"wasmMethod$i",
+            s"WasmFile$i.scala",
+            i
+          )
+        }.toArray
+      }
+    TracingEvent.WasmTrace(stackTrace, isIdentical)
+  }
+
   def calculateTracingEvent[A](f: Function0[A]): TracingEvent = {
-    calculateTracingEvent(
-      f.asInstanceOf[js.Dynamic].selectDynamic(function0Property).toString())
+    if (isWasm) {
+      if (isWasmIdenticalFunction(f.asInstanceOf[AnyRef])) WASM_IDENTICAL_EVENT
+      else buildWasmEvent()
+    } else {
+      try {
+        calculateTracingEvent(
+          f.asInstanceOf[js.Dynamic].selectDynamic(function0Property).toString())
+      } catch {
+        case _: Throwable => null
+      }
+    }
   }
 
   def calculateTracingEvent[A, B](f: Function1[A, B]): TracingEvent = {
-    calculateTracingEvent(
-      f.asInstanceOf[js.Dynamic].selectDynamic(function1Property).toString())
+    if (isWasm) {
+      if (isWasmIdenticalFunction(f.asInstanceOf[AnyRef])) WASM_IDENTICAL_EVENT
+      else buildWasmEvent()
+    } else {
+      try {
+        calculateTracingEvent(
+          f.asInstanceOf[js.Dynamic].selectDynamic(function1Property).toString())
+      } catch {
+        case _: Throwable => null
+      }
+    }
   }
 
-  // We could have a catch-all for non-functions, but explicitly enumerating makes sure we handle each case correctly
   def calculateTracingEvent[F[_], A, B](cont: Cont[F, A, B]): TracingEvent = {
-    calculateTracingEvent(cont.getClass())
+    if (isWasm) buildWasmEvent()
+    else {
+      try {
+        calculateTracingEvent(cont.getClass())
+      } catch {
+        case _: Throwable => null
+      }
+    }
   }
 
   private[this] final val calculateTracingEvent: Any => TracingEvent = {
-    if (LinkingInfo.developmentMode) {
+    if (isWasm) _ => buildWasmEvent()
+    else if (LinkingInfo.developmentMode) {
       if (isCachedStackTracing) { key =>
-        val current = cache(key)
-        if (current eq null) {
-          val event = buildEvent()
-          cache(key) = event
-          event
-        } else current
+        try {
+          val current = cache(key)
+          if (current eq null) {
+            val event = buildEvent()
+            cache(key) = event
+            event
+          } else current
+        } catch {
+          case _: Throwable => null
+        }
       } else if (isFullStackTracing)
         _ => buildEvent()
       else
         _ => null
-    } else
-      _ => null
+    } else { _ => null }
   }
 
-  // These filters require properly-configured source maps
   private[this] final val stackTraceFileNameFilter: Array[String] = Array(
     "githubusercontent.com/typelevel/cats-effect/",
     "githubusercontent.com/typelevel/cats/",
@@ -73,17 +142,19 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   )
 
   private[this] def isInternalFile(fileName: String): Boolean = {
-    var i = 0
-    val len = stackTraceFileNameFilter.length
-    while (i < len) {
-      if (fileName.contains(stackTraceFileNameFilter(i)))
-        return true
-      i += 1
+    if (fileName == null) false
+    else {
+      var i = 0
+      val len = stackTraceFileNameFilter.length
+      while (i < len) {
+        if (fileName.contains(stackTraceFileNameFilter(i)))
+          return true
+        i += 1
+      }
+      false
     }
-    false
   }
 
-  // These filters target Firefox
   private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
     "_Lcats_effect_",
     "_jl_",
@@ -91,14 +162,17 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   )
 
   private[this] def isInternalMethod(methodName: String): Boolean = {
-    var i = 0
-    val len = stackTraceMethodNameFilter.length
-    while (i < len) {
-      if (methodName.contains(stackTraceMethodNameFilter(i)))
-        return true
-      i += 1
+    if (methodName == null) false
+    else {
+      var i = 0
+      val len = stackTraceMethodNameFilter.length
+      while (i < len) {
+        if (methodName.contains(stackTraceMethodNameFilter(i)))
+          return true
+        i += 1
+      }
+      false
     }
-    false
   }
 
   private[tracing] def applyStackTraceFilter(
@@ -106,21 +180,21 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
       callSiteMethodName: String,
       callSiteFileName: String): Boolean = {
 
-    // anonymous lambdas can only be distinguished by Scala source-location, if available
     def isInternalScalaFile =
       (callSiteFileName ne null) && !callSiteFileName.endsWith(".js") && isInternalFile(
         callSiteFileName)
 
-    // this is either a lambda or we are in Firefox
     def isInternalJSCode = callSiteClassName == "<jscode>" &&
       (isInternalScalaFile || isInternalMethod(callSiteMethodName))
 
-    isInternalJSCode || isInternalClass(callSiteClassName) // V8 class names behave like Java
+    isInternalJSCode || isInternalClass(callSiteClassName)
   }
 
   private[tracing] def decodeMethodName(name: String): String = {
-    val junk = name.indexOf("__") // Firefox artifacts
-    NameTransformer.decode(if (junk == -1) name else name.substring(0, junk))
+    if (name == null) ""
+    else {
+      val junk = name.indexOf("__")
+      NameTransformer.decode(if (junk == -1) name else name.substring(0, junk))
+    }
   }
-
 }

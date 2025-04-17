@@ -30,14 +30,10 @@ import scala.reflect.{classTag, ClassTag}
 import munit.{FunSuite, Location, TestOptions}
 import munit.internal.PlatformCompat
 
-trait Runners extends TestInstances with RunnersPlatform with DetectPlatform {
+trait Runners extends TestInstances with RunnersPlatform {
   self: FunSuite =>
 
-  def timeoutCoefficient: Long = if (isNative) 5 else 1
-
-  def executionTimeout: FiniteDuration =
-    20.seconds * timeoutCoefficient
-
+  def executionTimeout: FiniteDuration = 20.seconds
   override def munitTimeout: Duration = executionTimeout
 
   def ticked(options: TestOptions)(body: Ticker => Unit)(implicit loc: Location): Unit =
@@ -148,7 +144,7 @@ trait Runners extends TestInstances with RunnersPlatform with DetectPlatform {
         .sleep(
           duration,
           { () =>
-            if (p.tryFailure(new TestTimeoutException(s"test timed out after ${duration}"))) {
+            if (p.tryFailure(new TestTimeoutException)) {
               cancel()
               ()
             }
@@ -164,4 +160,4 @@ trait Runners extends TestInstances with RunnersPlatform with DetectPlatform {
   }
 }
 
-class TestTimeoutException(msg: String) extends Exception(msg)
+class TestTimeoutException extends Exception

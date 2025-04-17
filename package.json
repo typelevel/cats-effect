@@ -1,5 +1,6 @@
 {
   "private": true,
+  "type": "module",
   "devDependencies": {
     "source-map-support": "^0.5.19"
   }
