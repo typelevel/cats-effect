@@ -9,7 +9,7 @@ title: FAQ
 
 ```scala-cli
 //> using scala "2.13.8"
-//> using lib "org.typelevel::cats-effect::3.5.7"
+//> using lib "org.typelevel::cats-effect::3.6.1"
 
 import cats.effect._
 
@@ -257,4 +257,3 @@ Working version of the above example (emitting no warnings):
       .flatMap(_ => IO(input))
   }
 ```
-

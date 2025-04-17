@@ -591,7 +591,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.OnCancel(this, fin)
 
   @deprecated("Use onError with PartialFunction argument", "3.6.0")
-  def onError(f: Throwable => IO[Unit]): IO[A] = {
+  private[effect] def onError(f: Throwable => IO[Unit]): IO[A] = {
     val pf: PartialFunction[Throwable, IO[Unit]] = { case t => f(t).reportError }
     onError(pf)
   }
