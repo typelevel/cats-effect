@@ -1012,7 +1012,11 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
         .withModuleKind(ModuleKind.ESModule)
         .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
         .withClosureCompiler(false)
-    }
+        .withOptimizer(false) // disable Optimizer for WASM
+    },
+    Test / scalaJSUseTestModuleInitializer := true,
+    Test / scalaJSUseMainModuleInitializer := false, // Explicitly disable
+    Test / testOptions += Tests.Argument(TestFrameworks.MUnit, "+l")
   )
   .jvmSettings(
     fork := true,

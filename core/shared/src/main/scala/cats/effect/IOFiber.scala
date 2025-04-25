@@ -215,7 +215,9 @@ private final class IOFiber[A](
      * either because the entire IO is done, or because this branch is done
      * and execution is continuing asynchronously in a different runloop invocation.
      */
-    if (_cur0 eq IO.EndFiber) {
+    val cur0 = if (_cur0 eq null) IO.Error(new NullPointerException()) else _cur0
+
+    if (cur0 eq IO.EndFiber) {
       return
     }
 
@@ -1193,7 +1195,14 @@ private final class IOFiber[A](
    * Registers the suspended fiber in the global suspended fiber bag.
    */
   private[this] def monitor(): WeakBag.Handle = {
-    runtime.fiberMonitor.monitorSuspended(this)
+    if (Platform.isWasm) {
+      // Return a dummy handle for WASM
+      new WeakBag.Handle {
+        def deregister(): Unit = ()
+      }.asInstanceOf[WeakBag.Handle]
+    } else {
+      runtime.fiberMonitor.monitorSuspended(this)
+    }
   }
 
   /**
@@ -1534,7 +1543,7 @@ private final class IOFiber[A](
   }
 
   private[this] def pushTracingEvent(te: TracingEvent): Unit = {
-    if (te ne null) {
+    if ((te ne null) && (tracingEvents ne null) && !Platform.isWasm) {
       tracingEvents.push(te)
     }
   }
@@ -1542,15 +1551,16 @@ private final class IOFiber[A](
   // overrides the AtomicReference#toString
   override def toString: String = {
     val state = if (suspended.get()) "SUSPENDED" else if (isDone) "COMPLETED" else "RUNNING"
-    val tracingEvents = this.tracingEvents
-
-    // There are race conditions here since a running fiber is writing to `tracingEvents`,
-    // but we don't worry about those since we are just looking for a single `TraceEvent`
-    // which references user-land code
-    val opAndCallSite =
-      Tracing.getFrames(tracingEvents).headOption.map(frame => s": $frame").getOrElse("")
-
-    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
+    if (Platform.isWasm) {
+      s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state"
+    } else {
+      val tracingEvents = this.tracingEvents
+      val opAndCallSite =
+        if (tracingEvents ne null) {
+          Tracing.getFrames(tracingEvents).headOption.map(frame => s": $frame").getOrElse("")
+        } else ""
+      s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
+    }
   }
 
   private[effect] def isDone: Boolean =

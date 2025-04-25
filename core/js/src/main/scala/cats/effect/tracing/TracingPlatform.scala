@@ -49,36 +49,17 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     }
   }
 
-  private[this] lazy val isWasm: Boolean = {
-    try {
-      js.typeOf(js.Dynamic.global.WebAssembly) != "undefined" ||
-      (LinkingInfo.developmentMode &&
-        js.Dynamic.global.process.env.selectDynamic("WASM_MODE").toString == "true")
-    } catch {
-      case _: Throwable => true
-    }
-  }
+  private[this] lazy val isWasm: Boolean =
+    System.getenv("WASM_MODE") == "true" ||
+      js.typeOf(js.Dynamic.global.WebAssembly) != "undefined"
 
   private[this] def buildWasmEvent(isIdentical: Boolean = false): TracingEvent = {
-    val stackTrace =
-      if (isIdentical) Array.empty[StackTraceElement]
-      else {
-        (0 until 16).map { i =>
-          new StackTraceElement(
-            s"cats.effect.generated.WasmClass$i",
-            s"wasmMethod$i",
-            s"WasmFile$i.scala",
-            i
-          )
-        }.toArray
-      }
-    TracingEvent.WasmTrace(stackTrace, isIdentical)
+    TracingEvent.WasmTrace(Array.empty, isIdentical)
   }
 
   def calculateTracingEvent[A](f: Function0[A]): TracingEvent = {
     if (isWasm) {
-      if (isWasmIdenticalFunction(f.asInstanceOf[AnyRef])) WASM_IDENTICAL_EVENT
-      else buildWasmEvent()
+      WASM_IDENTICAL_EVENT
     } else {
       try {
         calculateTracingEvent(

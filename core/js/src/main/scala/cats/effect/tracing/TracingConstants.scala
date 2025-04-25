@@ -47,7 +47,7 @@ private[effect] object TracingConstants {
   final val WASM_IDENTICAL_EVENT: TracingEvent =
     TracingEvent.WasmTrace(Array.empty, isIdentical = true)
 
-  def isWasmIdenticalFunction(f: AnyRef): Boolean = {
+  final def isWasmIdenticalFunction(f: AnyRef): Boolean = {
     js.typeOf(f.asInstanceOf[js.Dynamic].wasmIdentical) == "boolean" &&
     f.asInstanceOf[js.Dynamic].wasmIdentical.asInstanceOf[Boolean]
   }
