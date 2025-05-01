@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing
+package cats.effect
+package tracing
 
 import scala.scalajs.js
 
 private[effect] object TracingConstants {
+
   private[this] final val stackTracingMode: String =
     try {
       if (js.typeOf(js.Dynamic.global.process) != "undefined" &&

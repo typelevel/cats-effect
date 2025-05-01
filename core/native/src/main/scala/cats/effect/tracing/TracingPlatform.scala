@@ -17,8 +17,10 @@
 package cats.effect.tracing
 
 import cats.effect.kernel.Cont
+
 import scala.annotation.nowarn
 import scala.scalanative.meta.LinktimeInfo
+
 import java.util.concurrent.ConcurrentHashMap
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
