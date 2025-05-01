@@ -1014,9 +1014,10 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
         .withClosureCompiler(false)
         .withOptimizer(false) // disable Optimizer for WASM
     },
-    Test / scalaJSUseTestModuleInitializer := true,
-    Test / scalaJSUseMainModuleInitializer := false, // Explicitly disable
-    Test / testOptions += Tests.Argument(TestFrameworks.MUnit, "+l")
+    Compile / scalaJSUseMainModuleInitializer := true,
+    Compile / mainClass := Some("catseffect.examples.JSRunner"),
+    // The default configured mapSourceURI is used for trace filtering
+    scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
   .jvmSettings(
     fork := true,

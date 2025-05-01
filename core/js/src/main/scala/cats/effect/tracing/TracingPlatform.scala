@@ -49,17 +49,10 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     }
   }
 
-  private[this] lazy val isWasm: Boolean =
-    System.getenv("WASM_MODE") == "true" ||
-      js.typeOf(js.Dynamic.global.WebAssembly) != "undefined"
-
-  private[this] def buildWasmEvent(isIdentical: Boolean = false): TracingEvent = {
-    TracingEvent.WasmTrace(Array.empty, isIdentical)
-  }
-
   def calculateTracingEvent[A](f: Function0[A]): TracingEvent = {
     if (isWasm) {
-      WASM_IDENTICAL_EVENT
+      if (isIdenticalFunction(f.asInstanceOf[AnyRef])) WASM_IDENTICAL_EVENT
+      else createUniqueWasmTrace()
     } else {
       try {
         calculateTracingEvent(
@@ -72,8 +65,8 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   def calculateTracingEvent[A, B](f: Function1[A, B]): TracingEvent = {
     if (isWasm) {
-      if (isWasmIdenticalFunction(f.asInstanceOf[AnyRef])) WASM_IDENTICAL_EVENT
-      else buildWasmEvent()
+      if (isIdenticalFunction(f.asInstanceOf[AnyRef])) WASM_IDENTICAL_EVENT
+      else createUniqueWasmTrace()
     } else {
       try {
         calculateTracingEvent(
@@ -85,7 +78,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   }
 
   def calculateTracingEvent[F[_], A, B](cont: Cont[F, A, B]): TracingEvent = {
-    if (isWasm) buildWasmEvent()
+    if (isWasm) createUniqueWasmTrace()
     else {
       try {
         calculateTracingEvent(cont.getClass())
@@ -96,8 +89,10 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   }
 
   private[this] final val calculateTracingEvent: Any => TracingEvent = {
-    if (isWasm) _ => buildWasmEvent()
-    else if (LinkingInfo.developmentMode) {
+    if (isWasm) { key =>
+      if (isIdenticalFunction(key.asInstanceOf[AnyRef])) WASM_IDENTICAL_EVENT
+      else TracingEvent.WasmTrace(Array.empty)
+    } else if (LinkingInfo.developmentMode) {
       if (isCachedStackTracing) { key =>
         try {
           val current = cache(key)

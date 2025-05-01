@@ -38,17 +38,38 @@ private[effect] object TracingConstants {
 
   final val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
 
-  final val WASM_IDENTICAL_FUNCTION: AnyRef = {
-    val fn = () => ()
-    fn.asInstanceOf[js.Dynamic].wasmIdentical = true
-    fn.asInstanceOf[AnyRef]
-  }
+  final val isWasm: Boolean =
+    System.getenv("WASM_MODE") == "true" ||
+      js.typeOf(js.Dynamic.global.WebAssembly) != "undefined"
 
+  // Singleton event for identical functions
   final val WASM_IDENTICAL_EVENT: TracingEvent =
     TracingEvent.WasmTrace(Array.empty, isIdentical = true)
 
-  final def isWasmIdenticalFunction(f: AnyRef): Boolean = {
-    js.typeOf(f.asInstanceOf[js.Dynamic].wasmIdentical) == "boolean" &&
-    f.asInstanceOf[js.Dynamic].wasmIdentical.asInstanceOf[Boolean]
+  // Cache for unique traces
+  private[this] val uniqueTraceCache =
+    if (isWasm) js.Dictionary.empty[TracingEvent]
+    else null
+
+  def createUniqueWasmTrace(): TracingEvent = {
+    if (isWasm) {
+      val event = TracingEvent.WasmTrace(Array.empty)
+      uniqueTraceCache(event.hashCode().toString) = event
+      event
+    } else {
+      TracingEvent.WasmTrace(Array.empty)
+    }
+  }
+
+  def markAsIdentical(f: AnyRef): Unit = {
+    if (isWasm) {
+      f.asInstanceOf[js.Dynamic].__cats_effect_identical = true
+    }
+  }
+
+  def isIdenticalFunction(f: AnyRef): Boolean = {
+    isWasm &&
+    js.typeOf(f.asInstanceOf[js.Dynamic].__cats_effect_identical) == "boolean" &&
+    f.asInstanceOf[js.Dynamic].__cats_effect_identical.asInstanceOf[Boolean]
   }
 }

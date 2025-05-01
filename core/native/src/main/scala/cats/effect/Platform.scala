@@ -20,6 +20,7 @@ private object Platform {
   final val isJs = false
   final val isJvm = false
   final val isNative = true
+  final val isWasm = false
 
   class static extends scala.annotation.Annotation
   type safePublish = scala.scalanative.annotation.safePublish

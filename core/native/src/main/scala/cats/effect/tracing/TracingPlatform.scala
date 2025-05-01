@@ -27,9 +27,6 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   private[this] val cache = new ConcurrentHashMap[Class[?], TracingEvent]
 
-  // Native doesn't need WASM-specific handling
-  private[this] def isWasm: Boolean = false
-
   def calculateTracingEvent[A](f: Function0[A]): TracingEvent = {
     if (LinktimeInfo.debugMode) {
       calculateTracingEvent(f.getClass())
