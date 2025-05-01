@@ -26,7 +26,7 @@ import cats.data.{
   OptionT,
   WriterT
 }
-import cats.implicits._
+import cats.syntax.all._
 
 import java.util.UUID
 
@@ -118,6 +118,16 @@ object UUIDGen extends UUIDGenCompanionPlatform {
   ]: UUIDGen[IndexedReaderWriterStateT[F, E, L, S, S, *]] =
     UUIDGen[F].mapK(IndexedReaderWriterStateT.liftK)
 
+  private[std] final class TranslatedUUIDGen[F[_], G[_]](self: UUIDGen[F])(f: F ~> G)
+      extends UUIDGen[G] {
+    override def randomUUID: G[UUID] =
+      f(self.randomUUID)
+
+  }
+}
+
+private[std] trait UUIDGenCompanionPlatformMediumPriority
+    extends UUIDGenCompanionPlatformLowPriority {
   implicit def fromSecureRandom[F[_]: Functor: SecureRandom]: UUIDGen[F] =
     new UUIDGen[F] {
       override final val randomUUID: F[UUID] =
@@ -137,11 +147,4 @@ object UUIDGen extends UUIDGenCompanionPlatform {
         new UUID(msb, lsb)
       }
     }
-
-  private[std] final class TranslatedUUIDGen[F[_], G[_]](self: UUIDGen[F])(f: F ~> G)
-      extends UUIDGen[G] {
-    override def randomUUID: G[UUID] =
-      f(self.randomUUID)
-
-  }
 }
