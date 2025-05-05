@@ -16,4 +16,37 @@
 
 package cats.effect
 
-trait IOAppPlatform extends IOAppCommon with IOAppMultiThreaded {}
+import cats.effect.unsafe.IORuntime
+
+trait IOAppPlatform extends IOAppCommon with IOAppMultiThreaded {
+  this: IOApp =>
+
+  private[effect] def defaultGlobalRuntime: IORuntime = {
+    val (compute, poller, compDown) =
+      IORuntime.createWorkStealingComputeThreadPool(
+        threads = computeWorkerThreadCount,
+        reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
+        blockedThreadDetectionEnabled = false, // TODO
+        pollingSystem = pollingSystem
+      )
+
+    val (blocking, blockDown) =
+      IORuntime.createDefaultBlockingExecutionContext(
+        threadPrefix = "io-blocking",
+        reportFailure =
+          (t: Throwable) => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
+      )
+
+    IORuntime(
+      compute,
+      blocking,
+      compute,
+      List(poller),
+      { () =>
+        compDown()
+        blockDown()
+        IORuntime.resetGlobal()
+      },
+      runtimeConfig)
+  }
+}

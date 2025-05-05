@@ -16,4 +16,8 @@
 
 package cats.effect
 
-trait IOAppCommon {}
+import cats.effect.unsafe.IORuntime
+
+trait IOAppCommon {
+  private[effect] def defaultGlobalRuntime: IORuntime
+}

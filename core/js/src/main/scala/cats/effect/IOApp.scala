@@ -205,17 +205,7 @@ trait IOApp extends IOAppPlatform {
     val installed = if (runtime == null) {
       import unsafe.IORuntime
 
-      val installed = IORuntime installGlobal {
-        val compute = IORuntime.createBatchingMacrotaskExecutor(reportFailure = t =>
-          reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
-
-        IORuntime(
-          compute,
-          compute,
-          IORuntime.defaultScheduler,
-          () => IORuntime.resetGlobal(),
-          runtimeConfig)
-      }
+      val installed = IORuntime installGlobal defaultGlobalRuntime
 
       _runtime = IORuntime.global
 

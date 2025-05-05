@@ -201,7 +201,7 @@ trait IOApp extends IOAppPlatform {
   // arbitrary constant is arbitrary
   private[this] lazy val queue = new ArrayBlockingQueue[AnyRef](32)
 
-  private[this] def handleTerminalFailure(t: Throwable): Unit = {
+  private[effect] def handleTerminalFailure(t: Throwable): Unit = {
     queue.clear()
     queue.put(t)
   }
@@ -398,35 +398,7 @@ trait IOApp extends IOAppPlatform {
     val installed = if (runtime == null) {
       import unsafe.IORuntime
 
-      val installed = IORuntime installGlobal {
-        val (compute, poller, compDown) =
-          IORuntime.createWorkStealingComputeThreadPool(
-            threads = computeWorkerThreadCount,
-            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
-            blockedThreadDetectionEnabled = blockedThreadDetectionEnabled,
-            pollingSystem = pollingSystem,
-            uncaughtExceptionHandler = (_, t) => handleTerminalFailure(t)
-          )
-
-        val (blocking, blockDown) =
-          IORuntime.createDefaultBlockingExecutionContext(
-            threadPrefix = "io-blocking",
-            reportFailure =
-              (t: Throwable) => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
-          )
-
-        IORuntime(
-          compute,
-          blocking,
-          compute,
-          List(poller),
-          { () =>
-            compDown()
-            blockDown()
-            IORuntime.resetGlobal()
-          },
-          runtimeConfig)
-      }
+      val installed = IORuntime installGlobal defaultGlobalRuntime
 
       _runtime = IORuntime.global
 

@@ -16,4 +16,20 @@
 
 package cats.effect
 
-trait IOAppPlatform extends IOAppCommon {}
+import cats.effect.unsafe.IORuntime
+
+trait IOAppPlatform extends IOAppCommon {
+  this: IOApp =>
+
+  private[effect] def defaultGlobalRuntime: IORuntime = {
+    val compute = IORuntime.createBatchingMacrotaskExecutor(reportFailure = t =>
+      reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
+
+    IORuntime(
+      compute,
+      compute,
+      IORuntime.defaultScheduler,
+      () => IORuntime.resetGlobal(),
+      runtimeConfig)
+  }
+}

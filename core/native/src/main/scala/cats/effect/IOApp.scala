@@ -289,34 +289,7 @@ trait IOApp extends IOAppPlatform {
     val installed = if (runtime == null) {
       import unsafe.IORuntime
 
-      val installed = IORuntime installGlobal {
-        val (compute, poller, compDown) =
-          IORuntime.createWorkStealingComputeThreadPool(
-            threads = computeWorkerThreadCount,
-            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
-            blockedThreadDetectionEnabled = false, // TODO
-            pollingSystem = pollingSystem
-          )
-
-        val (blocking, blockDown) =
-          IORuntime.createDefaultBlockingExecutionContext(
-            threadPrefix = "io-blocking",
-            reportFailure =
-              (t: Throwable) => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
-          )
-
-        IORuntime(
-          compute,
-          blocking,
-          compute,
-          List(poller),
-          { () =>
-            compDown()
-            blockDown()
-            IORuntime.resetGlobal()
-          },
-          runtimeConfig)
-      }
+      val installed = IORuntime installGlobal defaultGlobalRuntime
 
       _runtime = IORuntime.global
 
