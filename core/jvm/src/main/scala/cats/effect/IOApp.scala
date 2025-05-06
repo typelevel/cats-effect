@@ -141,9 +141,6 @@ import java.util.concurrent.atomic.AtomicInteger
  *   [[IOApp.Simple]]
  */
 trait IOApp extends IOAppPlatform {
-
-  private[this] var _runtime: unsafe.IORuntime = null
-
   /**
    * The runtime which will be used by `IOApp` to evaluate the [[IO]] produced by the `run`
    * method. This may be overridden by `IOApp` implementations which have extremely specialized
@@ -157,7 +154,7 @@ trait IOApp extends IOAppPlatform {
    *
    * This value is guaranteed to be equal to [[unsafe.IORuntime.global]].
    */
-  protected def runtime: unsafe.IORuntime = _runtime
+  protected def runtime: unsafe.IORuntime = installedRuntime
 
   /**
    * The configuration used to initialize the [[runtime]] which will evaluate the [[IO]]
@@ -395,24 +392,7 @@ trait IOApp extends IOAppPlatform {
     val isForked = Thread.currentThread().getId() == 1
     if (!isForked) onNonMainThreadDetected()
 
-    val installed = if (runtime == null) {
-      import unsafe.IORuntime
-
-      val installed = IORuntime installGlobal defaultGlobalRuntime
-
-      _runtime = IORuntime.global
-
-      installed
-    } else {
-      unsafe.IORuntime.installGlobal(runtime)
-    }
-
-    if (!installed) {
-      System
-        .err
-        .println(
-          "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
-    }
+    setupGlobalRuntime()
 
     if (isStackTracing) {
       val liveFiberSnapshotSignal = sys
