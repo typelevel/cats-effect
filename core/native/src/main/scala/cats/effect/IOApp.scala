@@ -24,7 +24,6 @@ import cats.syntax.all._
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}
 import scala.scalanative.meta.LinktimeInfo._
 
-import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -195,14 +194,6 @@ trait IOApp extends IOAppPlatform {
   protected def computeWorkerThreadCount: Int =
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
-  // arbitrary constant is arbitrary
-  private[this] lazy val queue = new ArrayBlockingQueue[AnyRef](32)
-
-  private[this] def handleTerminalFailure(t: Throwable): Unit = {
-    queue.clear()
-    queue.put(t)
-  }
-
   /**
    * Executes the provided actions on the main thread. Note that this is, by definition, a
    * single-threaded executor, and should not be used for anything which requires a meaningful
@@ -218,22 +209,7 @@ trait IOApp extends IOAppPlatform {
    * calling thread (for example, LWJGL). In these scenarios, it is recommended that the
    * absolute minimum possible amount of work is handed off to the main thread.
    */
-  protected def MainThread: ExecutionContext =
-    new ExecutionContext {
-      def reportFailure(t: Throwable): Unit =
-        t match {
-          case t if UnsafeNonFatal(t) =>
-            IOApp.this.reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
-
-          case t =>
-            handleTerminalFailure(t)
-        }
-
-      def execute(r: Runnable): Unit =
-        if (!queue.offer(r)) {
-          runtime.blocking.execute(() => queue.put(r))
-        }
-    }
+  protected def MainThread: ExecutionContext = defaultMainThread
 
   /**
    * Configures the action to perform when unhandled errors are caught by the runtime. An

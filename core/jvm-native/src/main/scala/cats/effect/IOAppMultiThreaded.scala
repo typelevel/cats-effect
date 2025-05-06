@@ -16,4 +16,18 @@
 
 package cats.effect
 
-trait IOAppMultiThreaded {}
+import scala.concurrent.ExecutionContext
+
+import java.util.concurrent.ArrayBlockingQueue
+
+trait IOAppMultiThreaded {
+  // arbitrary constant is arbitrary
+  private[effect] lazy val queue = new ArrayBlockingQueue[AnyRef](32)
+
+  private[effect] def handleTerminalFailure(t: Throwable): Unit = {
+    queue.clear()
+    queue.put(t)
+  }
+
+  private[effect] def defaultMainThread: ExecutionContext
+}

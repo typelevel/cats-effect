@@ -16,10 +16,35 @@
 
 package cats.effect
 
-import cats.effect.unsafe.IORuntime
+import cats.effect.unsafe.{IORuntime, UnsafeNonFatal}
+
+import scala.concurrent.ExecutionContext
 
 trait IOAppPlatform extends IOAppCommon with IOAppMultiThreaded {
   this: IOApp =>
+
+  private[effect] def defaultMainThread: ExecutionContext = {
+    if (queue eq queue)
+      new ExecutionContext {
+        def reportFailure(t: Throwable): Unit =
+          t match {
+            case t if UnsafeNonFatal(t) =>
+              IOAppPlatform.this.reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
+
+            case t =>
+              handleTerminalFailure(t)
+          }
+
+        def execute(r: Runnable): Unit =
+          if (!queue.offer(r)) {
+            runtime.blocking.execute(() => queue.put(r))
+          }
+      }
+    else
+      throw new UnsupportedOperationException(
+        "Your IOApp's super class has not been recompiled against Cats Effect 3.4.0+."
+      )
+  }
 
   private[effect] def defaultGlobalRuntime: IORuntime = {
     val (compute, poller, compDown) =
