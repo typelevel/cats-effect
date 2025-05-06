@@ -16,16 +16,12 @@
 
 package cats.effect
 
-import cats.effect.unsafe.IORuntime
-
 trait IOAppCommon {
   this: IOApp =>
 
   private[this] var _runtime: unsafe.IORuntime = null
 
   private[effect] def installedRuntime: unsafe.IORuntime = _runtime
-
-  private[effect] def defaultGlobalRuntime: IORuntime
 
   private[effect] def setupGlobalRuntime(): Unit = {
     val installed = if (runtime == null) {

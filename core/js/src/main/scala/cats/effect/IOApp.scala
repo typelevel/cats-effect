@@ -144,6 +144,7 @@ import scala.util.Try
  *   [[IOApp.Simple]]
  */
 trait IOApp extends IOAppPlatform {
+
   /**
    * The runtime which will be used by `IOApp` to evaluate the [[IO]] produced by the `run`
    * method. This may be overridden by `IOApp` implementations which have extremely specialized
