@@ -20,6 +20,7 @@ const users = [
   ['Eloquentix', 'https://eloquentix.com/'],
   ['Evolution Gaming', 'https://eng.evolutiongaming.com/'],
   ['Exelonix', 'https://exelonix.com/'],
+  ['Famly ApS', 'https://www.famly.co/'],
   ['Gemini Observatory', 'https://www.gemini.edu'],
   ['Grieg Connect', 'https://www.griegconnect.com'],
   ['Hi.Fi', 'https://hi.fi'],
