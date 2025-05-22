@@ -29,7 +29,7 @@ import scala.scalanative.meta.LinktimeInfo
 import scala.scalanative.posix.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
-import scala.scalanative.runtime.{Array => _, _}
+import scala.scalanative.runtime.{Array => _, Throwable => _, _}
 import scala.scalanative.unsafe._
 import scala.scalanative.unsigned._
 
