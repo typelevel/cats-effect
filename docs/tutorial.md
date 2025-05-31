@@ -344,8 +344,8 @@ object Main extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
     for {
       _ <- IO.raiseWhen(args.length < 2)(new IllegalArgumentException("Need origin and destination files"))
-      orig = new File(args(0))
-      dest = new File(args(1))
+      orig = IO.blocking(new File(args(0)))
+      dest = IO.blocking(new File(args(1)))
       count <- copy(orig, dest)
       _     <- IO.println(s"$count bytes copied from ${orig.getPath} to ${dest.getPath}")
     } yield ExitCode.Success
