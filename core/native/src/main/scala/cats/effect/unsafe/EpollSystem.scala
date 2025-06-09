@@ -106,7 +106,7 @@ object EpollSystem extends PollingSystem {
     @volatile private[this] var writeCallback: Either[Throwable, Int] => Unit = null
 
     def notify(events: Int): Unit = {
-      if ((events & EPOLLIN) != 0) {
+      if ((events & EPOLLIN) != 0 || (events & EPOLLHUP) != 0) {
         val counter = readReadyCounter + 1
         readReadyCounter = counter
         val cb = readCallback
@@ -274,7 +274,7 @@ object EpollSystem extends PollingSystem {
     ): Unit = {
       val event = stackalloc[Byte](epoll_eventTag.size).asInstanceOf[Ptr[epoll_event]]
       event.events =
-        (EPOLLET | (if (reads) EPOLLIN else 0) | (if (writes) EPOLLOUT else 0)).toUInt
+        (EPOLLET | (if (reads) (EPOLLIN | EPOLLHUP) else 0) | (if (writes) EPOLLOUT else 0)).toUInt
       event.data = toPtr(handle)
 
       val result =
@@ -312,6 +312,7 @@ object EpollSystem extends PollingSystem {
     final val EPOLLOUT = 0x004
     final val EPOLLONESHOT = 1 << 30
     final val EPOLLET = 1 << 31
+    final val EPOLLHUP = 1 << 4
 
     type epoll_event
     type epoll_data_t = Ptr[Byte]
