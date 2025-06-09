@@ -141,4 +141,17 @@ class FileDescriptorPollerSuite extends BaseSuite {
     }
   }
 
+  real("handle EPOLLHUP events") {
+    mkPipe.use { pipe =>
+      for {
+        buf <- IO(new Array[Byte](4))
+        _ <- pipe.write(Array[Byte](1, 2, 3), 0, 3)
+        _ <- pipe.read(buf, 0, 3)
+        _ <- IO(unistd.close(pipe.writeFd))
+        _ <- pipe.read(buf, 3, 1)
+        _ <- pipe.read(buf, 3, 1)
+      } yield assertEquals(buf.toList, List[Byte](1, 2, 3, 0))
+    }
+  }
+
 }
