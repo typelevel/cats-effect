@@ -273,8 +273,8 @@ object EpollSystem extends PollingSystem {
         cb: Either[Throwable, (PollHandle, IO[Unit])] => Unit
     ): Unit = {
       val event = stackalloc[Byte](epoll_eventTag.size).asInstanceOf[Ptr[epoll_event]]
-      event.events =
-        (EPOLLET | (if (reads) (EPOLLIN | EPOLLHUP) else 0) | (if (writes) EPOLLOUT else 0)).toUInt
+      event.events = (EPOLLET | (if (reads) EPOLLIN | EPOLLHUP else 0) | (if (writes) EPOLLOUT
+                                                                          else 0)).toUInt
       event.data = toPtr(handle)
 
       val result =
