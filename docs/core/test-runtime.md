@@ -28,7 +28,7 @@ For those migrating code from Cats Effect 2, `TestControl` is a considerably mor
 In order to use `TestControl`, you will need to bring in the **cats-effect-testkit** dependency:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.6.1" % Test
+libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.6.2" % Test
 ```
 
 ## Example

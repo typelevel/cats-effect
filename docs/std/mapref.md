@@ -32,7 +32,7 @@ as long as their keys belong to different shards.
 This is probably one of the most common uses of this datatype.
 
 ```scala mdoc:reset:silent
-//> using lib "org.typelevel::cats-effect::3.6.1"
+//> using lib "org.typelevel::cats-effect::3.6.2"
 
 import cats.effect.IO
 import cats.effect.std.MapRef

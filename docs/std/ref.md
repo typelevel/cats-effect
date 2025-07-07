@@ -33,7 +33,7 @@ This is probably one of the most common uses of this concurrency primitive.
 In this example, the workers will concurrently run and update the value of the `Ref`.
 
 ```scala mdoc:reset:silent
-//> using lib "org.typelevel::cats-effect::3.6.1"
+//> using lib "org.typelevel::cats-effect::3.6.2"
 
 import cats.effect.{IO, IOApp, Sync}
 import cats.effect.kernel.Ref

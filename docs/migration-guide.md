@@ -81,9 +81,9 @@ Cats Effect 3 splits the code dependency into multiple modules. If you were prev
 The current non-test modules are:
 
 ```scala
-"org.typelevel" %% "cats-effect-kernel" % "3.6.1",
-"org.typelevel" %% "cats-effect-std"    % "3.6.1",
-"org.typelevel" %% "cats-effect"        % "3.6.1",
+"org.typelevel" %% "cats-effect-kernel" % "3.6.2",
+"org.typelevel" %% "cats-effect-std"    % "3.6.2",
+"org.typelevel" %% "cats-effect"        % "3.6.2",
 ```
 
 - `kernel` - type class definitions, simple concurrency primitives
@@ -96,7 +96,7 @@ The current non-test modules are:
 libraryDependencies ++= Seq(
   //...
 -  "org.typelevel" %% "cats-effect" % "2.4.0",
-+  "org.typelevel" %% "cats-effect" % "3.6.1",
++  "org.typelevel" %% "cats-effect" % "3.6.2",
   //...
 )
 ```
