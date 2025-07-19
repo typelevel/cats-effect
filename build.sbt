@@ -364,7 +364,7 @@ Global / tlCommandAliases ++= Map(
 lazy val nativeTestSettings = Seq(
   nativeConfig ~= { c => // TODO: remove this when it seems to work
     c.withSourceLevelDebuggingConfig(_.enableAll.generateFunctionSourcePositions(true))
-      .withOptimize(false) // disable Scala Native optimizer
+      .withOptimize(true)
       .withMode(Mode.debug) // compile using LLVM without optimizations
       .withCompileOptions(c.compileOptions ++ Seq(
         "-gdwarf-4",
