@@ -302,6 +302,8 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
     def totalWriteOperationsSucceededCount(): Long = succeededWrites
     def totalWriteOperationsErroredCount(): Long = erroredWrites
     def totalWriteOperationsCanceledCount(): Long = canceledWrites
+
+    override def toString: String = "Selector"
   }
 
 }

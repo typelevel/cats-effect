@@ -1348,7 +1348,7 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
     checkAll(
       "Resource[PureConc, *]",
       DeferTests[Resource[F, *]].defer[Int](
-        implicitly,
+        using implicitly,
         arbitraryPureConcResource,
         implicitly,
         implicitly

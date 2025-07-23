@@ -36,10 +36,48 @@ private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
    * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
    * monitor instance belongs to.
    *
-   * @return
-   *   a textual representation of the runtime snapshot, `None` if a snapshot cannot be obtained
+   * `print` function can be used to print or accumulate a textual representation of the runtime
+   * snapshot.
+   *
+   * @example
+   *   Print a live snapshot
+   *   {{{
+   *   val monitor: FiberMonitor = ???
+   *   monitor.printLiveFiberSnapshot(System.out.print(_))
+   *   }}}
+   *
+   * @see
+   *   [[liveFiberSnapshot]]
    */
-  def liveFiberSnapshot(print: String => Unit): Unit
+  def printLiveFiberSnapshot(print: String => Unit): Unit
+
+  /**
+   * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
+   * monitor instance belongs to.
+   *
+   * The returned [[FiberSnapshot]] contains hard references to the underlying fibers and their
+   * current state, and execution traces. It can be used for debugging, diagnostics, or
+   * visualizations.
+   *
+   * @note
+   *   the snapshot introduces a risk of memory leaks because it retains hard references to the
+   *   underlying Fiber instances. As a result, these fibers cannot be garbage collected while
+   *   the snapshot (or anything that retains it) is still in scope.
+   *
+   * @example
+   *   Print all live fibers grouped by worker:
+   *   {{{
+   *   val printFiberDump: IO[Unit] =
+   *     for {
+   *       snapshot <- IO.delay(runtime.liveFiberSnapshot())
+   *       _ <- snapshot.external.traverse_(fiber => IO.println(fiber.pretty))
+   *     } yield ()
+   *   }}}
+   *
+   * @see
+   *   [[printLiveFiberSnapshot]] for printing a human-readable snapshot
+   */
+  def liveFiberSnapshot(): FiberSnapshot
 }
 
 private final class FiberMonitorImpl(
@@ -59,8 +97,30 @@ private final class FiberMonitorImpl(
     foreign.result()
   }
 
-  def liveFiberSnapshot(print: String => Unit): Unit =
-    Option(compute).foreach { compute =>
+  def printLiveFiberSnapshot(print: String => Unit): Unit = {
+    val snapshot = liveFiberSnapshot()
+
+    val (enqueued, waiting) = snapshot.external.foldLeft((0, 0)) {
+      case ((enqueued, waiting), fiber) =>
+        fiber.state match {
+          case FiberInfo.State.Yielding => (enqueued + 1, waiting)
+          case FiberInfo.State.Waiting => (enqueued, waiting + 1)
+          case _ => (enqueued, waiting)
+        }
+    }
+
+    printFibers(snapshot.external)(print)
+
+    val globalStatus =
+      s"Global: enqueued $enqueued, waiting $waiting"
+
+    print(doubleNewline)
+    print(globalStatus)
+    print(newline)
+  }
+
+  def liveFiberSnapshot(): FiberSnapshot = {
+    Option(compute).fold(FiberSnapshot.empty) { compute =>
       val queued = compute.liveTraces()
       val rawForeign = foreignTraces()
 
@@ -72,18 +132,14 @@ private final class FiberMonitorImpl(
       val allForeign = rawForeign -- queued.keys
       val (suspended, foreign) = allForeign.partition { case (f, _) => f.get() }
 
-      printFibers(queued, "YIELDING")(print)
-      printFibers(foreign, "YIELDING")(print)
-      printFibers(suspended, "WAITING")(print)
+      val fibers =
+        toFiberInfo(queued, FiberInfo.State.Yielding) ++
+          toFiberInfo(foreign, FiberInfo.State.Yielding) ++
+          toFiberInfo(suspended, FiberInfo.State.Waiting)
 
-      val globalStatus =
-        s"Global: enqueued ${queued.size + foreign.size}, waiting ${suspended.size}"
-
-      print(doubleNewline)
-      print(globalStatus)
-      print(newline)
+      FiberSnapshot(fibers)
     }
-
+  }
 }
 
 /**
@@ -92,7 +148,8 @@ private final class FiberMonitorImpl(
  */
 private final class NoOpFiberMonitor extends FiberMonitor {
   override def monitorSuspended(fiber: IOFiber[?]): WeakBag.Handle = () => ()
-  def liveFiberSnapshot(print: String => Unit): Unit = ()
+  def printLiveFiberSnapshot(print: String => Unit): Unit = ()
+  def liveFiberSnapshot(): FiberSnapshot = FiberSnapshot.empty
 }
 
 private[effect] object FiberMonitor {

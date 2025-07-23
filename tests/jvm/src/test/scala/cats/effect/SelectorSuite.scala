@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.unsafe.IORuntime
+import cats.effect.unsafe.{IORuntime, SelectorSystem}
 
 import scala.concurrent.duration._
 
@@ -112,4 +112,25 @@ class SelectorSuite extends BaseSuite {
     }
   }
 
+  testUnit("poller metrics have proper toString") {
+    val (_, poller, shutdown) =
+      IORuntime.createWorkStealingComputeThreadPool(
+        threads = 1,
+        pollingSystem = SelectorSystem()
+      )
+
+    val runtime = IORuntime.builder().addPoller(poller, () => ()).build()
+
+    try {
+      val name = runtime
+        .metrics
+        .workStealingThreadPool
+        .flatMap(_.workerThreads.headOption)
+        .map(_.poller.toString)
+
+      assertEquals(name, Some("Selector"))
+    } finally {
+      shutdown()
+    }
+  }
 }

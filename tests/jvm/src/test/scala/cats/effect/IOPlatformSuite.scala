@@ -20,7 +20,7 @@ import org.scalacheck.Prop.forAll
 
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.{CompletableFuture, CountDownLatch, ExecutorService, Executors}
+import java.util.concurrent.{CompletableFuture, ExecutorService, Executors}
 
 trait IOPlatformSuite extends IOConcurrencySuite { this: BaseScalaCheckSuite =>
 
@@ -56,68 +56,6 @@ trait IOPlatformSuite extends IOConcurrencySuite { this: BaseScalaCheckSuite =>
         .attempt
 
       assertCompleteAs(test, Left(e))
-    }
-
-    real("interrupt well-behaved blocking synchronous effect") {
-      var interrupted = true
-      val latch = new CountDownLatch(1)
-
-      val await = IO.interruptible {
-        latch.countDown()
-        Thread.sleep(15000)
-        interrupted = false
-      }
-
-      for {
-        f <- await.start
-        _ <- IO.blocking(latch.await())
-        _ <- f.cancel
-        _ <- IO(assert(interrupted))
-      } yield ()
-    }
-
-    real("interrupt ill-behaved blocking synchronous effect") {
-      var interrupted = true
-      val latch = new CountDownLatch(1)
-
-      val await = IO.interruptibleMany {
-        latch.countDown()
-
-        try {
-          Thread.sleep(15000)
-        } catch {
-          case _: InterruptedException => ()
-        }
-
-        // psych!
-        try {
-          Thread.sleep(15000)
-        } catch {
-          case _: InterruptedException => ()
-        }
-
-        // I AM INVINCIBLE
-        Thread.sleep(15000)
-
-        interrupted = false
-      }
-
-      for {
-        f <- await.start
-        _ <- IO.blocking(latch.await())
-        _ <- f.cancel
-        _ <- IO(assert(interrupted))
-      } yield ()
-    }
-
-    ticked("realTimeInstant should return an Instant constructed from realTime") {
-      implicit ticker =>
-        val op = for {
-          now <- IO.realTimeInstant
-          realTime <- IO.realTime
-        } yield now.toEpochMilli == realTime.toMillis
-
-        assertCompleteAs(op, true)
     }
 
     if (javaMajorVersion >= 21)

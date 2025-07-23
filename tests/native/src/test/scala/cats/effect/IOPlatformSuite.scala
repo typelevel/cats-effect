@@ -20,15 +20,5 @@ trait IOPlatformSuite extends IOConcurrencySuite { this: BaseSuite =>
 
   def platformTests() = {
     concurrencyTests()
-
-    ticked("realTimeInstant should return an Instant constructed from realTime") {
-      implicit ticker =>
-        val op = for {
-          now <- IO.realTimeInstant
-          realTime <- IO.realTime
-        } yield now.toEpochMilli == realTime.toMillis
-
-        assertCompleteAs(op, true)
-    }
   }
 }

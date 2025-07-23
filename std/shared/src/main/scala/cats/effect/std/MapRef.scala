@@ -52,7 +52,7 @@ object MapRef extends MapRefCompanionPlatform {
   def apply[F[_]: Concurrent, K, V]: F[MapRef[F, K, Option[V]]] = {
     Concurrent[F] match {
       case s: Sync[F] =>
-        ofConcurrentHashMap()(s)
+        ofConcurrentHashMap()(using s)
       case _ =>
         ofShardedImmutableMap[F, K, V](shardCount = Runtime.getRuntime.availableProcessors())
     }

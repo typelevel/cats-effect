@@ -23,6 +23,7 @@ import cats.syntax.all._
 
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}
 import scala.scalanative.meta.LinktimeInfo._
+import scala.scalanative.posix.unistd._exit
 
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicInteger
@@ -359,7 +360,8 @@ trait IOApp {
       if (isLinux || isMac)
         FileDescriptorPoller.find.toResource.flatMap {
           case Some(poller) =>
-            val dump = IO.blocking(runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
+            val dump =
+              IO.blocking(runtime.fiberMonitor.printLiveFiberSnapshot(System.err.print(_)))
             Signal.foreachDump(poller, dump).background.void
           case None => Resource.unit[IO]
         }
@@ -448,14 +450,8 @@ trait IOApp {
     }
   }
 
-  private[this] def halt(status: Int): Unit = {
-    // TODO: This should be `Runtime#halt` (i.e.,
-    // TODO: not call shutdown hooks), but that is
-    // TODO: unavailable on scala-native. Note,
-    // TODO: that `stdlib.exit` seems to be the
-    // TODO: same as `System.exit` currently.
-    System.exit(status)
-  }
+  // bypasses shutdown hooks
+  private[this] def halt(status: Int): Unit = _exit(status)
 }
 
 object IOApp {

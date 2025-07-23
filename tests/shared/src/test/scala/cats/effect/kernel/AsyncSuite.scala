@@ -127,7 +127,7 @@ class AsyncSuite extends BaseSuite with DisciplineSuite {
     def realTime: AsyncIO[FiniteDuration] = liftIO(IO.realTime)
 
     def ref[A](a: A): AsyncIO[Ref[AsyncIO, A]] = delay(Ref.unsafe(a)(this))
-    def deferred[A]: AsyncIO[Deferred[AsyncIO, A]] = delay(Deferred.unsafe(this))
+    def deferred[A]: AsyncIO[Deferred[AsyncIO, A]] = delay(Deferred.unsafe(using this))
 
     def evalOn[A](fa: AsyncIO[A], ec: ExecutionContext): AsyncIO[A] = wrapIO(fa)(_.evalOn(ec))
 

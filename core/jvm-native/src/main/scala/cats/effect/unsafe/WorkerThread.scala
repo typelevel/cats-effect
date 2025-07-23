@@ -26,8 +26,9 @@ import scala.concurrent.{BlockContext, CanAwait}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 import java.lang.Long.MIN_VALUE
-import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.LockSupport
 
 import WorkerThread.{Metrics, TransferState}
 
@@ -48,7 +49,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
     // Local queue instance with exclusive write access.
     private[this] var queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
-    private[unsafe] var parked: AtomicBoolean,
+    private[unsafe] var parked: AtomicReference[ParkedSignal],
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
     private[this] val external: ScalQueue,
@@ -110,7 +111,6 @@ private[effect] final class WorkerThread[P <: AnyRef](
    */
   private[this] var _active: Runnable = _
 
-  private val stateTransfer: ArrayBlockingQueue[TransferState] = new ArrayBlockingQueue(1)
   private[this] val runtimeBlockingExpiration: Duration = pool.runtimeBlockingExpiration
 
   private[effect] var currentIOFiber: IOFiber[?] = _
@@ -386,7 +386,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
           if (isStackTracing) {
             _active = fiber
-            parked.lazySet(false)
+            parked.lazySet(ParkedSignal.Unparked)
           }
 
           // The dequeued element is a single fiber. Execute it immediately.
@@ -411,11 +411,13 @@ private[effect] final class WorkerThread[P <: AnyRef](
               _active = null
             }
 
-            parked.lazySet(true)
+            val needsPoll = system.needsPoll(_poller)
+            flagForParking(needsPoll)
+
             // Announce that the worker thread is parking.
             pool.transitionWorkerToParked()
             // Park the thread.
-            if (park())
+            if (park(needsPoll))
               return // Work found, transition to executing fibers from the local queue.
             else
               false
@@ -456,7 +458,9 @@ private[effect] final class WorkerThread[P <: AnyRef](
             _active = null
           }
 
-          parked.lazySet(true)
+          val needsPoll = system.needsPoll(_poller)
+          flagForParking(needsPoll)
+
           // Announce that the worker thread which was searching for work is now
           // parking. This checks if the parking worker thread was the last
           // actively searching thread.
@@ -468,7 +472,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
             pool.notifyIfWorkPending(rnd)
           }
           // Park the thread.
-          if (park())
+          if (park(needsPoll))
             return // Work found, transition to executing fibers from the local queue.
           else
             () // Proceed to while loop.
@@ -506,7 +510,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
           if (isStackTracing) {
             _active = fiber
-            parked.lazySet(false)
+            parked.lazySet(ParkedSignal.Unparked)
           }
 
           pool.transitionWorkerFromSearching(rnd)
@@ -558,7 +562,9 @@ private[effect] final class WorkerThread[P <: AnyRef](
             _active = null
           }
 
-          parked.lazySet(true)
+          val needsPoll = system.needsPoll(_poller)
+          flagForParking(needsPoll)
+
           // Announce that the worker thread which was searching for work is now
           // parking. This checks if the parking worker thread was the last
           // actively searching thread.
@@ -570,7 +576,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
             pool.notifyIfWorkPending(rnd)
           }
           // Park the thread.
-          if (park())
+          if (park(needsPoll))
             return // Work found, transition to executing fibers from the local queue.
           else
             () // loop
@@ -578,13 +584,16 @@ private[effect] final class WorkerThread[P <: AnyRef](
       }
     }
 
+    def flagForParking(needsPoll: Boolean): Unit =
+      parked.lazySet(if (needsPoll) ParkedSignal.ParkedPolling else ParkedSignal.ParkedSimple)
+
     // returns whether work was found
-    def park(): Boolean = {
+    def park(needsPoll: Boolean): Boolean = {
       metrics.incrementParkedCount()
 
       val tt = sleepers.peekFirstTriggerTime()
       val workFound = if (tt == MIN_VALUE) { // no sleepers
-        if (parkLoop()) {
+        if (parkLoop(needsPoll)) {
           // we polled something, so go straight to local queue stuff
           pool.transitionWorkerFromSearching(rnd)
           true
@@ -593,7 +602,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
           false
         }
       } else {
-        if (parkUntilNextSleeper()) {
+        if (parkLoopUntilNextSleeper(needsPoll)) {
           // we made it to the end of our sleeping/polling, so go straight to local queue stuff
           pool.transitionWorkerFromSearching(rnd)
           true
@@ -627,43 +636,89 @@ private[effect] final class WorkerThread[P <: AnyRef](
         acc
       }
 
+    @tailrec
+    def notifyDoneSleeping(): Unit = {
+      val st = parked.get()
+
+      if (st ne ParkedSignal.Unparked) {
+        if (st eq ParkedSignal.Interrupting) {
+          // our state is being twiddled; wait for that to finish up
+          // this happens when we wake ourselves at the same moment the pool decides to wake us
+
+          while (parked.get() eq ParkedSignal.Interrupting) {}
+        } else {
+          if (parked.compareAndSet(st, ParkedSignal.Unparked)) {
+            // we won the race to awaken ourselves, so we need to let the pool know
+            pool.doneSleeping()
+          } else {
+            // lost CAS race, possibly concurrent `Interrupting`,
+            // we'll need to re-read `parked`:
+            notifyDoneSleeping()
+          }
+        }
+      }
+    }
+
     // returns true if polled event, false if unparked
-    def parkLoop(): Boolean = {
-      while (!done.get()) {
+    @tailrec
+    def parkLoop(needsPoll: Boolean): Boolean = {
+      if (done.get()) {
+        false
+      } else {
         // Park the thread until further notice.
         val start = System.nanoTime()
         metrics.incrementPolledCount()
-        val pollResult = system.poll(_poller, -1)
+
+        val pollResult = if (needsPoll) {
+          system.poll(_poller, -1)
+        } else {
+          LockSupport.park()
+          PollResult.Interrupted
+        }
+
         now = System.nanoTime() // update now
         metrics.addIdleTime(now - start)
 
         // the only way we can be interrupted here is if it happened *externally* (probably sbt)
         if (isInterrupted()) {
           pool.shutdown()
+          false // we know `done` is true
         } else if (pollResult ne PollResult.Interrupted) {
-          if (parked.getAndSet(false))
-            pool.doneSleeping()
+          notifyDoneSleeping()
+
           // TODO, if no tasks scheduled could fastpath back to park?
           val _ = drainReadyEvents(pollResult, false)
-          return true
-        } else if (!parked.get()) { // Spurious wakeup check.
-          return false
-        } else // loop
-          ()
+          true
+        } else {
+          // Spurious wakeup check.
+          val st = parked.get()
+          if (st eq ParkedSignal.Unparked) {
+            // awakened intentionally
+            false
+          } else if (st eq ParkedSignal.Interrupting) {
+            // awakened intentionally, but waiting for the state publish
+            // we have to block here to ensure we don't go back to sleep again too fast
+            while (parked.get() eq ParkedSignal.Interrupting) {}
+
+            false
+          } else {
+            // awakened spuriously; loop
+            parkLoop(needsPoll)
+          }
+        }
       }
-      false
     }
 
     // returns true if timed out or polled event, false if unparked
     @tailrec
-    def parkUntilNextSleeper(): Boolean = {
+    def parkLoopUntilNextSleeper(needsPoll: Boolean): Boolean = {
       if (done.get()) {
         false
       } else {
         val triggerTime = sleepers.peekFirstTriggerTime()
         if (triggerTime == MIN_VALUE) {
           // no sleeper (it was removed)
-          parkLoop()
+          parkLoop(needsPoll)
         } else {
           now = System.nanoTime()
           val nanos = triggerTime - now
@@ -671,7 +726,14 @@ private[effect] final class WorkerThread[P <: AnyRef](
           if (nanos > 0L) {
             val start = now
             metrics.incrementPolledCount()
-            val pollResult = system.poll(_poller, nanos)
+
+            val pollResult = if (needsPoll) {
+              system.poll(_poller, nanos)
+            } else {
+              LockSupport.parkNanos(nanos)
+              PollResult.Interrupted
+            }
+
             // we already parked and time passed, so update time again
             // it doesn't matter if we timed out or were awakened, the update is free-ish
             now = System.nanoTime()
@@ -685,25 +747,35 @@ private[effect] final class WorkerThread[P <: AnyRef](
               val polled = pollResult ne PollResult.Interrupted
               if (polled || (triggerTime - now <= 0)) {
                 // we timed out or polled an event
-                if (parked.getAndSet(false)) {
-                  pool.doneSleeping()
-                }
+                notifyDoneSleeping()
+
                 if (polled) { // TODO, if no tasks scheduled and no timers could fastpath back to park?
                   val _ = drainReadyEvents(pollResult, false)
                 }
                 true
               } else { // we were either awakened spuriously or intentionally
-                if (parked.get()) // awakened spuriously, re-check next sleeper
-                  parkUntilNextSleeper()
-                else // awakened intentionally, but not due to a timer or event
+                var st = parked.get()
+                if (st eq ParkedSignal.Unparked) {
+                  // awakened intentionally, but not due to a timer or event
                   false
+                } else if (st eq ParkedSignal.Interrupting) {
+                  // awakened intentionally, but waiting for the state publish
+                  // we have to block here to ensure we don't go back to sleep again too fast
+                  while ({
+                    st = parked.get()
+                    st eq ParkedSignal.Interrupting
+                  }) {}
+
+                  false
+                } else {
+                  // awakened spuriously, re-check next sleeper
+                  parkLoopUntilNextSleeper(needsPoll)
+                }
               }
             }
           } else {
-            // a timer already expired
-            if (parked.getAndSet(false)) {
-              pool.doneSleeping()
-            }
+            // a timer already expired, we need to undo the parking
+            notifyDoneSleeping()
             true
           }
         }
@@ -732,12 +804,15 @@ private[effect] final class WorkerThread[P <: AnyRef](
           // by another thread in the future.
           val len = runtimeBlockingExpiration.length
           val unit = runtimeBlockingExpiration.unit
-          if (pool.cachedThreads.tryTransfer(this, len, unit)) {
-            // Someone accepted the transfer of this thread and will transfer the state soon.
-            val newState = stateTransfer.take()
+
+          // Try to poll for a new state from the transfer queue
+          val newState = pool.transferStateStack.poll(len, unit)
+
+          if ((newState ne null) && (newState ne WorkerThread.transferStateSentinel)) {
+            // Got a state to take over
             init(newState)
           } else {
-            // The timeout elapsed and no one woke up this thread. It's time to exit.
+            // No state to take over after timeout (or we're shutting down), exit
             pool.blockedWorkerThreadCounter.decrementAndGet()
             return
           }
@@ -745,7 +820,8 @@ private[effect] final class WorkerThread[P <: AnyRef](
           case _: InterruptedException =>
             // This thread was interrupted while cached. This should only happen
             // during the shutdown of the pool. Nothing else to be done, just
-            // exit.
+            // exit. (Note, that if we're shutting down ourselves, we're doing
+            // that with `transferStateSentinel`, see above.)
             return
         }
       }
@@ -764,11 +840,19 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
             // we have to check for null since there's a race here when threads convert to blockers
             // by reading parked *after* reading state, we avoid misidentifying blockers as blocked
-            if (parked != null && !parked
-                .get() && (state == Thread.State.BLOCKED || state == Thread
-                .State
-                .WAITING || state == Thread.State.TIMED_WAITING)) {
-              System.err.println(mkWarning(state, thread.getStackTrace()))
+            if (parked != null) {
+              val pst = parked.get()
+
+              val expectAlive =
+                (pst eq ParkedSignal.Unparked) || (pst eq ParkedSignal.Interrupting)
+
+              val actuallyBlocked = state == Thread.State.BLOCKED ||
+                state == Thread.State.WAITING ||
+                state == Thread.State.TIMED_WAITING
+
+              if (expectAlive && actuallyBlocked) {
+                System.err.println(mkWarning(state, thread.getStackTrace()))
+              }
             }
           }
 
@@ -809,7 +893,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
             if (isStackTracing) {
               _active = fiber
-              parked.lazySet(false)
+              parked.lazySet(ParkedSignal.Unparked)
             }
 
             // The dequeued element is a single fiber. Execute it immediately.
@@ -928,15 +1012,14 @@ private[effect] final class WorkerThread[P <: AnyRef](
       // Set the name of this thread to a blocker prefixed name.
       setName(s"$prefix-$nameIndex")
 
-      val cached = pool.cachedThreads.poll()
-      if (cached ne null) {
-        // There is a cached worker thread that can be reused.
-        val idx = index
-        pool.replaceWorker(idx, cached)
-        // Transfer the data structures to the cached thread and wake it up.
-        transferState.index = idx
-        transferState.tick = tick + 1
-        val _ = cached.stateTransfer.offer(transferState)
+      val idx = index
+
+      // Prepare the transfer state
+      transferState.index = idx
+      transferState.tick = tick + 1
+
+      if (pool.transferStateStack.offer(transferState)) {
+        // If successful, a waiting thread will pick it up
       } else {
         // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
         // transfer ownership of the local queue and the parked signal to the new
@@ -1002,21 +1085,10 @@ private[effect] final class WorkerThread[P <: AnyRef](
     setName(s"$prefix-${_index}")
 
     blocking = false
+
+    pool.replaceWorker(newIdx, this)
   }
 
-  /**
-   * Returns the number of fibers which are currently asynchronously suspended and tracked by
-   * this worker thread.
-   *
-   * @note
-   *   This counter is not synchronized due to performance reasons and might be reporting
-   *   out-of-date numbers.
-   *
-   * @return
-   *   the number of asynchronously suspended fibers
-   */
-  def getSuspendedFiberCount(): Int =
-    fiberBag.size
 }
 
 private[effect] object WorkerThread {
@@ -1025,6 +1097,12 @@ private[effect] object WorkerThread {
     var index: Int = _
     var tick: Int = _
   }
+
+  /**
+   * We use this to signal interrupt to cached threads
+   */
+  private[unsafe] val transferStateSentinel: TransferState =
+    new TransferState
 
   final class Metrics {
     private[this] var idleTime: Long = 0

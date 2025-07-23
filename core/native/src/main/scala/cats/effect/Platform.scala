@@ -23,4 +23,5 @@ private object Platform {
 
   class static extends scala.annotation.Annotation
   type safePublish = scala.scalanative.annotation.safePublish
+  type volatileNative = scala.volatile
 }

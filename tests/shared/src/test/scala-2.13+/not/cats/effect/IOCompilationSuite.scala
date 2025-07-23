@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package cats.effect
+package not.cats.effect // verifies scoping outside of CE
 
-private[effect] abstract class IOCompanionPlatform extends IOCompanionMultithreadedPlatform {
-  this: IO.type =>
+import cats.effect.{BaseSuite, IO}
+
+class IOCompilationSpec extends BaseSuite {
+  testUnit("Can use total function in PartialFunction IO.onError") { // compilation test
+    IO.pure(5).onError(_ => IO.unit)
+    ()
+  }
 }

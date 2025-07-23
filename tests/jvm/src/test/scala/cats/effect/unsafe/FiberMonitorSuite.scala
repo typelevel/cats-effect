@@ -16,7 +16,7 @@
 
 package cats.effect.unsafe
 
-import cats.effect.{BaseSuite, FiberIO, IO, Outcome}
+import cats.effect.{BaseSuite, FiberInfo, IO, Outcome}
 import cats.effect.std.CountDownLatch
 import cats.effect.testkit.TestInstances
 
@@ -25,23 +25,33 @@ import scala.concurrent.duration._
 class FiberMonitorSuite extends BaseSuite with TestInstances {
 
   realWithRuntime("show only active fibers in a live snapshot") { (runtime: IORuntime) =>
-    val newline = System.lineSeparator()
-    val waitingPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ WAITING((.|$newline)*)"
     val completedPattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ COMPLETED"
 
     for {
       cdl <- CountDownLatch[IO](1)
       fiber <- cdl.await.start // create a 'waiting' fiber
-      fiberId <- IO(extractFiberId(fiber))
+
       _ <- IO.sleep(100.millis)
 
-      snapshot <- IO(makeSnapshot(runtime))
-      _ <- IO(assertEquals(snapshot.size, 2)) // root and awaiting fibers
-      fiberSnapshot <- IO(snapshot.filter(_.contains(fiberId)))
-      _ <- IO(assertEquals(fiberSnapshot.size, 1)) // only awaiting fiber
+      snapshot <- IO(runtime.fiberMonitor.liveFiberSnapshot())
+
+      // awaiting fiber
       _ <- IO(
-        assert(fiberSnapshot.exists(_.matches(waitingPattern)), fiberSnapshot.mkString("\n"))
+        assertEquals(
+          snapshot.external.map(f => (f.fiber, f.state)),
+          List((fiber, FiberInfo.State.Waiting))
+        )
       )
+
+      // root fiber (running)
+      _ <- IO(
+        assertEquals(
+          snapshot.workers.flatMap(_._2).map(_.state),
+          List(FiberInfo.State.Running)
+        )
+      )
+
+      _ <- IO.delay(runtime.fiberMonitor.printLiveFiberSnapshot(print))
 
       _ <- cdl.release // allow further execution
       outcome <- fiber.join
@@ -49,20 +59,18 @@ class FiberMonitorSuite extends BaseSuite with TestInstances {
 
       _ <- IO(assertEquals(outcome, Outcome.succeeded[IO, Throwable, Unit](IO.unit)))
       _ <- IO(assert(fiber.toString.matches(completedPattern), fiber.toString))
-      _ <- IO(assertEquals(makeSnapshot(runtime).size, 1)) // only root fiber
+
+      // must be no awaiting fibers
+      _ <- IO(assertEquals(runtime.liveFiberSnapshot().external.size, 0))
+
+      // root fiber must remain
+      _ <- IO(
+        assertEquals(
+          snapshot.workers.flatMap(_._2).map(_.state),
+          List(FiberInfo.State.Running)
+        )
+      )
     } yield ()
-  }
-
-  // keep only fibers
-  private def makeSnapshot(runtime: IORuntime): List[String] = {
-    val builder = List.newBuilder[String]
-    runtime.fiberMonitor.liveFiberSnapshot(builder += _)
-    builder.result().filter(_.startsWith("cats.effect.IOFiber"))
-  }
-
-  private def extractFiberId(fiber: FiberIO[Unit]): String = {
-    val pattern = raw"cats.effect.IOFiber@([0-9a-f][0-9a-f]+) .*".r
-    pattern.findAllMatchIn(fiber.toString).map(_.group(1)).next()
   }
 
 }

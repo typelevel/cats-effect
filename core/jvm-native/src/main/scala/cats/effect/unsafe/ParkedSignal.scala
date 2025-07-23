@@ -16,23 +16,13 @@
 
 package cats.effect.unsafe
 
-import cats.effect.{FiberInfo, IOFiber, Trace}
+private sealed abstract class ParkedSignal extends Product with Serializable
 
-private[unsafe] abstract class FiberMonitorShared {
+private object ParkedSignal {
+  case object Unparked extends ParkedSignal
 
-  protected val newline = System.lineSeparator()
-  protected val doubleNewline = s"$newline $newline"
+  case object ParkedPolling extends ParkedSignal
+  case object ParkedSimple extends ParkedSignal
 
-  protected def toFiberInfo(
-      fibers: Map[IOFiber[?], Trace],
-      state: FiberInfo.State
-  ): List[FiberInfo] =
-    fibers.map { case (fiber, trace) => FiberInfo(fiber, state, trace) }.toList
-
-  protected def printFibers(fibers: List[FiberInfo])(print: String => Unit): Unit =
-    fibers.foreach { fiber =>
-      print(doubleNewline)
-      print(fiber.pretty)
-    }
-
+  case object Interrupting extends ParkedSignal
 }

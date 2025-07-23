@@ -106,7 +106,7 @@ object EpollSystem extends PollingSystem {
     @volatile private[this] var writeCallback: Either[Throwable, Int] => Unit = null
 
     def notify(events: Int): Unit = {
-      if ((events & EPOLLIN) != 0) {
+      if ((events & EPOLLIN) != 0 || (events & EPOLLHUP) != 0) {
         val counter = readReadyCounter + 1
         readReadyCounter = counter
         val cb = readCallback
@@ -312,6 +312,7 @@ object EpollSystem extends PollingSystem {
     final val EPOLLOUT = 0x004
     final val EPOLLONESHOT = 1 << 30
     final val EPOLLET = 1 << 31
+    final val EPOLLHUP = 1 << 4
 
     type epoll_event
     type epoll_data_t = Ptr[Byte]

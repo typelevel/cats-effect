@@ -34,7 +34,7 @@ import scala.annotation.tailrec
 import java.util.Arrays
 import java.util.concurrent.atomic.AtomicInteger
 
-import Platform.safePublish
+import Platform.{safePublish, volatileNative}
 
 /**
  * A specialized heap that serves as a priority queue for timers i.e. callbacks with trigger
@@ -67,7 +67,7 @@ private final class TimerHeap extends AtomicInteger {
 
   // The index 0 is not used; the root is at index 1.
   // This is standard practice in binary heaps, to simplify arithmetics.
-  private[this] var heap: Array[Node] = new Array(8) // TODO what initial value
+  @volatileNative private[this] var heap: Array[Node] = new Array(8) // TODO what initial value
   private[this] var size: Int = 0
 
   private[this] val RightUnit = Right(())

@@ -21,6 +21,7 @@ import cats.effect.{ExitCode, IO, IOApp}
 import java.io.{File, FileWriter}
 
 package examples {
+
   object Finalizers extends IOApp {
 
     def writeToFile(string: String, file: File): IO[Unit] =
@@ -30,6 +31,14 @@ package examples {
     def run(args: List[String]): IO[ExitCode] =
       (IO(println("Started")) >> IO.never)
         .onCancel(writeToFile("canceled", new File(args.head)))
+        .as(ExitCode.Success)
+  }
+
+  object SkipShutdownHooksFatalError extends IOApp {
+    def run(args: List[String]): IO[ExitCode] =
+      IO(throw new OutOfMemoryError)
+        .evalOn(MainThread)
+        .onCancel(IO(println("canceled")))
         .as(ExitCode.Success)
   }
 }

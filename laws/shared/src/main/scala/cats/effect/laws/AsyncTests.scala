@@ -198,7 +198,7 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
       val bases: Seq[(String, Laws#RuleSet)] = Nil
       val parents = Seq(
         temporal[A, B, C](tolerance)(
-          implicitly[Arbitrary[A]],
+          using implicitly[Arbitrary[A]],
           implicitly[Eq[A]],
           implicitly[Arbitrary[B]],
           implicitly[Eq[B]],

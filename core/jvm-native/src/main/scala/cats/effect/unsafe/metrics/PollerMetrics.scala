@@ -172,5 +172,6 @@ object PollerMetrics {
     def totalWriteOperationsSucceededCount(): Long = 0
     def totalWriteOperationsErroredCount(): Long = 0
     def totalWriteOperationsCanceledCount(): Long = 0
+    override def toString: String = "Noop"
   }
 }

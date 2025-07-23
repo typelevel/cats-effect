@@ -19,6 +19,7 @@ package cats.effect.unsafe
 private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder =>
 
   protected var customPollingSystem: Option[PollingSystem] = None
+  protected var extraPollers: List[(Any, () => Unit)] = Nil
 
   /**
    * Override the default [[PollingSystem]]
@@ -28,6 +29,11 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
       throw new RuntimeException("Polling system can only be set once")
     }
     customPollingSystem = Some(system)
+    this
+  }
+
+  def addPoller(poller: Any, shutdown: () => Unit): IORuntimeBuilder = {
+    extraPollers = (poller, shutdown) :: extraPollers
     this
   }
 

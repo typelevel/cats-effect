@@ -115,6 +115,18 @@ abstract class PollingSystem {
    */
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit
 
+  /**
+   * Returns a handle to access metrics associated with the specified poller.
+   *
+   * The returned `PollerMetrics` provides access to live counts of submitted, succeeded,
+   * errored, and canceled operations for accept, connect, read, and write events. It also
+   * includes counts of outstanding operations and the total number of operations.
+   *
+   * @param poller
+   *   The poller for which the metrics handle is being retrieved.
+   * @return
+   *   A `PollerMetrics` instance that can be used to query the current metrics for the poller.
+   */
   def metrics(poller: Poller): PollerMetrics
 
 }

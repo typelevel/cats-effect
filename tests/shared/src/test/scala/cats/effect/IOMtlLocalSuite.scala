@@ -17,6 +17,8 @@
 package cats
 package effect
 
+import cats.data.OptionT
+import cats.laws.discipline.arbitrary._
 import cats.mtl.Local
 import cats.mtl.laws.discipline._
 
@@ -28,13 +30,22 @@ class IOMtlLocalSuite extends BaseSuite with DisciplineSuite {
 
   implicit val ticker: Ticker = Ticker()
 
-  implicit val local: Local[IO, Int] =
+  def mkLocal[F[_]](instance: IO[Local[F, Int]]): Local[F, Int] =
     // Don't try this at home
-    unsafeRun(IO.local(0)).fold(
+    unsafeRun(instance).fold(
       throw new CancellationException("canceled"),
       throw _,
       _.get
     )
 
-  checkAll("Local[IO, Int]", LocalTests[IO, Int].local[Int, Int])
+  locally {
+    implicit val local: Local[IO, Int] = mkLocal(IO.local(0))
+    checkAll("Local[IO, Int]", LocalTests[IO, Int].local[Int, Int])
+  }
+
+  locally {
+    implicit val local: Local[OptionT[IO, *], Int] =
+      mkLocal(IOLocal(0).map(_.asLocal[OptionT[IO, *]]))
+    checkAll("Local[OptionT[IO, *], Int]", LocalTests[OptionT[IO, *], Int].local[Int, Int])
+  }
 }

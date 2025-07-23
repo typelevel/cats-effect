@@ -141,9 +141,9 @@ private[kernel] trait LowPriorityImplicits {
 
   implicit def applicativeError[F[_], E](
       implicit F: Applicative[F]): ApplicativeError[Outcome[F, E, *], E] =
-    new OutcomeApplicativeError[F, E]
+    new OutcomeApplicativeError[F, E]()
 
-  protected class OutcomeApplicativeError[F[_]: Applicative, E]
+  protected class OutcomeApplicativeError[F[_]: Applicative, E]()
       extends ApplicativeError[Outcome[F, E, *], E]
       with Bifunctor[Outcome[F, *, *]] {
 
@@ -217,7 +217,7 @@ object Outcome extends LowPriorityImplicits {
   implicit def monadError[F[_], E](
       implicit F: Monad[F],
       FT: Traverse[F]): MonadError[Outcome[F, E, *], E] =
-    new OutcomeApplicativeError[F, E]()(F) with MonadError[Outcome[F, E, *], E] {
+    new OutcomeApplicativeError[F, E]()(using F) with MonadError[Outcome[F, E, *], E] {
 
       override def map[A, B](fa: Outcome[F, E, A])(f: A => B): Outcome[F, E, B] =
         bimap(fa)(identity, f)

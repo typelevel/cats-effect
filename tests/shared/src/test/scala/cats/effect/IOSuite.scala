@@ -2170,6 +2170,13 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAsSync(sio.map(_.bimap(_ => (), _ => ())), Right(()))
   }
 
+  testUnit("syncStep - handle large sequence of operations without StackOverflowError #4337") {
+    def go(depth: Int, acc: IO[Unit] = IO.unit): IO[Unit] =
+      if (depth <= 0) acc else go(depth - 1, acc.flatMap(_ => IO.unit))
+    val io = go(50000)
+    assertCompleteAsSync(io.syncStep(Int.MaxValue).map(_.bimap(_ => (), _ => ())), Right(()))
+  }
+
   testUnit("syncStep - synchronously allocate a vanilla resource") {
     val sio =
       Resource.make(IO.unit)(_ => IO.unit).allocated.map(_._1).syncStep(Int.MaxValue)

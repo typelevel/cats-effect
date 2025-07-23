@@ -72,7 +72,7 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] 
       val bases: Seq[(String, Laws#RuleSet)] = Nil
       val parents = Seq(
         monadCancel[A, B, C](
-          implicitly[Arbitrary[A]],
+          using implicitly[Arbitrary[A]],
           implicitly[Eq[A]],
           implicitly[Arbitrary[B]],
           implicitly[Eq[B]],
@@ -163,7 +163,7 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] 
       val bases: Seq[(String, Laws#RuleSet)] = Nil
       val parents = Seq(
         monadCancel[A, B, C](
-          implicitly[Arbitrary[A]],
+          using implicitly[Arbitrary[A]],
           implicitly[Eq[A]],
           implicitly[Arbitrary[B]],
           implicitly[Eq[B]],

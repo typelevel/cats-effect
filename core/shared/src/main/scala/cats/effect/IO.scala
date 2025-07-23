@@ -591,7 +591,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.OnCancel(this, fin)
 
   @deprecated("Use onError with PartialFunction argument", "3.6.0")
-  def onError(f: Throwable => IO[Unit]): IO[A] = {
+  private[effect] def onError(f: Throwable => IO[Unit]): IO[A] = {
     val pf: PartialFunction[Throwable, IO[Unit]] = { case t => f(t).reportError }
     onError(pf)
   }
@@ -1234,9 +1234,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   }
 
   implicit class IOSequenceOps[T[_], A](tioa: T[IO[A]]) {
-    def sequence(implicit T: Traverse[T], G: Applicative[IO]): IO[T[A]] = T.sequence(tioa)(G)
+    def sequence(implicit T: Traverse[T], G: Applicative[IO]): IO[T[A]] =
+      T.sequence(tioa)(using G)
 
-    def sequence_(implicit F: Foldable[T], G: Applicative[IO]): IO[Unit] = F.sequence_(tioa)(G)
+    def sequence_(implicit F: Foldable[T], G: Applicative[IO]): IO[Unit] =
+      F.sequence_(tioa)(using G)
   }
 
   @static private[this] val _alignForIO = new IOAlign
@@ -2172,7 +2174,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
         implicit G: Sync[G]): G[Either[IO[A], A]] = {
       type H[+B] = G[B @uncheckedVariance]
       val H = G.asInstanceOf[Sync[H]]
-      G.map(SyncStep.interpret[H, A](fa, limit)(H))(_.map(_._1))
+      G.map(SyncStep.interpret[H, A](fa, limit, SyncStep.MaxSteps)(H))(_.map(_._1))
     }
   }
 
@@ -2333,11 +2335,22 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
 }
 
+private class SyncStep
+
 private object SyncStep {
+  final val MaxSteps = 512 // 512 matches  with trampoline depth in IOFiber for stack safety
+
+  @deprecated("retained for bincompat", "3.6.1")
   def interpret[G[+_], B](io: IO[B], limit: Int)(
+      implicit G: Sync[G]): G[Either[IO[B], (B, Int)]] =
+    interpret(io, limit, MaxSteps)
+
+  @static def interpret[G[+_], B](io: IO[B], limit: Int, stepsUntilDefer: Int)(
       implicit G: Sync[G]): G[Either[IO[B], (B, Int)]] = {
     if (limit <= 0) {
       G.pure(Left(io))
+    } else if (stepsUntilDefer <= 0) {
+      G.defer(interpret(io, limit, MaxSteps))
     } else {
       io match {
         case IO.Pure(a) => G.pure(Right((a, limit)))
@@ -2347,19 +2360,19 @@ private object SyncStep {
         case IO.Monotonic => G.monotonic.map(a => Right((a, limit)))
 
         case IO.Map(ioe, f, _) =>
-          interpret(ioe, limit - 1).map {
+          interpret(ioe, limit - 1, stepsUntilDefer - 1).map {
             case Left(io) => Left(io.map(f))
             case Right((a, limit)) => Right((f(a), limit))
           }
 
         case IO.FlatMap(ioe, f, _) =>
-          interpret(ioe, limit - 1).flatMap {
+          interpret(ioe, limit - 1, stepsUntilDefer - 1).flatMap {
             case Left(io) => G.pure(Left(io.flatMap(f)))
-            case Right((a, limit)) => interpret(f(a), limit - 1)
+            case Right((a, limit)) => interpret(f(a), limit - 1, stepsUntilDefer - 1)
           }
 
         case IO.Attempt(ioe) =>
-          interpret(ioe, limit - 1)
+          interpret(ioe, limit - 1, stepsUntilDefer - 1)
             .map {
               case Left(io) => Left(io.attempt)
               case Right((a, limit)) => Right((a.asRight[Throwable], limit))
@@ -2367,21 +2380,21 @@ private object SyncStep {
             .handleError(t => (t.asLeft, limit - 1).asRight)
 
         case IO.HandleErrorWith(ioe, f, _) =>
-          interpret(ioe, limit - 1)
+          interpret(ioe, limit - 1, stepsUntilDefer - 1)
             .map {
               case Left(io) => Left(io.handleErrorWith(f))
               case r @ Right(_) => r
             }
-            .handleErrorWith(t => interpret(f(t), limit - 1))
+            .handleErrorWith(t => interpret(f(t), limit - 1, stepsUntilDefer - 1))
 
         case IO.Uncancelable(body, _) if G.rootCancelScope == CancelScope.Uncancelable =>
           val ioa = body(new Poll[IO] {
             def apply[C](ioc: IO[C]): IO[C] = ioc
           })
-          interpret(ioa, limit)
+          interpret(ioa, limit, stepsUntilDefer)
 
         case IO.OnCancel(ioa, _) if G.rootCancelScope == CancelScope.Uncancelable =>
-          interpret(ioa, limit)
+          interpret(ioa, limit, stepsUntilDefer)
 
         case _ => G.pure(Left(io))
       }

@@ -39,7 +39,7 @@ private[std] trait UUIDGenCompanionPlatformLowPriority {
     "3.6.0"
   )
   implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = {
-    UUIDGen.fromSecureRandom[F](ev, SecureRandom.unsafeJavaSecuritySecureRandom())
+    UUIDGen.fromSecureRandom[F](using ev, SecureRandom.unsafeJavaSecuritySecureRandom())
   }
 
 }

@@ -9,7 +9,7 @@ This is very much in contrast to a conventional deadlock in a synchronous runtim
 
 *Fiber* dumps are a similar construct for Cats Effect applications. Even better, you don't need to change *anything* in order to take advantage of this functionality. As a simple example, here is an application which trivially deadlocks:
 
-```scala
+```scala mdoc:silent
 import cats.effect.{IO, IOApp}
 
 object Deadlock extends IOApp.Simple {
@@ -75,6 +75,60 @@ Triggering the above fiber dump is a matter of sending a POSIX signal to the pro
 Since `INFO` is the signal used on macOS and BSD, this combined with a quirk of Apple's TTY implementation means that **anyone running a Cats Effect application on macOS can simply hit <kbd>Ctrl</kbd>-<kbd>T</kbd>** within the active application to trigger a fiber dump, similar to how you can use <kbd>Ctrl</kbd>-<kbd>\\</kbd> to trigger a thread dump. Note that this trick only works on macOS, since that is the only platform which maps a particular keybind to either the `INFO` or `USR1` signals.
 
 In the event that you're either running on a platform which doesn't support POSIX signals, or the signal registration failed for whatever reason, Cats Effect on the JVM will *also* automatically register an [MBean](https://docs.oracle.com/javase/8/docs/technotes/guides/management/overview.html) under `cats.effect.unsafe.metrics.LiveFiberSnapshotTriggerMBean` which can produce a string representation of the fiber dump when its only method is invoked.
+
+You can trigger a fiber dump using [JMX](https://docs.oracle.com/javase/8/docs/technotes/guides/visualvm/jmx_connections.html) or programmatically:   
+
+```scala mdoc:invisible
+// initialize the global runtime to register the mbean
+locally {
+  cats.effect.unsafe.implicits.global
+}
+```
+
+```scala mdoc:silent
+import java.lang.management.ManagementFactory
+import javax.management.ObjectName
+
+val server = ManagementFactory.getPlatformMBeanServer
+val mbeanName = new ObjectName("cats.effect.unsafe.metrics:type=LiveFiberSnapshotTrigger-0")
+
+val fibers = server
+  .invoke(mbeanName, "liveFiberSnapshot", Array.empty, Array.empty)
+  .asInstanceOf[Array[String]]
+  .filter(_.trim.nonEmpty)
+
+fibers.foreach { fiber => 
+  println(fiber)
+}
+```
+
+## Obtaining a fiber dump programmatically
+
+> **Caution:** The snapshot introduces a risk of memory leaks because it retains hard references to the underlying Fiber instances. 
+> As a result, these fibers cannot be garbage collected while the snapshot (or anything that retains it) is still in scope. 
+
+You can collect 
+
+```scala mdoc:silent
+import cats.effect.{IO, IOApp}
+import cats.syntax.all._
+
+object Main extends IOApp.Simple {
+  val run =
+    for {
+      snapshot <- IO.delay(runtime.liveFiberSnapshot())
+      
+      // print fibers assigned to specific worker threads
+      // `workers` API is available only on JVM and Scala Native platforms
+      _ <- snapshot.workers.toList.traverse_ { case (worker, fibers) =>
+        IO.println(s"Worker ${worker.thread} #${worker.index}") >> fibers.traverse_(fiber => IO.println(fiber.pretty))
+      }
+      
+      // print global fibers (not bound to specific workers, e.g., blocked or external)
+      _ <- snapshot.external.traverse_(fiber => IO.println(fiber.pretty))
+    } yield ()
+}
+```
 
 ## Configuration
 

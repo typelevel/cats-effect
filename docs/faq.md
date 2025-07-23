@@ -9,7 +9,7 @@ title: FAQ
 
 ```scala-cli
 //> using scala "2.13.8"
-//> using lib "org.typelevel::cats-effect::3.6.0"
+//> using lib "org.typelevel::cats-effect::3.6.3"
 
 import cats.effect._
 
@@ -173,7 +173,7 @@ This effect will take the full 1 second to complete! This is because the timeout
 There are two possible ways to address this situation, and the correct one to use depends on a number of different factors. In this particular scenario, `Thread.sleep` *happens* to correctly respect Java `Thread` interruption, and so we can fix this by swapping `blocking` for `interruptible`:
 
 ```scala
-IO.interuptible(Thread.sleep(1000)).timeout(100.millis)
+IO.interruptible(Thread.sleep(1000)).timeout(100.millis)
 ```
 
 The above will return in 100 milliseconds, raising a `TimeoutException` as expected.

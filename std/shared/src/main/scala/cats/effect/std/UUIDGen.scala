@@ -58,7 +58,7 @@ object UUIDGen extends UUIDGenCompanionPlatform {
 
   def randomUUID[F[_]: UUIDGen]: F[UUID] = UUIDGen[F].randomUUID
   def randomString[F[_]](implicit gen: UUIDGen[F], F: Functor[F]): F[String] =
-    randomUUID(gen).map(_.toString)
+    randomUUID(using gen).map(_.toString)
 
   /**
    * [[UUIDGen]] instance built for `cats.data.EitherT` values initialized with any `F` data

@@ -387,6 +387,14 @@ class IOAppSuite extends FunSuite {
       }
     }
 
+    if (platform == Native || platform == JVM) {
+      test("skip shutdown hooks on fatal error") {
+        val h = platform("SkipShutdownHooksFatalError", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(!h.stdout().contains("canceled"))
+        assert(h.stderr().contains("OutOfMemoryError"))
+      }
+    }
   }
 
   trait Handle {

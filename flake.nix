@@ -24,26 +24,6 @@
             native.enable = true;
             nodejs.package = pkgs.nodejs-18_x;
           };
-          packages = with pkgs; [
-            autoconf
-            automake
-            libtool
-            pkg-config  
-            gifsicle  
-            zlib
-            libpng
-          ];
-          
-          env = [
-            {
-              name = "LD_LIBRARY_PATH";
-              value = pkgs.lib.makeLibraryPath (with pkgs; [
-                zlib
-                libpng
-                stdenv.cc.cc.lib
-              ]);
-            }
-          ];
         };
       in
       rec {

@@ -734,6 +734,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation$"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvationMBean"),
+      // changes to the `cats.effect.unsafe` package private code, see #4406
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.WorkerThread.getSuspendedFiberCount"),
+      // protected constructor modified when fixing #4359
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.IORuntimeBuilder.<init>$default$10"),
       ProblemFilters.exclude[Problem]("cats.effect.unsafe.ScalQueue*")
     ) ++ {
       if (tlIsScala3.value) {
@@ -911,7 +917,20 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.FiberExecutor"),
         ProblemFilters.exclude[IncompatibleMethTypeProblem](
           "cats.effect.unsafe.FiberMonitorImpl.this"),
-        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.FiberMonitorPlatform")
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.FiberMonitorPlatform"),
+        // all of the following are introduced by fixing #4359
+        // the first one is legitimate and was a public signature in 3.6.x (but a silently non-functional one)
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.IORuntimeBuilder.addPoller"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.IORuntimeBuilder.extraPollers"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.IORuntimeBuilder.extraPollers_="),
+        // internal API change
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.NoOpFiberMonitor.liveFiberSnapshot"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.FiberMonitorImpl.liveFiberSnapshot")
       )
     },
     mimaBinaryIssueFilters ++= {

@@ -16,6 +16,29 @@
 
 package cats.effect
 
-private[effect] abstract class IOCompanionPlatform extends IOCompanionMultithreadedPlatform {
-  this: IO.type =>
+/**
+ * Information of a runtime worker thread in the compute pool.
+ */
+sealed trait WorkerInfo {
+
+  /**
+   * The underlying thread representing the worker.
+   */
+  def thread: Thread
+
+  /**
+   * The current index of the worker in the pool.
+   */
+  def index: Int
+}
+
+object WorkerInfo {
+
+  def apply(thread: Thread, index: Int): WorkerInfo =
+    WorkerInfoImpl(thread, index)
+
+  private final case class WorkerInfoImpl(
+      thread: Thread,
+      index: Int
+  ) extends WorkerInfo
 }

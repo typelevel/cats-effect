@@ -41,12 +41,12 @@ object KqueueSystem extends PollingSystem {
 
   private final val MaxEvents = 64
 
-  type Api = FileDescriptorPoller
+  type Api = Kqueue
 
   def close(): Unit = ()
 
-  def makeApi(ctx: PollingContext[Poller]): FileDescriptorPoller =
-    new FileDescriptorPollerImpl(ctx)
+  def makeApi(ctx: PollingContext[Poller]): Kqueue =
+    new Kqueue(ctx)
 
   def makePoller(): Poller = {
     val fd = kqueue()
@@ -71,7 +71,7 @@ object KqueueSystem extends PollingSystem {
 
   def metrics(poller: Poller): PollerMetrics = PollerMetrics.noop
 
-  private final class FileDescriptorPollerImpl private[KqueueSystem] (
+  final class Kqueue private[KqueueSystem] (
       ctx: PollingContext[Poller]
   ) extends FileDescriptorPoller {
     def registerFileDescriptor(
@@ -81,62 +81,61 @@ object KqueueSystem extends PollingSystem {
     ): Resource[IO, FileDescriptorPollHandle] =
       Resource.eval {
         (Mutex[IO], Mutex[IO]).mapN {
-          new PollHandle(ctx, fd, _, _)
+          new PollHandle(fd, _, _)
         }
       }
+
+    def awaitEvent(
+        ident: Int,
+        filter: Short,
+        flags: Short,
+        fflags: Int
+    ): IO[Long] =
+      IO.async[Long] { cb =>
+        IO.async_[Option[IO[Unit]]] { cancelCb =>
+          ctx.accessPoller { kq =>
+            kq.evSet(ident, filter, fflags.toUInt, flags.toUShort, cb)
+            cancelCb(Right(Some(IO(kq.removeCallback(ident, filter)))))
+          }
+        }
+      }
+
+    private final class PollHandle(
+        fd: Int,
+        readMutex: Mutex[IO],
+        writeMutex: Mutex[IO]
+    ) extends FileDescriptorPollHandle {
+
+      def pollReadRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
+        readMutex.lock.surround {
+          a.tailRecM { a =>
+            f(a).flatTap { r =>
+              if (r.isRight)
+                IO.unit
+              else
+                awaitEvent(fd, EVFILT_READ, EV_ADD, 0)
+            }
+          }
+        }
+
+      def pollWriteRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
+        writeMutex.lock.surround {
+          a.tailRecM { a =>
+            f(a).flatTap { r =>
+              if (r.isRight)
+                IO.unit
+              else
+                awaitEvent(fd, EVFILT_WRITE, EV_ADD, 0)
+            }
+          }
+        }
+
+    }
   }
 
   // A kevent is identified by the (ident, filter) pair; there may only be one unique kevent per kqueue
   @inline private def encodeKevent(ident: Int, filter: Short): Long =
     (filter.toLong << 32) | ident.toLong
-
-  private final class PollHandle(
-      ctx: PollingContext[Poller],
-      fd: Int,
-      readMutex: Mutex[IO],
-      writeMutex: Mutex[IO]
-  ) extends FileDescriptorPollHandle {
-
-    def pollReadRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
-      readMutex.lock.surround {
-        a.tailRecM { a =>
-          f(a).flatTap { r =>
-            if (r.isRight)
-              IO.unit
-            else
-              IO.async[Unit] { kqcb =>
-                IO.async_[Option[IO[Unit]]] { cb =>
-                  ctx.accessPoller { kqueue =>
-                    kqueue.evSet(fd, EVFILT_READ, EV_ADD.toUShort, kqcb)
-                    cb(Right(Some(IO(kqueue.removeCallback(fd, EVFILT_READ)))))
-                  }
-                }
-
-              }
-          }
-        }
-      }
-
-    def pollWriteRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
-      writeMutex.lock.surround {
-        a.tailRecM { a =>
-          f(a).flatTap { r =>
-            if (r.isRight)
-              IO.unit
-            else
-              IO.async[Unit] { kqcb =>
-                IO.async_[Option[IO[Unit]]] { cb =>
-                  ctx.accessPoller { kqueue =>
-                    kqueue.evSet(fd, EVFILT_WRITE, EV_ADD.toUShort, kqcb)
-                    cb(Right(Some(IO(kqueue.removeCallback(fd, EVFILT_WRITE)))))
-                  }
-                }
-              }
-          }
-        }
-      }
-
-  }
 
   final class Poller private[KqueueSystem] (kqfd: Int) {
 
@@ -146,7 +145,7 @@ object KqueueSystem extends PollingSystem {
     private[this] var changeCount = 0
     private[this] var readyEventCount = 0
 
-    private[this] val callbacks = new TrieMap[Long, Either[Throwable, Unit] => Unit]()
+    private[this] val callbacks = new TrieMap[Long, Either[Throwable, Long] => Unit]()
 
     {
       val event = eventlist
@@ -163,13 +162,15 @@ object KqueueSystem extends PollingSystem {
     private[KqueueSystem] def evSet(
         ident: Int,
         filter: Short,
+        fflags: CUnsignedInt,
         flags: CUnsignedShort,
-        cb: Either[Throwable, Unit] => Unit
+        cb: Either[Throwable, Long] => Unit
     ): Unit = {
       val event = eventlist + changeCount.toLong
 
       event.ident = ident.toUSize
       event.filter = filter
+      event.fflags = fflags
       event.flags = (flags.toInt | EV_ONESHOT).toUShort
 
       callbacks.update(encodeKevent(ident, filter), cb)
@@ -253,7 +254,7 @@ object KqueueSystem extends PollingSystem {
           cb(
             if ((event.flags.toLong & EV_ERROR) != 0)
               Left(new IOException(fromCString(strerror(event.data.toInt))))
-            else Either.unit
+            else Right(event.data.toLong)
           )
           fibersRescheduled = true
         }

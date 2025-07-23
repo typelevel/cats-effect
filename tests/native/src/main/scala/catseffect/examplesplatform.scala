@@ -55,6 +55,7 @@ package examples {
     register(LeakedFiber)
     register(CustomRuntime)
     register(CpuStarvation)
+    register(SkipShutdownHooksFatalError)
 
     def main(args: Array[String]): Unit = {
       val app = args(0)

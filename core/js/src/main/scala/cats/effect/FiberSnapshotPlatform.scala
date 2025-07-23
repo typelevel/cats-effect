@@ -14,25 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
 
-import cats.effect.{FiberInfo, IOFiber, Trace}
+private[effect] trait FiberSnapshotPlatform { self: FiberSnapshot =>
 
-private[unsafe] abstract class FiberMonitorShared {
+}
 
-  protected val newline = System.lineSeparator()
-  protected val doubleNewline = s"$newline $newline"
+private[effect] trait FiberSnapshotCompanionPlatform { self: FiberSnapshot.type =>
 
-  protected def toFiberInfo(
-      fibers: Map[IOFiber[?], Trace],
-      state: FiberInfo.State
-  ): List[FiberInfo] =
-    fibers.map { case (fiber, trace) => FiberInfo(fiber, state, trace) }.toList
+  private val Empty: FiberSnapshot = FiberSnapshotImpl(Nil)
 
-  protected def printFibers(fibers: List[FiberInfo])(print: String => Unit): Unit =
-    fibers.foreach { fiber =>
-      print(doubleNewline)
-      print(fiber.pretty)
-    }
+  def apply(external: List[FiberInfo]): FiberSnapshot =
+    FiberSnapshotImpl(external)
+
+  def empty: FiberSnapshot = Empty
+
+  private case class FiberSnapshotImpl(
+      external: List[FiberInfo]
+  ) extends FiberSnapshot
 
 }

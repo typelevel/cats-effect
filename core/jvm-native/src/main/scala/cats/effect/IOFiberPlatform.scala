@@ -18,7 +18,6 @@ package cats.effect
 
 import cats.effect.unsafe.UnsafeNonFatal
 
-import java.nio.channels.ClosedByInterruptException
 import java.util.{concurrent => juc}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
@@ -65,9 +64,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                     try {
                       Right(cur.thunk())
                     } catch {
-                      case ex: ClosedByInterruptException => throw ex
-
-                      // this won't suppress InterruptedException:
+                      case t if InterruptThrowable.ClosedByInterrupt(t) => throw t
                       case t if UnsafeNonFatal(t) => Left(t)
                     }
 
@@ -82,7 +79,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
 
                   back
                 } catch {
-                  case _: InterruptedException | _: ClosedByInterruptException =>
+                  case t if InterruptThrowable(t) =>
                     null
                 } finally {
                   canInterrupt.tryAcquire()
