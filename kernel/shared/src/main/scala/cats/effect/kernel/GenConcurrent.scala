@@ -16,11 +16,11 @@
 
 package cats.effect.kernel
 
-import cats.{Foldable, Monoid, Semigroup, Traverse}
+import cats.{FlatMap, Foldable, Monoid, Semigroup, Traverse}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
-import cats.effect.kernel.instances.spawn._
-import cats.effect.kernel.syntax.all._
-import cats.syntax.all._
+import cats.effect.kernel.instances.spawn.*
+import cats.effect.kernel.syntax.all.*
+import cats.syntax.all.*
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
@@ -153,6 +153,26 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
     implicit val F: GenConcurrent[F, E] = this
 
     MiniSemaphore[F](n).flatMap { sem => ta.parTraverse_ { a => sem.withPermit(f(a)) } }
+  }
+
+  /**
+   * Like `Parallel.parFlatSequence`, but limits the degree of parallelism.
+   */
+  def parFlatSequenceN[T[_]: Traverse: FlatMap, A](n: Int)(tma: T[F[T[A]]]): F[T[A]] =
+    parFlatTraverseN(n)(tma)(identity)
+
+  /**
+   * Like `Parallel.parFlatTraverse`, but limits the degree of parallelism. Note that the
+   * semantics of this operation aim to maximise fairness: when a spot to execute becomes
+   * available, every task has a chance to claim it, and not only the next `n` tasks in `ta`
+   */
+  def parFlatTraverseN[T[_]: Traverse: FlatMap, A, B](n: Int)(ta: T[A])(
+      f: A => F[T[B]]): F[T[B]] = {
+    require(n >= 1, s"Concurrency limit should be at least 1, was: $n")
+
+    implicit val F: GenConcurrent[F, E] = this
+
+    MiniSemaphore[F](n).flatMap { sem => ta.parFlatTraverse { a => sem.withPermit(f(a)) } }
   }
 
   override def racePair[A, B](fa: F[A], fb: F[B])

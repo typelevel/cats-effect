@@ -58,6 +58,16 @@ class SyntaxSuite {
     }
 
     {
+      val result = List(target).parFlatTraverseN(3)(t => F.pure(List(t)))
+      result: F[List[A]]
+    }
+
+    {
+      val result = List(target.map(List(_))).parFlatSequenceN(3)
+      result: F[List[A]]
+    }
+
+    {
       val result = target.parReplicateAN(3)(5)
       result: F[List[A]]
     }
