@@ -18,9 +18,9 @@ package cats.effect.kernel
 
 import cats.{FlatMap, Foldable, Monoid, Semigroup, Traverse}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
-import cats.effect.kernel.instances.spawn.*
-import cats.effect.kernel.syntax.all.*
-import cats.syntax.all.*
+import cats.effect.kernel.instances.spawn._
+import cats.effect.kernel.syntax.all._
+import cats.syntax.all._
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 

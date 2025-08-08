@@ -58,7 +58,7 @@ class SyntaxSuite {
     }
 
     {
-      val result = List(target).parFlatTraverseN(3)(t => F.pure(List(t)))
+      val result = List(target).parFlatTraverseN(3)(t => t.map(List(_)))
       result: F[List[A]]
     }
 

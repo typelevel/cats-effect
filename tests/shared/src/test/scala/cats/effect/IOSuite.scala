@@ -1733,9 +1733,8 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
   }
 
   real("parFlatSequenceN - propagate errors") {
-    List(1, 2, 3).map { (n: Int) =>
-        if (n == 2) IO.raiseError(new RuntimeException) else List(n).pure[IO]
-      }
+    List(1, 2, 3)
+      .map { (n: Int) => if (n == 2) IO.raiseError(new RuntimeException) else List(n).pure[IO] }
       .parFlatSequenceN(2)
       .mustFailWith[RuntimeException]
   }
