@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -529,7 +529,7 @@ object GenSpawn {
   }
 
   def apply[F[_], E](implicit F: GenSpawn[F, E]): F.type = F
-  def apply[F[_]](implicit F: GenSpawn[F, _], d: DummyImplicit): F.type = F
+  def apply[F[_]](implicit F: GenSpawn[F, ?], d: DummyImplicit): F.type = F
 
   implicit def genSpawnForOptionT[F[_], E](
       implicit F0: GenSpawn[F, E]): GenSpawn[OptionT[F, *], E] =

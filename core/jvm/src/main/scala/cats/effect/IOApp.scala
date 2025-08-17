@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@ package cats.effect
 import cats.effect.metrics.{CpuStarvationWarningMetrics, JvmCpuStarvationMetrics}
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
+import cats.effect.unsafe.UnsafeNonFatal
 import cats.syntax.all._
 
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}
 import scala.concurrent.duration._
-import scala.util.control.NonFatal
 
 import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch}
 import java.util.concurrent.atomic.AtomicInteger
@@ -165,6 +165,13 @@ trait IOApp {
    */
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
+  /**
+   * The [[unsafe.PollingSystem]] used by the [[runtime]] which will evaluate the [[IO]]
+   * produced by `run`. It is very unlikely that users will need to override this method.
+   *
+   * [[unsafe.PollingSystem]] implementors may provide their own flavors of [[IOApp]] that
+   * override this method.
+   */
   protected def pollingSystem: unsafe.PollingSystem =
     unsafe.IORuntime.createDefaultPollingSystem()
 
@@ -182,7 +189,8 @@ trait IOApp {
    * beyond a few percentage points, and the default value is optimal (or close to optimal) in
    * ''most'' common scenarios.
    *
-   * '''This setting is JVM-specific and will not compile on JavaScript.'''
+   * '''This setting is specific to the JVM and Scala Native, and will not compile on
+   * JavaScript.'''
    *
    * For more details on Cats Effect's runtime threading model please see
    * [[https://typelevel.org/cats-effect/docs/thread-model]].
@@ -192,6 +200,11 @@ trait IOApp {
 
   // arbitrary constant is arbitrary
   private[this] lazy val queue = new ArrayBlockingQueue[AnyRef](32)
+
+  private[this] def handleTerminalFailure(t: Throwable): Unit = {
+    queue.clear()
+    queue.put(t)
+  }
 
   /**
    * Executes the provided actions on the JVM's `main` thread. Note that this is, by definition,
@@ -213,13 +226,11 @@ trait IOApp {
       new ExecutionContext {
         def reportFailure(t: Throwable): Unit =
           t match {
-            case t if NonFatal(t) =>
+            case t if UnsafeNonFatal(t) =>
               IOApp.this.reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
 
             case t =>
-              runtime.shutdown()
-              queue.clear()
-              queue.put(t)
+              handleTerminalFailure(t)
           }
 
         def execute(r: Runnable): Unit =
@@ -342,6 +353,15 @@ trait IOApp {
       .map(_.equalsIgnoreCase("true"))
       .getOrElse(true)
 
+  /**
+   * Attempts to detect whether the given thread is the main thread.
+   */
+  private def isMainThread(thread: Thread): Boolean =
+    thread.getName == "main" &&
+      thread.getThreadGroup.getName == "main" &&
+      thread.getThreadGroup.getParent != null &&
+      thread.getThreadGroup.getParent.getName == "system"
+
   private def onNonMainThreadDetected(): Unit = {
     if (warnOnNonMainThreadDetected)
       System
@@ -380,8 +400,7 @@ trait IOApp {
   def run(args: List[String]): IO[ExitCode]
 
   final def main(args: Array[String]): Unit = {
-    // checked in openjdk 8-17; this attempts to detect when we're running under artificial environments, like sbt
-    val isForked = Thread.currentThread().getId() == 1
+    val isForked = isMainThread(Thread.currentThread())
     if (!isForked) onNonMainThreadDetected()
 
     val installed = if (runtime == null) {
@@ -393,7 +412,8 @@ trait IOApp {
             threads = computeWorkerThreadCount,
             reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
             blockedThreadDetectionEnabled = blockedThreadDetectionEnabled,
-            pollingSystem = pollingSystem
+            pollingSystem = pollingSystem,
+            uncaughtExceptionHandler = (_, t) => handleTerminalFailure(t)
           )
 
         val (blocking, blockDown) =
@@ -442,7 +462,9 @@ trait IOApp {
         .flatMap(_ => List("USR1", "INFO"))
 
       liveFiberSnapshotSignal foreach { name =>
-        Signal.handle(name, _ => runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
+        Signal.handle(
+          name,
+          _ => runtime.fiberMonitor.printLiveFiberSnapshot(System.err.print(_)))
       }
     }
 
@@ -504,7 +526,7 @@ trait IOApp {
 
       // Clean up after ourselves, relevant for running IOApps in sbt,
       // otherwise scheduler threads will accumulate over time.
-      runtime.shutdown()
+      if (!isForked) runtime.shutdown()
     }
 
     val hook = new Thread(() => handleShutdown())
@@ -527,7 +549,7 @@ trait IOApp {
           case ec: ExitCode =>
             // Clean up after ourselves, relevant for running IOApps in sbt,
             // otherwise scheduler threads will accumulate over time.
-            runtime.shutdown()
+            if (!isForked) runtime.shutdown()
             if (ec == ExitCode.Success) {
               // Return naturally from main. This allows any non-daemon
               // threads to gracefully complete their work, and managed
@@ -551,7 +573,7 @@ trait IOApp {
               throw e
 
           case t: Throwable =>
-            if (NonFatal(t)) {
+            if (UnsafeNonFatal(t)) {
               if (isForked) {
                 t.printStackTrace()
                 System.exit(1)
@@ -567,13 +589,8 @@ trait IOApp {
             try {
               r.run()
             } catch {
-              case t if NonFatal(t) =>
-                if (isForked) {
-                  t.printStackTrace()
-                  System.exit(1)
-                } else {
-                  throw t
-                }
+              case t if UnsafeNonFatal(t) =>
+                IOApp.this.reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
 
               case t: Throwable =>
                 t.printStackTrace()

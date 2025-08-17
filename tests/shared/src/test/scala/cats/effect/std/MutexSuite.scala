@@ -1,0 +1,235 @@
+/*
+ * Copyright 2020-2025 Typelevel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package cats
+package effect
+package std
+
+import cats.arrow.FunctionK
+import cats.syntax.all._
+
+import scala.concurrent.duration._
+
+final class MutexSuite extends BaseSuite with DetectPlatform {
+
+  final override def executionTimeout = super.executionTimeout * 6
+
+  tests("ConcurrentMutex", Mutex.apply[IO])
+  tests("Mutex with dual constructors", Mutex.in[IO, IO])
+  tests("MapK'd Mutex", Mutex[IO].map(_.mapK[IO](FunctionK.id)))
+
+  def tests(name: String, mutex: IO[Mutex[IO]]) = {
+    real(
+      s"${name} should execute action if free"
+    ) {
+      val p = mutex.flatMap { m => m.lock.surround(IO.unit) }
+
+      p.mustEqual(())
+    }
+
+    real(
+      s"${name} should be reusable"
+    ) {
+      val p = mutex.flatMap { m =>
+        m.lock.surround(IO.unit) >>
+          m.lock.surround(IO.unit)
+      }
+
+      p.mustEqual(())
+    }
+
+    real(
+      s"${name} should free on error"
+    ) {
+      val p = mutex.flatMap { m =>
+        m.lock.surround(IO.raiseError(new Exception)).attempt >>
+          m.lock.surround(IO.unit)
+      }
+
+      p.mustEqual(())
+    }
+
+    ticked(
+      s"${name} should block action if not free"
+    ) { implicit ticker =>
+      val p = mutex.flatMap { m =>
+        m.lock.surround(IO.never) >>
+          m.lock.surround(IO.unit)
+      }
+
+      assertNonTerminate(p)
+    }
+
+    ticked(
+      s"${name} should support concurrent usage"
+    ) { implicit ticker =>
+      val p = mutex.flatMap { m =>
+        val usage = IO.sleep(1.second) >> m.lock.surround(IO.sleep(1.second))
+
+        (usage, usage).parTupled
+      }
+
+      assertCompleteAs(p, ((), ()))
+    }
+
+    ticked(
+      s"${name} should free on cancellation"
+    ) { implicit ticker =>
+      val p = for {
+        m <- mutex
+        f <- m.lock.surround(IO.never).start
+        _ <- IO.sleep(1.second)
+        _ <- f.cancel
+        _ <- m.lock.surround(IO.unit)
+      } yield ()
+
+      assertCompleteAs(p, ())
+    }
+
+    ticked(
+      s"${name} should allow cancellation if blocked waiting for lock"
+    ) { implicit ticker =>
+      val p = for {
+        m <- mutex
+        ref <- IO.ref(false)
+        b <- m.lock.surround(IO.never).start
+        _ <- IO.sleep(1.second)
+        f <- m.lock.surround(IO.unit).onCancel(ref.set(true)).start
+        _ <- IO.sleep(1.second)
+        _ <- f.cancel
+        _ <- IO.sleep(1.second)
+        v <- ref.get
+        _ <- b.cancel
+      } yield v
+
+      assertCompleteAs(p, true)
+    }
+
+    ticked(
+      s"${name} should gracefully handle canceled waiters"
+    ) { implicit ticker =>
+      val p = mutex.flatMap { m =>
+        m.lock.surround {
+          for {
+            f <- m.lock.useForever.start
+            _ <- IO.sleep(1.second)
+            _ <- f.cancel
+          } yield ()
+        }
+      }
+
+      assertCompleteAs(p, ())
+    }
+
+    real(
+      s"${name} should not deadlock when highly contended"
+    ) {
+      val p = mutex.flatMap(_.lock.use_.parReplicateA_(10)).replicateA_(10000).void
+
+      p.mustEqual(())
+    }
+
+    real(
+      s"${name} should handle cancelled acquire"
+    ) {
+      val p = mutex.flatMap { m =>
+        val short = m.lock.use { _ => IO.sleep(5.millis) }
+        val long = m.lock.use { _ => IO.sleep(20.millis) }
+        val tsk = IO.race(IO.race(short, short), IO.race(long, long)).flatMap { _ =>
+          // this will hang if a cancelled
+          // acquire left the mutex in an
+          // invalid state:
+          m.lock.use_
+        }
+
+        tsk.replicateA_(if (isJVM) 3000 else 5)
+      }
+
+      p.mustEqual(())
+    }
+
+    real(
+      s"${name} should handle multiple concurrent cancels during release"
+    ) {
+      val p = mutex.flatMap { m =>
+        val task = for {
+          f1 <- m.lock.allocated
+          (_, f1Release) = f1
+          f2 <- m.lock.use_.start
+          _ <- IO.sleep(5.millis)
+          f3 <- m.lock.use_.start
+          _ <- IO.sleep(5.millis)
+          f4 <- m.lock.use_.start
+          _ <- IO.sleep(5.millis)
+          _ <- (f1Release, f2.cancel, f3.cancel).parTupled
+          _ <- f4.join
+        } yield ()
+
+        task.replicateA_(if (isJVM) 1000 else 5)
+      }
+
+      p.mustEqual(())
+    }
+
+    ticked(
+      s"${name} should preserve waiters order (FIFO) on a non-race cancellation"
+    ) { implicit ticker =>
+      val numbers = List.range(1, 10)
+      val p = (mutex, IO.ref(List.empty[Int])).flatMapN { (m, ref) =>
+        for {
+          f1 <- m.lock.allocated
+          (_, f1Release) = f1
+          f2 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          t <- numbers.parTraverse_ { i =>
+            IO.sleep(i.millis) >>
+              m.lock.surround(ref.update(acc => i :: acc))
+          }.start
+          _ <- IO.sleep(100.millis)
+          _ <- f2.cancel
+          _ <- f1Release
+          _ <- t.join
+          r <- ref.get
+        } yield r.reverse
+      }
+
+      assertCompleteAs(p, numbers)
+    }
+
+    ticked(
+      s"Cancellation should not corrupt ${name}"
+    ) { implicit ticker =>
+      val p = mutex.flatMap { m =>
+        for {
+          f1 <- m.lock.allocated
+          (_, f1Release) = f1
+          f2 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          f3 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          f4 <- m.lock.use_.start
+          _ <- IO.sleep(1.millis)
+          _ <- f2.cancel
+          _ <- f3.cancel
+          _ <- f4.join
+          _ <- f1Release
+        } yield ()
+      }
+
+      assertNonTerminate(p)
+    }
+  }
+}

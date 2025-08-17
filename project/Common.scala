@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,11 +38,11 @@ object Common extends AutoPlugin {
   override def projectSettings =
     Seq(
       headerLicense := Some(
-        HeaderLicense.ALv2(s"${startYear.value.get}-2024", organizationName.value)
+        HeaderLicense.ALv2(s"${startYear.value.get}-2025", organizationName.value)
       ),
       tlVersionIntroduced ++= {
         if (crossProjectPlatform.?.value.contains(NativePlatform))
-          List("2.12", "2.13", "3").map(_ -> "3.4.0").toMap
+          List("2.12", "2.13", "3").map(_ -> "3.7.0").toMap
         else
           Map.empty
       }

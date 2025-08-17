@@ -6,3 +6,18 @@ c3404c6577af33d65017aeaca248d51dab770021
 
 # Scala Steward: Reformat with scalafmt 3.7.9
 db6c201aad98cc3d19f67cc688dfa6332e2fb939
+
+# Scala Steward: Reformat with scalafmt 3.8.4
+97565e196071ba28bac911411b9c18bd0e6526e8
+
+# Revert documentation format changes
+ba11dfe5b6ab7c9f45521dde7c110212629ac50f
+
+# Scala Steward: Reformat with scalafmt 3.9.2
+1481ec379267b5c6a79897bd43b61f02f4253ec3
+
+# Scala Steward: Reformat with scalafmt 3.9.3
+9c149e8c387b368594545995f09cc8180964ae3a
+
+# Scala Steward: Reformat with scalafmt 3.9.4
+fa1afb9141016bf6f72896b9867a9bcba3cb2933

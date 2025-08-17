@@ -8,6 +8,7 @@ inThisBuild(
 )
 
 lazy val rules = project.settings(
+  scalacOptions += "-deprecation",
   libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % V.scalafixVersion
 )
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * setter is a noop and returns `false`.
    *
    * Satisfies: `r.access.map(_._1) == r.get` and `r.access.flatMap { case (v, setter) =>
-   * setter(f(v)) } == r.tryUpdate(f).map(_.isDefined)`.
+   * setter(f(v)) } == r.tryUpdate(f)`.
    */
   def access: F[(A, A => F[Boolean])]
 
@@ -120,7 +120,7 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * @see
    *   [[flatModifyFull]]
    */
-  def flatModify[B](f: A => (A, F[B]))(implicit F: MonadCancel[F, _]): F[B] =
+  def flatModify[B](f: A => (A, F[B]))(implicit F: MonadCancel[F, ?]): F[B] =
     F.uncancelable(_ => F.flatten(modify(f)))
 
   /**
@@ -137,7 +137,7 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * @see
    *   [[flatModify]]
    */
-  def flatModifyFull[B](f: (Poll[F], A) => (A, F[B]))(implicit F: MonadCancel[F, _]): F[B] =
+  def flatModifyFull[B](f: (Poll[F], A) => (A, F[B]))(implicit F: MonadCancel[F, ?]): F[B] =
     F.uncancelable(poll => F.flatten(modify(f(poll, _))))
 
   /**
@@ -165,7 +165,7 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * @see
    *   [[flatModifyStateFull]]
    */
-  def flatModifyState[B](state: State[A, F[B]])(implicit F: MonadCancel[F, _]): F[B] =
+  def flatModifyState[B](state: State[A, F[B]])(implicit F: MonadCancel[F, ?]): F[B] =
     F.uncancelable(_ => F.flatten(modifyState(state)))
 
   /**
@@ -180,7 +180,7 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    *   [[flatModifyState]]
    */
   def flatModifyStateFull[B](state: Poll[F] => State[A, F[B]])(
-      implicit F: MonadCancel[F, _]): F[B] =
+      implicit F: MonadCancel[F, ?]): F[B] =
     F.uncancelable(poll => F.flatten(modifyState(state(poll))))
 
   /**
@@ -205,7 +205,7 @@ object Ref {
   object Make extends MakeInstances
 
   private[kernel] trait MakeInstances extends MakeLowPriorityInstances {
-    implicit def concurrentInstance[F[_]](implicit F: GenConcurrent[F, _]): Make[F] =
+    implicit def concurrentInstance[F[_]](implicit F: GenConcurrent[F, ?]): Make[F] =
       new Make[F] {
         override def refOf[A](a: A): F[Ref[F, A]] = F.ref(a)
       }

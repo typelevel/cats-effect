@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ private object IOFiberConstants {
   final val AutoCedeR = 7
   final val DoneR = 8
 
-  final val ioLocalPropagation = false
+  final val TrackFiberContext = false
 
   @nowarn212
   @inline def isVirtualThread(t: Thread): Boolean = false

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ object Supervisor {
 
   private[std] def apply[F[_]](
       await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
+      checkRestart: Option[Outcome[F, Throwable, ?] => Boolean])(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     F match {
       case asyncF: Async[F] => applyForAsync(await, checkRestart)(asyncF)
@@ -148,7 +148,7 @@ object Supervisor {
     /**
      * Must return `false` (and might not insert) if `Supervisor` is already closed
      */
-    def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean]
+    def add(token: Unique.Token, fiber: Fiber[F, Throwable, ?]): F[Boolean]
 
     // these are allowed to destroy the state, since they're only called during closing:
     val joinAll: F[Unit]
@@ -158,7 +158,7 @@ object Supervisor {
   private def supervisor[F[_]](
       mkState: Ref[F, Boolean] => F[State[F]], // receives the main shutdown flag
       await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])( // `None` never restarts
+      checkRestart: Option[Outcome[F, Throwable, ?] => Boolean])( // `None` never restarts
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
 
     for {
@@ -319,9 +319,9 @@ object Supervisor {
 
   private[effect] def applyForConcurrent[F[_]](
       await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
+      checkRestart: Option[Outcome[F, Throwable, ?] => Boolean])(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
-    val mkState = F.ref[Map[Unique.Token, Fiber[F, Throwable, _]]](Map.empty).map { stateRef =>
+    val mkState = F.ref[Map[Unique.Token, Fiber[F, Throwable, ?]]](Map.empty).map { stateRef =>
       new State[F] {
 
         def remove(token: Unique.Token): F[Unit] = stateRef.update {
@@ -329,13 +329,13 @@ object Supervisor {
           case map => map - token
         }
 
-        def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean] =
+        def add(token: Unique.Token, fiber: Fiber[F, Throwable, ?]): F[Boolean] =
           stateRef.modify {
             case null => (null, false)
             case map => (map.updated(token, fiber), true)
           }
 
-        private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] = {
+        private[this] val allFibers: F[List[Fiber[F, Throwable, ?]]] = {
           // we're closing, so we won't need the state any more,
           // so we're using `null` as a sentinel to reject later
           // insertions in `add`:
@@ -353,15 +353,15 @@ object Supervisor {
 
   private[effect] def applyForAsync[F[_]](
       await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
+      checkRestart: Option[Outcome[F, Throwable, ?] => Boolean])(
       implicit F: Async[F]): Resource[F, Supervisor[F]] = {
     def mkState(doneR: Ref[F, Boolean]) = F.delay {
-      val state = new ConcurrentHashMap[Unique.Token, Fiber[F, Throwable, _]]
+      val state = new ConcurrentHashMap[Unique.Token, Fiber[F, Throwable, ?]]
       new State[F] {
 
         def remove(token: Unique.Token): F[Unit] = F.delay(state.remove(token)).void
 
-        def add(token: Unique.Token, fiber: Fiber[F, Throwable, _]): F[Boolean] = {
+        def add(token: Unique.Token, fiber: Fiber[F, Throwable, ?]): F[Boolean] = {
           // We might insert a fiber even when closed, but
           // then we return `false`, so it will not actually
           // execute its task, but will self-cancel. In this
@@ -371,9 +371,9 @@ object Supervisor {
           F.delay(state.put(token, fiber)) *> doneR.get.map(!_)
         }
 
-        private[this] val allFibers: F[List[Fiber[F, Throwable, _]]] =
+        private[this] val allFibers: F[List[Fiber[F, Throwable, ?]]] =
           F delay {
-            val fibers = ListBuffer.empty[Fiber[F, Throwable, _]]
+            val fibers = ListBuffer.empty[Fiber[F, Throwable, ?]]
             fibers.sizeHint(state.size())
             val values = state.values().iterator()
             while (values.hasNext) {

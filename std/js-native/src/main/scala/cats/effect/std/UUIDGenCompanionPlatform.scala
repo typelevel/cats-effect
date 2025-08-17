@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ private[std] trait UUIDGenCompanionPlatformLowPriority {
     "3.6.0"
   )
   implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = {
-    UUIDGen.fromSecureRandom[F](ev, SecureRandom.unsafeJavaSecuritySecureRandom())
+    UUIDGen.fromSecureRandom[F](using ev, SecureRandom.unsafeJavaSecuritySecureRandom())
   }
 
 }

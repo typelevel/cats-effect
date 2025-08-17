@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ object Deferred {
    * Creates an unset Deferred. Every time you bind the resulting `F`, a new Deferred is
    * created. If you want to share one, pass it as an argument and `flatMap` once.
    */
-  def apply[F[_], A](implicit F: GenConcurrent[F, _]): F[Deferred[F, A]] =
+  def apply[F[_], A](implicit F: GenConcurrent[F, ?]): F[Deferred[F, A]] =
     F.deferred[A]
 
   /**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,13 @@
 
 package cats.effect.kernel
 
-import java.time.Instant
+import java.time.{Instant, ZoneOffset, ZonedDateTime}
 
 private[effect] trait ClockPlatform[F[_]] extends Serializable { self: Clock[F] =>
   def realTimeInstant: F[Instant] = {
     self.applicative.map(self.realTime)(d => Instant.EPOCH.plusNanos(d.toNanos))
   }
+
+  def realTimeZonedDateTime: F[ZonedDateTime] =
+    self.applicative.map(realTimeInstant)(d => ZonedDateTime.ofInstant(d, ZoneOffset.UTC))
 }

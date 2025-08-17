@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,18 +45,22 @@ trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 object MapRef extends MapRefCompanionPlatform {
 
   /**
-   * Default constructor for [[MapRef]]. If [[Sync]] is available, it will delegate to
-   * [[ofConcurrentHashMap]], otherwise it will fallback to [[ofShardedImmutableMap]].
+   * Default constructor for [[MapRef]]. If [[cats.effect.kernel.Sync]] is available, it will
+   * delegate to [[ofConcurrentHashMap]], otherwise it will fallback to
+   * [[ofShardedImmutableMap]].
    */
   def apply[F[_]: Concurrent, K, V]: F[MapRef[F, K, Option[V]]] = {
     Concurrent[F] match {
       case s: Sync[F] =>
-        ofConcurrentHashMap()(s)
+        ofConcurrentHashMap()(using s)
       case _ =>
         ofShardedImmutableMap[F, K, V](shardCount = Runtime.getRuntime.availableProcessors())
     }
 
   }
+
+  private def noShardsException = new IllegalArgumentException(
+    "Shards count should be greater than zero")
 
   /**
    * Creates a sharded map ref to reduce atomic contention on the Map, given an efficient and
@@ -68,11 +72,13 @@ object MapRef extends MapRefCompanionPlatform {
   def ofShardedImmutableMap[F[_]: Concurrent, K, V](
       shardCount: Int
   ): F[MapRef[F, K, Option[V]]] = {
-    assert(shardCount >= 1, "MapRef.sharded should have at least 1 shard")
-    List
-      .fill(shardCount)(())
-      .traverse(_ => Concurrent[F].ref[Map[K, V]](Map.empty))
-      .map(fromSeqRefs(_))
+    if (shardCount >= 1)
+      List
+        .fill(shardCount)(())
+        .traverse(_ => Concurrent[F].ref[Map[K, V]](Map.empty))
+        .map(lst => fromNonEmptySeqRefs(NonEmptySeq.fromSeqUnsafe(lst)))
+    else
+      ApplicativeError[F, Throwable].raiseError(noShardsException)
   }
 
   /**
@@ -84,12 +90,14 @@ object MapRef extends MapRefCompanionPlatform {
    */
   def inShardedImmutableMap[G[_]: Sync, F[_]: Sync, K, V](
       shardCount: Int
-  ): G[MapRef[F, K, Option[V]]] = Sync[G].defer {
-    assert(shardCount >= 1, "MapRef.sharded should have at least 1 shard")
-    List
-      .fill(shardCount)(())
-      .traverse(_ => Ref.in[G, F, Map[K, V]](Map.empty))
-      .map(fromSeqRefs(_))
+  ): G[MapRef[F, K, Option[V]]] = {
+    if (shardCount >= 1)
+      List
+        .fill(shardCount)(())
+        .traverse(_ => Ref.in[G, F, Map[K, V]](Map.empty))
+        .map(lst => fromNonEmptySeqRefs(NonEmptySeq.fromSeqUnsafe(lst)))
+    else
+      ApplicativeError[G, Throwable].raiseError(noShardsException)
   }
 
   /**
@@ -97,11 +105,24 @@ object MapRef extends MapRefCompanionPlatform {
    *
    * This uses universal hashCode and equality on K.
    */
+  @deprecated("Use fromNonEmptySeqRefs instead", "3.6.0")
   def fromSeqRefs[F[_]: Functor, K, V](
       seq: scala.collection.immutable.Seq[Ref[F, Map[K, V]]]
+  ): MapRef[F, K, Option[V]] =
+    fromNonEmptySeqRefs(
+      seq.toNeSeq.getOrElse(throw noShardsException)
+    )
+
+  /**
+   * Creates a sharded map ref from a nonempty sequence of refs.
+   *
+   * This uses universal hashCode and equality on K.
+   */
+  def fromNonEmptySeqRefs[F[_]: Functor, K, V](
+      seq: NonEmptySeq[Ref[F, Map[K, V]]]
   ): MapRef[F, K, Option[V]] = {
-    val array = seq.toArray
-    val shardCount = seq.size
+    val array = seq.toSeq.toArray
+    val shardCount = array.length
     val refFunction = { (k: K) =>
       val location = Math.abs(k.## % shardCount)
       array(location)
@@ -367,8 +388,8 @@ object MapRef extends MapRefCompanionPlatform {
         }
 
       def tryModify[B](
-          f: Option[V] => (Option[V], B))
-          : F[Option[B]] = // we need the suspend because we do effects inside
+          f: Option[V] => (Option[V], B)
+      ): F[Option[B]] = // we need the suspend because we do effects inside
         sync.delay {
           val init = map.get(k)
           init match {

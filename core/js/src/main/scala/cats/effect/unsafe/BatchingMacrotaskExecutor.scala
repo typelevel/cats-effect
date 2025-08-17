@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.scalajs.{js, LinkingInfo}
-import scala.util.control.NonFatal
 
 /**
  * An `ExecutionContext` that improves throughput by providing a method to `schedule` fibers to
@@ -40,8 +39,7 @@ import scala.util.control.NonFatal
 private[effect] final class BatchingMacrotaskExecutor(
     batchSize: Int,
     reportFailure0: Throwable => Unit
-) extends ExecutionContextExecutor
-    with FiberExecutor {
+) extends ExecutionContextExecutor {
 
   private[this] val queueMicrotask: js.Function1[js.Function0[Any], Any] =
     if (js.typeOf(js.Dynamic.global.queueMicrotask) == "function")
@@ -55,7 +53,7 @@ private[effect] final class BatchingMacrotaskExecutor(
    * Whether the `executeBatchTask` needs to be rescheduled
    */
   private[this] var needsReschedule = true
-  private[this] val fibers = new JSArrayQueue[IOFiber[_]]
+  private[this] val fibers = new JSArrayQueue[IOFiber[?]]
 
   private[this] val executeBatchTaskRunnable = new Runnable {
     def run() = {
@@ -65,7 +63,7 @@ private[effect] final class BatchingMacrotaskExecutor(
         val fiber = fibers.take()
         try fiber.run()
         catch {
-          case t if NonFatal(t) => reportFailure(t)
+          case t if UnsafeNonFatal(t) => reportFailure(t)
           case t: Throwable => IOFiber.onFatalFailure(t)
         }
         i += 1
@@ -93,7 +91,7 @@ private[effect] final class BatchingMacrotaskExecutor(
    * Schedule the `fiber` for the next available batch. This is often the currently executing
    * batch.
    */
-  def schedule(fiber: IOFiber[_]): Unit = {
+  def schedule(fiber: IOFiber[?]): Unit = {
     fibers.offer(fiber)
 
     if (needsReschedule) {
@@ -107,8 +105,8 @@ private[effect] final class BatchingMacrotaskExecutor(
 
   def reportFailure(t: Throwable): Unit = reportFailure0(t)
 
-  def liveTraces(): Map[IOFiber[_], Trace] = {
-    val traces = Map.newBuilder[IOFiber[_], Trace]
+  def liveTraces(): Map[IOFiber[?], Trace] = {
+    val traces = Map.newBuilder[IOFiber[?], Trace]
     fibers.foreach(f => if (!f.isDone) traces += f -> f.captureTrace())
     fiberBag.foreach(f => if (!f.isDone) traces += f -> f.captureTrace())
     traces.result()
@@ -118,7 +116,7 @@ private[effect] final class BatchingMacrotaskExecutor(
     if (LinkingInfo.developmentMode)
       if (fiberBag ne null)
         runnable match {
-          case r: IOFiber[_] =>
+          case r: IOFiber[?] =>
             fiberBag += r
             () => {
               // We have to remove r _before_ running it, b/c it may be re-enqueued while running
@@ -135,7 +133,7 @@ private[effect] final class BatchingMacrotaskExecutor(
   private[this] val fiberBag =
     if (LinkingInfo.developmentMode)
       if (TracingConstants.isStackTracing && FiberMonitor.weakRefsAvailable)
-        mutable.Set.empty[IOFiber[_]]
+        mutable.Set.empty[IOFiber[?]]
       else
         null
     else

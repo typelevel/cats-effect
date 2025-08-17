@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ object pure {
   }
 
   final case class FiberCtx[E](
-      self: PureFiber[E, _],
+      self: PureFiber[E, ?],
       masks: List[MaskId] = Nil,
       finalizers: List[PureConc[E, Unit]] = Nil)
 

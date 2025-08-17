@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -262,7 +262,7 @@ trait PQueueSink[F[_], A] extends QueueSink[F, A] {
    * @param list
    *   the elements to be put in the PQueue
    * @return
-   *   an effect that contains the remaining valus that could not be offered.
+   *   an effect that contains the remaining elements that could not be offered.
    */
   override def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] =
     QueueSink.tryOfferN(list, tryOffer)

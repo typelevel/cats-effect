@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,8 +42,8 @@ import cats.mtl.Local
  * }}}
  *
  * {{{
- *  def inc(name: String, local: IOLocal[Int]): IO[Unit] =
- *    local.update(_ + 1) >> local.get.flatMap(current => IO.println(s"fiber $$name: $$current"))
+ *  def inc(n: Int, local: IOLocal[Int]): IO[Unit] =
+ *    local.update(_ + 1) >> local.get.flatMap(current => IO.println(s"update $$n: $$current"))
  *
  *  for {
  *    local   <- IOLocal(42)
@@ -240,6 +240,10 @@ sealed trait IOLocal[A] extends IOLocalPlatform[A] { self =>
    */
   def lens[B](get: A => B)(set: A => B => A): IOLocal[B]
 
+  /**
+   * @return
+   *   a [[cats.mtl.Local `Local`]] backed by this `IOLocal`
+   */
   final def asLocal: Local[IO, A] =
     new Local[IO, A] {
       def applicative: Applicative[IO] =
@@ -250,6 +254,18 @@ sealed trait IOLocal[A] extends IOLocalPlatform[A] { self =>
 
       def local[B](iob: IO[B])(f: A => A): IO[B] =
         self.modify(e => f(e) -> e).bracket(Function.const(iob))(self.set)
+    }
+
+  /**
+   * @return
+   *   a [[cats.mtl.Local `Local`]] lifted to `F` backed by this `IOLocal`
+   */
+  final def asLocal[F[_]](implicit F: LiftIO[F], FMC: MonadCancel[F, ?]): Local[F, A] =
+    new Local[F, A] {
+      def applicative: Applicative[F] = FMC
+      def ask[A2 >: A]: F[A2] = FMC.widen(self.get.to[F])
+      def local[B](fb: F[B])(f: A => A): F[B] =
+        FMC.bracket(self.modify(a => f(a) -> a).to[F])(_ => fb)(self.set(_).to[F])
     }
 }
 
@@ -271,7 +287,7 @@ object IOLocal {
   /**
    * `true` if IOLocal-Threadlocal propagation is enabled
    */
-  def isPropagating: Boolean = IOFiberConstants.ioLocalPropagation
+  def isPropagating: Boolean = IOFiberConstants.TrackFiberContext
 
   private[effect] def getThreadLocalState() = {
     val fiber = IOFiber.currentIOFiber()

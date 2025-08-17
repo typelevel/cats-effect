@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ final class IOFiberConstants {
   static final byte AutoCedeR = 7;
   static final byte DoneR = 8;
 
-  static final boolean ioLocalPropagation = Boolean.getBoolean("cats.effect.ioLocalPropagation");
+  static final boolean TrackFiberContext = Boolean.getBoolean("cats.effect.trackFiberContext");
 
   static boolean isVirtualThread(final Thread thread) {
     try {

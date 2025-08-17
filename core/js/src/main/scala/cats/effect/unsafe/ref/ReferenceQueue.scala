@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,22 +39,22 @@ private[unsafe] class ReferenceQueue[T] {
    * of `ReferenceQueue` does not actually prescribe FIFO ordering, and experimentation shows
    * that the JVM implementation does not guarantee that ordering.
    */
-  private[this] val enqueuedRefs = js.Array[Reference[_ <: T]]()
+  private[this] val enqueuedRefs = js.Array[Reference[? <: T]]()
 
   private[this] val finalizationRegistry = {
-    new js.FinalizationRegistry[T, Reference[_ <: T], Reference[_ <: T]]({
-      (ref: Reference[_ <: T]) => enqueue(ref)
+    new js.FinalizationRegistry[T, Reference[? <: T], Reference[? <: T]]({
+      (ref: Reference[? <: T]) => enqueue(ref)
     })
   }
 
-  private[ref] def register(ref: Reference[_ <: T], referent: T): Unit =
+  private[ref] def register(ref: Reference[? <: T], referent: T): Unit =
     finalizationRegistry.register(referent, ref, ref)
 
-  private[ref] def unregister(ref: Reference[_ <: T]): Unit = {
+  private[ref] def unregister(ref: Reference[? <: T]): Unit = {
     val _ = finalizationRegistry.unregister(ref)
   }
 
-  private[ref] def enqueue(ref: Reference[_ <: T]): Boolean = {
+  private[ref] def enqueue(ref: Reference[? <: T]): Boolean = {
     if (ref.enqueued) {
       false
     } else {
@@ -64,7 +64,7 @@ private[unsafe] class ReferenceQueue[T] {
     }
   }
 
-  def poll(): Reference[_ <: T] = {
+  def poll(): Reference[? <: T] = {
     if (enqueuedRefs.length == 0)
       null
     else

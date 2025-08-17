@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
 
 package cats.effect.unsafe.ref
 
-private[unsafe] class WeakReference[T](referent: T, q: ReferenceQueue[_ >: T])
+private[unsafe] class WeakReference[T](referent: T, q: ReferenceQueue[? >: T])
     extends Reference[T](referent, q) {
 
   def this(referent: T) = this(referent, null)

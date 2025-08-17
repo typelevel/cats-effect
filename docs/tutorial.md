@@ -42,11 +42,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.5.7"
+version := "3.6.3"
 
 scalaVersion := "2.13.13"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.5.7" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.6.3" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -336,7 +336,7 @@ method can look like this:
 import cats.effect._
 import java.io.File
 
-object Main extends IOApp {
+object CopyFile extends IOApp {
 
   // copy as defined before
   def copy(origin: File, destination: File): IO[Long] = ???
@@ -753,7 +753,7 @@ in parallel.
 
 Ok, so, alongside the queue of produced but not yet consumed elements, we have
 to keep track of the `Deferred` instances (created because consumers found an
-emnpty queue) that are waiting for elements to be available. These instances
+empty queue) that are waiting for elements to be available. These instances
 will be kept in a new queue `takers`. We will keep both queues in a new type
 `State`:
 

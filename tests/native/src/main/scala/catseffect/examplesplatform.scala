@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 
 package object examples {
-  def exampleExecutionContext = IORuntime.defaultComputeExecutionContext
+  def exampleExecutionContext = ExecutionContext.global
 }
 
 package examples {
@@ -55,6 +55,7 @@ package examples {
     register(LeakedFiber)
     register(CustomRuntime)
     register(CpuStarvation)
+    register(SkipShutdownHooksFatalError)
 
     def main(args: Array[String]): Unit = {
       val app = args(0)

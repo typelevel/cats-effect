@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,10 @@
 
 package cats.effect
 
+import PlatformStatics.VM_MaxArraySize
 import Platform.static
 
-private final class ArrayStack[A <: AnyRef](
+private[effect] final class ArrayStack[A <: AnyRef](
     private[this] var buffer: Array[AnyRef],
     private[this] var index: Int) {
 
@@ -72,7 +73,17 @@ private final class ArrayStack[A <: AnyRef](
   private[this] def checkAndGrow(): Unit =
     if (index >= buffer.length) {
       val len = buffer.length
-      val buffer2 = new Array[AnyRef](len * 2)
+      val targetLen = len * 2
+
+      val resizeLen =
+        if (targetLen < 0)
+          throw new Exception(s"Overflow while resizing array. Request length: $targetLen")
+        else if (len > VM_MaxArraySize / 2)
+          VM_MaxArraySize
+        else
+          targetLen
+
+      val buffer2 = new Array[AnyRef](resizeLen)
       System.arraycopy(buffer, 0, buffer2, 0, len)
       buffer = buffer2
     }

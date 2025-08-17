@@ -23,7 +23,7 @@ class v3_3_0 extends SemanticRule("v3_3_0") {
 
         // Sync#interruptible(false) -> Sync#interruptible
         // Sync#interruptible(true) -> Sync#interruptibleMany
-        case t @ q"${Sync_interruptible_M(Term.Apply(interruptible, Lit.Boolean(many) :: _))}" =>
+        case t @ q"${Sync_interruptible_M(Term.Apply.After_4_6_0(interruptible, Term.ArgClause(Lit.Boolean(many) :: _, _)))}" =>
           interruptible.synthetics match {
             case TypeApplyTree(_, TypeRef(_, symbol, _) :: _) :: _ =>
               if (symbol.displayName == "Unit") interruptible match {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -186,7 +186,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
 object GenConcurrent {
   def apply[F[_], E](implicit F: GenConcurrent[F, E]): F.type = F
-  def apply[F[_]](implicit F: GenConcurrent[F, _], d: DummyImplicit): F.type = F
+  def apply[F[_]](implicit F: GenConcurrent[F, ?], d: DummyImplicit): F.type = F
 
   private sealed abstract class Memoize[F[_], E, A]
   private object Memoize {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -118,7 +118,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
   }
 
   def advance(time: FiniteDuration): Unit = {
-    require(time > Duration.Zero)
+    require(time > Duration.Zero, "time must be > 0")
     stateRef.currentNanos.addAndGet(time.toNanos)
     ()
   }

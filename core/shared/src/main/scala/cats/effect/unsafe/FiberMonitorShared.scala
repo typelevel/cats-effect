@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,23 @@
 
 package cats.effect.unsafe
 
-import cats.effect.{IOFiber, Trace}
-import cats.effect.tracing.Tracing
+import cats.effect.{FiberInfo, IOFiber, Trace}
 
 private[unsafe] abstract class FiberMonitorShared {
 
   protected val newline = System.lineSeparator()
   protected val doubleNewline = s"$newline $newline"
 
-  protected def fiberString(fiber: IOFiber[_], trace: Trace, status: String): String = {
-    val id = System.identityHashCode(fiber).toHexString
-    val prefixedTrace = if (trace.toList.isEmpty) "" else newline + Tracing.prettyPrint(trace)
-    s"cats.effect.IOFiber@$id $status$prefixedTrace"
-  }
+  protected def toFiberInfo(
+      fibers: Map[IOFiber[?], Trace],
+      state: FiberInfo.State
+  ): List[FiberInfo] =
+    fibers.map { case (fiber, trace) => FiberInfo(fiber, state, trace) }.toList
 
-  protected def printFibers(fibers: Map[IOFiber[_], Trace], status: String)(
-      print: String => Unit): Unit =
-    fibers foreach {
-      case (fiber, trace) =>
-        print(doubleNewline)
-        print(fiberString(fiber, trace, status))
+  protected def printFibers(fibers: List[FiberInfo])(print: String => Unit): Unit =
+    fibers.foreach { fiber =>
+      print(doubleNewline)
+      print(fiber.pretty)
     }
 
 }

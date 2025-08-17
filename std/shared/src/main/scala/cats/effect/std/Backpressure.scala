@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,8 +58,8 @@ object Backpressure {
   def apply[F[_]](
       strategy: Strategy,
       bound: Int
-  )(implicit GC: GenConcurrent[F, _]): F[Backpressure[F]] = {
-    require(bound > 0)
+  )(implicit GC: GenConcurrent[F, ?]): F[Backpressure[F]] = {
+    require(bound > 0, "bound must be > 0")
     val notAcquired: F[None.type] = GC.pure(None)
 
     Semaphore[F](bound.toLong).map(sem =>

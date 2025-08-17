@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -171,8 +171,8 @@ private[effect] object Tracing extends TracingPlatform {
 
   @static def captureTrace(runnable: Runnable): Option[(Runnable, Trace)] = {
     runnable match {
-      case f: IOFiber[_] if f.isDone => None
-      case f: IOFiber[_] => Some(runnable -> f.captureTrace())
+      case f: IOFiber[?] if f.isDone => None
+      case f: IOFiber[?] => Some(runnable -> f.captureTrace())
       case _ => Some(runnable -> Trace(RingBuffer.empty(1)))
     }
   }

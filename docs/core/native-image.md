@@ -33,7 +33,7 @@ ThisBuild / scalaVersion := "2.13.8"
 
 lazy val root = (project in file(".")).enablePlugins(NativeImagePlugin).settings(
   name                := "cats-effect-3-hello-world",
-  libraryDependencies += "org.typelevel" %% "cats-effect" % "3.5.7",
+  libraryDependencies += "org.typelevel" %% "cats-effect" % "3.6.3",
   Compile / mainClass := Some("com.example.Main"),
   nativeImageOptions  += "--no-fallback",
   nativeImageVersion  := "22.1.0" // It should be at least version 21.0.0
@@ -67,4 +67,4 @@ Benchmark 1: ./target/native-image/cats-effect-3-hello-world
 ```
 
 Another way to get your cats effect app compiled with native-image is to leverage
-the package command of scala-cli, like in the [example](../faq.md#Native-Image-Example)
+the package command of scala-cli, like in the [example](../faq.md#native-image-example).

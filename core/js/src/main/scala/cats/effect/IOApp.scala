@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -233,7 +233,7 @@ trait IOApp {
 
     if (LinkingInfo.developmentMode && isStackTracing) {
       val listener: js.Function0[Unit] = () =>
-        runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_))
+        runtime.fiberMonitor.printLiveFiberSnapshot(System.err.print(_))
       process.on("SIGUSR2", listener)
       process.on("SIGINFO", listener)
     }

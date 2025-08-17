@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -247,7 +247,7 @@ object Dispatcher {
       parallel: Boolean,
       await: Boolean,
       cancelable: Boolean): Resource[F, Dispatcher[F]] = {
-    val always = Some((_: Outcome[F, Throwable, _]) => true)
+    val always = Some((_: Outcome[F, Throwable, ?]) => true)
 
     // the outer supervisor is for the worker fibers
     // the inner supervisor is for tasks (if parallel) and finalizers
@@ -286,8 +286,10 @@ object Dispatcher {
 
               launchAll.as(new Dispatcher[F] {
                 def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit]) = {
-                  def inner[E](fe: F[E], result: Promise[E], finalizer: Boolean)
-                      : () => Future[Unit] = {
+                  def inner[E](
+                      fe: F[E],
+                      result: Promise[E],
+                      finalizer: Boolean): () => Future[Unit] = {
                     if (doneR.get()) {
                       throw new IllegalStateException("Dispatcher already closed")
                     }
@@ -338,7 +340,7 @@ object Dispatcher {
                       @tailrec
                       def cancel(): Future[Unit] = {
                         stateR.get() match {
-                          case u: RegState.Unstarted[_] =>
+                          case u: RegState.Unstarted[?] =>
                             val latch = Promise[Unit]()
                             if (stateR.compareAndSet(u, RegState.CancelRequested(latch))) {
                               latch.future
@@ -346,7 +348,7 @@ object Dispatcher {
                               cancel()
                             }
 
-                          case r: RegState.Running[_] =>
+                          case r: RegState.Running[?] =>
                             val cancel = r.cancel // indirection needed for Scala 2.12
 
                             val latch = Promise[Unit]()

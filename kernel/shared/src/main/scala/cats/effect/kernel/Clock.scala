@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -127,7 +127,7 @@ object Clock {
       C0: Clock[F],
       D0: Defer[F]): Clock[ContT[F, R, *]] =
     new ContTClock[F, R] {
-      def applicative: Applicative[ContT[F, R, *]] = ContT.catsDataContTMonad(D)
+      def applicative: Applicative[ContT[F, R, *]] = ContT.catsDataContTMonad(using D)
       implicit override def F: Monad[F] = F0
       implicit override def C: Clock[F] = C0
       implicit override def D: Defer[F] = D0

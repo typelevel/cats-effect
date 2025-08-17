@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -119,7 +119,7 @@ abstract class Semaphore[F[_]] {
   /**
    * Modify the context `F` using natural transformation `f`.
    */
-  def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Semaphore[G]
+  def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, ?]): Semaphore[G]
 }
 
 object Semaphore {
@@ -127,7 +127,7 @@ object Semaphore {
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */
-  def apply[F[_]](n: Long)(implicit F: GenConcurrent[F, _]): F[Semaphore[F]] = {
+  def apply[F[_]](n: Long)(implicit F: GenConcurrent[F, ?]): F[Semaphore[F]] = {
     val impl = new impl[F](n)
     F.ref(impl.initialState).map(impl.semaphore)
   }
@@ -142,7 +142,7 @@ object Semaphore {
 
   }
 
-  private class impl[F[_]](n: Long)(implicit F: GenConcurrent[F, _]) {
+  private class impl[F[_]](n: Long)(implicit F: GenConcurrent[F, ?]) {
     requireNonNegative(n)
 
     def requireNonNegative(n: Long): Unit =
@@ -263,7 +263,7 @@ object Semaphore {
             }
         }
 
-        def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Semaphore[G] =
+        def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, ?]): Semaphore[G] =
           new MapKSemaphore[F, G](this, f)
       }
   }
@@ -271,7 +271,7 @@ object Semaphore {
   final private[std] class MapKSemaphore[F[_], G[_]](
       underlying: Semaphore[F],
       f: F ~> G
-  )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _])
+  )(implicit F: MonadCancel[F, ?], G: MonadCancel[G, ?])
       extends Semaphore[G] {
     def available: G[Long] = f(underlying.available)
     def count: G[Long] = f(underlying.count)
@@ -279,7 +279,7 @@ object Semaphore {
     def tryAcquireN(n: Long): G[Boolean] = f(underlying.tryAcquireN(n))
     def releaseN(n: Long): G[Unit] = f(underlying.releaseN(n))
     def permit: Resource[G, Unit] = underlying.permit.mapK(f)
-    def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Semaphore[H] =
+    def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, ?]): Semaphore[H] =
       new MapKSemaphore(this, f)
   }
 }

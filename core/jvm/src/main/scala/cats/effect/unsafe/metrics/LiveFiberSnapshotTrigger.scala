@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package metrics
 
 import scala.collection.mutable.ArrayBuffer
 
+import java.util.concurrent.atomic.AtomicLong
+
 /**
  * An implementation of the [[LiveFiberSnapshotTriggerMBean]] interface which simply delegates
  * to the corresponding method of the backing [[cats.effect.unsafe.FiberMonitor]].
@@ -30,7 +32,11 @@ private[unsafe] final class LiveFiberSnapshotTrigger(monitor: FiberMonitor)
     extends LiveFiberSnapshotTriggerMBean {
   def liveFiberSnapshot(): Array[String] = {
     val buffer = new ArrayBuffer[String]
-    monitor.liveFiberSnapshot(buffer += _)
+    monitor.printLiveFiberSnapshot(buffer += _)
     buffer.toArray
   }
+}
+
+private[unsafe] object LiveFiberSnapshotTrigger {
+  val IdCounter: AtomicLong = new AtomicLong(0)
 }

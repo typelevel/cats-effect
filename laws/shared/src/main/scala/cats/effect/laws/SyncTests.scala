@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ trait SyncTests[F[_]]
       val bases: Seq[(String, Laws#RuleSet)] = Nil
       val parents = Seq(
         monadCancel[A, B, C](
-          implicitly[Arbitrary[A]],
+          using implicitly[Arbitrary[A]],
           implicitly[Eq[A]],
           implicitly[Arbitrary[B]],
           implicitly[Eq[B]],

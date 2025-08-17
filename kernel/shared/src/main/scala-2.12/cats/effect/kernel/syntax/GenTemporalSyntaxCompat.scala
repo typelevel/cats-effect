@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,21 +29,21 @@ private[syntax] trait GenTemporalOps_CompanionCompat {
       wrapped: F[A],
       duration: FiniteDuration,
       fallback: F[A],
-      F: GenTemporal[F, _]): F[A] =
+      F: GenTemporal[F, ?]): F[A] =
     F.timeoutTo(wrapped, duration, fallback)
 
   @deprecated("Preserved for binary-compatibility", "3.4.0")
   def delayBy$extension[F[_], A](
       wrapped: F[A],
       duration: FiniteDuration,
-      F: GenTemporal[F, _]): F[A] =
+      F: GenTemporal[F, ?]): F[A] =
     F.delayBy(wrapped, duration)
 
   @deprecated("Preserved for binary-compatibility", "3.4.0")
   def andWait$extension[F[_], A](
       wrapped: F[A],
       duration: FiniteDuration,
-      F: GenTemporal[F, _]): F[A] =
+      F: GenTemporal[F, ?]): F[A] =
     F.andWait(wrapped, duration)
 
 }

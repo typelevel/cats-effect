@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,4 +22,6 @@ private object Platform {
   final val isNative = false
 
   type static = org.typelevel.scalaccompat.annotation.static3
+  final class safePublish extends scala.annotation.Annotation
+  final class volatileNative extends scala.annotation.Annotation
 }

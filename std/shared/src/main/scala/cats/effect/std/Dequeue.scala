@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ object Dequeue {
    * @return
    *   an empty, bounded queue
    */
-  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Dequeue[F, A]] = {
+  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, ?]): F[Dequeue[F, A]] = {
     assertNonNegative(capacity)
     F.ref(State.empty[F, A]).map(new BoundedDequeue(capacity, _))
   }
@@ -81,7 +81,7 @@ object Dequeue {
    * @return
    *   an empty, unbounded queue
    */
-  def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Dequeue[F, A]] =
+  def unbounded[F[_], A](implicit F: GenConcurrent[F, ?]): F[Dequeue[F, A]] =
     bounded(Int.MaxValue)
 
   implicit def catsInvariantForDequeue[F[_]: Functor]: Invariant[Dequeue[F, *]] =
@@ -119,7 +119,7 @@ object Dequeue {
     }
 
   private[std] class BoundedDequeue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: GenConcurrent[F, _])
+      implicit F: GenConcurrent[F, ?])
       extends Dequeue[F, A] {
 
     override def offerBack(a: A): F[Unit] =

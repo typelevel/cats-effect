@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package cats.effect
 package unsafe
+
+import cats.effect.unsafe.metrics.PollerMetrics
 
 /**
  * Represents a stateful system for managing and interacting with a polling system. Polling
@@ -70,6 +72,8 @@ abstract class PollingSystem {
   def closePoller(poller: Poller): Unit
 
   /**
+   * Blocks the thread until an event is polled, the timeout expires, or interrupted.
+   *
    * @param poller
    *   the thread-local [[Poller]] used to poll events.
    *
@@ -77,18 +81,27 @@ abstract class PollingSystem {
    *   the maximum duration for which to block, where `nanos == -1` indicates to block
    *   indefinitely.
    *
-   * @param reportFailure
-   *   callback that handles any failures that occur during polling.
+   * @return
+   *   whether any ready events were polled and should be handled with [[processReadyEvents]].
+   *   If result is incomplete, then [[poll]] should be called again after
+   *   [[processReadyEvents]].
+   */
+  def poll(poller: Poller, nanos: Long): PollResult
+
+  /**
+   * Processes ready events e.g. collects their results and resumes the corresponding tasks.
+   *
+   * @param poller
+   *   the thread-local [[Poller]] with ready events
    *
    * @return
-   *   whether any events were polled. e.g. if the method returned due to timeout, this should
-   *   be `false`.
+   *   whether any of the ready events caused tasks to be rescheduled on the runtime
    */
-  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean
+  def processReadyEvents(poller: Poller): Boolean
 
   /**
    * @return
-   *   whether poll should be called again (i.e., there are more events to be polled)
+   *   whether [[poll]] should be called again (i.e., there are more events to be polled)
    */
   def needsPoll(poller: Poller): Boolean
 
@@ -101,6 +114,20 @@ abstract class PollingSystem {
    *   is the poller to be interrupted.
    */
   def interrupt(targetThread: Thread, targetPoller: Poller): Unit
+
+  /**
+   * Returns a handle to access metrics associated with the specified poller.
+   *
+   * The returned `PollerMetrics` provides access to live counts of submitted, succeeded,
+   * errored, and canceled operations for accept, connect, read, and write events. It also
+   * includes counts of outstanding operations and the total number of operations.
+   *
+   * @param poller
+   *   The poller for which the metrics handle is being retrieved.
+   * @return
+   *   A `PollerMetrics` instance that can be used to query the current metrics for the poller.
+   */
+  def metrics(poller: Poller): PollerMetrics
 
 }
 
@@ -132,4 +159,24 @@ object PollingSystem {
   type WithPoller[P] = PollingSystem {
     type Poller = P
   }
+}
+
+sealed abstract class PollResult
+object PollResult {
+
+  /**
+   * Polled all of the available ready events.
+   */
+  case object Complete extends PollResult
+
+  /**
+   * Polled some, but not all, of the available ready events. Poll should be called again to
+   * reap additional ready events.
+   */
+  case object Incomplete extends PollResult
+
+  /**
+   * The poll was interrupted or timed out before any events became ready.
+   */
+  case object Interrupted extends PollResult
 }

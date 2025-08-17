@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 
 package cats.effect
 
-import IOFiberConstants.ioLocalPropagation
+import IOFiberConstants.TrackFiberContext
 
 private[effect] trait IOLocalPlatform[A] { self: IOLocal[A] =>
 
   /**
    * Returns a [[java.lang.ThreadLocal]] view of this [[IOLocal]] that allows to unsafely get,
    * set, and remove (aka reset) the value in the currently running fiber. The system property
-   * `cats.effect.ioLocalPropagation` must be `true`, otherwise throws an
+   * `cats.effect.trackFiberContext` must be `true`, otherwise throws an
    * [[java.lang.UnsupportedOperationException]].
    */
-  def unsafeThreadLocal(): ThreadLocal[A] = if (ioLocalPropagation)
+  def unsafeThreadLocal(): ThreadLocal[A] = if (TrackFiberContext)
     new ThreadLocal[A] {
       override def get(): A = {
         val fiber = IOFiber.currentIOFiber()
@@ -51,7 +51,7 @@ private[effect] trait IOLocalPlatform[A] { self: IOLocal[A] =>
   else
     throw new UnsupportedOperationException(
       "IOLocal-ThreadLocal propagation is disabled.\n" +
-        "Enable by setting cats.effect.ioLocalPropagation=true."
+        "Enable by setting cats.effect.trackFiberContext=true."
     )
 
 }

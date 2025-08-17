@@ -1,5 +1,5 @@
 cats-effect
-Copyright 2020-2024 Typelevel
+Copyright 2020-2025 Typelevel
 Licensed under Apache License 2.0 (see LICENSE)
 
 This software contains portions of code derived from scala-js

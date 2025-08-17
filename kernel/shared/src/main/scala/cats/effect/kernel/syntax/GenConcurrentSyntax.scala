@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,10 +38,10 @@ trait GenConcurrentSyntax {
 
 final class GenConcurrentOps_[F[_], A] private[syntax] (private val wrapped: F[A])
     extends AnyVal {
-  def memoize(implicit F: GenConcurrent[F, _]): F[F[A]] =
+  def memoize(implicit F: GenConcurrent[F, ?]): F[F[A]] =
     F.memoize(wrapped)
 
-  def parReplicateAN(n: Int)(replicas: Int)(implicit F: GenConcurrent[F, _]): F[List[A]] =
+  def parReplicateAN(n: Int)(replicas: Int)(implicit F: GenConcurrent[F, ?]): F[List[A]] =
     F.parReplicateAN(n)(replicas, wrapped)
 }
 
@@ -50,21 +50,21 @@ final class ConcurrentParTraverseNOps[T[_], A] private[syntax] (
 ) extends AnyVal {
   def parTraverseN[F[_], B](n: Int)(
       f: A => F[B]
-  )(implicit T: Traverse[T], F: GenConcurrent[F, _]): F[T[B]] =
+  )(implicit T: Traverse[T], F: GenConcurrent[F, ?]): F[T[B]] =
     F.parTraverseN(n)(wrapped)(f)
 
   def parTraverseN_[F[_], B](n: Int)(
       f: A => F[B]
-  )(implicit T: Foldable[T], F: GenConcurrent[F, _]): F[Unit] =
+  )(implicit T: Foldable[T], F: GenConcurrent[F, ?]): F[Unit] =
     F.parTraverseN_(n)(wrapped)(f)
 }
 
 final class ConcurrentParSequenceNOps[T[_], F[_], A] private[syntax] (
     private val wrapped: T[F[A]]
 ) extends AnyVal {
-  def parSequenceN(n: Int)(implicit T: Traverse[T], F: GenConcurrent[F, _]): F[T[A]] =
+  def parSequenceN(n: Int)(implicit T: Traverse[T], F: GenConcurrent[F, ?]): F[T[A]] =
     F.parSequenceN(n)(wrapped)
 
-  def parSequenceN_(n: Int)(implicit T: Foldable[T], F: GenConcurrent[F, _]): F[Unit] =
+  def parSequenceN_(n: Int)(implicit T: Foldable[T], F: GenConcurrent[F, ?]): F[Unit] =
     F.parSequenceN_(n)(wrapped)
 }

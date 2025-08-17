@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -239,7 +239,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
 
 object GenTemporal {
   def apply[F[_], E](implicit F: GenTemporal[F, E]): F.type = F
-  def apply[F[_]](implicit F: GenTemporal[F, _], d: DummyImplicit): F.type = F
+  def apply[F[_]](implicit F: GenTemporal[F, ?], d: DummyImplicit): F.type = F
 
   implicit def genTemporalForOptionT[F[_], E](
       implicit F0: GenTemporal[F, E]): GenTemporal[OptionT[F, *], E] =

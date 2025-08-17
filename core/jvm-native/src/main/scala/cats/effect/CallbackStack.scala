@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,7 @@ import scala.annotation.tailrec
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
-import CallbackStack.Handle
-import CallbackStack.Node
+import CallbackStack.{Handle, Node}
 import Platform.static
 
 private final class CallbackStack[A](private[this] var callback: A => Unit)

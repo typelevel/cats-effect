@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
               val await = G.onCancel(
                 poll(get),
                 // if cannot cancel, fallback to get
-                G.ifM(lift(delay(cf.cancel(false))))(G.unit, G.void(get))
+                G.ifM(lift(delay(cf.cancel(true))))(G.unit, G.void(get))
               )
 
               G.productR(lift(go))(await)

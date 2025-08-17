@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.metrics._
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
 
 import java.lang.management.ManagementFactory
-import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 import javax.management.ObjectName
@@ -40,14 +40,15 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       blockerThreadPrefix: String,
       runtimeBlockingExpiration: Duration,
       reportFailure: Throwable => Unit
-  ): (WorkStealingThreadPool[_], () => Unit) = createWorkStealingComputeThreadPool(
-    threads,
-    threadPrefix,
-    blockerThreadPrefix,
-    runtimeBlockingExpiration,
-    reportFailure,
-    false
-  )
+  ): (ExecutionContextExecutor with Scheduler, () => Unit) =
+    createWorkStealingComputeThreadPool(
+      threads,
+      threadPrefix,
+      blockerThreadPrefix,
+      runtimeBlockingExpiration,
+      reportFailure,
+      false
+    )
 
   @deprecated("Preserved for binary-compatibility", "3.6.0")
   def createWorkStealingComputeThreadPool(
@@ -57,7 +58,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       runtimeBlockingExpiration: Duration,
       reportFailure: Throwable => Unit,
       blockedThreadDetectionEnabled: Boolean
-  ): (WorkStealingThreadPool[_], () => Unit) = {
+  ): (ExecutionContextExecutor with Scheduler, () => Unit) = {
     val (pool, _, shutdown) = createWorkStealingComputeThreadPool(
       threads,
       threadPrefix,
@@ -70,6 +71,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     )
     (pool, shutdown)
   }
+
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
@@ -79,8 +81,10 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       reportFailure: Throwable => Unit = _.printStackTrace(),
       blockedThreadDetectionEnabled: Boolean = false,
       shutdownTimeout: Duration = 1.second,
-      pollingSystem: PollingSystem = SelectorSystem())
-      : (WorkStealingThreadPool[_], pollingSystem.Api, () => Unit) = {
+      pollingSystem: PollingSystem = SelectorSystem(),
+      uncaughtExceptionHandler: Thread.UncaughtExceptionHandler = (_, ex) =>
+        ex.printStackTrace()
+  ): (ExecutionContextExecutor with Scheduler, pollingSystem.Api, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool[pollingSystem.Poller](
         threads,
@@ -90,7 +94,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         blockedThreadDetectionEnabled && (threads > 1),
         shutdownTimeout,
         pollingSystem,
-        reportFailure
+        reportFailure,
+        uncaughtExceptionHandler
       )
 
     val unregisterMBeans =
@@ -104,11 +109,11 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         if (mBeanServer ne null) {
           val registeredMBeans = mutable.Set.empty[ObjectName]
 
-          val hash = System.identityHashCode(threadPool).toHexString
+          val threadPoolId = threadPool.id
 
           try {
             val computePoolSamplerName = new ObjectName(
-              s"cats.effect.unsafe.metrics:type=ComputePoolSampler-$hash")
+              s"cats.effect.unsafe.metrics:type=ComputePoolSampler-$threadPoolId")
             val computePoolSampler = new ComputePoolSampler(threadPool)
             mBeanServer.registerMBean(computePoolSampler, computePoolSamplerName)
             registeredMBeans += computePoolSamplerName
@@ -125,7 +130,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
             try {
               val localQueueSamplerName = new ObjectName(
-                s"cats.effect.unsafe.metrics:type=LocalQueueSampler-$hash-$i")
+                s"cats.effect.unsafe.metrics:type=LocalQueueSampler-$threadPoolId-$i")
               val localQueueSampler = new LocalQueueSampler(localQueue)
               mBeanServer.registerMBean(localQueueSampler, localQueueSamplerName)
               registeredMBeans += localQueueSamplerName
@@ -134,6 +139,48 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
             }
 
             i += 1
+          }
+
+          threadPool.sleepers.zipWithIndex.foreach {
+            case (timerHeap, i) =>
+              try {
+                val timerHeapSamplerName = new ObjectName(
+                  s"cats.effect.unsafe.metrics:type=TimerHeap-$threadPoolId-$i"
+                )
+                val timerHeapSampler = new TimerHeapSampler(timerHeap)
+                mBeanServer.registerMBean(timerHeapSampler, timerHeapSamplerName)
+                registeredMBeans += timerHeapSamplerName
+              } catch {
+                case _: Throwable =>
+              }
+          }
+
+          threadPool.pollers.zipWithIndex.foreach {
+            case (poller, i) =>
+              try {
+                val pollerSamplerName = new ObjectName(
+                  s"cats.effect.unsafe.metrics:type=Poller-$threadPoolId-$i"
+                )
+                val pollerSampler = new PollerSampler(threadPool.system.metrics(poller))
+                mBeanServer.registerMBean(pollerSampler, pollerSamplerName)
+                registeredMBeans += pollerSamplerName
+              } catch {
+                case _: Throwable =>
+              }
+          }
+
+          threadPool.metrices.zipWithIndex.foreach {
+            case (thread, i) =>
+              try {
+                val workerThreadSamplerName = new ObjectName(
+                  s"cats.effect.unsafe.metrics:type=WorkerThread-$threadPoolId-$i"
+                )
+                val workerThreadSampler = new WorkerThreadSampler(thread)
+                mBeanServer.registerMBean(workerThreadSampler, workerThreadSamplerName)
+                registeredMBeans += workerThreadSamplerName
+              } catch {
+                case _: Throwable =>
+              }
           }
 
           () => {
@@ -168,7 +215,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute",
       blockerThreadPrefix: String = DefaultBlockerPrefix)
-      : (WorkStealingThreadPool[_], () => Unit) =
+      : (ExecutionContextExecutor with Scheduler, () => Unit) =
     createWorkStealingComputeThreadPool(
       threads,
       threadPrefix,
@@ -182,7 +229,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def createDefaultComputeThreadPool(
       self: () => IORuntime,
       threads: Int,
-      threadPrefix: String): (WorkStealingThreadPool[_], () => Unit) =
+      threadPrefix: String): (ExecutionContextExecutor with Scheduler, () => Unit) =
     createDefaultComputeThreadPool(self(), threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
@@ -204,19 +251,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     (ExecutionContext.fromExecutor(executor, reportFailure), { () => executor.shutdown() })
   }
 
-  def createDefaultScheduler(threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) = {
-    val scheduler = new ScheduledThreadPoolExecutor(
-      1,
-      { r =>
-        val t = new Thread(r)
-        t.setName(threadPrefix)
-        t.setDaemon(true)
-        t.setPriority(Thread.MAX_PRIORITY)
-        t
-      })
-    scheduler.setRemoveOnCancelPolicy(true)
-    (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
-  }
+  def createDefaultScheduler(threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) =
+    Scheduler.createDefaultScheduler(threadPrefix)
 
   def createDefaultPollingSystem(): PollingSystem = SelectorSystem()
 
@@ -264,11 +300,10 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         }
 
       if (mBeanServer ne null) {
-        val hash = System.identityHashCode(fiberMonitor).toHexString
-
         try {
+          val mbeanId = LiveFiberSnapshotTrigger.IdCounter.getAndIncrement()
           val liveFiberSnapshotTriggerName = new ObjectName(
-            s"cats.effect.unsafe.metrics:type=LiveFiberSnapshotTrigger-$hash")
+            s"cats.effect.unsafe.metrics:type=LiveFiberSnapshotTrigger-$mbeanId")
           val liveFiberSnapshotTrigger = new LiveFiberSnapshotTrigger(fiberMonitor)
           mBeanServer.registerMBean(liveFiberSnapshotTrigger, liveFiberSnapshotTriggerName)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package cats.effect
+
+import cats.syntax.all._
 
 import java.nio.channels.SelectableChannel
 import java.nio.channels.spi.SelectorProvider
@@ -33,4 +35,13 @@ trait Selector {
    */
   def select(ch: SelectableChannel, ops: Int): IO[Int]
 
+}
+
+object Selector {
+  def find: IO[Option[Selector]] =
+    IO.pollers.map(_.collectFirst { case selector: Selector => selector })
+
+  def get = find.flatMap(
+    _.liftTo[IO](new RuntimeException("No Selector installed in this IORuntime"))
+  )
 }

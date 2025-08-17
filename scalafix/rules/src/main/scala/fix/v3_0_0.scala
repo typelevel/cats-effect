@@ -49,12 +49,12 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
             Patch.addLeft(a, "_ => ")
 
           // Blocker[F] -> Resource.unit[F]
-          case t @ Term.ApplyType(Blocker_M(_), List(typeF)) =>
+          case t @ Term.ApplyType.After_4_6_0(Blocker_M(_), Type.ArgClause(List(typeF))) =>
             Patch.addGlobalImport(Resource_S) +
               Patch.replaceTree(t, s"${Resource_S.displayName}.unit[$typeF]")
 
           // Blocker#delay[F, A] -> Sync[F].blocking
-          case t @ Term.ApplyType(Blocker_delay_M(_), List(typeF, _)) =>
+          case t @ Term.ApplyType.After_4_6_0(Blocker_delay_M(_), Type.ArgClause(List(typeF, _))) =>
             Patch.addGlobalImport(Sync_S) +
               Patch.replaceTree(t, s"${Sync_S.displayName}[$typeF].blocking")
 
@@ -91,7 +91,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
                 d,
                 p =>
                   p.mods.nonEmpty && p.decltpe.exists {
-                    case Type.Apply(Concurrent_M(_), List(IO_M(_))) => true
+                    case Type.Apply.After_4_6_0(Concurrent_M(_), Type.ArgClause(List(IO_M(_)))) => true
                     case _ => false
                   }
               ),
@@ -150,7 +150,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       paramsMatcher: List[Term.Param] => Boolean,
       paramMatcher: Term.Param => Boolean
   )(implicit doc: SemanticDocument): Option[Patch] = {
-    d.paramss.find(paramsMatcher).flatMap {
+    d.paramClauses.map(_.values).find(paramsMatcher).flatMap {
       // There is only one parameter, so we're removing the complete parameter list.
       case param :: Nil =>
         cutUntilDelims(d, param, _.is[LeftParen], _.is[RightParen])

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ package metrics
  * @param compute
  *   the monitored compute work stealing thread pool
  */
-private[unsafe] final class ComputePoolSampler(compute: WorkStealingThreadPool[_])
+private[unsafe] final class ComputePoolSampler(compute: WorkStealingThreadPool[?])
     extends ComputePoolSamplerMBean {
   def getWorkerThreadCount(): Int = compute.getWorkerThreadCount()
   def getActiveThreadCount(): Int = compute.getActiveThreadCount()

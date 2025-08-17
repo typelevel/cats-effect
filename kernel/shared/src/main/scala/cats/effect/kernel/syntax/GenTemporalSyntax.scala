@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,22 +40,22 @@ trait GenTemporalSyntax {
 final class GenTemporalOps_[F[_], A] private[syntax] (private val wrapped: F[A])
     extends AnyVal {
 
-  def timeoutTo(duration: Duration, fallback: F[A])(implicit F: GenTemporal[F, _]): F[A] =
+  def timeoutTo(duration: Duration, fallback: F[A])(implicit F: GenTemporal[F, ?]): F[A] =
     F.timeoutTo(wrapped, duration, fallback)
 
-  def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: GenTemporal[F, _]): F[A] =
+  def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: GenTemporal[F, ?]): F[A] =
     F.timeoutTo(wrapped, duration, fallback)
 
-  def delayBy(time: Duration)(implicit F: GenTemporal[F, _]): F[A] =
+  def delayBy(time: Duration)(implicit F: GenTemporal[F, ?]): F[A] =
     F.delayBy(wrapped, time)
 
-  def delayBy(time: FiniteDuration)(implicit F: GenTemporal[F, _]): F[A] =
+  def delayBy(time: FiniteDuration)(implicit F: GenTemporal[F, ?]): F[A] =
     F.delayBy(wrapped, time)
 
-  def andWait(time: Duration)(implicit F: GenTemporal[F, _]): F[A] =
+  def andWait(time: Duration)(implicit F: GenTemporal[F, ?]): F[A] =
     F.andWait(wrapped, time)
 
-  def andWait(time: FiniteDuration)(implicit F: GenTemporal[F, _]): F[A] =
+  def andWait(time: FiniteDuration)(implicit F: GenTemporal[F, ?]): F[A] =
     F.andWait(wrapped, time)
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ import cats.syntax.all._
  *
  * None of the boundaries above are cancelation boundaries as cancelation is masked.
  *
- * 2. The boundary after `uncancelable`
+ *   2. The boundary after `uncancelable`
  *
  * {{{
  *   F.uncancelable(poll => foo(poll)).flatMap(f)
@@ -161,7 +161,7 @@ import cats.syntax.all._
  * always be awkward. Given this, it is better to pick a semantic that allows safe composition
  * of regions.
  *
- * 3. The boundary after `poll`
+ *   3. The boundary after `poll`
  *
  * {{{
  *   F.uncancelable(poll => poll(fa).flatMap(f))
@@ -470,7 +470,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
 object MonadCancel {
 
   def apply[F[_], E](implicit F: MonadCancel[F, E]): F.type = F
-  def apply[F[_]](implicit F: MonadCancel[F, _], d: DummyImplicit): F.type = F
+  def apply[F[_]](implicit F: MonadCancel[F, ?], d: DummyImplicit): F.type = F
 
   implicit def monadCancelForOptionT[F[_], E](
       implicit F0: MonadCancel[F, E]): MonadCancel[OptionT[F, *], E] =

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Typelevel
+ * Copyright 2020-2025 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -402,7 +402,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
    */
   def mapK[G[_]](
       f: F ~> G
-  )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _]): Resource[G, A] =
+  )(implicit F: MonadCancel[F, ?], G: MonadCancel[G, ?]): Resource[G, A] =
     this match {
       case Allocate(resource) =>
         Resource.applyFull { (gpoll: Poll[G]) =>
@@ -774,6 +774,24 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
         K.combineK(allocate(this), allocate(that))
       }
 
+  /**
+   * A Resource where the acquire step is done lazily and memoized. This means that acquire
+   * happens only if and when the `F[A]` value is executed, instead of happening immediately
+   * upon `use()`. If the `F[A]` value is executed multiple times, acquire happens once only and
+   * the acquired resource is shared to all callers. The resource is released as normal at the
+   * end of `use` (whether normal termination, error, or cancelled), if it was acquired.
+   */
+  def memoizedAcquire[B >: A](implicit F: Concurrent[F]): Resource[F, F[B]] = {
+    Resource.eval(F.ref(List.empty[Resource.ExitCase => F[Unit]])).flatMap { release =>
+      val fa2 = F.uncancelable { poll =>
+        poll(allocatedCase).flatMap { case (a, r) => release.update(r :: _).as(a) }
+      }
+      Resource.makeCaseFull[F, F[B]](poll => poll(F.memoize(fa2)).map(_.widen)) { (_, exit) =>
+        release.get.flatMap(_.foldMapM(_(exit)))
+      }
+    }
+  }
+
 }
 
 object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with ResourcePlatform {
@@ -1044,7 +1062,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
-  def canceled[F[_]](implicit F: MonadCancel[F, _]): Resource[F, Unit] =
+  def canceled[F[_]](implicit F: MonadCancel[F, ?]): Resource[F, Unit] =
     Resource.eval(F.canceled)
 
   def uncancelable[F[_], A](body: Poll[Resource[F, *]] => Resource[F, A])(
@@ -1061,17 +1079,17 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def unique[F[_]](implicit F: Unique[F]): Resource[F, Unique.Token] =
     Resource.eval(F.unique)
 
-  def never[F[_], A](implicit F: GenSpawn[F, _]): Resource[F, A] =
+  def never[F[_], A](implicit F: GenSpawn[F, ?]): Resource[F, A] =
     Resource.eval(F.never[A])
 
-  def cede[F[_]](implicit F: GenSpawn[F, _]): Resource[F, Unit] =
+  def cede[F[_]](implicit F: GenSpawn[F, ?]): Resource[F, Unit] =
     Resource.eval(F.cede)
 
   def deferred[F[_], A](
-      implicit F: GenConcurrent[F, _]): Resource[F, Deferred[Resource[F, *], A]] =
+      implicit F: GenConcurrent[F, ?]): Resource[F, Deferred[Resource[F, *], A]] =
     Resource.eval(F.deferred[A]).map(_.mapK(Resource.liftK[F]))
 
-  def ref[F[_], A](a: A)(implicit F: GenConcurrent[F, _]): Resource[F, Ref[Resource[F, *], A]] =
+  def ref[F[_], A](a: A)(implicit F: GenConcurrent[F, ?]): Resource[F, Ref[Resource[F, *], A]] =
     Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
 
   def monotonic[F[_]](implicit F: Clock[F]): Resource[F, FiniteDuration] =
@@ -1083,11 +1101,11 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def suspend[F[_], A](hint: Sync.Type)(thunk: => A)(implicit F: Sync[F]): Resource[F, A] =
     Resource.eval(F.suspend(hint)(thunk))
 
-  def sleep[F[_]](time: Duration)(implicit F: GenTemporal[F, _]): Resource[F, Unit] =
+  def sleep[F[_]](time: Duration)(implicit F: GenTemporal[F, ?]): Resource[F, Unit] =
     Resource.eval(F.sleep(time))
 
   @deprecated("Use overload with Duration", "3.4.0")
-  def sleep[F[_]](time: FiniteDuration, F: GenTemporal[F, _]): Resource[F, Unit] =
+  def sleep[F[_]](time: FiniteDuration, F: GenTemporal[F, ?]): Resource[F, Unit] =
     sleep(time: Duration)(F)
 
   def cont[F[_], K, R](body: Cont[Resource[F, *], K, R])(implicit F: Async[F]): Resource[F, R] =
@@ -1410,18 +1428,8 @@ abstract private[effect] class ResourceConcurrent[F[_]]
   override def race[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, Either[A, B]] =
     fa.race(fb)
 
-  override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] = {
-    Resource.eval(F.ref(List.empty[Resource.ExitCase => F[Unit]])).flatMap { release =>
-      val fa2 = F.uncancelable { poll =>
-        poll(fa.allocatedCase).flatMap { case (a, r) => release.update(r :: _).as(a) }
-      }
-      Resource
-        .makeCaseFull[F, F[A]](poll => poll(F.memoize(fa2))) { (_, exit) =>
-          release.get.flatMap(_.foldMapM(_(exit)))
-        }
-        .map(memo => Resource.eval(memo))
-    }
-  }
+  override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] =
+    fa.memoizedAcquire.map(Resource.eval(_))
 }
 
 private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {
