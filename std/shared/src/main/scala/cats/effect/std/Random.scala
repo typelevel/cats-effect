@@ -212,6 +212,12 @@ object Random extends RandomCompanionPlatform {
       new ScalaRandom[F](sRandom.pure[F]) {}
     }
 
+  def scalaUtilRandomIn[F[_]: Sync, G[_]: Sync]: F[Random[G]] =
+    Sync[F].delay {
+      val sRandom = new SRandom()
+      new ScalaRandom[G](sRandom.pure[G]) {}
+    }
+
   /**
    * [[Random]] instance built for `cats.data.EitherT` values initialized with any `F` data type
    * that also implements `Random`.
@@ -317,6 +323,12 @@ object Random extends RandomCompanionPlatform {
     Sync[F].delay {
       val sRandom = new SRandom(random)
       new ScalaRandom[F](sRandom.pure[F]) {}
+    }
+
+  def javaUtilRandomIn[F[_]: Sync, G[_]: Sync](random: java.util.Random): F[Random[G]] =
+    Sync[F].delay {
+      val sRandom = new SRandom(random)
+      new ScalaRandom[G](sRandom.pure[G]) {}
     }
 
   def javaUtilConcurrentThreadLocalRandom[F[_]: Sync]: Random[F] =

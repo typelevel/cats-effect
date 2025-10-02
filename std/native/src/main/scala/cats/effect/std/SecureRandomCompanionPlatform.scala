@@ -60,6 +60,9 @@ private[std] trait SecureRandomCompanionPlatform {
   def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
     Sync[F].delay(unsafeJavaSecuritySecureRandom())
 
+  def javaSecuritySecureRandomIn[F[_]: Sync, G[_]: Sync]: F[SecureRandom[G]] =
+    Sync[F].delay(unsafeJavaSecuritySecureRandom[G]())
+
   private[effect] def unsafeJavaSecuritySecureRandom[F[_]: Sync](): SecureRandom[F] =
     new ScalaRandom[F](Applicative[F].pure(new JavaSecureRandom())) with SecureRandom[F] {}
 

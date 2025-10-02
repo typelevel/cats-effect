@@ -46,6 +46,9 @@ private[std] trait SecureRandomCompanionPlatform {
   def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
     Sync[F].delay(unsafeJavaSecuritySecureRandom())
 
+  def javaSecuritySecureRandomIn[F[_]: Sync, G[_]: Sync]: F[SecureRandom[G]] =
+    Sync[F].delay(unsafeJavaSecuritySecureRandom[G]())
+
   /**
    * Ported from https://github.com/http4s/http4s/.
    */

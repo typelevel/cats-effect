@@ -139,4 +139,7 @@ object SecureRandom extends SecureRandomCompanionPlatform {
   override def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
     super.javaSecuritySecureRandom[F]
 
+  override def javaSecuritySecureRandomIn[F[_]: Sync, G[_]: Sync]: F[SecureRandom[G]] =
+    super.javaSecuritySecureRandomIn[F, G]
+
 }
