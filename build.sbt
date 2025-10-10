@@ -1221,4 +1221,22 @@ lazy val docs = project
   .in(file("site-docs"))
   .dependsOn(core.jvm)
   .enablePlugins(MdocPlugin)
-  .settings(tlFatalWarnings := { if (tlIsScala3.value) false else tlFatalWarnings.value })
+  .settings(
+    tlFatalWarnings := { if (tlIsScala3.value) false else tlFatalWarnings.value },
+    mdocVariables := {
+      import scala.sys.process._
+      val latestVersion = try {
+        val tags = "git tag --sort=-version:refname".!!.trim.split("\n")
+        val versionTags = tags.filter(_.matches("v\\d+\\.\\d+\\.\\d+.*"))
+        if (versionTags.nonEmpty) versionTags.head.drop(1) else version.value
+      } catch { case _: Exception => version.value }
+      
+      val latestVersion2x = try {
+        val tags = "git tag --sort=-version:refname".!!.trim.split("\n")
+        val version2xTags = tags.filter(_.matches("v2\\.\\d+\\.\\d+.*"))
+        if (version2xTags.nonEmpty) version2xTags.head.drop(1) else "2.5.5"
+      } catch { case _: Exception => "2.5.5" }
+      
+      Map("VERSION_3X" -> latestVersion, "VERSION_2X" -> latestVersion2x)
+    }
+  )
