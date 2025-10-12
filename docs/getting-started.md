@@ -3,6 +3,8 @@ id: getting-started
 title: Getting Started
 ---
 
+## Quick Start
+
 Add the following to your **build.sbt**:
 
 ```scala
@@ -27,6 +29,8 @@ Alternatively, you can use the Cats Effect 3 Giter8 template, which sets up some
 $ sbt new typelevel/ce3.g8
 ```
 
+## Your First IO Program
+
 To create a new Cats Effect application, place the following contents into a new Scala file within your project:
 
 ```scala mdoc
@@ -37,31 +41,217 @@ object HelloWorld extends IOApp.Simple {
 }
 ```
 
-Once you have saved this file, you should be able to run your application using `sbt run`, and as expected, it will print `Hello, World!` to standard out. Applications written in this style have full access to timers, multithreading, and all of the bells and whistles that you would expect from a full application. For example, here's a very silly version of FizzBuzz which runs four concurrent lightweight threads, or *fibers*, one of which counts up an `Int` value once per second, while the others poll that value for changes and print in response:
+Once you have saved this file, you should be able to run your application using `sbt run`, and as expected, it will print `Hello, World!` to standard out. Applications written in this style have full access to timers, multithreading, and all of the bells and whistles that you would expect from a full application.
+
+## Understanding IO
+
+Before we go further, it's important to understand what `IO` is. `IO` represents a **description** of a computation that may perform side effects. It's not the computation itself—it's a blueprint that describes what should happen when the computation is eventually executed.
+
+Think of `IO` like a recipe: the recipe itself doesn't cook the meal, but it tells you exactly what steps to follow when you're ready to cook.
+
+### Why IO?
+
+In traditional imperative programming, side effects happen immediately:
+
+```scala
+// This prints immediately when the line is executed
+println("Hello, World!")
+```
+
+This immediate execution makes programs hard to:
+- **Test** (you can't easily mock side effects)
+- **Compose** (side effects don't compose well)
+- **Reason about** (effects happen in unpredictable order)
+- **Cancel** (once started, effects are hard to stop)
+
+`IO` solves these problems by making side effects **lazy** and **composable**:
+
+```scala mdoc:silent
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+
+// This creates a description of printing, but doesn't print yet
+val program: IO[Unit] = IO.println("Hello, World!")
+
+// The printing only happens when we explicitly run the program
+program.unsafeRunSync()  // Now it prints!
+```
+
+For a deeper understanding of `IO`, see the [IO Documentation](io.md).
+
+## IOApp
+
+`IOApp` is the recommended way to structure Cats Effect applications. It provides:
+
+- Automatic runtime management
+- Proper shutdown handling
+- Signal handling (SIGINT, SIGTERM)
+- Resource cleanup
+
+### IOApp.Simple
+
+For simple applications that don't need complex setup:
 
 ```scala mdoc
 import cats.effect.{IO, IOApp}
 import scala.concurrent.duration._
 
-// obviously this isn't actually the problem definition, but it's kinda fun
-object StupidFizzBuzz extends IOApp.Simple {
-  val run =
-    for {
-      ctr <- IO.ref(0)
-
-      wait = IO.sleep(1.second)
-      poll = wait *> ctr.get
-
-      _ <- poll.flatMap(IO.println(_)).foreverM.start
-      _ <- poll.map(_ % 3 == 0).ifM(IO.println("fizz"), IO.unit).foreverM.start
-      _ <- poll.map(_ % 5 == 0).ifM(IO.println("buzz"), IO.unit).foreverM.start
-
-      _ <- (wait *> ctr.update(_ + 1)).foreverM.void
-    } yield ()
+object SimpleApp extends IOApp.Simple {
+  val run = 
+    IO.println("Starting application") *>
+    IO.sleep(1.second) *>
+    IO.println("Application running") *>
+    IO.sleep(2.seconds) *>
+    IO.println("Shutting down")
 }
 ```
 
-We will learn more about constructs like `start` and `*>` in later pages, but for now notice how easy it is to compose together concurrent programs based on simple building blocks. Additionally, note the reuse of the `wait` and `poll` programs. Because we're describing our program *as a value* (an `IO`), we can reuse that value as part of many different programs, and it will continue to behave the same regardless of this duplication.
+### IOApp with Resource Management
+
+For applications that need resource management:
+
+```scala mdoc:silent
+import cats.effect.{IO, IOApp, Resource, ExitCode}
+import cats.syntax.all._
+import scala.concurrent.duration._
+
+object ResourceApp extends IOApp {
+  def run(args: List[String]): IO[ExitCode] = 
+    createResource.use { _ =>
+      for {
+        _ <- IO.println("Using resource")
+        _ <- IO.sleep(1.second)
+        _ <- IO.println("Resource used successfully")
+      } yield ExitCode.Success
+    }
+    
+  def createResource: Resource[IO, String] = 
+    Resource.make(
+      IO.println("Acquiring resource") *> IO.pure("my-resource")
+    )(_ => IO.println("Releasing resource"))
+}
+```
+
+## Basic IO Operations
+
+### Creating IO Values
+
+```scala mdoc:silent
+// From a pure value
+val pureValue: IO[String] = IO.pure("Hello")
+
+// From a side effect
+val sideEffect: IO[Unit] = IO.println("Hello, World!")
+
+// From a potentially failing operation
+val riskyOperation: IO[String] = IO.delay {
+  if (scala.util.Random.nextBoolean()) "Success"
+  else throw new RuntimeException("Random failure")
+}
+```
+
+### Transforming IO Values
+
+```scala mdoc:silent
+val greetingProgram: IO[String] = for {
+  name <- IO.pure("Alice")
+  greeting = s"Hello, $name!"
+  _ <- IO.println(greeting)
+} yield greeting
+
+// Or using map and flatMap
+val program2: IO[String] = IO.pure("Alice")
+  .map(name => s"Hello, $name!")
+  .flatMap(greeting => IO.println(greeting).as(greeting))
+```
+
+### Error Handling
+
+```scala mdoc:silent
+val riskyProgram: IO[String] = IO.raiseError(new RuntimeException("Something went wrong"))
+
+val safeProgram: IO[String] = riskyProgram.handleErrorWith { error =>
+  IO.pure(s"Recovered from: ${error.getMessage}")
+}
+
+// Or using attempt to convert to Either
+val attemptedProgram: IO[Either[Throwable, String]] = riskyProgram.attempt
+```
+
+## Concurrency
+
+Cats Effect makes concurrent programming safe and easy with **Fibers** - lightweight threads that can be created, cancelled, and composed safely.
+
+### Basic Concurrency
+
+```scala mdoc:silent
+import cats.syntax.all._
+
+val concurrentProgram: IO[List[String]] = 
+  List(
+    IO.sleep(100.millis).as("Task 1"),
+    IO.sleep(200.millis).as("Task 2"),
+    IO.sleep(150.millis).as("Task 3")
+  ).parSequence
+```
+
+### Starting Fibers
+
+```scala mdoc:silent
+val fiberProgram: IO[String] = for {
+  fiber <- IO.println("Running in background").start
+  _ <- IO.sleep(100.millis)
+  _ <- fiber.join
+} yield "Done"
+```
+
+### Cancellation
+
+```scala mdoc:silent
+val cancellableProgram: IO[Unit] = for {
+  fiber <- IO.sleep(5.seconds).start
+  _ <- IO.sleep(1.second)
+  _ <- fiber.cancel
+} yield ()
+```
+
+## More Complex Example
+
+Here's a more realistic example that demonstrates several Cats Effect concepts:
+
+```scala mdoc
+import cats.effect.{IO, IOApp, Ref}
+import scala.concurrent.duration._
+
+object FizzBuzzExample extends IOApp.Simple {
+  val run = for {
+    counter <- Ref[IO].of(0)
+    
+    // Counter fiber - increments every second
+    counterFiber <- (IO.sleep(1.second) *> counter.update(_ + 1)).foreverM.start
+    
+    // Printer fibers - check counter and print accordingly
+    printerFiber <- (for {
+      value <- counter.get
+      _ <- if (value % 15 == 0) IO.println("FizzBuzz")
+          else if (value % 3 == 0) IO.println("Fizz")
+          else if (value % 5 == 0) IO.println("Buzz")
+          else IO.println(value.toString)
+    } yield ()).foreverM.start
+    
+    // Run for 10 seconds then stop
+    _ <- IO.sleep(10.seconds)
+    _ <- counterFiber.cancel
+    _ <- printerFiber.cancel
+  } yield ()
+}
+```
+
+This example demonstrates:
+- **Ref** for shared mutable state
+- **Fiber** creation and management
+- **Cancellation** of long-running tasks
+- **Composition** of concurrent programs
 
 ## REPL
 
@@ -188,3 +378,83 @@ class ExampleSpec extends Specification with CatsEffect {
 ### ScalaCheck
 
 Special support is available for ScalaCheck properties in the form of the [ScalaCheck Effect](https://github.com/typelevel/scalacheck-effect) project. This library makes it possible to write properties using a special `forAllF` syntax which evaluate entirely within `IO` without blocking threads.
+
+## Next Steps
+
+Now that you have a basic understanding of Cats Effect, here are some recommended next steps:
+
+1. **Read the [Concepts](concepts.md)** page to understand the fundamental abstractions
+2. **Follow the [Tutorial](tutorial.md)** for hands-on learning with practical examples
+3. **Explore [Recipes](recipes.md)** for common patterns and solutions
+4. **Check out [Best Practices](best-practices.md)** for application structure and design
+5. **Learn about the [Ecosystem](ecosystem.md)** of libraries that work with Cats Effect
+
+## Common Patterns
+
+### Resource Management
+
+Always use `Resource` for managing external resources:
+
+```scala mdoc:silent
+import cats.effect.{IO, Resource}
+import java.io.{FileInputStream, FileOutputStream}
+
+def copyFile(src: String, dest: String): IO[Unit] = 
+  Resource.make(IO(new FileInputStream(src)))(fis => IO(fis.close()))
+    .flatMap { fis =>
+      Resource.make(IO(new FileOutputStream(dest)))(fos => IO(fos.close()))
+        .map { fos =>
+          val buffer = new Array[Byte](1024)
+          var bytesRead = fis.read(buffer)
+          while (bytesRead != -1) {
+            fos.write(buffer, 0, bytesRead)
+            bytesRead = fis.read(buffer)
+          }
+        }
+    }
+    .use(IO.pure)
+```
+
+### Retry Logic
+
+Implement retry with exponential backoff:
+
+```scala mdoc:silent
+import cats.effect.IO
+import scala.concurrent.duration._
+
+def retryWithBackoff[A](
+  io: IO[A], 
+  maxRetries: Int = 3,
+  initialDelay: FiniteDuration = 100.millis
+): IO[A] = {
+  def attempt(retriesLeft: Int, delay: FiniteDuration): IO[A] = 
+    io.handleErrorWith { error =>
+      if (retriesLeft > 0) {
+        IO.sleep(delay) *> attempt(retriesLeft - 1, delay * 2)
+      } else {
+        IO.raiseError(error)
+      }
+    }
+    
+  attempt(maxRetries, initialDelay)
+}
+```
+
+### Timeout
+
+Add timeouts to operations:
+
+```scala mdoc:silent
+import cats.effect.IO
+import scala.concurrent.duration._
+
+def operationWithTimeout[A](io: IO[A], timeout: FiniteDuration): IO[A] = 
+  IO.race(io, IO.sleep(timeout))
+    .flatMap {
+      case Left(result) => IO.pure(result)
+      case Right(_) => IO.raiseError(new RuntimeException("Operation timed out"))
+    }
+```
+
+These patterns will help you build robust, production-ready applications with Cats Effect.
