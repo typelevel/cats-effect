@@ -112,7 +112,6 @@ For applications that need resource management:
 
 ```scala mdoc:silent
 import cats.effect.{IO, IOApp, Resource, ExitCode}
-import cats.syntax.all._
 import scala.concurrent.duration._
 
 object ResourceApp extends IOApp {
@@ -386,7 +385,7 @@ Now that you have a basic understanding of Cats Effect, here are some recommende
 1. **Read the [Concepts](concepts.md)** page to understand the fundamental abstractions
 2. **Follow the [Tutorial](tutorial.md)** for hands-on learning with practical examples
 3. **Explore [Recipes](recipes.md)** for common patterns and solutions
-4. **Check out [Best Practices](best-practices.md)** for application structure and design
+4. **Check out Best Practices** for application structure and design
 5. **Learn about the [Ecosystem](ecosystem.md)** of libraries that work with Cats Effect
 
 ## Common Patterns
