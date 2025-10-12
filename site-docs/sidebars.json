@@ -2,6 +2,7 @@
   "docs": {
     "Overview": [
       "getting-started",
+      "io",
       "concepts",
       "tutorial",
       "recipes",
@@ -54,6 +55,9 @@
       "std/semaphore",
       "std/supervisor",
       "std/async-await"
-    ]
+    ],
+    "Performance": ["performance", "scaling-tuning"],
+    "Best Practices": ["best-practices"],
+    "Ecosystem": ["ecosystem"]
   }
 }
