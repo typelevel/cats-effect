@@ -190,6 +190,60 @@ def executeEmbed[A](
 
 If you ignore the messy `map` and `mapK` lifting within `Outcome`, this is actually a relatively simple bit of functionality. The `tickAll` effect causes `TestControl` to `tick` until a `sleep` boundary, then `advance` by the necessary `nextInterval`, and then repeat the process until either `isDeadlocked` is `true` or `results` is `Some`. These results are then retrieved and embedded within the outer `IO`, with cancelation and non-termination being reflected as exceptions.
 
+### Setting Absolute Time
+
+In addition to advancing time by relative amounts using `advance`, `TestControl` provides methods to set the clock to absolute time values. This is particularly useful when you need to test behavior at specific points in time.
+
+```scala
+test("verify token expiration at specific time") {
+  val expirationTime = 1618884475.seconds
+  val program = for {
+    token <- createToken(validFor = 1.hour)
+    _ <- IO.sleep(30.minutes)
+    currentTime <- IO.realTime
+    isValid <- validateToken(token)
+  } yield (currentTime, isValid)
+
+  TestControl.execute(program) flatMap { control =>
+    for {
+      _ <- control.setTime(expirationTime - 1.minute)
+      _ <- control.tick
+      _ <- control.advanceAndTick(30.minutes)
+      _ <- control.advanceTo(expirationTime + 1.minute)
+      _ <- control.tick
+      
+      result <- control.results
+      _ <- IO {
+        val (timestamp, isValid) = result.get.fold(throw _, identity, _ => ???)
+        assertEquals(timestamp, expirationTime + 1.minute)
+        assert(!isValid)
+      }
+    } yield ()
+  }
+}
+```
+
+The key methods for absolute time control are:
+
+- **`setTime(targetTime)`**: Sets the clock to the specified absolute time. Fails if the target time is before the current time since time cannot move backwards.
+- **`advanceTo(targetTime)`**: An alias for `setTime` with a more descriptive name that emphasizes forward movement.
+
+Both methods calculate the difference between the target time and current time, then use the underlying `advance` method. If the target time equals the current time, the operation is a no-op.
+
+```scala
+// These are equivalent when current time is 1.hour:
+control.advance(30.minutes)
+control.setTime(1.hour + 30.minutes)
+control.advanceTo(90.minutes)
+```
+
+Note that attempting to set time backwards will result in an `IllegalArgumentException`:
+
+```scala
+control.advance(2.hours) *>
+control.setTime(1.hour)
+```
+
 ## Gotchas
 
 It is very important to remember that `TestControl` is a *mock* runtime, and thus some programs may behave very differently under it than under a production runtime. Always *default* to testing using the production runtime unless you absolutely need an artificial time control mechanism for exactly this reason.
