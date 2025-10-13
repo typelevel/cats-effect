@@ -1,14 +1,6 @@
 {
   "docs": {
-    "Overview": [
-      "getting-started",
-      "concepts",
-      "tutorial",
-      "recipes",
-      "faq",
-      "migration-guide",
-      "third-party-resources"
-    ],
+    "Overview": ["getting-started", "io", "concepts", "tutorial", "recipes", "faq", "migration-guide", "third-party-resources"],
     "Core Runtime": [
       "core/test-runtime",
       "core/fiber-dumps",
