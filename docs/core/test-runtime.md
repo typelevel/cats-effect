@@ -83,11 +83,58 @@ test("retry at least 3 times until success") {
 
 In this test (written using [MUnit Cats Effect](https://github.com/typelevel/munit-cats-effect)), the `action` program counts the number of `attempts` and only produces `"success!"` precisely on the third try. Every other time, it raises a `TestException`. This program is then transformed by `retry` with a `1.minute` delay and a maximum of 5 attempts.
 
-Under the production `IO` runtime, this test could take up to 31 minutes to run! With `TestControl.executeEmbed`, it requires a few milliseconds at most. The `executeEmbed` function takes an `IO[A]`, along with an optional `IORuntimeConfig` and random seed (which will be used to govern the sequencing of "parallel" fibers during the run) and produces an `IO[A]` which runs the given `IO` fully to completion. If the `IO` under test throws an exception, is canceled, or *fails to terminate*, `executeEmbed` will raise an exception in the resulting `IO[A]` which will cause the entire test to fail.
+Under the production `IO` runtime, this test could take up to 31 minutes to run! With `TestControl.executeEmbed`, it requires a few milliseconds at most. The `executeEmbed` function takes an `IO[A]`, along with an optional `IORuntimeConfig`, random seed (which will be used to govern the sequencing of "parallel" fibers during the run), and `clockStart` time offset, and produces an `IO[A]` which runs the given `IO` fully to completion. If the `IO` under test throws an exception, is canceled, or *fails to terminate*, `executeEmbed` will raise an exception in the resulting `IO[A]` which will cause the entire test to fail.
 
 > Note: Because `TestControl` is a mock, nested `IO` runtime, it is able to detect certain forms of non-termination within the programs under test! In particular, programs like `IO.never` and similar will be correctly detected as deadlocked and reported as such. However, programs which never terminate but do *not* deadlock, such as `IO.unit.foreverM`, cannot be detected and will simply never terminate when run via `TestControl`. Unfortunately, it cannot provide a general solution to the [Halting Problem](https://en.wikipedia.org/wiki/Halting_problem).
 
 In this case, we're testing that the program eventually retries its way to success, and we're doing it without having to wait for real clock-time `sleep`s. For *most* scenarios involving mocked time, this kind of functionality is sufficient.
+
+### Starting with a Specific Time
+
+In many testing scenarios, particularly when testing time-sensitive functionality like signature verification or expiration logic, you may want your program to start at a specific point in time rather than at epoch (time zero). Both `execute` and `executeEmbed` accept an optional `clockStart` parameter that allows you to set the initial time before your program begins execution.
+
+```scala
+test("verify signature at specific timestamp") {
+  // Unix timestamp for "Tue, 20 Apr 2021 02:07:55 GMT"
+  val signatureTime = 1618884475.seconds
+  
+  val program = for {
+    now <- IO.realTime
+    result <- verifyHttpSignature(signedMessage)
+  } yield (now, result)
+
+  TestControl.executeEmbed(program, clockStart = signatureTime).flatMap { case (timestamp, isValid) =>
+    IO {
+      assertEquals(timestamp, signatureTime)
+      assert(isValid) // signature should be valid at this time
+    }
+  }
+}
+```
+
+This is much more convenient than manually advancing time after program creation:
+
+```scala
+// Before clockStart parameter - more verbose
+TestControl.execute(program).flatMap { control =>
+  for {
+    _ <- control.tick
+    _ <- control.advance(signatureTime)
+    _ <- control.tick
+    result <- control.results
+  } yield result
+}
+
+// With clockStart parameter - simpler
+TestControl.executeEmbed(program, clockStart = signatureTime)
+```
+
+The `clockStart` parameter is particularly useful for:
+
+- Testing time-bound authentication tokens or signatures
+- Verifying expiration logic at specific timestamps  
+- Simulating programs that run at different times of day
+- Testing time-sensitive business logic without complex time manipulation
 
 ### Stepping Through the Program
 

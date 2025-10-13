@@ -223,6 +223,72 @@ class TestControlSuite extends BaseSuite {
     }
   }
 
+  real("execute - clockStart parameter sets initial time") {
+    val clockStart = 1618884473.seconds
+    val program = IO.realTime
+
+    TestControl.execute(program, clockStart = clockStart) flatMap { control =>
+      for {
+        _ <- control.tick
+        r <- control.results
+        _ <- IO(assertEquals(r, Some(beSucceeded(clockStart))))
+      } yield ()
+    }
+  }
+
+  real("executeEmbed - clockStart parameter sets initial time") {
+    val clockStart = 1618884473.seconds
+    val program = IO.realTime
+
+    TestControl.executeEmbed(program, clockStart = clockStart) flatMap { result =>
+      IO(assertEquals(result, clockStart))
+    }
+  }
+
+  real("execute - clockStart with monotonic time") {
+    val clockStart = 42.minutes
+    val program = IO.monotonic
+
+    TestControl.execute(program, clockStart = clockStart) flatMap { control =>
+      for {
+        _ <- control.tick
+        r <- control.results
+        _ <- IO(assertEquals(r, Some(beSucceeded(clockStart))))
+      } yield ()
+    }
+  }
+
+  real("execute - clockStart zero has no effect") {
+    val program = IO.realTime
+
+    TestControl.execute(program, clockStart = Duration.Zero) flatMap { control =>
+      for {
+        _ <- control.tick
+        r <- control.results
+        _ <- IO(assertEquals(r, Some(beSucceeded(Duration.Zero))))
+      } yield ()
+    }
+  }
+
+  real("execute - clockStart with sleep and time progression") {
+    val clockStart = 1.hour
+    val sleepDuration = 30.minutes
+    val program = for {
+      start <- IO.realTime
+      _ <- IO.sleep(sleepDuration)
+      end <- IO.realTime
+    } yield (start, end)
+
+    TestControl.execute(program, clockStart = clockStart) flatMap { control =>
+      for {
+        _ <- control.tick
+        _ <- control.advanceAndTick(sleepDuration)
+        r <- control.results
+        _ <- IO(assertEquals(r, Some(beSucceeded((clockStart, clockStart + sleepDuration)))))
+      } yield ()
+    }
+  }
+
   private def beSucceeded[A](value: A): Outcome[Id, Throwable, A] =
     Outcome.succeeded[Id, Throwable, A](value)
 }
