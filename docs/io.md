@@ -50,6 +50,7 @@ val writeFile: IO[Unit] = IO.delay {
     java.nio.file.Paths.get("output.txt"),
     "Hello, World!".getBytes
   )
+  ()
 }
 ```
 **What happens:**
