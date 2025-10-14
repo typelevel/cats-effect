@@ -277,20 +277,20 @@ They're cheap to create and can be safely cancelled or joined.
 import scala.concurrent.duration._
 
 val fiberExample: IO[String] = for {
-  fiber <- IO.sleep(2.seconds).as("Done!").start
-  _ <- IO.println("Started task...")
-  result <- fiber.join
-} yield result
+  fiber <- IO.println("Task running...").start
+  _ <- IO.println("Main thread continues...")
+  _ <- fiber.join.void
+} yield "Task completed"
 ```
 
 **Explanation:**  
-Starts a new fiber that sleeps for 2 seconds.  
-Meanwhile, the main fiber prints immediately and then waits for the result.
+Starts a new fiber that prints a message.  
+Meanwhile, the main fiber prints immediately and then waits for the task to complete.
 
 **Expected output:**
 ```
-Started task...
-Done!
+Main thread continues...
+Task running...
 ```
 
 ### Cancelling a Fiber
