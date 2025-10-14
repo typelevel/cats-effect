@@ -41,18 +41,15 @@ An `IO` value doesn't run when created- it's a description of what should happen
 ```scala mdoc:silent
 import cats.effect.IO
 
-val readFile: IO[String] = IO.delay {
+val readFile: IO[String] = IO.blocking {
   scala.io.Source.fromFile("example.txt").mkString
 }
 
-val writeFile: IO[Unit] = IO.delay {
-  java.nio.file.Files.write(
-    java.nio.file.Paths.get("output.txt"),
-    "Hello, World!".getBytes
-  )
-  ()
+val writeFile: IO[Unit] = IO.blocking {
+  scala.tools.nsc.io.File("output.txt").writeAll("Hello, World!")
 }
 ```
+
 **What happens:**
 
 - Nothing runs yet! Both are just blueprints describing future actions.
@@ -112,7 +109,7 @@ Just wraps a pure value inside an `IO`. No side effect happens.
 ### From Side Effects
 
 ```scala mdoc:silent
-val readConfig: IO[String] = IO.delay {
+val readConfig: IO[String] = IO.blocking {
   scala.io.Source.fromFile("config.txt").mkString
 }
 
@@ -121,7 +118,7 @@ val printMessage: IO[Unit] = IO.println("Hello, World!")
 
 **Explanation:**
 
-- `IO.delay` wraps possibly unsafe effects.
+- `IO.blocking` wraps blocking side effects (like file I/O) and runs them on a dedicated thread pool.
 - `IO.println` is a safe helper for console output.
 
 ### From Asynchronous Operations
@@ -177,9 +174,9 @@ def getProfile(userId: Int): Profile = Profile(userId, "John's Profile")
 def getSettings(userId: Int): Settings = Settings(userId, "dark")
 
 val sequentialProgram: IO[String] = for {
-  user <- IO.delay(getUserFromDatabase(1))
-  profile <- IO.delay(getProfile(user.id))
-  settings <- IO.delay(getSettings(user.id))
+  user <- IO.blocking(getUserFromDatabase(1))
+  profile <- IO.blocking(getProfile(user.id))
+  settings <- IO.blocking(getSettings(user.id))
 } yield s"${user.name} - ${profile.name} (${settings.theme})"
 ```
 
@@ -191,9 +188,9 @@ Run independent computations at the same time using `.parTupled`.
 
 ```scala mdoc:silent
 val parallelProgram: IO[(User, Profile, Settings)] = (
-  IO.delay(getUserFromDatabase(1)),
-  IO.delay(getProfile(1)),
-  IO.delay(getSettings(1))
+  IO.blocking(getUserFromDatabase(1)),
+  IO.blocking(getProfile(1)),
+  IO.blocking(getSettings(1))
 ).parTupled
 ```
 
@@ -237,13 +234,11 @@ With `Resource.make`, you define how to acquire and release a resource.
 ```scala mdoc:silent
 import cats.effect.{IO, Resource}
 
-val readerResource: Resource[IO, java.io.BufferedReader] =
-  Resource.make(
-    IO.delay(new java.io.BufferedReader(new java.io.FileReader("example.txt")))
-  )(r => IO.delay(r.close()))
+val readerResource: Resource[IO, scala.io.Source] =
+  Resource.fromAutoCloseable(IO.blocking(scala.io.Source.fromFile("example.txt")))
 
-val readWithResource: IO[String] = readerResource.use { reader =>
-  IO.delay(reader.readLine())
+val readWithResource: IO[String] = readerResource.use { source =>
+  IO.blocking(source.getLines().mkString("\n"))
 }
 ```
 
@@ -261,8 +256,8 @@ If a resource implements `AutoCloseable`, use `Resource.fromAutoCloseable` for s
 
 ```scala mdoc:silent
 val autoResource: IO[String] =
-  Resource.fromAutoCloseable(IO.delay(new java.io.BufferedReader(new java.io.FileReader("example.txt"))))
-    .use(reader => IO.delay(reader.readLine()))
+  Resource.fromAutoCloseable(IO.blocking(scala.io.Source.fromFile("example.txt")))
+    .use(source => IO.blocking(source.getLines().mkString("\n")))
 ```
 
 **Outcome:** identical behavior — safe open, read, and close.
@@ -373,7 +368,7 @@ If `io` sleeps for 5s but `timeout` is 2s → raises `"Operation timed out"`.
 ### Wrap Side Effects Safely
 
 ```scala
-val safeIO = IO.delay(scala.io.Source.fromFile("file.txt").mkString)
+val safeIO = IO.blocking(scala.io.Source.fromFile("file.txt").mkString)
 val unsafeIO = IO.pure(scala.io.Source.fromFile("file.txt").mkString) // executes immediately!
 ```
 
@@ -387,8 +382,8 @@ val safe = riskyFileRead.handleErrorWith(_ => IO.pure("Default value"))
 
 ```scala
 val safeRead = Resource
-  .fromAutoCloseable(IO.delay(new java.io.FileInputStream("file.txt")))
-  .use(is => IO.delay(is.read()))
+  .fromAutoCloseable(IO.blocking(scala.io.Source.fromFile("file.txt")))
+  .use(source => IO.blocking(source.mkString))
 ```
 
 ### Compose Declaratively
