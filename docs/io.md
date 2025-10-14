@@ -46,7 +46,10 @@ val readFile: IO[String] = IO.blocking {
 }
 
 val writeFile: IO[Unit] = IO.blocking {
-  scala.tools.nsc.io.File("output.txt").writeAll("Hello, World!")
+  import java.nio.file.{Files, Paths}
+  import java.nio.charset.StandardCharsets
+  Files.write(Paths.get("output.txt"), "Hello, World!".getBytes(StandardCharsets.UTF_8))
+  ()
 }
 ```
 
@@ -79,7 +82,7 @@ val fileProcessingProgram: IO[String] = for {
 `IO` lets you handle errors without using exceptions.
 
 ```scala mdoc:silent
-val riskyFileRead: IO[String] = IO.delay {
+val riskyFileRead: IO[String] = IO.blocking {
   scala.io.Source.fromFile("nonexistent.txt").mkString
 }
 
@@ -391,7 +394,7 @@ val safeRead = Resource
 ```scala
 val composed: IO[String] = for {
   data <- readFile
-  processed <- IO.delay(data.reverse)
+  processed <- IO.pure(data.reverse)  // Pure operation, no side effects
   _ <- writeFile
 } yield processed
 ```
