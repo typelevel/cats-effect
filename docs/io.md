@@ -321,11 +321,11 @@ val slow = IO.sleep(1.second) *> IO.pure("slow")
 val raceResult: IO[String] = IO.race(fast, slow).map(_.fold(identity, identity))
 ```
 
-💡 **Outcome:**  
+**Outcome:**  
 Both start together.  
 `fast` finishes first → `"fast"` is returned, and `slow` is cancelled.
 
-✅ **Expected result:** `"fast"`
+**Expected result:** `"fast"`
 
 ## Advanced Patterns
 
@@ -369,20 +369,20 @@ If `io` sleeps for 5s but `timeout` is 2s → raises `"Operation timed out"`.
 
 ## Best Practices
 
-### ✅ Wrap Side Effects Safely
+### Wrap Side Effects Safely
 
 ```scala
 val safeIO = IO.delay(scala.io.Source.fromFile("file.txt").mkString)
 val unsafeIO = IO.pure(scala.io.Source.fromFile("file.txt").mkString) // executes immediately!
 ```
 
-### ✅ Handle Errors Gracefully
+### Handle Errors Gracefully
 
 ```scala
 val safe = riskyFileRead.handleErrorWith(_ => IO.pure("Default value"))
 ```
 
-### ✅ Use Resource for Cleanup
+### Use Resource for Cleanup
 
 ```scala
 val safeRead = Resource
@@ -390,7 +390,7 @@ val safeRead = Resource
   .use(is => IO.delay(is.read()))
 ```
 
-### ✅ Compose Declaratively
+### Compose Declaratively
 
 ```scala
 val composed: IO[String] = for {
