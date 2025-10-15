@@ -48,7 +48,7 @@ val readFile: IO[String] = IO.blocking {
 val writeFile: IO[Unit] = IO.blocking {
   import java.nio.file.{Files, Paths}
   import java.nio.charset.StandardCharsets
-  Files.write(Paths.get("output.txt"), "Hello, World!".getBytes(StandardCharsets.UTF_8))
+  val _ = Files.write(Paths.get("output.txt"), "Hello, World!".getBytes(StandardCharsets.UTF_8))
   ()
 }
 ```
