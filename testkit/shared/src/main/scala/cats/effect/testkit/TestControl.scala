@@ -144,8 +144,8 @@ final class TestControl[A] private (
 
   /**
    * Sets the runtime clock to the specified absolute time. If the target time is before the
-   * current time, this method will fail with an IllegalArgumentException since time cannot
-   * move backwards. Does not execute any fibers, though may result in some previously-sleeping
+   * current time, this method will fail with an IllegalArgumentException since time cannot move
+   * backwards. Does not execute any fibers, though may result in some previously-sleeping
    * fibers to become pending and eligible for execution in the next [[tick]].
    */
   def setTime(targetTime: FiniteDuration): IO[Unit] =
@@ -153,7 +153,8 @@ final class TestControl[A] private (
       val currentTime = ctx.now()
       val diff = targetTime - currentTime
       if (diff < Duration.Zero) {
-        throw new IllegalArgumentException(s"Cannot set time backwards from $currentTime to $targetTime")
+        throw new IllegalArgumentException(
+          s"Cannot set time backwards from $currentTime to $targetTime")
       } else if (diff > Duration.Zero) {
         ctx.advance(diff)
       }
