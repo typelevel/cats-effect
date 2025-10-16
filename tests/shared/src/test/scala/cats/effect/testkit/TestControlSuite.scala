@@ -269,7 +269,7 @@ class TestControlSuite extends BaseSuite {
         _ <- control.tick
         result1 <- control.results
         _ <- IO(assertEquals(result1, Some(beSucceeded(Duration.Zero))))
-        
+
         _ <- control.setTime(Duration.Zero)
         _ <- control.tick
         result2 <- control.results
@@ -287,7 +287,7 @@ class TestControlSuite extends BaseSuite {
         _ <- control.tick
         result1 <- control.results
         _ <- IO(assertEquals(result1, Some(beSucceeded(1.hour))))
-        
+
         setTimeResult <- control.setTime(30.minutes).attempt
         _ <- IO(assert(setTimeResult.isLeft))
         _ <- IO(assert(setTimeResult.left.exists(_.isInstanceOf[IllegalArgumentException])))
@@ -310,7 +310,8 @@ class TestControlSuite extends BaseSuite {
         _ <- control.tick
         _ <- control.advanceAndTick(sleepDuration)
         result <- control.results
-        _ <- IO(assertEquals(result, Some(beSucceeded((targetTime, targetTime + sleepDuration)))))
+        _ <- IO(
+          assertEquals(result, Some(beSucceeded((targetTime, targetTime + sleepDuration)))))
       } yield ()
     }
   }
