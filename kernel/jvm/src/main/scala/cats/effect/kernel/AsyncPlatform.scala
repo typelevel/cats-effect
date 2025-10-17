@@ -17,8 +17,9 @@
 package cats
 package effect.kernel
 
-import java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage}
 import scala.util.control.ControlThrowable
+
+import java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage}
 
 private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] =>
 
