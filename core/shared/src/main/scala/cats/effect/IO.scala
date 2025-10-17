@@ -1471,7 +1471,17 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
-        G.uncancelable(_ => lift(IO.delay(k(resume))).flatMap(_ => get))
+        G.uncancelable(_ => 
+          try {
+            k(resume)
+            get
+          } catch {
+            case t if UnsafeNonFatal(t) =>
+              lift(IO.raiseError(t))
+            case t: Throwable =>
+              throw t
+          }
+        )
       }
     }
 
