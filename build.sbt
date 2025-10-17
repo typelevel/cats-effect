@@ -116,7 +116,7 @@ val MacOS = "macos-14"
 
 val Scala212 = "2.12.20"
 val Scala213 = "2.13.16"
-val Scala3 = "3.3.5"
+val Scala3 = "3.3.7"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
