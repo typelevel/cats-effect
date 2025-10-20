@@ -2,6 +2,7 @@
   "docs": {
     "Overview": [
       "getting-started",
+      "io",
       "concepts",
       "tutorial",
       "recipes",
