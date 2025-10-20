@@ -981,6 +981,11 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     name := "cats-effect-testkit",
     libraryDependencies ++= Seq(
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion
+    ),
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #3309, add clockStart parameter to TestControl methods
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.testkit.TestControl.execute"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.testkit.TestControl.executeEmbed")
     )
   )
   .nativeSettings(nativeTestSettings)

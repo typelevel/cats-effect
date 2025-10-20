@@ -360,11 +360,16 @@ object TestControl {
   def execute[A](
       program: IO[A],
       config: IORuntimeConfig = IORuntimeConfig(),
-      seed: Option[String] = None): IO[TestControl[A]] =
+      seed: Option[String] = None,
+      clockStart: FiniteDuration = Duration.Zero): IO[TestControl[A]] =
     IO {
       val ctx = seed match {
         case Some(seed) => TestContext(seed)
         case None => TestContext()
+      }
+
+      if (clockStart > Duration.Zero) {
+        ctx.advance(clockStart)
       }
 
       val runtime: IORuntime = IORuntime(
@@ -416,8 +421,9 @@ object TestControl {
   def executeEmbed[A](
       program: IO[A],
       config: IORuntimeConfig = IORuntimeConfig(),
-      seed: Option[String] = None): IO[A] =
-    execute(program, config = config, seed = seed) flatMap { c =>
+      seed: Option[String] = None,
+      clockStart: FiniteDuration = Duration.Zero): IO[A] =
+    execute(program, config = config, seed = seed, clockStart = clockStart) flatMap { c =>
       val nt = new (Id ~> IO) { def apply[E](e: E) = IO.pure(e) }
 
       val onCancel = IO.defer(IO.raiseError(new CancellationException()))
