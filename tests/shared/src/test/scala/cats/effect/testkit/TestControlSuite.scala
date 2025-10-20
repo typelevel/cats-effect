@@ -223,6 +223,99 @@ class TestControlSuite extends BaseSuite {
     }
   }
 
+  real("execute - setTime advances to absolute time") {
+    val targetTime = 1.hour
+    val program = for {
+      time1 <- IO.realTime
+      _ <- IO.sleep(1.second)
+      time2 <- IO.realTime
+    } yield (time1, time2)
+
+    TestControl.execute(program) flatMap { control =>
+      for {
+        _ <- control.setTime(targetTime)
+        _ <- control.tick
+        _ <- control.advanceAndTick(1.second)
+        result <- control.results
+        _ <- IO(assertEquals(result, Some(beSucceeded((targetTime, targetTime + 1.second)))))
+      } yield ()
+    }
+  }
+
+  real("execute - advanceTo is alias for setTime") {
+    val targetTime = 42.minutes
+    val program = for {
+      time1 <- IO.realTime
+      _ <- IO.sleep(5.minutes)
+      time2 <- IO.realTime
+    } yield (time1, time2)
+
+    TestControl.execute(program) flatMap { control =>
+      for {
+        _ <- control.advanceTo(targetTime)
+        _ <- control.tick
+        _ <- control.advanceAndTick(5.minutes)
+        result <- control.results
+        _ <- IO(assertEquals(result, Some(beSucceeded((targetTime, targetTime + 5.minutes)))))
+      } yield ()
+    }
+  }
+
+  real("execute - setTime with same time is no-op") {
+    val program = IO.realTime
+
+    TestControl.execute(program) flatMap { control =>
+      for {
+        _ <- control.tick
+        result1 <- control.results
+        _ <- IO(assertEquals(result1, Some(beSucceeded(Duration.Zero))))
+
+        _ <- control.setTime(Duration.Zero)
+        _ <- control.tick
+        result2 <- control.results
+        _ <- IO(assertEquals(result2, Some(beSucceeded(Duration.Zero))))
+      } yield ()
+    }
+  }
+
+  real("execute - setTime fails when going backwards") {
+    val program = IO.realTime
+
+    TestControl.execute(program) flatMap { control =>
+      for {
+        _ <- control.advance(1.hour)
+        _ <- control.tick
+        result1 <- control.results
+        _ <- IO(assertEquals(result1, Some(beSucceeded(1.hour))))
+
+        setTimeResult <- control.setTime(30.minutes).attempt
+        _ <- IO(assert(setTimeResult.isLeft))
+        _ <- IO(assert(setTimeResult.left.exists(_.isInstanceOf[IllegalArgumentException])))
+      } yield ()
+    }
+  }
+
+  real("execute - setTime with sleep progression") {
+    val sleepDuration = 30.minutes
+    val targetTime = 2.hours
+    val program = for {
+      start <- IO.realTime
+      _ <- IO.sleep(sleepDuration)
+      end <- IO.realTime
+    } yield (start, end)
+
+    TestControl.execute(program) flatMap { control =>
+      for {
+        _ <- control.setTime(targetTime)
+        _ <- control.tick
+        _ <- control.advanceAndTick(sleepDuration)
+        result <- control.results
+        _ <- IO(
+          assertEquals(result, Some(beSucceeded((targetTime, targetTime + sleepDuration)))))
+      } yield ()
+    }
+  }
+
   private def beSucceeded[A](value: A): Outcome[Id, Throwable, A] =
     Outcome.succeeded[Id, Throwable, A](value)
 }

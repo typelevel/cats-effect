@@ -143,6 +143,31 @@ final class TestControl[A] private (
     IO(ctx.advance(time))
 
   /**
+   * Sets the runtime clock to the specified absolute time. If the target time is before the
+   * current time, this method will fail with an IllegalArgumentException since time cannot move
+   * backwards. Does not execute any fibers, though may result in some previously-sleeping
+   * fibers to become pending and eligible for execution in the next [[tick]].
+   */
+  def setTime(targetTime: FiniteDuration): IO[Unit] =
+    IO {
+      val currentTime = ctx.now()
+      val diff = targetTime - currentTime
+      if (diff < Duration.Zero) {
+        throw new IllegalArgumentException(
+          s"Cannot set time backwards from $currentTime to $targetTime")
+      } else if (diff > Duration.Zero) {
+        ctx.advance(diff)
+      }
+    }
+
+  /**
+   * Advances the runtime clock to the specified absolute time. This is an alias for [[setTime]]
+   * with a more descriptive name. If the target time is before the current time, this method
+   * will fail with an IllegalArgumentException since time cannot move backwards.
+   */
+  def advanceTo(targetTime: FiniteDuration): IO[Unit] = setTime(targetTime)
+
+  /**
    * A convenience effect which advances time by the specified amount and then ticks once. Note
    * that this method is very subtle and will often ''not'' do what you think it should. For
    * example:
