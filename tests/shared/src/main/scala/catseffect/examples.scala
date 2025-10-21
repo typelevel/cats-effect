@@ -199,6 +199,28 @@ package examples {
     val run = IO.cede.foreverM.start.void
   }
 
+  object FatalErrorFromCompletableFuture extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      import java.util.concurrent.CompletableFuture
+
+      IO.fromCompletableFuture(IO(CompletableFuture.runAsync(() => {
+        throw new OutOfMemoryError("Boom from CompletableFuture!")
+      })))
+        .attempt
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
+  object FatalErrorFromAsync extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.async_[Unit] { cb => cb(Left(new OutOfMemoryError("Boom from async!"))) }
+        .attempt
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
   object CustomRuntime extends IOApp.Simple {
     override lazy val runtime = IORuntime(
       exampleExecutionContext,

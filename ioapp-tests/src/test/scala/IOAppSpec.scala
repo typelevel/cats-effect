@@ -203,7 +203,21 @@ class IOAppSpec extends Specification {
         h.stdout() must not(contain("sadness"))
       }
 
-      "exit on raising a fatal error inside a map" in {
+      test("exit on fatal error from CompletableFuture") {
+        val h = platform("FatalErrorFromCompletableFuture", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom from CompletableFuture!"))
+        assert(!h.stdout().contains("sadness"))
+      }
+
+      test("exit on fatal error from async_") {
+        val h = platform("FatalErrorFromAsync", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom from async!"))
+        assert(!h.stdout().contains("sadness"))
+      }
+
+      test("exit on raising a fatal error inside a map") {
         val h = platform("RaiseFatalErrorMap", List.empty)
         h.awaitStatus() mustEqual 1
         h.stderr() must contain("Boom!")
