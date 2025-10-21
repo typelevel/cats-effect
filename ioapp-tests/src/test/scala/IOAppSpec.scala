@@ -211,10 +211,15 @@ class IOAppSpec extends Specification {
       }
 
       "exit on fatal error from CompletableFuture" in {
-        val h = platform("FatalErrorFromCompletableFuture", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom from CompletableFuture!")
-        h.stdout() must not(contain("sadness"))
+        if (platform == JVM) {
+          val h = platform("FatalErrorFromCompletableFuture", List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom from CompletableFuture!")
+          h.stdout() must not(contain("sadness"))
+        } else {
+          // CompletableFuture is JVM-only
+          ok
+        }
       }
 
       "exit on fatal error from async_" in {

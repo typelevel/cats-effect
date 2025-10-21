@@ -50,7 +50,6 @@ package examples {
     registerLazy("catseffect.examples.GlobalRacingInit", GlobalRacingInit)
     registerLazy("catseffect.examples.GlobalShutdown", GlobalShutdown)
     register(LiveFiberSnapshot)
-    register(FatalErrorFromCompletableFuture)
     register(FatalErrorFromAsync)
     register(FatalErrorUnsafeRun)
     register(Finalizers)
