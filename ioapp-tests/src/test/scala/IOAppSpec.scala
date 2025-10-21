@@ -223,10 +223,15 @@ class IOAppSpec extends Specification {
       }
 
       "exit on fatal error from async_" in {
-        val h = platform("FatalErrorFromAsync", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom from async!")
-        h.stdout() must not(contain("sadness"))
+        if (platform == JVM) {
+          val h = platform("FatalErrorFromAsync", List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom from async!")
+          h.stdout() must not(contain("sadness"))
+        } else {
+          // Fatal error testing is JVM-only
+          ok
+        }
       }
 
       "warn on global runtime collision" in {

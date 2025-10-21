@@ -199,15 +199,6 @@ package examples {
     val run = IO.cede.foreverM.start.void
   }
 
-  object FatalErrorFromAsync extends IOApp {
-    def run(args: List[String]): IO[ExitCode] = {
-      IO.async_[Unit] { cb => cb(Left(new OutOfMemoryError("Boom from async!"))) }
-        .attempt
-        .flatMap(_ => IO.println("sadness"))
-        .as(ExitCode.Success)
-    }
-  }
-
   object CustomRuntime extends IOApp.Simple {
     override lazy val runtime = IORuntime(
       exampleExecutionContext,

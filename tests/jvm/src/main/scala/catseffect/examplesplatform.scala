@@ -105,4 +105,13 @@ package examples {
         .as(ExitCode.Success)
     }
   }
+
+  object FatalErrorFromAsync extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.async_[Unit] { cb => cb(Left(new OutOfMemoryError("Boom from async!"))) }
+        .attempt
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
 }

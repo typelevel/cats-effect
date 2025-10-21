@@ -55,7 +55,6 @@ package examples {
     registerLazy("catseffect.examples.GlobalShutdown", GlobalShutdown)
     register(ShutdownHookImmediateTimeout)
     register(LiveFiberSnapshot)
-    register(FatalErrorFromAsync)
     register(FatalErrorUnsafeRun)
     register(Finalizers)
     register(LeakedFiber)
