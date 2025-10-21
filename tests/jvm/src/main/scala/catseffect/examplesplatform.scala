@@ -100,7 +100,6 @@ package examples {
       IO.fromCompletableFuture(IO(CompletableFuture.runAsync(() => {
         throw new OutOfMemoryError("Boom from CompletableFuture!")
       })))
-        .attempt
         .flatMap(_ => IO.println("sadness"))
         .as(ExitCode.Success)
     }
@@ -109,7 +108,6 @@ package examples {
   object FatalErrorFromAsync extends IOApp {
     def run(args: List[String]): IO[ExitCode] = {
       IO.async_[Unit] { cb => cb(Left(new OutOfMemoryError("Boom from async!"))) }
-        .attempt
         .flatMap(_ => IO.println("sadness"))
         .as(ExitCode.Success)
     }
