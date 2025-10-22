@@ -37,20 +37,20 @@ jobs:
           - temurin@8
           - temurin@11
           - temurin@17
-          - temurin@21
+          - temurin@25
           - graalvm@21
         ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
           - scala: 3.3.5
             java: temurin@11
           - scala: 3.3.5
-            java: temurin@21
+            java: temurin@25
           - scala: 2.12.20
             java: temurin@11
           - scala: 2.12.20
             java: temurin@17
           - scala: 2.12.20
-            java: temurin@21
+            java: temurin@25
           - scala: 2.12.20
             java: graalvm@21
           - os: ubuntu-22.04-arm
@@ -58,7 +58,7 @@ jobs:
           - os: ubuntu-22.04-arm
             java: temurin@11
           - os: ubuntu-22.04-arm
-            java: temurin@21
+            java: temurin@25
           - os: ubuntu-22.04-arm
             java: graalvm@21
           - os: windows-latest
@@ -90,7 +90,7 @@ jobs:
           - ci: ciJS
             java: temurin@17
           - ci: ciJS
-            java: temurin@21
+            java: temurin@25
           - ci: ciJS
             java: graalvm@21
           - os: ubuntu-22.04-arm
@@ -104,7 +104,7 @@ jobs:
           - ci: ciFirefox
             java: temurin@17
           - ci: ciFirefox
-            java: temurin@21
+            java: temurin@25
           - ci: ciFirefox
             java: graalvm@21
           - os: ubuntu-22.04-arm
@@ -118,7 +118,7 @@ jobs:
           - ci: ciChrome
             java: temurin@17
           - ci: ciChrome
-            java: temurin@21
+            java: temurin@25
           - ci: ciChrome
             java: graalvm@21
           - os: ubuntu-22.04-arm
@@ -146,16 +146,16 @@ jobs:
             java: temurin@17
             os: windows-latest
           - ci: ciNative
-            java: temurin@21
+            java: temurin@25
             os: ubuntu-latest
           - ci: ciNative
-            java: temurin@21
+            java: temurin@25
             os: ubuntu-22.04-arm
           - ci: ciNative
-            java: temurin@21
+            java: temurin@25
             os: windows-latest
           - ci: ciNative
-            java: temurin@21
+            java: temurin@25
             os: macos-14
           - ci: ciNative
             java: graalvm@21
@@ -235,17 +235,17 @@ jobs:
         shell: bash
         run: sbt +update
 
-      - name: Setup Java (temurin@21)
-        id: setup-java-temurin-21
-        if: matrix.java == 'temurin@21'
+      - name: Setup Java (temurin@25)
+        id: setup-java-temurin-25
+        if: matrix.java == 'temurin@25'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'temurin@21' && steps.setup-java-temurin-21.outputs.cache-hit == 'false'
+        if: matrix.java == 'temurin@25' && steps.setup-java-temurin-25.outputs.cache-hit == 'false'
         shell: bash
         run: sbt +update
 
@@ -413,17 +413,17 @@ jobs:
         if: matrix.java == 'temurin@17' && steps.setup-java-temurin-17.outputs.cache-hit == 'false'
         run: sbt +update
 
-      - name: Setup Java (temurin@21)
-        id: setup-java-temurin-21
-        if: matrix.java == 'temurin@21'
+      - name: Setup Java (temurin@25)
+        id: setup-java-temurin-25
+        if: matrix.java == 'temurin@25'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'temurin@21' && steps.setup-java-temurin-21.outputs.cache-hit == 'false'
+        if: matrix.java == 'temurin@25' && steps.setup-java-temurin-25.outputs.cache-hit == 'false'
         run: sbt +update
 
       - name: Setup Java (graalvm@21)
@@ -641,17 +641,17 @@ jobs:
         if: matrix.java == 'temurin@17' && steps.setup-java-temurin-17.outputs.cache-hit == 'false'
         run: sbt +update
 
-      - name: Setup Java (temurin@21)
-        id: setup-java-temurin-21
-        if: matrix.java == 'temurin@21'
+      - name: Setup Java (temurin@25)
+        id: setup-java-temurin-25
+        if: matrix.java == 'temurin@25'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'temurin@21' && steps.setup-java-temurin-21.outputs.cache-hit == 'false'
+        if: matrix.java == 'temurin@25' && steps.setup-java-temurin-25.outputs.cache-hit == 'false'
         run: sbt +update
 
       - name: Setup Java (graalvm@21)
