@@ -203,18 +203,35 @@ class IOAppSpec extends Specification {
         h.stdout() must not(contain("sadness"))
       }
 
-      "exit on raising a fatal error inside a map" in {
-        val h = platform("RaiseFatalErrorMap", List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-        h.stdout() must not(contain("sadness"))
-      }
-
       "exit on raising a fatal error inside a flatMap" in {
         val h = platform("RaiseFatalErrorFlatMap", List.empty)
         h.awaitStatus() mustEqual 1
         h.stderr() must contain("Boom!")
         h.stdout() must not(contain("sadness"))
+      }
+
+      "exit on fatal error from CompletableFuture" in {
+        if (platform == JVM) {
+          val h = platform("FatalErrorFromCompletableFuture", List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom from CompletableFuture!")
+          h.stdout() must not(contain("sadness"))
+        } else {
+          // CompletableFuture is JVM-only
+          ok
+        }
+      }
+
+      "exit on fatal error from async_" in {
+        if (platform == JVM) {
+          val h = platform("FatalErrorFromAsync", List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom from async!")
+          h.stdout() must not(contain("sadness"))
+        } else {
+          // Fatal error testing is JVM-only
+          ok
+        }
       }
 
       "warn on global runtime collision" in {

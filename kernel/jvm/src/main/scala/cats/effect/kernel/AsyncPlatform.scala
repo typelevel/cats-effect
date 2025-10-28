@@ -17,9 +17,17 @@
 package cats
 package effect.kernel
 
+import scala.util.control.ControlThrowable
+
 import java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage}
 
 private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] =>
+
+  private def isNonFatal(t: Throwable): Boolean = t match {
+    case _: VirtualMachineError | _: ThreadDeath | _: LinkageError | _: ControlThrowable =>
+      false
+    case _ => true
+  }
 
   def fromCompletionStage[A](completionStage: F[CompletionStage[A]]): F[A] =
     fromCompletableFuture(flatMap(completionStage) { cs => delay(cs.toCompletableFuture()) })
@@ -50,10 +58,15 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
                 cf.handle[Unit] {
                   case (a, null) => resume(Right(a))
                   case (_, t) =>
-                    resume(Left(t match {
+                    val actualThrowable = t match {
                       case e: CompletionException if e.getCause ne null => e.getCause
                       case _ => t
-                    }))
+                    }
+                    if (isNonFatal(actualThrowable)) {
+                      resume(Left(actualThrowable))
+                    } else {
+                      throw actualThrowable
+                    }
                 }
               }
 
