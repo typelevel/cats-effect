@@ -758,13 +758,13 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit S: Show[B] = Show.fromToString[B]): IO[A] =
     guaranteeCase {
       case Outcome.Succeeded(ioa) =>
-        ioa.flatMap(a => IO.println(s"${prefix}: Succeeded: ${S.show(a)}"))
+        ioa.flatMap(a => IO.println(s"[${Thread.currentThread().getName}] ${prefix}: Succeeded: ${S.show(a)}"))
 
       case Outcome.Errored(ex) =>
-        IO.println(s"${prefix}: Errored: ${ex}")
+        IO.println(s"[${Thread.currentThread().getName}] ${prefix}: Errored: ${ex}")
 
       case Outcome.Canceled() =>
-        IO.println(s"${prefix}: Canceled")
+        IO.println(s"[${Thread.currentThread().getName}] ${prefix}: Canceled")
     }
 
   /**
