@@ -799,13 +799,14 @@ trait QueueTests[Q[_[_], _]] { self: BaseSuite =>
         results <- IO.ref(-1)
         latch <- IO.deferred[Unit]
 
-        consumer = for {
-          _ <- latch.complete(())
+        consumer =
+          for {
+            _ <- latch.complete(())
 
-          // grab an element and attempt to atomically set it into `results`
-          // if `take` itself is not atomic, then we might lose an element here
-          _ <- IO.uncancelable(_(take(q)).flatMap(results.set(_))).replicateA_(100)
-        } yield ()
+            // grab an element and attempt to atomically set it into `results`
+            // if `take` itself is not atomic, then we might lose an element here
+            _ <- IO.uncancelable(_(take(q)).flatMap(results.set(_))).replicateA_(100)
+          } yield ()
 
         consumerFiber <- consumer.start
 

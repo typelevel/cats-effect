@@ -178,11 +178,12 @@ package examples {
     val run = for {
       fibers <- loop.timeoutTo(5.seconds, IO.unit).start.replicateA(32)
 
-      sleeper = for {
-        _ <- IO.unit
-        _ <- IO.unit
-        _ <- IO.sleep(3.seconds)
-      } yield ()
+      sleeper =
+        for {
+          _ <- IO.unit
+          _ <- IO.unit
+          _ <- IO.sleep(3.seconds)
+        } yield ()
 
       _ <- sleeper.start
       _ <- IO.println("ready")
