@@ -330,7 +330,7 @@ val CatsMtlVersion = "1.6.0"
 val ScalaCheckVersion = "1.19.0"
 val CoopVersion = "1.3.0"
 val MUnitVersion = "1.1.0"
-val MUnitScalaCheckVersion = "1.1.0"
+val MUnitScalaCheckVersion = "1.2.0"
 val DisciplineMUnitVersion = "2.0.0"
 
 val MacrotaskExecutorVersion = "1.1.1"
