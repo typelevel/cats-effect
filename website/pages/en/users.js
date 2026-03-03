@@ -58,6 +58,7 @@ const users = [
   ['Tapad', 'https://www.tapad.com/'],
   ['Tenable', 'https://www.tenable.com'],
   ['Tinkoff', 'https://www.tinkoff.ru/eng/'],
+  ['Unic', 'https://www.unic.com'],
   ['vidIQ', 'https://vidiq.com/'],
   ['XITE', 'https://xite.com/'],
   ['Whisk', 'https://whisk.com'],
