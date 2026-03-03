@@ -16,8 +16,9 @@
 
 package cats.effect.unsafe
 
+import scala.scalanative.annotation.align
 import scala.scalanative.libc.stdatomic._
-import scala.scalanative.libc.stdatomic.memory_order.memory_order_release
+import scala.scalanative.libc.stdatomic.memory_order._
 import scala.scalanative.runtime.{fromRawPtr, Intrinsics}
 
 // native mirror of LocalQueue.java
@@ -47,7 +48,7 @@ private class Head {
    * during this period, making sure to undo the changes to the ''steal'' tag of the head on
    * completion, action which ultimately signals that stealing is finished.
    */
-  @volatile
+  @align(128)
   protected var head: Int = 0
 
   {
@@ -60,12 +61,14 @@ private object Head {
   private[unsafe] object updater {
 
     def get(obj: Head): Int =
-      fromRawPtr[atomic_int](Intrinsics.classFieldRawPtr[Head](obj, "head")).atomic.load()
+      fromRawPtr[atomic_int](<Intrinsics.classFieldRawPtr[Head](obj, "head">))
+        .atomic
+        .load(memory_order_acquire)
 
     def compareAndSet(obj: Head, oldHd: Int, newHd: Int): Boolean =
-      fromRawPtr[atomic_int](Intrinsics.classFieldRawPtr[Head](obj, "head"))
+      fromRawPtr[atomic_int](<Intrinsics.classFieldRawPtr[Head](obj, "head">))
         .atomic
-        .compareExchangeStrong(oldHd, newHd)
+        .compareExchangeStrong(oldHd, newHd, memory_order_acq_rel, memory_order_acquire)
   }
 }
 
@@ -81,6 +84,7 @@ private class Tail extends Head {
    * <p>Conceptually, it is an unsigned 16 bit value (the most significant 16 bits of the
    * integer value are ignored in most operations).
    */
+  @align(128)
   protected var tail: Int = 0
 }
 
@@ -89,13 +93,18 @@ private object Tail {
   private[unsafe] object updater {
 
     def get(obj: Tail): Int =
-      fromRawPtr[atomic_int](Intrinsics.classFieldRawPtr[Tail](obj, "tail")).atomic.load()
+      fromRawPtr[atomic_int](<Intrinsics.classFieldRawPtr[Tail](obj, "tail">))
+        .atomic
+        .load(memory_order_acquire)
 
     def lazySet(obj: Tail, newValue: Int): Unit =
-      fromRawPtr[atomic_int](Intrinsics.classFieldRawPtr[Tail](obj, "tail"))
+      fromRawPtr[atomic_int](<Intrinsics.classFieldRawPtr[Tail](obj, "tail">))
         .atomic
         .store(newValue, memory_order_release)
   }
 }
 
-private class LocalQueuePadding extends Tail
+private class LocalQueuePadding extends Tail {
+  @align(128)
+  private val _padding: Long = 0L
+}
