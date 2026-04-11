@@ -55,9 +55,6 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Atomic Cell</h1></header><article><div><span><p>A synchronized, concurrent, mutable reference.</p>
-<p>Provides safe concurrent access and modification of its contents, by ensuring only one fiber
-can operate on them at the time. Thus, all operations except <code>get</code> may semantically block the
-calling fiber.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">abstract</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">AtomicCell</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">A</span>] </span>{
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">get</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">set</span></span>(a: <span class="hljs-type">A</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]
@@ -67,31 +64,38 @@ calling fiber.</p>
   <span class="hljs-comment">// ... and more</span>
 }
 </code></pre>
+<p>Provides safe concurrent access and modification of its contents, by ensuring only one fiber
+can operate on them at the time. Thus, all operations except <code>get</code> may semantically block the
+calling fiber.</p>
 <h2><a class="anchor" aria-hidden="true" id="using-atomiccell"></a><a href="#using-atomiccell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Using <code>AtomicCell</code></h2>
 <p>The <code>AtomicCell</code> can be treated as a combination of <code>Mutex</code> and <code>Ref</code>:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Ref</span>}
-<span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Mutex</span>
-
-<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">State</span></span>
-<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Service</span>(<span class="hljs-params">mtx: <span class="hljs-type">Mutex</span>[<span class="hljs-type">IO</span>], ref: <span class="hljs-type">Ref</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">State</span>]</span>) </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">modify</span></span>(f: <span class="hljs-type">State</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">State</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = 
-    mtx.lock.surround {
-      <span class="hljs-keyword">for</span> {
-        current &lt;- ref.get
-        next &lt;- f(current)
-        _ &lt;- ref.set(next) 
-      } <span class="hljs-keyword">yield</span> ()
-    }
-}
-</code></pre>
-<p>The following is the equivalent of the example above:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
 <span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">AtomicCell</span>
 
 <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">State</span></span>
+
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Service</span>(<span class="hljs-params">cell: <span class="hljs-type">AtomicCell</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">State</span>]</span>) </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">modify</span></span>(f: <span class="hljs-type">State</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">State</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = 
-    cell.evalUpdate(current =&gt; f(current))
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">modify</span></span>(f: <span class="hljs-type">State</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">State</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] =
+    cell.evalUpdate(f)
 }
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/typeclasses/async"><span class="arrow-prev">← </span><span>Async</span></a><a class="docs-next button" href="/cats-effect/docs/next/std/backpressure"><span>Backpressure</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#using-atomiccell">Using <code>AtomicCell</code></a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2022 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
+<h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
+<p>Imagine a random data generator,
+that requires running some effectual operations <em>(e.g. checking a database)</em>
+to produce a new value.
+In that case, it may be better to block than to repeat the operation.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">AtomicCell</span>
+
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Data</span></span>
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomDataGenerator</span>(<span class="hljs-params">cell: <span class="hljs-type">AtomicCell</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">Data</span>]</span>) </span>{
+  <span class="hljs-comment">// Generates a new random value.</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">next</span></span>: <span class="hljs-type">IO</span>[<span class="hljs-type">Data</span>] =
+    cell.evalUpdateAndGet(generate)
+
+  <span class="hljs-keyword">private</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">generate</span></span>(previous: <span class="hljs-type">Data</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Data</span>] =
+    ???
+}
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/typeclasses/async"><span class="arrow-prev">← </span><span>Async</span></a><a class="docs-next button" href="/cats-effect/docs/next/std/backpressure"><span>Backpressure</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#using-atomiccell">Using <code>AtomicCell</code></a><ul class="toc-headings"><li><a href="#example">Example</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2022 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
