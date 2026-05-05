@@ -28,12 +28,14 @@ import org.typelevel.scalaccompat.annotation._
 import scala.scalanative.libc.stdlib
 import scala.scalanative.posix.errno._
 import scala.scalanative.posix.string._
+import scala.scalanative.posix.unistd
 import scala.scalanative.runtime.Intrinsics
 import scala.scalanative.unsafe._
 import scala.scalanative.unsigned._
 
 import java.io.IOException
 import java.util.{Collections, IdentityHashMap, Set}
+import java.util.concurrent.ConcurrentLinkedDeque
 
 object UringSystem extends PollingSystem {
 
@@ -66,7 +68,15 @@ object UringSystem extends PollingSystem {
       throw new IOException(fromCString(strerror(-ret)))
     }
 
-    new Poller(ring)
+    val pipeFds = stackalloc[CInt](2)
+    if (unistd.pipe(pipeFds) != 0) {
+      val msg = fromCString(strerror(errno))
+      io_uring_queue_exit(ring)
+      stdlib.free(ring.asInstanceOf[Ptr[Byte]])
+      throw new IOException(msg)
+    }
+
+    new Poller(ring, pipeFds(0), pipeFds(1))
   }
 
   def closePoller(poller: Poller): Unit = poller.close()
@@ -79,7 +89,8 @@ object UringSystem extends PollingSystem {
 
   def needsPoll(poller: Poller): Boolean = poller.needsPoll()
 
-  def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit =
+    targetPoller.wakeup()
 
   def metrics(poller: Poller): PollerMetrics = poller.metrics()
 
@@ -122,27 +133,29 @@ object UringSystem extends PollingSystem {
           ): (Either[Throwable, Int] => Unit, F[Int], IO ~> F) => F[Int] = {
             (resume, get, lift) =>
               F.uncancelable { poll =>
-                val submit = IO.async_[__u64] { cb =>
+                val submit = IO.async_[(__u64, Poller)] { cb =>
                   ctx.accessPoller { poller =>
                     val sqe = poller.getSqe(resume)
                     prep(sqe)
-                    cb(Right(sqe.user_data))
+                    cb(Right((sqe.user_data, poller)))
                   }
                 }
 
                 lift(submit)
-                  .flatMap { addr =>
-                    F.onCancel(
-                      poll(get),
-                      lift(cancel(addr)).ifM(
-                        F.unit,
-                        get.flatMap { rtn =>
-                          if (rtn < 0)
-                            F.raiseError(new IOException(fromCString(strerror(-rtn))))
-                          else lift(release(rtn))
-                        }
+                  .flatMap {
+                    case (addr, submittedPoller) =>
+                      F.onCancel(
+                        poll(get),
+                        lift(cancel(addr, submittedPoller)).ifM(
+                          F.unit,
+                          // If cannot cancel, fallback to get
+                          get.flatMap { rtn =>
+                            if (rtn < 0)
+                              F.raiseError(new IOException(fromCString(strerror(-rtn))))
+                            else lift(release(rtn))
+                          }
+                        )
                       )
-                    )
                   }
                   .flatTap(e => F.raiseWhen(e < 0)(new IOException(fromCString(strerror(-e)))))
               }
@@ -150,11 +163,15 @@ object UringSystem extends PollingSystem {
         }
       }
 
-    private[this] def cancel(addr: __u64): IO[Boolean] =
+    private[this] def cancel(addr: __u64, submittedPoller: Poller): IO[Boolean] =
       IO.async_[Int] { cb =>
-        ctx.accessPoller { poller =>
-          val sqe = poller.getSqe(cb)
-          io_uring_prep_cancel64(sqe, addr, 0)
+        ctx.accessPoller { currentPoller =>
+          if (currentPoller eq submittedPoller) {
+            val sqe = currentPoller.getSqe(cb)
+            io_uring_prep_cancel64(sqe, addr, 0)
+          } else {
+            submittedPoller.enqueueCancelOperation(addr, cb)
+          }
         }
       }.map(_ == 0)
 
@@ -190,10 +207,22 @@ object UringSystem extends PollingSystem {
       }
   }
 
-  final class Poller private[UringSystem] (ring: Ptr[io_uring]) {
+  final class Poller private[UringSystem] (
+      ring: Ptr[io_uring],
+      readEnd: CInt,
+      writeEnd: CInt
+  ) {
     private[this] var pendingSubmissions: Boolean = false
+    private[this] var listeningWakeup: Boolean = false
+
     private[this] val callbacks: Set[Either[Throwable, Int] => Unit] =
       Collections.newSetFromMap(new IdentityHashMap)
+
+    private[this] val cancelOperations
+        : ConcurrentLinkedDeque[(__u64, Either[Throwable, Int] => Unit)] =
+      new ConcurrentLinkedDeque
+
+    private[this] val wakeupHandler: Either[Throwable, Int] => Unit = _ => ()
 
     private[UringSystem] def metrics(): PollerMetrics = PollerMetrics.noop
 
@@ -207,15 +236,53 @@ object UringSystem extends PollingSystem {
       sqe
     }
 
+    private[UringSystem] def enqueueCancelOperation(
+        addr: __u64,
+        cb: Either[Throwable, Int] => Unit
+    ): Unit = {
+      cancelOperations.add((addr, cb))
+      wakeup()
+    }
+
+    private[UringSystem] def wakeup(): Unit = {
+      val buf = stackalloc[Byte](1)
+      !buf = 1.toByte
+      unistd.write(writeEnd, buf, sizeof[Byte])
+      ()
+    }
+
+    private[this] def armWakeup(): Unit = {
+      val sqe = io_uring_get_sqe(ring)
+      io_uring_sqe_set_data(sqe, wakeupHandler)
+      io_uring_prep_poll_add(sqe, readEnd, POLLIN.toUInt)
+      pendingSubmissions = true
+      listeningWakeup = true
+    }
+
+    private[this] def drainCancelQueue(): Unit = {
+      var op = cancelOperations.poll()
+      while (op ne null) {
+        val sqe = getSqe(op._2)
+        io_uring_prep_cancel64(sqe, op._1, 0)
+        op = cancelOperations.poll()
+      }
+    }
+
     private[UringSystem] def close(): Unit = {
       io_uring_queue_exit(ring)
       stdlib.free(ring.asInstanceOf[Ptr[Byte]])
+      unistd.close(readEnd)
+      unistd.close(writeEnd)
+      ()
     }
 
     private[UringSystem] def needsPoll(): Boolean =
-      pendingSubmissions || !callbacks.isEmpty()
+      pendingSubmissions || !callbacks.isEmpty() || !cancelOperations.isEmpty()
 
     private[UringSystem] def poll(nanos: Long): PollResult = {
+
+      if (!listeningWakeup) armWakeup()
+      drainCancelQueue()
 
       if (nanos == 0) {
         if (pendingSubmissions) {
@@ -267,9 +334,15 @@ object UringSystem extends PollingSystem {
       while (i < filledCount) {
         val cqe = !(ptr + i.toLong)
         val cb = io_uring_cqe_get_data[Either[Throwable, Int] => Unit](cqe)
-        val res = cqe.res
-        cb(Right(res))
-        callbacks.remove(cb)
+        if (cb eq wakeupHandler) {
+          val buf = stackalloc[Byte](1)
+          unistd.read(readEnd, buf, sizeof[Byte])
+          listeningWakeup = false
+        } else {
+          val res = cqe.res
+          cb(Right(res))
+          callbacks.remove(cb)
+        }
         i += 1
       }
 
