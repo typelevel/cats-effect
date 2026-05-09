@@ -20,6 +20,13 @@ package unsafe
 import cats.effect.unsafe.UringSystem.liburingOps._
 
 import scala.scalanative.meta.LinktimeInfo
+import scala.scalanative.posix.errno._
+import scala.scalanative.posix.fcntl._
+import scala.scalanative.posix.string._
+import scala.scalanative.posix.unistd
+import scala.scalanative.unsafe._
+
+import java.io.IOException
 
 class UringSystemSuite extends BaseSuite {
 
@@ -67,4 +74,54 @@ class UringSystemSuite extends BaseSuite {
         .flatMap { uring => uring.call(io_uring_prep_nop) }
         .map(rtn => assertEquals(rtn, 0))
   }
+
+  real("cancel a pending poll_add") {
+    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
+      pipeHandle.use {
+        case (readFd, _) =>
+          Resource
+            .eval(FileDescriptorPoller.get)
+            .flatMap(_.registerFileDescriptor(readFd, true, false))
+            .use { handle =>
+              Deferred[IO, Unit].flatMap { entered =>
+                val read =
+                  handle.pollReadRec(()) { _ => entered.complete(()).void *> IO(Left(())) }
+                read.start.flatMap { fiber =>
+                  entered.get *> fiber.cancel *> fiber.join.map(oc => assert(oc.isCanceled))
+                }
+              }
+            }
+      }
+  }
+
+  /////////////////////////////////////////////////////////////////
+  // Helpers
+  /////////////////////////////////////////////////////////////////
+
+  private def pipeHandle: Resource[IO, (Int, Int)] =
+    Resource
+      .make {
+        IO {
+          val fd = stackalloc[CInt](2)
+          if (unistd.pipe(fd) != 0)
+            throw new IOException(fromCString(strerror(errno)))
+          (fd(0), fd(1))
+        }
+      } {
+        case (readFd, writeFd) =>
+          IO {
+            unistd.close(readFd)
+            unistd.close(writeFd)
+            ()
+          }
+      }
+      .evalTap {
+        case (readFd, writeFd) =>
+          IO {
+            if (fcntl(readFd, F_SETFL, O_NONBLOCK) != 0)
+              throw new IOException(fromCString(strerror(errno)))
+            if (fcntl(writeFd, F_SETFL, O_NONBLOCK) != 0)
+              throw new IOException(fromCString(strerror(errno)))
+          }
+      }
 }
