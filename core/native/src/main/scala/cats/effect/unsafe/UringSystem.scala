@@ -25,16 +25,16 @@ import cats.~>
 
 import org.typelevel.scalaccompat.annotation._
 
+import scala.collection.mutable.{ArrayBuffer, LongMap}
 import scala.scalanative.libc.stdlib
 import scala.scalanative.posix.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
-import scala.scalanative.runtime.Intrinsics
 import scala.scalanative.unsafe._
 import scala.scalanative.unsigned._
 
 import java.io.IOException
-import java.util.{Collections, IdentityHashMap, Set}
+import java.util.BitSet
 import java.util.concurrent.ConcurrentLinkedDeque
 
 object UringSystem extends PollingSystem {
@@ -213,24 +213,37 @@ object UringSystem extends PollingSystem {
     private[this] var pendingSubmissions: Boolean = false
     private[this] var listeningWakeup: Boolean = false
 
-    private[this] val callbacks: Set[Either[Throwable, Int] => Unit] =
-      Collections.newSetFromMap(new IdentityHashMap)
+    private[this] val ids: BitSet = {
+      val bs = new BitSet(Short.MaxValue)
+      bs.set(0) // reserve id 0 for the wakeup poll_add
+      bs
+    }
+
+    private[this] val callbacks: LongMap[Either[Throwable, Int] => Unit] =
+      LongMap.empty
 
     private[this] val cancelOperations
         : ConcurrentLinkedDeque[(__u64, Either[Throwable, Int] => Unit)] =
       new ConcurrentLinkedDeque
 
-    private[this] val wakeupHandler: Either[Throwable, Int] => Unit = _ => ()
-
     private[UringSystem] def metrics(): PollerMetrics = PollerMetrics.noop
+
+    private[this] def nextId(): Long = {
+      val id = ids.nextClearBit(1)
+      if (id >= Short.MaxValue)
+        throw new IOException("io_uring callback id space exhausted")
+      ids.set(id)
+      id.toLong
+    }
 
     private[UringSystem] def getSqe(
         cb: Either[Throwable, Int] => Unit
     ): Ptr[io_uring_sqe] = {
       pendingSubmissions = true
       val sqe = io_uring_get_sqe(ring)
-      io_uring_sqe_set_data(sqe, cb)
-      callbacks.add(cb)
+      val id = nextId()
+      callbacks.put(id, cb)
+      sqe.user_data = id.toULong
       sqe
     }
 
@@ -251,7 +264,7 @@ object UringSystem extends PollingSystem {
 
     private[this] def armWakeup(): Unit = {
       val sqe = io_uring_get_sqe(ring)
-      io_uring_sqe_set_data(sqe, wakeupHandler)
+      sqe.user_data = 0L.toULong
       io_uring_prep_poll_add(sqe, readEnd, POLLIN.toUInt)
       pendingSubmissions = true
       listeningWakeup = true
@@ -275,7 +288,7 @@ object UringSystem extends PollingSystem {
     }
 
     private[UringSystem] def needsPoll(): Boolean =
-      pendingSubmissions || !callbacks.isEmpty() || !cancelOperations.isEmpty()
+      pendingSubmissions || callbacks.nonEmpty || !cancelOperations.isEmpty()
 
     private[UringSystem] def poll(nanos: Long): PollResult = {
 
@@ -327,24 +340,39 @@ object UringSystem extends PollingSystem {
       val cqes = stackalloc[Ptr[io_uring_cqe]](MaxEvents)
       val filledCount = io_uring_peek_batch_cqe(ring, cqes, MaxEvents.toUInt).toInt
 
+      val toInvoke =
+        new ArrayBuffer[(Either[Throwable, Int] => Unit, Int)](filledCount)
+
       var i = 0
       val ptr = cqes
       while (i < filledCount) {
         val cqe = !(ptr + i.toLong)
-        val cb = io_uring_cqe_get_data[Either[Throwable, Int] => Unit](cqe)
-        if (cb eq wakeupHandler) {
+        val id = cqe.user_data.toLong
+        if (id == 0L) {
+          // This is the wakeup event, we just need to drain the pipe and re-arm the wakeup
           val buf = stackalloc[Byte](1)
           unistd.read(readEnd, buf, sizeof[Byte])
           listeningWakeup = false
         } else {
-          val res = cqe.res
-          cb(Right(res))
-          callbacks.remove(cb)
+          // Normal event, look up the callback and schedule it for invocation
+          val cb = callbacks.remove(id)
+          ids.clear(id.toInt)
+          if (cb.isDefined) toInvoke += ((cb.get, cqe.res))
         }
         i += 1
       }
 
       io_uring_cq_advance(ring, filledCount.toUInt)
+
+      // Invoke callbacks
+      var j = 0
+      val n = toInvoke.size
+      while (j < n) {
+        val pair = toInvoke(j)
+        pair._1(Right(pair._2))
+        j += 1
+      }
+
       filledCount > 0
     }
   }
@@ -522,14 +550,6 @@ object UringSystem extends PollingSystem {
       io_uring_prep_rw(IORING_OP_POLL_ADD, sqe, fd, null, 0.toUInt, 0.toULong)
       sqe.poll32_events = poll_mask
     }
-
-    def io_uring_sqe_set_data[A <: AnyRef](sqe: Ptr[io_uring_sqe], data: A): Unit =
-      sqe.user_data = Intrinsics.castRawPtrToLong(Intrinsics.castObjectToRawPtr(data)).toULong
-
-    def io_uring_cqe_get_data[A <: AnyRef](cqe: Ptr[io_uring_cqe]): A =
-      Intrinsics
-        .castRawPtrToObject(Intrinsics.castLongToRawPtr(cqe.user_data.toLong))
-        .asInstanceOf[A]
 
     implicit final class io_uring_sqeOps(val io_uring_sqe: Ptr[io_uring_sqe]) extends AnyVal {
       def opcode: __u8 = io_uring_sqe._1
