@@ -58,9 +58,7 @@ object UringSystem extends PollingSystem {
 
     val flags = IORING_SETUP_SUBMIT_ALL |
       IORING_SETUP_COOP_TASKRUN |
-      IORING_SETUP_TASKRUN_FLAG |
-      IORING_SETUP_SINGLE_ISSUER |
-      IORING_SETUP_DEFER_TASKRUN
+      IORING_SETUP_TASKRUN_FLAG
 
     val ret = io_uring_queue_init(MaxEvents.toUInt, ring, flags.toUInt)
     if (ret < 0) {
