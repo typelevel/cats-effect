@@ -39,8 +39,8 @@ import java.util.concurrent.ConcurrentLinkedDeque
 
 object UringSystem extends PollingSystem {
 
-  import uringNative._
-  import uringNativeOps._
+  import liburing._
+  import liburingOps._
 
   private[this] final val MaxEvents = 64
 
@@ -356,7 +356,7 @@ object UringSystem extends PollingSystem {
   @link("uring")
   @define("CATS_EFFECT_URING")
   @extern
-  private object uringNative {
+  private object liburing {
 
     final val IORING_SETUP_SUBMIT_ALL = 1 << 7
     final val IORING_SETUP_COOP_TASKRUN = 1 << 8
@@ -484,9 +484,9 @@ object UringSystem extends PollingSystem {
     ): Unit = extern
   }
 
-  private object uringNativeOps {
+  private object liburingOps {
 
-    import uringNative._
+    import liburing._
 
     def io_uring_sqe_set_data[A <: AnyRef](sqe: Ptr[io_uring_sqe], data: A): Unit =
       sqe.user_data = Intrinsics
