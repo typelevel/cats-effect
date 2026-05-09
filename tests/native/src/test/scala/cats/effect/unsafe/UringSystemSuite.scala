@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import cats.effect.unsafe.UringSystem.liburingOps._
+
 import scala.scalanative.meta.LinktimeInfo
 
 class UringSystemSuite extends BaseSuite {
@@ -55,5 +57,14 @@ class UringSystemSuite extends BaseSuite {
   real("start the UringSystem") {
     IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
       UringSystem.Uring.get.map(uring => assert(uring ne null))
+  }
+
+  real("submit a nop SQE and resume on completion") {
+    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
+      UringSystem
+        .Uring
+        .get
+        .flatMap { uring => uring.call(io_uring_prep_nop) }
+        .map(rtn => assertEquals(rtn, 0))
   }
 }
