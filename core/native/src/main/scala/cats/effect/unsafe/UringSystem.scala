@@ -304,7 +304,7 @@ object UringSystem extends PollingSystem {
         val cqe = stackalloc[Ptr[io_uring_cqe]]()
         if (pendingSubmissions) {
           var rtn =
-            io_uring_submit_and_wait_timeout(ring, cqe, 0.toUInt, timeoutSpec, null)
+            io_uring_submit_and_wait_timeout(ring, cqe, 1.toUInt, timeoutSpec, null)
           while (rtn == -EBUSY) {
             processReadyEvents()
             rtn = io_uring_submit(ring)
