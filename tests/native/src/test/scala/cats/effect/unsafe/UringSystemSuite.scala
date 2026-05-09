@@ -75,6 +75,26 @@ class UringSystemSuite extends BaseSuite {
         .map(rtn => assertEquals(rtn, 0))
   }
 
+  // TODO: Test is failing when run with concurrent fibers.
+  // Error 1: Unrecoverable NullPointerException in user thread
+  // Error 2: Unhandled signal 11, si_addr=0x20, si_addr=0x100000080, si_addr=0x71558e7388
+  // Error 3:
+  /*
+    [cats-effect-tests-test:548690] [ScalaNative GC|Warning]   Thread id=134175356978880, stackBottom=0x7a08227d7e08, state=Managed, alive=yes
+    [cats-effect-tests-test:548690] [ScalaNative GC|Warning] Possible causes:
+      - Thread blocked in native code without @blocking annotation
+      - Thread crashed without cleanup
+      - Infinite loop in native code
+      - Deadlock with resource held by waiting thread
+   */
+  real("submit nop SQEs in parallel and resume on completion") {
+    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
+      UringSystem.Uring.get.flatMap { uring =>
+        val op = uring.call(io_uring_prep_nop).map(rtn => assertEquals(rtn, 0))
+        op.replicateA_(200).parReplicateA_(8)
+      }
+  }
+
   real("cancel a pending poll_add") {
     IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
       pipeHandle.use {
