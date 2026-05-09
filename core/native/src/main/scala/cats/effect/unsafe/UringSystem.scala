@@ -354,6 +354,7 @@ object UringSystem extends PollingSystem {
 
   @nowarn212
   @link("uring")
+  @define("CATS_EFFECT_URING")
   @extern
   private object uringNative {
 

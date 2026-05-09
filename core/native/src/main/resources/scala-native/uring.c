@@ -1,3 +1,5 @@
+#ifdef CATS_EFFECT_URING
+
 #include <liburing.h>
 
 struct io_uring_sqe *ce_io_uring_get_sqe(struct io_uring *ring) {
@@ -17,3 +19,5 @@ void ce_io_uring_prep_poll_add(struct io_uring_sqe *sqe, int fd,
                                unsigned int pollmask) {
   io_uring_prep_poll_add(sqe, fd, pollmask);
 }
+
+#endif
