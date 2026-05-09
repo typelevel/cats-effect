@@ -353,6 +353,7 @@ object UringSystem extends PollingSystem {
   private final val POLLOUT: Int = 0x004
 
   @nowarn212
+  @link("uring")
   @extern
   private object uringNative {
 
