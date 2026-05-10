@@ -42,7 +42,7 @@ object UringSystem extends PollingSystem {
   import liburing._
   import liburingOps._
 
-  private[this] final val MaxEvents = 64
+  private[this] final val MaxEvents = WorkStealingThreadPoolConstants.PollingTicks
 
   type Api = Uring
 
