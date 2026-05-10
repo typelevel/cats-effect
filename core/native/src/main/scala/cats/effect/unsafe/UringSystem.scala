@@ -226,6 +226,10 @@ object UringSystem extends PollingSystem {
         : ConcurrentLinkedDeque[(__u64, Either[Throwable, Int] => Unit)] =
       new ConcurrentLinkedDeque
 
+    private[this] val cqesArray: Array[Byte] = new Array[Byte](MaxEvents * 8)
+    @inline private[this] def cqesPtr: Ptr[Ptr[io_uring_cqe]] =
+      cqesArray.atUnsafe(0).asInstanceOf[Ptr[Ptr[io_uring_cqe]]]
+
     private[UringSystem] def metrics(): PollerMetrics = PollerMetrics.noop
 
     private[this] def nextId(): Long = {
