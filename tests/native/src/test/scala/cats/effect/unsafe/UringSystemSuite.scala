@@ -30,92 +30,87 @@ import java.io.IOException
 
 class UringSystemSuite extends BaseSuite {
 
+  override def munitIgnore: Boolean = !LinktimeInfo.isLinux
+
   private[this] var uringRuntime: IORuntime = _
 
   override def runtime(): IORuntime = uringRuntime
 
-  override def beforeAll(): Unit =
-    if (LinktimeInfo.isLinux) {
-      val (blocking, blockDown) =
-        IORuntime.createDefaultBlockingExecutionContext(
-          threadPrefix = s"io-blocking-${getClass.getName}")
-      val (compute, api, compDown) =
-        IORuntime.createWorkStealingComputeThreadPool(
-          threadPrefix = s"io-compute-${getClass.getName}",
-          blockerThreadPrefix = s"io-blocker-${getClass.getName}",
-          pollingSystem = UringSystem
-        )
-      uringRuntime = IORuntime(
-        compute,
-        blocking,
-        compute,
-        List(api),
-        { () =>
-          compDown()
-          blockDown()
-        },
-        IORuntimeConfig()
+  override def beforeAll(): Unit = {
+    val (blocking, blockDown) =
+      IORuntime.createDefaultBlockingExecutionContext(
+        threadPrefix = s"io-blocking-${getClass.getName}")
+    val (compute, api, compDown) =
+      IORuntime.createWorkStealingComputeThreadPool(
+        threadPrefix = s"io-compute-${getClass.getName}",
+        blockerThreadPrefix = s"io-blocker-${getClass.getName}",
+        pollingSystem = UringSystem
       )
-    }
+    uringRuntime = IORuntime(
+      compute,
+      blocking,
+      compute,
+      List(api),
+      { () =>
+        compDown()
+        blockDown()
+      },
+      IORuntimeConfig()
+    )
+  }
 
   override def afterAll(): Unit =
     if (uringRuntime ne null) uringRuntime.shutdown()
 
   real("start the UringSystem") {
-    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
-      UringSystem.Uring.get.map(uring => assert(uring ne null))
+    UringSystem.Uring.get.map(uring => assert(uring ne null))
   }
 
   real("submit a nop SQE and resume on completion") {
-    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
-      UringSystem
-        .Uring
-        .get
-        .flatMap { uring => uring.call(io_uring_prep_nop) }
-        .map(rtn => assertEquals(rtn, 0))
+    UringSystem
+      .Uring
+      .get
+      .flatMap { uring => uring.call(io_uring_prep_nop) }
+      .map(rtn => assertEquals(rtn, 0))
   }
 
   real("submit a nop SQE and resume on completion many times in a row") {
-    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
-      UringSystem.Uring.get.flatMap { uring =>
-        val op = uring.call(io_uring_prep_nop).map(rtn => assertEquals(rtn, 0))
-        op.replicateA_(20)
-      }
+    UringSystem.Uring.get.flatMap { uring =>
+      val op = uring.call(io_uring_prep_nop).map(rtn => assertEquals(rtn, 0))
+      op.replicateA_(20)
+    }
   }
 
   real("submit nop SQEs in parallel and resume on completion") {
-    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
-      UringSystem.Uring.get.flatMap { uring =>
-        val op = uring.call(io_uring_prep_nop).map(rtn => assertEquals(rtn, 0))
-        op.parReplicateA_(10)
-      }
+    UringSystem.Uring.get.flatMap { uring =>
+      val op = uring.call(io_uring_prep_nop).map(rtn => assertEquals(rtn, 0))
+      op.parReplicateA_(10)
+    }
   }
 
   real("submit nop SQEs in parallel and resume on completion many times in a row") {
-    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
-      UringSystem.Uring.get.flatMap { uring =>
-        val op = uring.call(io_uring_prep_nop).map(rtn => assertEquals(rtn, 0))
-        op.replicateA_(20).parReplicateA_(10)
-      }
+    UringSystem.Uring.get.flatMap { uring =>
+      val op = uring.call(io_uring_prep_nop).map(rtn => assertEquals(rtn, 0))
+      op.replicateA_(20).parReplicateA_(10)
+    }
   }
 
   real("cancel a pending poll_add") {
-    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
-      pipeHandle.use {
-        case (readFd, _) =>
-          Resource
-            .eval(FileDescriptorPoller.get)
-            .flatMap(_.registerFileDescriptor(readFd, true, false))
-            .use { handle =>
-              Deferred[IO, Unit].flatMap { entered =>
-                val read =
-                  handle.pollReadRec(()) { _ => entered.complete(()).void *> IO(Left(())) }
-                read.start.flatMap { fiber =>
-                  entered.get *> fiber.cancel *> fiber.join.map(oc => assert(oc.isCanceled))
-                }
+    pipeHandle.use {
+      case (readFd, _) =>
+        Resource
+          .eval(FileDescriptorPoller.get)
+          .flatMap(_.registerFileDescriptor(readFd, true, false))
+          .use { handle =>
+            Deferred[IO, Unit].flatMap { entered =>
+              val read =
+                handle.pollReadRec(()) { _ => entered.complete(()).void *> IO(Left(())) }
+              read.start.flatMap { fiber =>
+                entered.get *> fiber.cancel *> fiber.join.map(oc => assert(oc.isCanceled))
               }
             }
-      }
+          }
+    }
   }
 
   /////////////////////////////////////////////////////////////////
