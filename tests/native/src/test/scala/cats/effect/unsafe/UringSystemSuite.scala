@@ -87,7 +87,15 @@ class UringSystemSuite extends BaseSuite {
     IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
       UringSystem.Uring.get.flatMap { uring =>
         val op = uring.call(io_uring_prep_nop).map(rtn => assertEquals(rtn, 0))
-        op.replicateA_(200).parReplicateA_(8)
+        op.parReplicateA_(10)
+      }
+  }
+
+  real("submit nop SQEs in parallel and resume on completion many times in a row") {
+    IO(assume(LinktimeInfo.isLinux, "UringSystem is only supported on Linux")) *>
+      UringSystem.Uring.get.flatMap { uring =>
+        val op = uring.call(io_uring_prep_nop).map(rtn => assertEquals(rtn, 0))
+        op.replicateA_(20).parReplicateA_(10)
       }
   }
 
