@@ -480,6 +480,7 @@ object UringSystem extends PollingSystem {
 
     def io_uring_submit(ring: Ptr[io_uring]): CInt = extern
 
+    @blocking
     def io_uring_submit_and_wait_timeout(
         ring: Ptr[io_uring],
         cqe_ptr: Ptr[Ptr[io_uring_cqe]],
@@ -488,6 +489,7 @@ object UringSystem extends PollingSystem {
         sigmask: Ptr[Byte]
     ): CInt = extern
 
+    @blocking
     def io_uring_wait_cqe_timeout(
         ring: Ptr[io_uring],
         cqe_ptr: Ptr[Ptr[io_uring_cqe]],
