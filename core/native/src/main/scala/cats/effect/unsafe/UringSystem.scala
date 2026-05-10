@@ -25,7 +25,7 @@ import cats.~>
 
 import org.typelevel.scalaccompat.annotation._
 
-import scala.collection.mutable.{ArrayBuffer, LongMap}
+import scala.collection.mutable.LongMap
 import scala.scalanative.libc.stdlib
 import scala.scalanative.posix.errno._
 import scala.scalanative.posix.string._
@@ -328,8 +328,7 @@ object UringSystem extends PollingSystem {
         pendingSubmissions = false
       }
 
-      val cqes = stackalloc[Ptr[io_uring_cqe]](MaxEvents)
-      val filledCount = io_uring_peek_batch_cqe(ring, cqes, MaxEvents.toUInt).toInt
+      val filledCount = io_uring_peek_batch_cqe(ring, cqesPtr, MaxEvents.toUInt).toInt
 
       if (filledCount > 0) {
         if (filledCount < MaxEvents) PollResult.Complete else PollResult.Incomplete
@@ -337,7 +336,7 @@ object UringSystem extends PollingSystem {
     }
 
     private[UringSystem] def processReadyEvents(): Boolean = {
-      val cqes = stackalloc[Ptr[io_uring_cqe]](MaxEvents)
+      val cqes = cqesPtr
       val filledCount = io_uring_peek_batch_cqe(ring, cqes, MaxEvents.toUInt).toInt
 
       val toInvoke =
@@ -346,7 +345,7 @@ object UringSystem extends PollingSystem {
       var i = 0
       val ptr = cqes
       while (i < filledCount) {
-        val cqe = !(ptr + i.toLong)
+        val cqe = !(cqes + i.toLong)
         val id = cqe.user_data.toLong
         if (id == 0L) {
           // This is the wakeup event, we just need to drain the pipe and re-arm the wakeup
@@ -357,22 +356,12 @@ object UringSystem extends PollingSystem {
           // Normal event, look up the callback and schedule it for invocation
           val cb = callbacks.remove(id)
           ids.clear(id.toInt)
-          if (cb.isDefined) toInvoke += ((cb.get, cqe.res))
+          if (cb.isDefined) cb.get(Right(cqe.res))
         }
         i += 1
       }
 
       io_uring_cq_advance(ring, filledCount.toUInt)
-
-      // Invoke callbacks
-      var j = 0
-      val n = toInvoke.size
-      while (j < n) {
-        val pair = toInvoke(j)
-        pair._1(Right(pair._2))
-        j += 1
-      }
-
       filledCount > 0
     }
   }
