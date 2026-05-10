@@ -339,21 +339,15 @@ object UringSystem extends PollingSystem {
       val cqes = cqesPtr
       val filledCount = io_uring_peek_batch_cqe(ring, cqes, MaxEvents.toUInt).toInt
 
-      val toInvoke =
-        new ArrayBuffer[(Either[Throwable, Int] => Unit, Int)](filledCount)
-
       var i = 0
-      val ptr = cqes
       while (i < filledCount) {
         val cqe = !(cqes + i.toLong)
         val id = cqe.user_data.toLong
         if (id == 0L) {
-          // This is the wakeup event, we just need to drain the pipe and re-arm the wakeup
           val buf = stackalloc[Byte](1)
           unistd.read(readEnd, buf, sizeof[Byte])
           listeningWakeup = false
         } else {
-          // Normal event, look up the callback and schedule it for invocation
           val cb = callbacks.remove(id)
           ids.clear(id.toInt)
           if (cb.isDefined) cb.get(Right(cqe.res))
