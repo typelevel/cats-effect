@@ -17,14 +17,18 @@
 package cats.effect
 package unsafe
 
+import cats.effect.std.CountDownLatch
 import cats.effect.unsafe.UringSystem.liburingOps._
+import cats.syntax.all._
 
+import scala.concurrent.duration._
 import scala.scalanative.meta.LinktimeInfo
 import scala.scalanative.posix.errno._
 import scala.scalanative.posix.fcntl._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
 import scala.scalanative.unsafe._
+import scala.scalanative.unsigned._
 
 import java.io.IOException
 
@@ -113,9 +117,145 @@ class UringSystemSuite extends BaseSuite {
     }
   }
 
+  real("notify read-ready events") {
+    mkPipe.use { pipe =>
+      for {
+        buf <- IO(new Array[Byte](4))
+        _ <- pipe.write(Array[Byte](1, 2, 3), 0, 3).background.surround(pipe.read(buf, 0, 3))
+        _ <- pipe.write(Array[Byte](42), 0, 1).background.surround(pipe.read(buf, 3, 1))
+      } yield assertEquals(buf.toList, List[Byte](1, 2, 3, 42))
+    }
+  }
+
+  real("handle lots of simultaneous events") {
+    def test(n: Int) = mkPipe.replicateA(n).use { pipes =>
+      CountDownLatch[IO](n).flatMap { latch =>
+        pipes
+          .traverse_ { pipe =>
+            (pipe.read(new Array[Byte](1), 0, 1) *> latch.release).background
+          }
+          .surround {
+            IO { // trigger all the pipes at once
+              pipes.foreach { pipe =>
+                unistd.write(pipe.writeFd, Array[Byte](42).atUnsafe(0), 1.toCSize)
+              }
+            }.background.surround(latch.await)
+          }
+      }
+    }
+
+    // multiples of 64 to exercise ready queue draining logic
+    test(64) *> test(128) *>
+      test(1000) // a big, non-64-multiple
+  }
+
+  real("hang if never ready") {
+    mkPipe.use { pipe =>
+      pipe
+        .read(new Array[Byte](1), 0, 1)
+        .map(_ => fail("shouldn't get there"))
+        .timeoutTo(1.second, IO.unit)
+    }
+  }
+
+  real("pollReadRec reads until EPOLLHUP then terminates with EOF") {
+    mkReadOnlyPipe.use {
+      case (readFd, writeFd, readHandle) =>
+        for {
+          buf <- IO(new Array[Byte](1))
+          gate <- Deferred[IO, Unit]
+          _ <- {
+            readHandle.pollReadRec(()) { _ =>
+              IO(guard(unistd.read(readFd, buf.atUnsafe(0), 1.toCSize))).flatTap {
+                case Left(_) => gate.complete(())
+                case Right(_) => IO.unit
+              }
+            }
+          }.background.use { readerIO =>
+            gate.get >> IO {
+              unistd.close(writeFd)
+            } >> readerIO
+          }
+        } yield ()
+    }
+  }
+
+  real("pollWriteRec writes through a full pipe buffer") {
+    val size = 256 * 1024
+    mkPipe.use { pipe =>
+      val payload = Array.tabulate[Byte](size)(i => (i & 0xff).toByte)
+      val received = new Array[Byte](size)
+      (
+        pipe.writeAll(payload),
+        pipe.readN(received)
+      ).parTupled *> IO(assertEquals(received.toList, payload.toList))
+    }
+  }
+
   /////////////////////////////////////////////////////////////////
   // Helpers
   /////////////////////////////////////////////////////////////////
+
+  private final class Pipe(
+      val readFd: Int,
+      val writeFd: Int,
+      readHandle: FileDescriptorPollHandle,
+      writeHandle: FileDescriptorPollHandle
+  ) {
+    def read(buf: Array[Byte], offset: Int, length: Int): IO[Int] =
+      readHandle.pollReadRec(()) { _ =>
+        IO(guard(unistd.read(readFd, buf.atUnsafe(offset), length.toCSize)))
+      }
+
+    def write(buf: Array[Byte], offset: Int, length: Int): IO[Int] =
+      writeHandle.pollWriteRec(()) { _ =>
+        IO(guard(unistd.write(writeFd, buf.atUnsafe(offset), length.toCSize)))
+      }
+
+    def readN(buf: Array[Byte]): IO[Unit] = {
+      def go(offset: Int): IO[Unit] =
+        if (offset >= buf.length) IO.unit
+        else read(buf, offset, buf.length - offset).flatMap(n => go(offset + n))
+      go(0)
+    }
+
+    def writeAll(buf: Array[Byte]): IO[Unit] = {
+      def go(offset: Int): IO[Unit] =
+        if (offset >= buf.length) IO.unit
+        else write(buf, offset, buf.length - offset).flatMap(n => go(offset + n))
+      go(0)
+    }
+  }
+
+  private def guard(thunk: => CInt): Either[Unit, CInt] = {
+    val rtn = thunk
+    if (rtn < 0) {
+      val en = errno
+      if (en == EAGAIN || en == EWOULDBLOCK) Left(())
+      else throw new IOException(fromCString(strerror(en)))
+    } else Right(rtn)
+  }
+
+  private def mkPipe: Resource[IO, Pipe] =
+    pipeHandle.flatMap {
+      case (readFd, writeFd) =>
+        Resource.eval(FileDescriptorPoller.get).flatMap { poller =>
+          (
+            poller.registerFileDescriptor(readFd, true, false),
+            poller.registerFileDescriptor(writeFd, false, true)
+          ).mapN(new Pipe(readFd, writeFd, _, _))
+        }
+    }
+
+  private def mkReadOnlyPipe: Resource[IO, (Int, Int, FileDescriptorPollHandle)] =
+    pipeHandle.flatMap {
+      case (readFd, writeFd) =>
+        Resource.eval(FileDescriptorPoller.get).flatMap { poller =>
+          poller.registerFileDescriptor(readFd, true, false).map { readHandle =>
+            (readFd, writeFd, readHandle)
+          }
+        }
+    }
 
   private def pipeHandle: Resource[IO, (Int, Int)] =
     Resource
