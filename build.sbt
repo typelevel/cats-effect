@@ -29,6 +29,18 @@ import JSEnv._
 
 lazy val inCI = Option(System.getenv("CI")).contains("true")
 
+// TODO: Ask for alternative. Detect liburing at sbt load time.
+// When absent the UringSystem and its test are excluded from the build.
+lazy val hasLiburing: Boolean = {
+  import scala.sys.process._
+  val silent = ProcessLogger(_ => ())
+  scala.util.Try("pkg-config --exists liburing".!(silent)).toOption match {
+    case Some(0) => true
+    case Some(_) => false
+    case None => file("/usr/include/liburing.h").exists()
+  }
+}
+
 // sbt-git workarounds
 ThisBuild / useConsoleForROGit := !inCI
 
@@ -976,7 +988,18 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.metrics.NativeCpuStarvationMetrics"),
       ProblemFilters.exclude[MissingClassProblem](
         "cats.effect.metrics.NativeCpuStarvationMetrics$")
-    )
+    ),
+    // TODO: Ask for alternative.  Exclude UringSystem and its C wrapper when missing liburing
+    Compile / sources := {
+      val all = (Compile / sources).value
+      if (hasLiburing) all
+      else all.filterNot(_.getName == "UringSystem.scala")
+    },
+    Compile / resources := {
+      val all = (Compile / resources).value
+      if (hasLiburing) all
+      else all.filterNot(_.getName == "uring.c")
+    }
   )
 
 /**
@@ -1026,7 +1049,13 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatf
   )
   .nativeSettings(
     Compile / mainClass := Some("catseffect.examples.NativeRunner"),
-    nativeTestSettings
+    nativeTestSettings,
+    // TODO: Ask for alternative. Drop the test suite when liburing is absent
+    Test / sources := {
+      val all = (Test / sources).value
+      if (hasLiburing) all
+      else all.filterNot(_.getName == "UringSystemSuite.scala")
+    }
   )
 
 def configureIOAppTests(p: Project): Project =
