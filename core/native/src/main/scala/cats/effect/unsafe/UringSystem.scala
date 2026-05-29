@@ -135,6 +135,7 @@ object UringSystem extends PollingSystem {
                   ctx.accessPoller { poller =>
                     val sqe = poller.getSqe(resume)
                     prep(sqe)
+                    poller.trackSubmission(sqe)
                     cb(Right((sqe.user_data, poller)))
                   }
                 }
@@ -209,7 +210,7 @@ object UringSystem extends PollingSystem {
       ring: Ptr[io_uring],
       readEnd: CInt,
       writeEnd: CInt
-  ) {
+  ) extends PollerMetrics {
     private[this] var pendingSubmissions: Boolean = false
     private[this] var listeningWakeup: Boolean = false
 
@@ -222,6 +223,8 @@ object UringSystem extends PollingSystem {
     private[this] val callbacks: LongMap[Either[Throwable, Int] => Unit] =
       LongMap.empty
 
+    private[this] val opCategories: LongMap[Int] = LongMap.empty
+
     private[this] val cancelOperations
         : ConcurrentLinkedDeque[(__u64, Either[Throwable, Int] => Unit)] =
       new ConcurrentLinkedDeque
@@ -230,7 +233,64 @@ object UringSystem extends PollingSystem {
     @inline private[this] def cqesPtr: Ptr[Ptr[io_uring_cqe]] =
       cqesArray.atUnsafe(0).asInstanceOf[Ptr[Ptr[io_uring_cqe]]]
 
-    private[UringSystem] def metrics(): PollerMetrics = PollerMetrics.noop
+    private[this] var totalReadSubmitted = 0L
+    private[this] var totalReadSucceeded = 0L
+    private[this] var totalReadErrored = 0L
+    private[this] var totalReadCanceled = 0L
+    private[this] var readOutstanding = 0
+
+    private[this] var totalWriteSubmitted = 0L
+    private[this] var totalWriteSucceeded = 0L
+    private[this] var totalWriteErrored = 0L
+    private[this] var totalWriteCanceled = 0L
+    private[this] var writeOutstanding = 0
+
+    private[this] var totalAcceptSubmitted = 0L
+    private[this] var totalAcceptSucceeded = 0L
+    private[this] var totalAcceptErrored = 0L
+    private[this] var totalAcceptCanceled = 0L
+    private[this] var acceptOutstanding = 0
+
+    private[this] var totalConnectSubmitted = 0L
+    private[this] var totalConnectSucceeded = 0L
+    private[this] var totalConnectErrored = 0L
+    private[this] var totalConnectCanceled = 0L
+    private[this] var connectOutstanding = 0
+
+    override def operationsOutstandingCount(): Int =
+      readOutstanding + writeOutstanding + acceptOutstanding + connectOutstanding
+    override def totalOperationsSubmittedCount(): Long =
+      totalReadSubmitted + totalWriteSubmitted + totalAcceptSubmitted + totalConnectSubmitted
+    override def totalOperationsSucceededCount(): Long =
+      totalReadSucceeded + totalWriteSucceeded + totalAcceptSucceeded + totalConnectSucceeded
+    override def totalOperationsErroredCount(): Long =
+      totalReadErrored + totalWriteErrored + totalAcceptErrored + totalConnectErrored
+    override def totalOperationsCanceledCount(): Long =
+      totalReadCanceled + totalWriteCanceled + totalAcceptCanceled + totalConnectCanceled
+    override def acceptOperationsOutstandingCount(): Int = acceptOutstanding
+    override def totalAcceptOperationsSubmittedCount(): Long = totalAcceptSubmitted
+    override def totalAcceptOperationsSucceededCount(): Long = totalAcceptSucceeded
+    override def totalAcceptOperationsErroredCount(): Long = totalAcceptErrored
+    override def totalAcceptOperationsCanceledCount(): Long = totalAcceptCanceled
+    override def connectOperationsOutstandingCount(): Int = connectOutstanding
+    override def totalConnectOperationsSubmittedCount(): Long = totalConnectSubmitted
+    override def totalConnectOperationsSucceededCount(): Long = totalConnectSucceeded
+    override def totalConnectOperationsErroredCount(): Long = totalConnectErrored
+    override def totalConnectOperationsCanceledCount(): Long = totalConnectCanceled
+    override def readOperationsOutstandingCount(): Int = readOutstanding
+    override def totalReadOperationsSubmittedCount(): Long = totalReadSubmitted
+    override def totalReadOperationsSucceededCount(): Long = totalReadSucceeded
+    override def totalReadOperationsErroredCount(): Long = totalReadErrored
+    override def totalReadOperationsCanceledCount(): Long = totalReadCanceled
+    override def writeOperationsOutstandingCount(): Int = writeOutstanding
+    override def totalWriteOperationsSubmittedCount(): Long = totalWriteSubmitted
+    override def totalWriteOperationsSucceededCount(): Long = totalWriteSucceeded
+    override def totalWriteOperationsErroredCount(): Long = totalWriteErrored
+    override def totalWriteOperationsCanceledCount(): Long = totalWriteCanceled
+
+    override def toString: String = "Uring"
+
+    private[UringSystem] def metrics(): PollerMetrics = this
 
     private[this] def nextId(): Long = {
       val id = ids.nextClearBit(1)
@@ -249,6 +309,74 @@ object UringSystem extends PollingSystem {
       callbacks.put(id, cb)
       sqe.user_data = id.toULong
       sqe
+    }
+
+    private[UringSystem] def trackSubmission(sqe: Ptr[io_uring_sqe]): Unit = {
+      val category = categorize(sqe)
+      if (category != CategoryUntracked) {
+        opCategories.put(sqe.user_data.toLong, category)
+        incrementSubmission(category)
+      }
+    }
+
+    private[this] def categorize(sqe: Ptr[io_uring_sqe]): Int = {
+      val opcode = sqe.opcode.toInt
+      opcode match {
+        case OpRead | OpReadv | OpReadFixed | OpRecv | OpRecvmsg => CategoryRead
+        case OpWrite | OpWritev | OpWriteFixed | OpSend | OpSendmsg => CategoryWrite
+        case OpAccept => CategoryAccept
+        case OpConnect => CategoryConnect
+        case IORING_OP_POLL_ADD =>
+          val mask = sqe.poll32_events.toInt
+          if ((mask & POLLIN) != 0) CategoryRead
+          else if ((mask & POLLOUT) != 0) CategoryWrite
+          else CategoryUntracked
+        case _ => CategoryUntracked
+      }
+    }
+
+    private[this] def incrementSubmission(category: Int): Unit = category match {
+      case CategoryRead =>
+        totalReadSubmitted += 1
+        readOutstanding += 1
+      case CategoryWrite =>
+        totalWriteSubmitted += 1
+        writeOutstanding += 1
+      case CategoryAccept =>
+        totalAcceptSubmitted += 1
+        acceptOutstanding += 1
+      case CategoryConnect =>
+        totalConnectSubmitted += 1
+        connectOutstanding += 1
+      case _ => ()
+    }
+
+    private[this] def handleCompletion(category: Int, res: Int): Unit = {
+      val canceled = res == -ECANCELED
+      val succeeded = res >= 0
+      category match {
+        case CategoryRead =>
+          readOutstanding -= 1
+          if (canceled) totalReadCanceled += 1
+          else if (succeeded) totalReadSucceeded += 1
+          else totalReadErrored += 1
+        case CategoryWrite =>
+          writeOutstanding -= 1
+          if (canceled) totalWriteCanceled += 1
+          else if (succeeded) totalWriteSucceeded += 1
+          else totalWriteErrored += 1
+        case CategoryAccept =>
+          acceptOutstanding -= 1
+          if (canceled) totalAcceptCanceled += 1
+          else if (succeeded) totalAcceptSucceeded += 1
+          else totalAcceptErrored += 1
+        case CategoryConnect =>
+          connectOutstanding -= 1
+          if (canceled) totalConnectCanceled += 1
+          else if (succeeded) totalConnectSucceeded += 1
+          else totalConnectErrored += 1
+        case _ => ()
+      }
     }
 
     private[UringSystem] def enqueueCancelOperation(
@@ -353,8 +481,11 @@ object UringSystem extends PollingSystem {
           listeningWakeup = false
         } else {
           val cb = callbacks.remove(id)
+          val category = opCategories.remove(id).getOrElse(CategoryUntracked)
           ids.clear(id.toInt)
-          if (cb.isDefined) cb.get(Right(cqe.res))
+          val res = cqe.res
+          handleCompletion(category, res)
+          if (cb.isDefined) cb.get(Right(res))
         }
         i += 1
       }
@@ -366,6 +497,25 @@ object UringSystem extends PollingSystem {
 
   private final val POLLIN: Int = 0x001
   private final val POLLOUT: Int = 0x004
+
+  private final val OpReadv = 1
+  private final val OpWritev = 2
+  private final val OpReadFixed = 4
+  private final val OpWriteFixed = 5
+  private final val OpSendmsg = 9
+  private final val OpRecvmsg = 10
+  private final val OpAccept = 13
+  private final val OpConnect = 16
+  private final val OpRead = 22
+  private final val OpWrite = 23
+  private final val OpSend = 26
+  private final val OpRecv = 27
+
+  private final val CategoryUntracked = 0
+  private final val CategoryRead = 1
+  private final val CategoryWrite = 2
+  private final val CategoryAccept = 3
+  private final val CategoryConnect = 4
 
   @nowarn212
   @link("uring")
