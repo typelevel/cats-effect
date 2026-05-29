@@ -99,6 +99,14 @@ class UringSystemSuite extends BaseSuite {
     }
   }
 
+  real("bracket runs the release callback on Resource cleanup") {
+    Ref.of[IO, Boolean](false).flatMap { released =>
+      UringSystem.Uring.get.flatMap { uring =>
+        uring.bracket(io_uring_prep_nop)(_ => released.set(true)).use(_ => IO.unit)
+      } *> released.get.map(assert(_))
+    }
+  }
+
   real("cancel a pending poll_add") {
     pipeHandle.use {
       case (readFd, _) =>
