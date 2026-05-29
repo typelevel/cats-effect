@@ -19,6 +19,7 @@ package unsafe
 
 import cats.effect.std.CountDownLatch
 import cats.effect.unsafe.UringSystem.liburingOps._
+import cats.effect.unsafe.metrics.PollerMetrics
 import cats.syntax.all._
 
 import scala.concurrent.duration._
@@ -201,8 +202,137 @@ class UringSystemSuite extends BaseSuite {
   }
 
   /////////////////////////////////////////////////////////////////
+  // Metrics
+  /////////////////////////////////////////////////////////////////
+
+  real("untracked opcodes (NOP) do not increment any metric bucket") {
+    for {
+      before <- snapshot
+      _ <- UringSystem.Uring.get.flatMap(_.call(io_uring_prep_nop)).replicateA_(5)
+      after <- snapshot
+    } yield {
+      assertEquals(after.totalSubmitted - before.totalSubmitted, 0L)
+      assertEquals(after.totalSucceeded - before.totalSucceeded, 0L)
+    }
+  }
+
+  real("pollReadRec increments read submitted and succeeded counters") {
+    mkPipe.use { pipe =>
+      for {
+        before <- snapshot
+        _ <- pipe.write(Array[Byte](42), 0, 1).background.surround {
+          pipe.read(new Array[Byte](1), 0, 1)
+        }
+        after <- snapshot
+      } yield {
+        assert(after.readSubmitted - before.readSubmitted >= 1L)
+        assert(after.readSucceeded - before.readSucceeded >= 1L)
+        assertEquals(after.readErrored - before.readErrored, 0L)
+        assertEquals(after.readCanceled - before.readCanceled, 0L)
+        assertEquals(after.readOutstanding, before.readOutstanding)
+      }
+    }
+  }
+
+  real("POLL_ADD with POLLOUT classifies as a write op") {
+    val POLLOUT: CUnsignedInt = 0x004.toUInt
+    pipeHandle.use {
+      case (_, writeFd) =>
+        for {
+          before <- snapshot
+          uring <- UringSystem.Uring.get
+          _ <- uring.call(io_uring_prep_poll_add(_, writeFd, POLLOUT))
+          after <- snapshot
+        } yield {
+          assertEquals(after.writeSubmitted - before.writeSubmitted, 1L)
+          assertEquals(after.writeSucceeded - before.writeSucceeded, 1L)
+          assertEquals(after.writeOutstanding, before.writeOutstanding)
+        }
+    }
+  }
+
+  real("POLL_ADD on a closed fd increments read errored counter") {
+    val POLLIN: CUnsignedInt = 0x001.toUInt
+    val makeClosedFd = IO {
+      val fd = stackalloc[CInt](2)
+      if (unistd.pipe(fd) != 0)
+        throw new IOException(fromCString(strerror(errno)))
+      val readFd = fd(0)
+      unistd.close(fd(1))
+      unistd.close(readFd)
+      readFd
+    }
+    makeClosedFd.flatMap { closedFd =>
+      for {
+        before <- snapshot
+        uring <- UringSystem.Uring.get
+        // .attempt absorbs the IOException raised by flatTap on res < 0
+        _ <- uring.call(io_uring_prep_poll_add(_, closedFd, POLLIN)).attempt
+        after <- snapshot
+      } yield {
+        assert(after.readSubmitted - before.readSubmitted >= 1L)
+        assert(after.readErrored - before.readErrored >= 1L)
+        assertEquals(after.readCanceled - before.readCanceled, 0L)
+        assertEquals(after.readOutstanding, before.readOutstanding)
+      }
+    }
+  }
+
+  real("cancelling a pending poll_add increments read canceled counter") {
+    val POLLIN: CUnsignedInt = 0x001.toUInt
+    pipeHandle.use {
+      case (readFd, _) =>
+        for {
+          before <- snapshot
+          uring <- UringSystem.Uring.get
+          fiber <- uring.call(io_uring_prep_poll_add(_, readFd, POLLIN)).start
+          _ <- (IO.cede *> snapshot).iterateUntil(_.readSubmitted > before.readSubmitted)
+          _ <- fiber.cancel *> fiber.join
+          after <- snapshot
+        } yield {
+          assert(after.readSubmitted - before.readSubmitted >= 1L)
+          assert(after.readCanceled - before.readCanceled >= 1L)
+        }
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////
   // Helpers
   /////////////////////////////////////////////////////////////////
+
+  private final class Snapshot(
+      val totalSubmitted: Long,
+      val totalSucceeded: Long,
+      val readSubmitted: Long,
+      val readSucceeded: Long,
+      val readErrored: Long,
+      val readCanceled: Long,
+      val readOutstanding: Int,
+      val writeSubmitted: Long,
+      val writeSucceeded: Long,
+      val writeOutstanding: Int
+  )
+
+  private def snapshot: IO[Snapshot] = IO {
+    val pollers: List[PollerMetrics] =
+      uringRuntime.metrics.workStealingThreadPool.toList.flatMap(_.workerThreads.map(_.poller))
+
+    def sum[N](f: PollerMetrics => N)(implicit num: Numeric[N]): N =
+      pollers.foldLeft(num.zero)((acc, p) => num.plus(acc, f(p)))
+
+    new Snapshot(
+      totalSubmitted = sum(_.totalOperationsSubmittedCount()),
+      totalSucceeded = sum(_.totalOperationsSucceededCount()),
+      readSubmitted = sum(_.totalReadOperationsSubmittedCount()),
+      readSucceeded = sum(_.totalReadOperationsSucceededCount()),
+      readErrored = sum(_.totalReadOperationsErroredCount()),
+      readCanceled = sum(_.totalReadOperationsCanceledCount()),
+      readOutstanding = sum(_.readOperationsOutstandingCount()),
+      writeSubmitted = sum(_.totalWriteOperationsSubmittedCount()),
+      writeSucceeded = sum(_.totalWriteOperationsSucceededCount()),
+      writeOutstanding = sum(_.writeOperationsOutstandingCount())
+    )
+  }
 
   private final class Pipe(
       val readFd: Int,
