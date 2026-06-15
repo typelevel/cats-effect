@@ -1209,6 +1209,36 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
     }
   }
 
+  real("run finalisers when winning a timeout race") {
+    IO.ref(false).flatMap { ref =>
+      val res = Resource.make(ref.set(true))(_ => ref.set(false))
+      val timedRes = res.timeout(1.hour)
+      val check = timedRes.use_ *>
+        ref.get.ifM(IO.raiseError(new Exception("not released")), IO.unit)
+      check.replicateA_(10000)
+    }
+  }
+
+  real("run finalisers when losing a timeout race") {
+    IO.ref(true).flatMap { ref =>
+      val res = Resource.make(IO.sleep(100.millis))(_ => ref.set(false))
+      val timedRes = res.timeout(1.milli)
+      val check = timedRes.use_.attempt *> IO.sleep(150.millis) *>
+        ref.get.ifM(IO.raiseError(new Exception("not released")), IO.unit)
+      check.parReplicateA_(10000)
+    }
+  }
+
+  real("run nested finalisers when succeeding at the same time as the timeout") {
+    val go = IO.ref(false).flatMap { innerReleased =>
+      val inner = Resource.make(IO.unit)(_ => innerReleased.set(true))
+      val res = Resource.make(IO.sleep(100.millis).flatMap(_ => inner.use_))(_ => IO.unit)
+      res.timeout(100.millis).use_.attempt *> IO.sleep(150.millis) *>
+        innerReleased.get.ifM(IO.unit, IO.raiseError(new Exception("inner finaliser not run")))
+    }
+    go.parReplicateA_(10000)
+  }
+
   ticked("attempt - releases resource on error") { implicit ticker =>
     assertCompleteAs(
       IO.ref(0)

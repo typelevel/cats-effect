@@ -29,6 +29,8 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
+import java.util.concurrent.TimeoutException
+
 /**
  * `Resource` is a data structure which encodes the idea of executing an action which has an
  * associated finalizer that needs to be run when the action completes.
@@ -1496,6 +1498,28 @@ private[effect] trait ResourceTemporal[F[_]]
 
   def sleep(time: FiniteDuration): Resource[F, Unit] =
     Resource.sleep(time)
+
+  // Overridden because the GenTemporal default is implemented in terms of
+  // racePair, whose Resource instance (via start) does not guarantee the
+  // source's finalizers have run by the time use returns (#4489, regressed by
+  // #4059). Resource#race has the correct finalizer semantics (#3226), so we
+  // express the timeout in terms of it instead.
+  override protected def timeoutTo[A](
+      fa: Resource[F, A],
+      duration: FiniteDuration,
+      fallback: Resource[F, A]): Resource[F, A] =
+    fa.race(Resource.sleep[F](duration)).flatMap {
+      case Left(a) => Resource.pure[F, A](a)
+      case Right(()) => fallback
+    }
+
+  override protected def timeout[A](fa: Resource[F, A], duration: FiniteDuration)(
+      implicit ev: TimeoutException <:< Throwable): Resource[F, A] =
+    fa.race(Resource.sleep[F](duration)).flatMap {
+      case Left(a) => Resource.pure[F, A](a)
+      case Right(()) =>
+        Resource.eval(F.raiseError[A](new TimeoutException(duration.toString())))
+    }
 }
 
 abstract private[effect] class ResourceAsync[F[_]]
