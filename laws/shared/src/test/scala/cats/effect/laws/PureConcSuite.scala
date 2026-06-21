@@ -190,6 +190,62 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
       assertEquals(forked, Outcome.Succeeded[Option, Int, Unit](None))
     }
 
+    test("ignore poll from another fiber") {
+      val t = for {
+        started <- F.deferred[Unit]
+        polled <- F.deferred[Unit]
+
+        parent <- F.start {
+          F.uncancelable { poll =>
+            started.complete(()) *>
+              F.start(poll(polled.complete(()) *> F.never[Unit])).void *>
+              polled.get *>
+              F.never[Unit]
+          }
+        }
+
+        _ <- started.get
+        _ <- polled.get
+        _ <- parent.cancel
+      } yield ()
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Unit](None))
+    }
+
+    test("run finalizers around a self-canceling polled region") {
+      val t = for {
+        finalized <- F.ref(0)
+        fiber <- F.start {
+          F.uncancelable { poll =>
+            F.onCancel(poll(F.canceled), finalized.update(_ + 1))
+          }
+        }
+        _ <- fiber.join
+        back <- finalized.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
+    }
+
+    test("observe pending self-cancel before running a polled region") {
+      val t = for {
+        finalized <- F.ref(0)
+        ran <- F.ref(false)
+        fiber <- F.start {
+          F.uncancelable { poll =>
+            F.canceled *> F.onCancel(poll(ran.set(true)), finalized.update(_ + 1))
+          }
+        }
+        _ <- fiber.join
+        fin <- finalized.get
+        body <- ran.get
+      } yield (fin, body)
+
+      assertEquals(
+        pure.run(t),
+        Outcome.Succeeded[Option, Int, (Int, Boolean)](Some((1, false))))
+    }
+
     test("implement locals via Kleisli and FreeT") {
       import cats.{~>, Eval, Id}
       import cats.data.Kleisli
