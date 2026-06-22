@@ -323,6 +323,23 @@ class PureConcSuite
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
     }
 
+    test("run outer finalizers when a masked self-cancel is observed inside poll") {
+      val t = for {
+        finalized <- F.ref(0)
+        fiber <- F.start {
+          F.onCancel(
+            F.uncancelable { poll =>
+              poll(F.uncancelable(_ => F.canceled))
+            },
+            finalized.update(_ + 1))
+        }
+        _ <- fiber.join
+        back <- finalized.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
+    }
+
     test("observe pending self-cancel before running a polled region") {
       val t = for {
         finalized <- F.ref(0)
