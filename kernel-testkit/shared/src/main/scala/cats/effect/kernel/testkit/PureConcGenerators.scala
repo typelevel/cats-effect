@@ -39,9 +39,8 @@ object PureConcGenerators {
       override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[PureConc[E, *]]) =
         super
           .recursiveGen[B](deeper)
-          .filterNot(
-            gen => gen._1 == "racePair" || gen._1 == "join"
-          ) // remove generators which reify nondeterminism and cannot be law-tested
+          .filterNot(gen =>
+            gen._1 == "racePair" || gen._1 == "join") // remove generators which reify nondeterminism and cannot be law-tested
     }
 
   implicit def arbitraryPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]

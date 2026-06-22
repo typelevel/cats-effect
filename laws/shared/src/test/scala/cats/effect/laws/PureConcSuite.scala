@@ -31,8 +31,8 @@ import munit.DisciplineSuite
 
 private[laws] trait PureConcSuiteLowPriorityTimeTInstances {
   implicit def orderTimeTPureConcFiniteDuration(
-      implicit FA: Order[PureConc[Int, FiniteDuration]]): Order[
-    TimeT[PureConc[Int, *], FiniteDuration]] =
+      implicit FA: Order[PureConc[Int, FiniteDuration]])
+      : Order[TimeT[PureConc[Int, *], FiniteDuration]] =
     TimeT.orderTimeT
 }
 
@@ -46,8 +46,8 @@ class PureConcSuite
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
 
-  implicit def eqTimeTPureConc[A](implicit FA: Eq[PureConc[Int, A]]): Eq[
-    TimeT[PureConc[Int, *], A]] =
+  implicit def eqTimeTPureConc[A](
+      implicit FA: Eq[PureConc[Int, A]]): Eq[TimeT[PureConc[Int, *], A]] =
     TimeT.eqTimeT
 
   {
@@ -295,9 +295,7 @@ class PureConcSuite
       val t = for {
         finalized <- F.ref(0)
         fiber <- F.start {
-          F.uncancelable { poll =>
-            F.onCancel(poll(F.canceled), finalized.update(_ + 1))
-          }
+          F.uncancelable { poll => F.onCancel(poll(F.canceled), finalized.update(_ + 1)) }
         }
         _ <- fiber.join
         back <- finalized.get
@@ -310,11 +308,7 @@ class PureConcSuite
       val t = for {
         finalized <- F.ref(0)
         fiber <- F.start {
-          F.onCancel(
-            F.uncancelable { poll =>
-              poll(F.canceled)
-            },
-            finalized.update(_ + 1))
+          F.onCancel(F.uncancelable { poll => poll(F.canceled) }, finalized.update(_ + 1))
         }
         _ <- fiber.join
         back <- finalized.get
@@ -328,9 +322,7 @@ class PureConcSuite
         finalized <- F.ref(0)
         fiber <- F.start {
           F.onCancel(
-            F.uncancelable { poll =>
-              poll(F.uncancelable(_ => F.canceled))
-            },
+            F.uncancelable { poll => poll(F.uncancelable(_ => F.canceled)) },
             finalized.update(_ + 1))
         }
         _ <- fiber.join
@@ -403,13 +395,9 @@ class PureConcSuite
               .liftT[Id, Kleisli[Eval, Int, *], Unit](
                 Kleisli.liftF[Eval, Int, Unit](Eval.later(assertEquals(i, 42))))
               .flatMap(_ =>
-                read { i2 =>
-                  FreeT.liftT(Kleisli.liftF(Eval.later(assertEquals(i2, 42))))
-                })
+                read { i2 => FreeT.liftT(Kleisli.liftF(Eval.later(assertEquals(i2, 42)))) })
           }
-        } *> read { i =>
-          FreeT.liftT(Kleisli.liftF(Eval.later(assertEquals(i, 1))))
-        }
+        } *> read { i => FreeT.liftT(Kleisli.liftF(Eval.later(assertEquals(i, 1)))) }
       }
     }
 
@@ -432,11 +420,13 @@ class PureConcSuite
       assertEquals(
         pure.run(
           TimeT.run(T.race(T.sleep(2.seconds).as("slow"), T.sleep(1.second).as("fast")))),
-        Outcome.Succeeded[Option, Int, Either[String, String]](Some(Right("fast"))))
+        Outcome.Succeeded[Option, Int, Either[String, String]](Some(Right("fast")))
+      )
       assertEquals(
         pure.run(
           TimeT.run(T.race(T.sleep(1.second).as("fast"), T.sleep(2.seconds).as("slow")))),
-        Outcome.Succeeded[Option, Int, Either[String, String]](Some(Left("fast"))))
+        Outcome.Succeeded[Option, Int, Either[String, String]](Some(Left("fast")))
+      )
       assertEquals(
         pure.run(TimeT.run(T.race(T.canceled, T.never[Unit]).void)),
         Outcome.Canceled[Option, Int, Unit]())
@@ -445,24 +435,22 @@ class PureConcSuite
         Outcome.Canceled[Option, Int, Unit]())
       assertEquals(
         pure.run(
-          TimeT.run(
-            T.race(TimeT.liftF(F.uncancelable(_ => F.canceled.as(1))), T.never[Unit]))),
+          TimeT.run(T.race(TimeT.liftF(F.uncancelable(_ => F.canceled.as(1))), T.never[Unit]))),
         Outcome.Canceled[Option, Int, Either[Int, Unit]]())
       assertEquals(
         pure.run(
-          TimeT.run(
-            T.race(T.never[Unit], TimeT.liftF(F.uncancelable(_ => F.canceled.as(1)))))),
+          TimeT.run(T.race(T.never[Unit], TimeT.liftF(F.uncancelable(_ => F.canceled.as(1)))))),
         Outcome.Canceled[Option, Int, Either[Unit, Int]]())
       assertEquals(
         pure.run(
-          TimeT.run(
-            T.race(TimeT.liftF(F.start(F.unit).flatMap(_.join).as(1)), T.never[Unit]))),
-        Outcome.Succeeded[Option, Int, Either[Int, Unit]](Some(Left(1))))
+          TimeT.run(T.race(TimeT.liftF(F.start(F.unit).flatMap(_.join).as(1)), T.never[Unit]))),
+        Outcome.Succeeded[Option, Int, Either[Int, Unit]](Some(Left(1)))
+      )
       assertEquals(
         pure.run(
-          TimeT.run(
-            T.race(T.never[Unit], TimeT.liftF(F.start(F.unit).flatMap(_.join).as(1))))),
-        Outcome.Succeeded[Option, Int, Either[Unit, Int]](Some(Right(1))))
+          TimeT.run(T.race(T.never[Unit], TimeT.liftF(F.start(F.unit).flatMap(_.join).as(1))))),
+        Outcome.Succeeded[Option, Int, Either[Unit, Int]](Some(Right(1)))
+      )
     }
 
   }

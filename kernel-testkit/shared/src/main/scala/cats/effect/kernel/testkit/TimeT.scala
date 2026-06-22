@@ -171,9 +171,8 @@ private[effect] object TimeT {
         }
       }
 
-    override def raceOutcome[A, B](fa: TimeT[F, A], fb: TimeT[F, B]): TimeT[
-      F,
-      Either[Outcome[TimeT[F, *], E, A], Outcome[TimeT[F, *], E, B]]] =
+    override def raceOutcome[A, B](fa: TimeT[F, A], fb: TimeT[F, B])
+        : TimeT[F, Either[Outcome[TimeT[F, *], E, A], Outcome[TimeT[F, *], E, B]]] =
       uncancelable { poll =>
         poll(racePair(fa, fb)).flatMap {
           case Left((oc, f)) => f.cancel.as(Left(oc))
