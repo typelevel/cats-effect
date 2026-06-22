@@ -17,8 +17,9 @@
 package cats.effect
 package laws
 
+import cats.{Eq, Order}
 import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}
-import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.TimeT.{eqTimeT => _, orderTimeT => _, _}
 import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
 
@@ -28,15 +29,26 @@ import scala.concurrent.duration._
 
 import munit.DisciplineSuite
 
-class PureConcSuite extends DisciplineSuite with BaseSuite {
+private[laws] trait PureConcSuiteLowPriorityTimeTInstances {
+  implicit def orderTimeTPureConcFiniteDuration(
+      implicit FA: Order[PureConc[Int, FiniteDuration]]): Order[
+    TimeT[PureConc[Int, *], FiniteDuration]] =
+    TimeT.orderTimeT
+}
+
+class PureConcSuite
+    extends DisciplineSuite
+    with BaseSuite
+    with PureConcSuiteLowPriorityTimeTInstances {
   import PureConcGenerators._
   import OutcomeGenerators._
 
-  override def scalaCheckInitialSeed =
-    "ogn64yom4GXCEX0mXdqSfsqSeJxI2RbPUFC5YkvDtzD="
-
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
+
+  implicit def eqTimeTPureConc[A](implicit FA: Eq[PureConc[Int, A]]): Eq[
+    TimeT[PureConc[Int, *], A]] =
+    TimeT.eqTimeT
 
   {
     import cats.effect.kernel.{GenConcurrent, Outcome}
@@ -86,7 +98,7 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
   }
 
   {
-    import cats.effect.kernel.{GenConcurrent, Outcome}
+    import cats.effect.kernel.{GenConcurrent, GenTemporal, Outcome}
     import cats.effect.kernel.implicits._
     import cats.syntax.all._
 
@@ -169,6 +181,22 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Unit](None))
     }
 
+    test("hang when canceling fiber blocked on cancel finalization") {
+      val t = for {
+        targetStarted <- F.deferred[Unit]
+        finalizerStarted <- F.deferred[Unit]
+        target <- F.start(
+          (targetStarted.complete(()) *> F.never[Unit])
+            .onCancel(finalizerStarted.complete(()) *> F.never[Unit]))
+        _ <- targetStarted.get
+        canceler <- F.start(target.cancel)
+        _ <- finalizerStarted.get
+        _ <- canceler.cancel
+      } yield ()
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Unit](None))
+    }
+
     test("run finalizers in order") {
       val t = for {
         results <- F.ref[String]("")
@@ -180,6 +208,36 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
       } yield back
 
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, String](Some("AB")))
+    }
+
+    test("ignore cancelation of a fiber after racePair has completed") {
+      val t = for {
+        finalized <- F.ref(0)
+        fiber <- F.start {
+          F.racePair(F.unit, F.never[Unit]).void.onCancel(finalized.update(_ + 1))
+        }
+        _ <- fiber.join
+        _ <- fiber.cancel
+        _ <- F.cede
+        back <- finalized.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(0)))
+    }
+
+    test("ignore cancelation of a fiber after race has completed") {
+      val t = for {
+        finalized <- F.ref(0)
+        fiber <- F.start {
+          F.race(F.unit, F.never[Unit]).void.onCancel(finalized.update(_ + 1))
+        }
+        _ <- fiber.join
+        _ <- fiber.cancel
+        _ <- F.cede
+        back <- finalized.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(0)))
     }
 
     test("correctly interpret uncancelable cancelation followed by suspension") {
@@ -212,6 +270,27 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Unit](None))
     }
 
+    test("observe external cancelation while blocked inside poll") {
+      val t = for {
+        started <- F.deferred[Unit]
+        polled <- F.deferred[Unit]
+        gate <- F.deferred[Unit]
+        ran <- F.ref(false)
+        fiber <- F.start {
+          F.uncancelable { poll =>
+            started.complete(()) *>
+              poll(polled.complete(()) *> gate.get *> ran.set(true))
+          }
+        }
+        canceler <- F.start(polled.get *> fiber.cancel)
+        _ <- started.get
+        _ <- canceler.join
+        back <- ran.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Boolean](Some(false)))
+    }
+
     test("run finalizers around a self-canceling polled region") {
       val t = for {
         finalized <- F.ref(0)
@@ -219,6 +298,23 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
           F.uncancelable { poll =>
             F.onCancel(poll(F.canceled), finalized.update(_ + 1))
           }
+        }
+        _ <- fiber.join
+        back <- finalized.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
+    }
+
+    test("run outer finalizers around a self-canceling polled region") {
+      val t = for {
+        finalized <- F.ref(0)
+        fiber <- F.start {
+          F.onCancel(
+            F.uncancelable { poll =>
+              poll(F.canceled)
+            },
+            finalized.update(_ + 1))
         }
         _ <- fiber.join
         back <- finalized.get
@@ -244,6 +340,23 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
       assertEquals(
         pure.run(t),
         Outcome.Succeeded[Option, Int, (Int, Boolean)](Some((1, false))))
+    }
+
+    test("observe nested self-cancel inside a polled region before continuing") {
+      val t = for {
+        ran <- F.ref(false)
+        fiber <- F.start {
+          F.uncancelable { poll =>
+            poll {
+              F.uncancelable(_ => F.canceled) *> ran.set(true)
+            }
+          }
+        }
+        _ <- fiber.join
+        back <- ran.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Boolean](Some(false)))
     }
 
     test("implement locals via Kleisli and FreeT") {
@@ -282,6 +395,59 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
         }
       }
     }
+
+    test("race TimeT values against never") {
+      type T[A] = TimeT[F, A]
+      val T = GenTemporal[T, Int]
+
+      assertEquals(
+        pure.run(TimeT.run(T.race(T.pure(1), T.never[Unit]))),
+        Outcome.Succeeded[Option, Int, Either[Int, Unit]](Some(Left(1))))
+      assertEquals(
+        pure.run(TimeT.run(T.race(T.never[Unit], T.pure(1)))),
+        Outcome.Succeeded[Option, Int, Either[Unit, Int]](Some(Right(1))))
+      assertEquals(
+        pure.run(TimeT.run(T.race(T.sleep(1.second).as(1), T.never[Unit]))),
+        Outcome.Succeeded[Option, Int, Either[Int, Unit]](Some(Left(1))))
+      assertEquals(
+        pure.run(TimeT.run(T.race(T.never[Unit], T.sleep(1.second).as(1)))),
+        Outcome.Succeeded[Option, Int, Either[Unit, Int]](Some(Right(1))))
+      assertEquals(
+        pure.run(
+          TimeT.run(T.race(T.sleep(2.seconds).as("slow"), T.sleep(1.second).as("fast")))),
+        Outcome.Succeeded[Option, Int, Either[String, String]](Some(Right("fast"))))
+      assertEquals(
+        pure.run(
+          TimeT.run(T.race(T.sleep(1.second).as("fast"), T.sleep(2.seconds).as("slow")))),
+        Outcome.Succeeded[Option, Int, Either[String, String]](Some(Left("fast"))))
+      assertEquals(
+        pure.run(TimeT.run(T.race(T.canceled, T.never[Unit]).void)),
+        Outcome.Canceled[Option, Int, Unit]())
+      assertEquals(
+        pure.run(TimeT.run(T.race(T.never[Unit], T.canceled).void)),
+        Outcome.Canceled[Option, Int, Unit]())
+      assertEquals(
+        pure.run(
+          TimeT.run(
+            T.race(TimeT.liftF(F.uncancelable(_ => F.canceled.as(1))), T.never[Unit]))),
+        Outcome.Canceled[Option, Int, Either[Int, Unit]]())
+      assertEquals(
+        pure.run(
+          TimeT.run(
+            T.race(T.never[Unit], TimeT.liftF(F.uncancelable(_ => F.canceled.as(1)))))),
+        Outcome.Canceled[Option, Int, Either[Unit, Int]]())
+      assertEquals(
+        pure.run(
+          TimeT.run(
+            T.race(TimeT.liftF(F.start(F.unit).flatMap(_.join).as(1)), T.never[Unit]))),
+        Outcome.Succeeded[Option, Int, Either[Int, Unit]](Some(Left(1))))
+      assertEquals(
+        pure.run(
+          TimeT.run(
+            T.race(T.never[Unit], TimeT.liftF(F.start(F.unit).flatMap(_.join).as(1))))),
+        Outcome.Succeeded[Option, Int, Either[Unit, Int]](Some(Right(1))))
+    }
+
   }
 
   checkAll(
