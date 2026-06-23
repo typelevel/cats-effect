@@ -1499,67 +1499,27 @@ private[effect] trait ResourceTemporal[F[_]]
   def sleep(time: FiniteDuration): Resource[F, Unit] =
     Resource.sleep(time)
 
-  // The GenTemporal default is implemented in terms of racePair, whose Resource
-  // instance (via start) does not guarantee the source's finalizers have run by
-  // the time use returns (#4489, regressed by #4059). Resource#race has the
-  // correct finalizer semantics for the *winner* (#3226), but when the timeout
-  // fires we discard the winning (sleep) resource and must release the raced
-  // source eagerly before the fallback is acquired. race defers loser cleanup
-  // to the winner's finalizer via a forked cancelLoser, which would leak
-  // (release late) a source that completes simultaneously with the timeout. So
-  // we inline racePair on allocatedCase and release the loser synchronously,
-  // without start.
-  private def raceTimeout[A](
-      fa: Resource[F, A],
-      duration: FiniteDuration,
-      fallback: Resource[F, A]): Resource[F, A] =
-    Resource.applyFull { poll =>
-      def releaseLoser[C](f: Fiber[F, Throwable, (C, Resource.ExitCase => F[Unit])]): F[Unit] =
-        f.cancel *> f.join.flatMap {
-          case Outcome.Succeeded(fc) => fc.flatMap(_._2.apply(Resource.ExitCase.Canceled))
-          case _ => F.unit
-        }
-
-      poll(F.racePair(fa.allocatedCase[A], Resource.sleep[F](duration).allocatedCase[Unit]))
-        .flatMap {
-          case Left((oc, sleeper)) =>
-            oc match {
-              case Outcome.Succeeded(fa0) =>
-                releaseLoser(sleeper) *> fa0
-              case Outcome.Errored(e) =>
-                releaseLoser(sleeper) *> F.raiseError[(A, Resource.ExitCase => F[Unit])](e)
-              case Outcome.Canceled() =>
-                releaseLoser(sleeper) *> poll(fallback.allocatedCase[A])
-            }
-          case Right((faLoser, oc)) =>
-            oc match {
-              case Outcome.Succeeded(_) =>
-                releaseLoser(faLoser) *> poll(fallback.allocatedCase[A])
-              case Outcome.Errored(e) =>
-                releaseLoser(faLoser) *> F.raiseError[(A, Resource.ExitCase => F[Unit])](e)
-              case Outcome.Canceled() =>
-                faLoser.cancel *> faLoser.join.flatMap {
-                  case Outcome.Succeeded(fa0) => fa0
-                  case Outcome.Errored(e) => F.raiseError[(A, Resource.ExitCase => F[Unit])](e)
-                  case Outcome.Canceled() =>
-                    poll(F.canceled) *> F.never[(A, Resource.ExitCase => F[Unit])]
-                }
-            }
-        }
-    }
-
+  // Overridden because the GenTemporal default is implemented in terms of
+  // racePair, whose Resource instance (via start) does not guarantee the
+  // source's finalizers have run by the time use returns (#4489, regressed by
+  // #4059). Resource#race has the correct finalizer semantics (#3226), so we
+  // express the timeout in terms of it instead.
   override protected def timeoutTo[A](
       fa: Resource[F, A],
       duration: FiniteDuration,
       fallback: Resource[F, A]): Resource[F, A] =
-    raceTimeout(fa, duration, fallback)
+    fa.race(Resource.sleep[F](duration)).flatMap {
+      case Left(a) => Resource.pure[F, A](a)
+      case Right(()) => fallback
+    }
 
   override protected def timeout[A](fa: Resource[F, A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< Throwable): Resource[F, A] =
-    raceTimeout(
-      fa,
-      duration,
-      Resource.eval(F.raiseError[A](new TimeoutException(duration.toString()))))
+    fa.race(Resource.sleep[F](duration)).flatMap {
+      case Left(a) => Resource.pure[F, A](a)
+      case Right(()) =>
+        Resource.eval(F.raiseError[A](new TimeoutException(duration.toString())))
+    }
 }
 
 abstract private[effect] class ResourceAsync[F[_]]
