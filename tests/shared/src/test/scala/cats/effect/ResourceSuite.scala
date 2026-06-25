@@ -1209,7 +1209,9 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
     }
   }
 
-  real("run finalisers when winning a timeout race") {
+  // github.com/typelevel/cats-effect/issues/4489
+  // doesn't show up with the ticker variant
+  real("run finalisers when winning a timeout race (real)") {
     IO.ref(false).flatMap { ref =>
       val res = Resource.make(ref.set(true))(_ => ref.set(false))
       val timedRes = res.timeout(1.hour)
@@ -1219,26 +1221,36 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
     }
   }
 
-  // TODO this fails on Windows, maybe needs to be re-written as a ticker
-  real("run finalisers when losing a timeout race".ignore) {
-    IO.ref(true).flatMap { ref =>
+  ticked("run finalisers when winning a timeout race (ticked)") { implicit ticker =>
+    val go = IO.ref(false).flatMap { ref =>
+      val res = Resource.make(ref.set(true))(_ => ref.set(false))
+      val timedRes = res.timeout(1.hour)
+      timedRes.use_ *>
+        ref.get.ifM(IO.raiseError(new Exception("not released")), IO.unit)
+    }
+    assertCompleteAs(go, ())
+  }
+
+  ticked("run finalisers when losing a timeout race") { implicit ticker =>
+    val go = IO.ref(true).flatMap { ref =>
       val res = Resource.make(IO.sleep(100.millis))(_ => ref.set(false))
       val timedRes = res.timeout(1.milli)
-      val check = timedRes.use_.attempt *> IO.sleep(150.millis) *>
+      timedRes.use_.attempt *> IO.sleep(150.millis) *>
         ref.get.ifM(IO.raiseError(new Exception("not released")), IO.unit)
-      check.parReplicateA_(10000)
     }
+    assertCompleteAs(go, ())
   }
 
   // TODO this test is failing, indicating a timing bug with Resource
-  real("run nested finalisers when succeeding at the same time as the timeout".ignore) {
-    val go = IO.ref(false).flatMap { ref =>
-      val inner = Resource.make(ref.set(true))(_ => ref.set(false))
-      val res = Resource.make(IO.sleep(99.millis).flatMap(_ => inner.use_))(_ => IO.unit)
-      res.timeout(100.millis).use_.attempt *> IO.sleep(150.millis) *>
-        ref.get.ifM(IO.unit, IO.raiseError(new Exception("inner finaliser not run")))
-    }
-    go.parReplicateA_(100000)
+  ticked("run nested finalisers when succeeding at the same time as the timeout".ignore) {
+    implicit ticker =>
+      val go = IO.ref(false).flatMap { ref =>
+        val inner = Resource.make(ref.set(true))(_ => ref.set(false))
+        val res = Resource.make(IO.sleep(99.millis).flatMap(_ => inner.use_))(_ => IO.unit)
+        res.timeout(100.millis).use_.attempt *> IO.sleep(150.millis) *>
+          ref.get.ifM(IO.unit, IO.raiseError(new Exception("inner finaliser not run")))
+      }
+      assertCompleteAs(go, ())
   }
 
   ticked("attempt - releases resource on error") { implicit ticker =>
