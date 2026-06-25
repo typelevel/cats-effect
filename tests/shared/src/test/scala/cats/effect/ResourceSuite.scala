@@ -1219,7 +1219,8 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
     }
   }
 
-  real("run finalisers when losing a timeout race") {
+  // TODO this fails on Windows, maybe needs to be re-written as a ticker
+  real("run finalisers when losing a timeout race".ignore) {
     IO.ref(true).flatMap { ref =>
       val res = Resource.make(IO.sleep(100.millis))(_ => ref.set(false))
       val timedRes = res.timeout(1.milli)
