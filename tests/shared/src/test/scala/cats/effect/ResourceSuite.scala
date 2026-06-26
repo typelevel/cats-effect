@@ -1209,6 +1209,20 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
     }
   }
 
+  real("ensure a timed out resource runs its onCancel".ignore) {
+    IO.ref(true) flatMap { fired =>
+      Resource
+        .eval(IO.sleep(100.millis).onCancel(fired.set(false)).timeout(100.millis))
+        .use_
+        .attempt
+        .flatMap {
+          case Left(_) => IO.unit
+          case Right(_) =>
+            fired.get.ifM(IO.raiseError(new Exception("didn't run the cancelation")), IO.unit)
+        }
+    }
+  }
+
   // github.com/typelevel/cats-effect/issues/4489
   // doesn't show up with the ticker variant
   real("run finalisers when winning a timeout race (real)") {
