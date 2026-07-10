@@ -2223,7 +2223,9 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     for {
       ready <- Deferred[IO, Unit]
       requested <- Deferred[IO, Unit]
-      fiber <- (ready.complete(()) *> IO.never).onCancelRequested(requested.complete(()).void).start
+      fiber <- (ready.complete(()) *> IO.never)
+        .onCancelRequested(requested.complete(()).void)
+        .start
       _ <- ready.get
       _ <- fiber.cancel
       _ <- requested.get
@@ -2234,7 +2236,10 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     for {
       ready <- Deferred[IO, Unit]
       requested <- Deferred[IO, Unit]
-      fiber <- (ready.complete(()) *> requested.get).onCancelRequested(requested.complete(()).void).uncancelable.start
+      fiber <- (ready.complete(()) *> requested.get)
+        .onCancelRequested(requested.complete(()).void)
+        .uncancelable
+        .start
       _ <- ready.get
       _ <- fiber.cancel
     } yield ()
