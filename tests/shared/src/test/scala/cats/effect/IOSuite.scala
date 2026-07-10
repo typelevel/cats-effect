@@ -2221,8 +2221,10 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
 
   real("onCancelRequested - invoked when canceled") {
     for {
+      ready <- Deferred[IO, Unit]
       requested <- Deferred[IO, Unit]
-      fiber <- IO.never.onCancelRequested(requested.complete(()).void).start
+      fiber <- (ready.complete(()) *> IO.never).onCancelRequested(requested.complete(()).void).start
+      _ <- ready.get
       _ <- fiber.cancel
       _ <- requested.get
     } yield ()
@@ -2230,8 +2232,10 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
 
   real("onCancelRequested - invoked when canceled while masked") {
     for {
+      ready <- Deferred[IO, Unit]
       requested <- Deferred[IO, Unit]
-      fiber <- requested.get.onCancelRequested(requested.complete(()).void).uncancelable.start
+      fiber <- (ready.complete(()) *> requested.get).onCancelRequested(requested.complete(()).void).uncancelable.start
+      _ <- ready.get
       _ <- fiber.cancel
     } yield ()
   }
