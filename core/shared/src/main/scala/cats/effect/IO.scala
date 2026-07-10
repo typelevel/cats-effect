@@ -590,6 +590,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
 
+  def onCancelRequested(ack: IO[Unit]): IO[A] = {
+    val complete = IO.PopCancelRequested.flatMap {
+      case Some(fiber) => fiber.join.void
+      case None => IO.unit
+    }
+
+    IO.uncancelable(poll => IO.PushCancelRequested(ack) *> poll(this).guarantee(complete))
+  }
+
   @deprecated("Use onError with PartialFunction argument", "3.6.0")
   private[effect] def onError(f: Throwable => IO[Unit]): IO[A] = {
     val pf: PartialFunction[Throwable, IO[Unit]] = { case t => f(t).reportError }
@@ -2059,6 +2068,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     def onCancel[A](ioa: IO[A], fin: IO[Unit]): IO[A] =
       ioa.onCancel(fin)
 
+    override def onCancelRequested[A](ioa: IO[A], ack: IO[Unit]): IO[A] =
+      ioa.onCancelRequested(ack)
+
     override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
         release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
       IO.bracketFull(acquire)(use)(release)
@@ -2326,6 +2338,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
   private[effect] case object ReadRT extends IO[IORuntime] {
     def tag = 24
+  }
+
+  private[effect] final case class PushCancelRequested(ack: IO[Unit]) extends IO[Unit] {
+    def tag = 25
+  }
+
+  private[effect] case object PopCancelRequested extends IO[Option[FiberIO[Unit]]] {
+    def tag = 26
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations

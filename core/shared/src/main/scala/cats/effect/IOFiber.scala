@@ -86,6 +86,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
+  private[this] val acknowledgers: ArrayStack[IO[Unit]] = ArrayStack()
   private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack.of(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
@@ -102,6 +103,9 @@ private final class IOFiber[A](
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0
   private[this] var finalizing: Boolean = false
+
+  // The running cancelation acknowledgement, if any
+  private[this] var runningAcknowledgement: FiberIO[Unit] = null
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
@@ -146,6 +150,7 @@ private final class IOFiber[A](
 
     /* check to see if the target fiber is suspended */
     if (resume()) {
+      acknowledgeCancelation()
       /* ...it was! was it masked? */
       if (isUnmasked()) {
         /* ...nope! take over the target fiber's runloop and run the finalizers */
@@ -239,6 +244,7 @@ private final class IOFiber[A](
       }
     }
 
+    acknowledgeCancelation()
     if (shouldFinalize()) {
       val fin = prepareFiberForCancelation(null)
       runLoop(fin, nextCancelation, nextAutoCede)
@@ -531,6 +537,7 @@ private final class IOFiber[A](
         /* Canceled */
         case 10 =>
           canceled = true
+          acknowledgeCancelation()
           if (isUnmasked()) {
             /* run finalizers immediately */
             val fin = prepareFiberForCancelation(null)
@@ -832,6 +839,7 @@ private final class IOFiber[A](
                * finalisers.
                */
               if (resume()) {
+                acknowledgeCancelation()
                 if (shouldFinalize()) {
                   val fin = prepareFiberForCancelation(null)
                   runLoop(fin, nextCancelation, nextAutoCede)
@@ -877,6 +885,8 @@ private final class IOFiber[A](
                * we were canceled, but `cancel` cannot run the finalisers
                * because the runloop was not suspended, so we have to run them
                */
+              // TODO is this the right position? These conditions are odd
+              acknowledgeCancelation()
               val fin = prepareFiberForCancelation(null)
               runLoop(fin, nextCancelation, nextAutoCede)
             }
@@ -1068,6 +1078,27 @@ private final class IOFiber[A](
         /* ReadRT */
         case 24 =>
           runLoop(succeeded(runtime, 0), nextCancelation, nextAutoCede)
+
+        /* OnCancelRequested */
+        case 25 =>
+          val cur = cur0.asInstanceOf[PushCancelRequested]
+
+          acknowledgers.push(EvalOn(cur.ack, currentCtx))
+          // println(s"pushed onto acknowledgers: length = ${acknowledgers.unsafeIndex()}")
+
+          runLoop(IO.unit, nextCancelation, nextAutoCede)
+
+        case 26 =>
+          val _ = acknowledgers.pop()
+
+          if (runningAcknowledgement == null)
+            runLoop(IO.none, nextCancelation, nextAutoCede)
+          else {
+            val ack = runningAcknowledgement
+            runningAcknowledgement = null
+            runLoop(IO.some(ack), nextCancelation, nextAutoCede)
+          }
+
       }
     }
   }
@@ -1118,6 +1149,7 @@ private final class IOFiber[A](
     conts = null
     objectState.invalidate()
     finalizers.invalidate()
+    acknowledgers.invalidate()
     currentCtx = null
 
     if (isStackTracing) {
@@ -1160,6 +1192,25 @@ private final class IOFiber[A](
 
       // Exit from the run loop after this. The fiber is finished.
       IO.EndFiber
+    }
+  }
+
+  private[this] def acknowledgeCancelation(): Unit = {
+    if (canceled && runningAcknowledgement == null && !acknowledgers.isEmpty()) {
+      // println(s"$this: starting cancelation acknowledgement")
+      val acknowledgement = acknowledgers.peek()
+      val ec = currentCtx
+      val rt = runtime
+
+      val runningAcknowledgement = new IOFiber[Any](
+        localState,
+        null,
+        acknowledgement,
+        ec,
+        rt
+      )
+
+      scheduleFiber(ec, runningAcknowledgement)
     }
   }
 
@@ -1393,6 +1444,7 @@ private final class IOFiber[A](
 
       objectState.init(16)
       finalizers.init(16)
+      acknowledgers.init(16)
 
       val io = resumeIO
       resumeIO = null
@@ -1411,12 +1463,14 @@ private final class IOFiber[A](
   }
 
   private[this] def asyncContinueCanceledR(): Unit = {
+    acknowledgeCancelation()
     val fin = prepareFiberForCancelation(null)
     runLoop(fin, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def asyncContinueCanceledWithFinalizerR(): Unit = {
     val cb = objectState.pop().asInstanceOf[Either[Throwable, Unit] => Unit]
+    acknowledgeCancelation()
     val fin = prepareFiberForCancelation(cb)
     runLoop(fin, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
@@ -1507,6 +1561,7 @@ private final class IOFiber[A](
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
 
+    acknowledgeCancelation()
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
@@ -1525,6 +1580,7 @@ private final class IOFiber[A](
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
 
+    acknowledgeCancelation()
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueFailedR
       objectState.push(t)

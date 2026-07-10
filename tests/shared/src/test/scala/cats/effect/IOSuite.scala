@@ -2209,6 +2209,53 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield ()
   }
 
+  real("onCancelRequested - not invoked when not canceled") {
+    for {
+      requested <- Deferred[IO, Unit]
+      _ <- IO.unit.onCancelRequested(requested.complete(()).void)
+      _ <- requested
+        .complete(())
+        .flatMap(completed => IO(assert(completed, "onCancelRequested executed")))
+    } yield ()
+  }
+
+  real("onCancelRequested - invoked when canceled") {
+    for {
+      requested <- Deferred[IO, Unit]
+      fiber <- IO.never.onCancelRequested(requested.complete(()).void).start
+      _ <- fiber.cancel
+      _ <- requested.get
+    } yield ()
+  }
+
+  real("onCancelRequested - invoked when canceled while masked") {
+    for {
+      requested <- Deferred[IO, Unit]
+      fiber <- requested.get.onCancelRequested(requested.complete(()).void).uncancelable.start
+      _ <- fiber.cancel
+    } yield ()
+  }
+
+  real("joinOrCancel - gets result") {
+    for {
+      requested <- Deferred[IO, Boolean]
+      ioa <- requested
+        .get
+        .onCancelRequested(requested.complete(true).void)
+        .onCancel(requested.complete(false).void)
+        .uncancelable
+        .start
+      fiber <- ioa
+        .joinOrCancel
+        .flatMap(_.fold(IO.pure(false), _ => IO.pure(false), identity))
+        .uncancelable
+        .start
+      _ <- fiber.cancel
+      fiberResult <- fiber.join.flatMap(_.fold(IO.pure(false), _ => IO.pure(false), identity))
+      requestedResult <- requested.get
+    } yield assert(fiberResult == requestedResult)
+  }
+
   property("serialize") {
     forAll { (io: IO[Int]) => serializable(io) }(
       implicitly,

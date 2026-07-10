@@ -336,6 +336,20 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   def onCancel[A](fa: F[A], fin: F[Unit]): F[A]
 
   /**
+   * Registers an acknowledgement that is invoked asynchronously if cancelation is requested
+   * during the evaluation of `fa`. If the evaluation of `fa` completes without encountering a
+   * cancelation, the acknowledgement is unregistered before proceeding. If `ack` was invoked,
+   * further execution will be blocked until it completes. If cancelation is observed, the `ack`
+   * will be awaited on before cancelation completes.
+   *
+   * If asynchronous cancelation is not supported by `F`, this function equivalent to `fa`
+   */
+  def onCancelRequested[A](fa: F[A], ack: F[Unit]): F[A] = {
+    val _ = ack
+    fa
+  }
+
+  /**
    * Specifies an effect that is always invoked after evaluation of `fa` completes, regardless
    * of the outcome.
    *
@@ -648,6 +662,9 @@ object MonadCancel {
     def onCancel[A](fa: OptionT[F, A], fin: OptionT[F, Unit]): OptionT[F, A] =
       OptionT(F.onCancel(fa.value, fin.value.void))
 
+    override def onCancelRequested[A](fa: OptionT[F, A], ack: OptionT[F, Unit]): OptionT[F, A] =
+      OptionT(F.onCancelRequested(fa.value, ack.value.void))
+
     def forceR[A, B](fa: OptionT[F, A])(fb: OptionT[F, B]): OptionT[F, B] =
       OptionT(
         F.forceR(fa.value)(fb.value)
@@ -701,6 +718,11 @@ object MonadCancel {
 
     def onCancel[A](fa: EitherT[F, E0, A], fin: EitherT[F, E0, Unit]): EitherT[F, E0, A] =
       EitherT(F.onCancel(fa.value, fin.value.void))
+
+    override def onCancelRequested[A](
+        fa: EitherT[F, E0, A],
+        ack: EitherT[F, E0, Unit]): EitherT[F, E0, A] =
+      EitherT(F.onCancelRequested(fa.value, ack.value.void))
 
     def forceR[A, B](fa: EitherT[F, E0, A])(fb: EitherT[F, E0, B]): EitherT[F, E0, B] =
       EitherT(
@@ -756,6 +778,9 @@ object MonadCancel {
     def onCancel[A](fa: IorT[F, L, A], fin: IorT[F, L, Unit]): IorT[F, L, A] =
       IorT(F.onCancel(fa.value, fin.value.void))
 
+    override def onCancelRequested[A](fa: IorT[F, L, A], ack: IorT[F, L, Unit]): IorT[F, L, A] =
+      IorT(F.onCancelRequested(fa.value, ack.value.void))
+
     def forceR[A, B](fa: IorT[F, L, A])(fb: IorT[F, L, B]): IorT[F, L, B] =
       IorT(
         F.forceR(fa.value)(fb.value)
@@ -810,6 +835,11 @@ object MonadCancel {
     def onCancel[A](fa: Kleisli[F, R, A], fin: Kleisli[F, R, Unit]): Kleisli[F, R, A] =
       Kleisli { r => F.onCancel(fa.run(r), fin.run(r)) }
 
+    override def onCancelRequested[A](
+        fa: Kleisli[F, R, A],
+        ack: Kleisli[F, R, Unit]): Kleisli[F, R, A] =
+      Kleisli { r => F.onCancelRequested(fa.run(r), ack.run(r)) }
+
     def forceR[A, B](fa: Kleisli[F, R, A])(fb: Kleisli[F, R, B]): Kleisli[F, R, B] =
       Kleisli(r => F.forceR(fa.run(r))(fb.run(r)))
 
@@ -863,6 +893,11 @@ object MonadCancel {
     // Note that this does not preserve the log from the finalizer
     def onCancel[A](fa: WriterT[F, L, A], fin: WriterT[F, L, Unit]): WriterT[F, L, A] =
       WriterT(F.onCancel(fa.run, fin.value.void))
+
+    override def onCancelRequested[A](
+        fa: WriterT[F, L, A],
+        ack: WriterT[F, L, Unit]): WriterT[F, L, A] =
+      WriterT(F.onCancelRequested(fa.run, ack.value.void))
 
     def forceR[A, B](fa: WriterT[F, L, A])(fb: WriterT[F, L, B]): WriterT[F, L, B] =
       WriterT(
@@ -925,6 +960,11 @@ object MonadCancel {
     // discards state changes in fin, also fin cannot observe state changes in fa
     def onCancel[A](fa: StateT[F, S, A], fin: StateT[F, S, Unit]): StateT[F, S, A] =
       StateT[F, S, A](s => F.onCancel(fa.run(s), fin.runA(s)))
+
+    override def onCancelRequested[A](
+        fa: StateT[F, S, A],
+        ack: StateT[F, S, Unit]): StateT[F, S, A] =
+      StateT[F, S, A](s => F.onCancelRequested(fa.run(s), ack.runA(s)))
 
     def uncancelable[A](body: Poll[StateT[F, S, *]] => StateT[F, S, A]): StateT[F, S, A] =
       StateT[F, S, A] { s =>
@@ -990,6 +1030,12 @@ object MonadCancel {
         fa: ReaderWriterStateT[F, E0, L, S, A],
         fin: ReaderWriterStateT[F, E0, L, S, Unit]): ReaderWriterStateT[F, E0, L, S, A] =
       ReaderWriterStateT[F, E0, L, S, A]((e, s) => F.onCancel(fa.run(e, s), fin.runA(e, s)))
+
+    override def onCancelRequested[A](
+        fa: ReaderWriterStateT[F, E0, L, S, A],
+        ack: ReaderWriterStateT[F, E0, L, S, Unit]): ReaderWriterStateT[F, E0, L, S, A] =
+      ReaderWriterStateT[F, E0, L, S, A]((e, s) =>
+        F.onCancelRequested(fa.run(e, s), ack.runA(e, s)))
 
     def uncancelable[A](
         body: Poll[ReaderWriterStateT[F, E0, L, S, *]] => ReaderWriterStateT[F, E0, L, S, A])
