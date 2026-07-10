@@ -159,7 +159,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
       : F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]] = {
     implicit val F: GenConcurrent[F, E] = this
 
-    uncancelable { poll =>
+    uncancelable { _ =>
       for {
         result <-
           deferred[Either[Outcome[F, E, A], Outcome[F, E, B]]]
@@ -167,8 +167,8 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
         fibA <- start(guaranteeCase(fa)(oc => result.complete(Left(oc)).void))
         fibB <- start(guaranteeCase(fb)(oc => result.complete(Right(oc)).void))
 
-        back <- onCancel(
-          poll(result.get),
+        back <- onCancelRequested(
+          result.get,
           for {
             canA <- start(fibA.cancel)
             canB <- start(fibB.cancel)
