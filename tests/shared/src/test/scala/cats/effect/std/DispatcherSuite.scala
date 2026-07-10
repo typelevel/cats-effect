@@ -77,19 +77,21 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
       D.use { dispatcher =>
         IO.ref(0).flatMap { ctr1 =>
           IO.ref(0).flatMap { ctr2 =>
-            IO.fromFuture(IO {
-              val (_, cancel) = dispatcher.unsafeToFutureCancelable(IO.uncancelable { _ =>
-                ctr1.update(_ + 1) *> IO.sleep(0.1.second) *> ctr2.update(_ + 1)
+            IO.fromFuture(
+              IO {
+                val (_, cancel) = dispatcher.unsafeToFutureCancelable(IO.uncancelable { _ =>
+                  ctr1.update(_ + 1) *> IO.sleep(0.1.second) *> ctr2.update(_ + 1)
+                })
+                val cancelFut = cancel()
+                cancelFut
               })
-              val cancelFut = cancel()
-              cancelFut
-            }).flatMap { _ =>
-              // if we're here, `cancel()` finished, so
-              // either the task didn't run at all (i.e.,
-              // it was cancelled before starting), or
-              // it ran and already finished completely:
-              (ctr1.get, ctr2.get).flatMapN { (v1, v2) => IO(assertEquals(v1, v2)) }
-            }
+              .flatMap { _ =>
+                // if we're here, `cancel()` finished, so
+                // either the task didn't run at all (i.e.,
+                // it was cancelled before starting), or
+                // it ran and already finished completely:
+                (ctr1.get, ctr2.get).flatMapN { (v1, v2) => IO(assertEquals(v1, v2)) }
+              }
           }
         }
       }.replicateA_(if (isJVM) 10000 else 1)
@@ -594,11 +596,12 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
 
       real("complete / cancel race") {
         val tsk = dispatcher.use { dispatcher =>
-          IO.fromFuture(IO {
-            val (_, cancel) = dispatcher.unsafeToFutureCancelable(IO.unit)
-            val cancelFut = cancel()
-            cancelFut
-          })
+          IO.fromFuture(
+            IO {
+              val (_, cancel) = dispatcher.unsafeToFutureCancelable(IO.unit)
+              val cancelFut = cancel()
+              cancelFut
+            })
         }
 
         tsk.replicateA_(if (isJVM) 10000 else 1)
