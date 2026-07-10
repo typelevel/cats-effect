@@ -2247,9 +2247,9 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
 
   real("joinOrCancel - gets result") {
     for {
+      ready <- Deferred[IO, Unit]
       requested <- Deferred[IO, Boolean]
-      ioa <- requested
-        .get
+      ioa <- (ready.complete(()) *> requested.get)
         .onCancelRequested(requested.complete(true).void)
         .onCancel(requested.complete(false).void)
         .uncancelable
@@ -2259,6 +2259,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
         .flatMap(_.fold(IO.pure(false), _ => IO.pure(false), identity))
         .uncancelable
         .start
+      _ <- ready.get
       _ <- fiber.cancel
       fiberResult <- fiber.join.flatMap(_.fold(IO.pure(false), _ => IO.pure(false), identity))
       requestedResult <- requested.get
