@@ -79,8 +79,11 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
   def asyncRepeatedCallbackIgnored[A](a: A) =
     F.async[A](k => F.delay(k(Right(a))) >> F.delay(k(Right(a))).as(None)) <-> F.pure(a)
 
+  // format: off
   def asyncCancelableAsyncRepeatedCallbackIgnored[A](a: A) =
-    F.asyncCancelableAsync[A](k => F.delay(k(Right(a))) >> F.delay(k(Right(a))).as(None)) <-> F.pure(a)
+    F.asyncCancelableAsync[A](k => F.delay(k(Right(a))) >> F.delay(k(Right(a))).as(None)) <-> F
+      .pure(a)
+  // format: on
 
   def asyncCancelTokenIsUnsequencedOnCompletion[A](a: A, fu: F[Unit]) =
     F.async[A](k => F.delay(k(Right(a))) >> F.pure(Some(fu))) <-> F.pure(a)
@@ -93,7 +96,6 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
 
   def asyncCancelableAsyncCancelTokenIsUnsequencedOnError[A](e: Throwable, fu: F[Unit]) =
     F.asyncCancelableAsync[A](k => F.delay(k(Left(e))) >> F.pure(Some(fu))) <-> F.raiseError(e)
-
 
   def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async[A](_ => F.pure(Some(F.unit)))

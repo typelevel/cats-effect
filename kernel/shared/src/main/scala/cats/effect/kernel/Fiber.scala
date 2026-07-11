@@ -58,8 +58,8 @@ trait Fiber[F[_], E, A] extends Serializable {
    * it completes and cancels the fiber if cancelation is requested.
    *
    * @note
-   *   This method provides a race free version of `join.onCancel(cancel)`, which can lose
-   *   data if the fiber completes after cancelation is observed.
+   *   This method provides a race free version of `join.onCancel(cancel)`, which can lose data
+   *   if the fiber completes after cancelation is observed.
    */
   def joinOrCancel(implicit F: MonadCancel[F, E]): F[Outcome[F, E, A]] =
     F.onCancelRequested(join, cancel)
