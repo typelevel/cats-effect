@@ -447,7 +447,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   [[onCancel]]
    * @note
    *   this method can lose data if `fa` completes before `fin` can stop it. See
-   *   [[onCancelRequested]] for a safer alternative.
+   *   [[IO!.onCancelRequested]] for a safer alternative.
    */
   def cancelable(fin: IO[Unit]): IO[A] =
     Spawn[IO].cancelable(this, fin)
@@ -1864,7 +1864,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * Like [[fromFuture]], but is cancelable via the provided finalizer.
    *
    * @see
-   *   [[onCancelRequested]] for a safer alternative. This method can lose data if the future
+   *   [[IO!.onCancelRequested]] for a safer alternative. This method can lose data if the future
    *   completes before the finalizaer can stop it.
    */
   def fromFutureCancelable[A](fut: IO[(Future[A], IO[Unit])]): IO[A] =

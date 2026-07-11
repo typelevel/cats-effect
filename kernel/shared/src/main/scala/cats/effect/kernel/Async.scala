@@ -226,10 +226,10 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   asyncronous effect to be cancelable, consider using `async` instead.
    *
    * @see
-   *   [[[Async!.async[A](asyncCancelation:Boolean)(k:*]]] for more generic version providing a
+   *   [[Async!.async]] for more generic version providing a
    *   finalizer
    * @see
-   *   [[[Async!.asyncCheckAttempt[A](asyncCancelation:Boolean)(k:*]]] for more generic version
+   *   [[Async!.asyncCheckAttempt]] for more generic version
    *   with option of providing immediate result of computation and finalizer
    */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
