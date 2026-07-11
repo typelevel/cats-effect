@@ -599,7 +599,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       case None => IO.unit
     }
 
-    IO.uncancelable(poll => IO.PushCancelRequested(ack) *> poll(this).guarantee(complete))
+    IO.uncancelable(poll =>
+      IO.PushCancelRequested(ack.reportError) *> poll(this).guarantee(complete))
   }
 
   @deprecated("Use onError with PartialFunction argument", "3.6.0")
