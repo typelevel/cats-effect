@@ -29,11 +29,11 @@ import org.scalacheck.Arbitrary.arbitrary
 
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.concurrent.duration._
+import scala.util.Failure
 
 import java.util.concurrent.atomic.AtomicBoolean
 
 import munit.DisciplineSuite
-import scala.util.Failure
 
 class AsyncSuite extends BaseSuite with DisciplineSuite {
 

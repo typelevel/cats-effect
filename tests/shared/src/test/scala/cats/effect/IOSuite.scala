@@ -2232,6 +2232,24 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield ()
   }
 
+  real("onCancelRequested - invoked once per ack when canceled") {
+    for {
+      ready <- Deferred[IO, Unit]
+      requests <- Ref.of[IO, Int](0)
+      canceled <- Deferred[IO, Unit]
+      done <- Deferred[IO, Unit]
+      fiber <- (ready.complete(()) *> canceled.get.void)
+        .onCancelRequested(requests.update(_ + 1) *> canceled.complete(()).void)
+        .onCancelRequested(requests.update(_ + 1) *> done.complete(()).void)
+        .uncancelable
+        .start
+      _ <- ready.get
+      _ <- fiber.cancel
+      _ <- done.get
+      times <- requests.get
+    } yield assertEquals(times, 2)
+  }
+
   real("onCancelRequested - invoked when canceled while masked") {
     for {
       ready <- Deferred[IO, Unit]

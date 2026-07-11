@@ -86,7 +86,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
-  private[this] val acknowledgers: ArrayStack[IO[Unit]] = ArrayStack()
+  private[this] val acknowledgers: ArrayStack[Either[IO[Unit], IOFiber[Unit]]] = ArrayStack()
   private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack.of(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
@@ -103,9 +103,6 @@ private final class IOFiber[A](
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0
   private[this] var finalizing: Boolean = false
-
-  // The running cancelation acknowledgement, if any
-  private[this] var runningAcknowledgement: FiberIO[Unit] = null
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
@@ -1083,22 +1080,14 @@ private final class IOFiber[A](
         case 25 =>
           val cur = cur0.asInstanceOf[PushCancelRequested]
 
-          acknowledgers.push(EvalOn(cur.ack, currentCtx))
+          acknowledgers.push(Left(EvalOn(cur.ack, currentCtx)))
           // println(s"pushed onto acknowledgers: length = ${acknowledgers.unsafeIndex()}")
 
           runLoop(IO.unit, nextCancelation, nextAutoCede)
 
         case 26 =>
-          val _ = acknowledgers.pop()
-
-          if (runningAcknowledgement == null)
-            runLoop(IO.none, nextCancelation, nextAutoCede)
-          else {
-            val ack = runningAcknowledgement
-            runningAcknowledgement = null
-            runLoop(IO.some(ack), nextCancelation, nextAutoCede)
-          }
-
+          val ackCompletion = IO.pure(acknowledgers.pop().toOption)
+          runLoop(ackCompletion, nextCancelation, nextAutoCede)
       }
     }
   }
@@ -1196,13 +1185,14 @@ private final class IOFiber[A](
   }
 
   private[this] def acknowledgeCancelation(): Unit = {
-    if (canceled && !finalizing && runningAcknowledgement == null && !acknowledgers.isEmpty()) {
-      // println(s"$this: starting cancelation acknowledgement")
-      val acknowledgement = acknowledgers.peek()
+    if (canceled && !finalizing && !acknowledgers.isEmpty() && acknowledgers.peek().isLeft) {
+      val acknowledgement =
+        acknowledgers.pop().asInstanceOf[Left[IO[Unit], IOFiber[Unit]]].value
+      // println(s"$this: starting cancelation acknowledgement in thread ${Thread.currentThread()}; total ${acknowledgers.unsafeIndex()}")
       val ec = currentCtx
       val rt = runtime
 
-      val runningAcknowledgement = new IOFiber[Any](
+      val runningAcknowledgement = new IOFiber[Unit](
         localState,
         null,
         acknowledgement,
@@ -1211,6 +1201,7 @@ private final class IOFiber[A](
       )
 
       scheduleFiber(ec, runningAcknowledgement)
+      acknowledgers.push(Right(runningAcknowledgement))
     }
   }
 
