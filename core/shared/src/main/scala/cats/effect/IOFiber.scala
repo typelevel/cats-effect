@@ -919,44 +919,44 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
           val next =
-            IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
-              cb =>
-                IO {
-                  val ec = currentCtx
-                  val rt = runtime
+            IO.asyncCancelableAsync[
+              Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] { cb =>
+              IO {
+                val ec = currentCtx
+                val rt = runtime
 
-                  val fiberA = new IOFiber[Any](
-                    localState,
-                    null,
-                    cur.ioa,
-                    ec,
-                    rt
-                  )
+                val fiberA = new IOFiber[Any](
+                  localState,
+                  null,
+                  cur.ioa,
+                  ec,
+                  rt
+                )
 
-                  val fiberB = new IOFiber[Any](
-                    localState,
-                    null,
-                    cur.iob,
-                    ec,
-                    rt
-                  )
+                val fiberB = new IOFiber[Any](
+                  localState,
+                  null,
+                  cur.iob,
+                  ec,
+                  rt
+                )
 
-                  fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
-                  fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
+                fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
+                fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
 
-                  scheduleFiber(ec, fiberA)
-                  scheduleFiber(ec, fiberB)
+                scheduleFiber(ec, fiberA)
+                scheduleFiber(ec, fiberB)
 
-                  val cancel =
-                    for {
-                      cancelA <- fiberA.cancel.start
-                      cancelB <- fiberB.cancel.start
-                      _ <- cancelA.join
-                      _ <- cancelB.join
-                    } yield ()
+                val cancel =
+                  for {
+                    cancelA <- fiberA.cancel.start
+                    cancelB <- fiberB.cancel.start
+                    _ <- cancelA.join
+                    _ <- cancelB.join
+                  } yield ()
 
-                  Some(cancel)
-                }
+                Some(cancel)
+              }
             }
 
           runLoop(next, nextCancelation, nextAutoCede)
@@ -1196,7 +1196,7 @@ private final class IOFiber[A](
   }
 
   private[this] def acknowledgeCancelation(): Unit = {
-    if (canceled && runningAcknowledgement == null && !acknowledgers.isEmpty()) {
+    if (canceled && !finalizing && runningAcknowledgement == null && !acknowledgers.isEmpty()) {
       // println(s"$this: starting cancelation acknowledgement")
       val acknowledgement = acknowledgers.peek()
       val ec = currentCtx

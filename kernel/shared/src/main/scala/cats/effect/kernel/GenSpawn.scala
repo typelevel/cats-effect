@@ -445,8 +445,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     uncancelable { poll =>
       poll(racePair(fa, fb)).flatMap {
-        case Left((oc, f)) => poll(f.join).onCancel(f.cancel).tupleLeft(oc)
-        case Right((f, oc)) => poll(f.join).onCancel(f.cancel).tupleRight(oc)
+        case Left((oc, f)) => f.joinOrCancel.tupleLeft(oc)
+        case Right((f, oc)) => f.joinOrCancel.tupleRight(oc)
       }
     }
 
@@ -480,7 +480,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              // We can only cancel `f` if cancelation is observed, otherwise, the canceled case below never returns
+              f.joinOrCancel.flatMap {
                 case Outcome.Succeeded(fb) => fa.product(fb)
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => poll(canceled) *> never
@@ -491,7 +492,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         case Right((f, oc)) =>
           oc match {
             case Outcome.Succeeded(fb) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              // We can only cancel `f` if cancelation is observed, otherwise, the canceled case below never returns
+              f.joinOrCancel.flatMap {
                 case Outcome.Succeeded(fa) => fa.product(fb)
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => poll(canceled) *> never

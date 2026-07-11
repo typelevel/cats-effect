@@ -340,7 +340,8 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * during the evaluation of `fa`. If the evaluation of `fa` completes without encountering a
    * cancelation, the acknowledgement is unregistered before proceeding. If `ack` was invoked,
    * further execution will be blocked until it completes. If cancelation is observed, the `ack`
-   * will be awaited on before cancelation completes.
+   * will be awaited on before cancelation completes. Once cancelation has been observed, this
+   * method has no effect.
    *
    * If asynchronous cancelation is not supported by `F`, this function equivalent to `fa`
    */
