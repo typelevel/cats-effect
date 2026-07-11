@@ -1864,8 +1864,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * Like [[fromFuture]], but is cancelable via the provided finalizer.
    *
    * @see
-   *   [[IO!.onCancelRequested]] for a safer alternative. This method can lose data if the future
-   *   completes before the finalizaer can stop it.
+   *   [[IO!.onCancelRequested]] for a safer alternative. This method can lose data if the
+   *   future completes before the finalizaer can stop it.
    */
   def fromFutureCancelable[A](fut: IO[(Future[A], IO[Unit])]): IO[A] =
     asyncForIO.fromFutureCancelable(fut)
