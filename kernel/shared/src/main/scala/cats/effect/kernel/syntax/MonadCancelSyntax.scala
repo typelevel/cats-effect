@@ -48,6 +48,9 @@ final class MonadCancelOps_[F[_], A] private[syntax] (private val wrapped: F[A])
   def onCancel(fin: F[Unit])(implicit F: MonadCancel[F, ?]): F[A] =
     F.onCancel(wrapped, fin)
 
+  def onCancelRequested(ack: F[Unit])(implicit F: MonadCancel[F, ?]): F[A] =
+    F.onCancelRequested(wrapped, ack)
+
   def guarantee(fin: F[Unit])(implicit F: MonadCancel[F, ?]): F[A] =
     F.guarantee(wrapped, fin)
 
