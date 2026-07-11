@@ -260,6 +260,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *   [[uncancelable]]
    * @see
    *   [[onCancel]]
+   * @note
+   *   this method can lose data if `fa` completes before `fin` can stop it. See
+   *   [[onCancelRequested]] for a safer alternative.
    */
   def cancelable[A](fa: F[A], fin: F[Unit]): F[A] =
     uncancelable { poll =>

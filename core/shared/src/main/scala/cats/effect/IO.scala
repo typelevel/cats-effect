@@ -445,6 +445,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   [[uncancelable]]
    * @see
    *   [[onCancel]]
+   * @note
+   *   this method can lose data if `fa` completes before `fin` can stop it. See
+   *   [[onCancelRequested]] for a safer alternative.
    */
   def cancelable(fin: IO[Unit]): IO[A] =
     Spawn[IO].cancelable(this, fin)
