@@ -106,6 +106,51 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   }
 
   /**
+   * Suspends an asynchronous side effect with optional immediate result in `F` and asynchronous
+   * cancelation.
+   *
+   * The given function `k` will be invoked during evaluation of `F` to:
+   *   - check if result is already available;
+   *   - "schedule" the asynchronous callback, where the callback of type `Either[Throwable, A]
+   *     \=> Unit` is the parameter passed to that function. Only the ''first'' invocation of
+   *     the callback will be effective! All subsequent invocations will be silently dropped.
+   *
+   * The process of registering the callback itself is suspended in `F` (the outer `F` of
+   * `F[Either[Option[F[Unit]], A]]`).
+   *
+   * The effect returns `Either[Option[F[Unit]], A]` where:
+   *   - right side `A` is an immediate result of computation (callback invocation will be
+   *     dropped);
+   *   - left side `Option[F[Unit]]` is an optional acknowledgement to be run in the event that
+   *     cancelation of the fiber running `asyncCheckAttemptCancelableAsync(k)` is requested.
+   *
+   * Also, note that `asyncCheckAttemptCancelableAsync` is uncancelable during its registration.
+   *
+   * @see
+   *   [[async]] for a simplified variant without an option for immediate result
+   * @see
+   *   [[async_]] for a simplified variant without an option for immediate result or cancelation
+   *   support
+   */
+  def asyncCheckAttemptCancelableAsync[A](
+      k: (Either[Throwable, A] => Unit) => F[Either[Option[F[Unit]], A]]
+  ): F[A] = {
+    val body = new Cont[F, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { _ =>
+          lift(k(resume)) flatMap {
+            case Right(a) => G.pure(a)
+            case Left(Some(fin)) => G.onCancelRequested(get, lift(fin))
+            case Left(None) => get
+          }
+        }
+      }
+    }
+
+    cont(body)
+  }
+
+  /**
    * Suspends an asynchronous side effect in `F`.
    *
    * The given function `k` will be invoked during evaluation of the `F` to "schedule" the
@@ -136,6 +181,36 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
     asyncCheckAttempt[A](cb => map(k(cb))(Left(_)))
 
   /**
+   * Suspends an asynchronous side effect in `F` with asynchronous cancelation.
+   *
+   * The given function `k` will be invoked during evaluation of the `F` to "schedule" the
+   * asynchronous callback, where the callback of type `Either[Throwable, A] => Unit` is the
+   * parameter passed to that function. Only the ''first'' invocation of the callback will be
+   * effective! All subsequent invocations will be silently dropped.
+   *
+   * The process of registering the callback itself is suspended in `F` (the outer `F` of
+   * `F[Option[F[Unit]]]`).
+   *
+   * The effect returns `Option[F[Unit]]` which is an optional acknowledgement to be run in the
+   * event that the cancelation of the fiber running `asyncCancelableAsync(k)` is requested.
+   *
+   * @note
+   *   `asyncCancelableAsync` is always uncancelable during its registration. The created effect
+   *   will be uncancelable during its execution if the registration callback provides no
+   *   finalizer (i.e. evaluates to `None`). If you need the created task to be cancelable,
+   *   return a finalizer effect upon the registration. In a rare case when there's nothing to
+   *   finalize, you can return `Some(F.unit)` for that.
+   *
+   * @see
+   *   [[async_]] for a simplified variant without cancelation support
+   * @see
+   *   [[asyncCheckAttemptCancelableAsync]] for more generic version with option of providing
+   *   immediate result of computation
+   */
+  def asyncCancelableAsync[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
+    asyncCheckAttemptCancelableAsync[A](cb => map(k(cb))(Left(_)))
+
+  /**
    * Suspends an asynchronous side effect in `F`.
    *
    * The given function `k` will be invoked during evaluation of the `F` to "schedule" the
@@ -151,10 +226,11 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   asyncronous effect to be cancelable, consider using `async` instead.
    *
    * @see
-   *   [[async]] for more generic version providing a finalizer
+   *   [[[Async!.async[A](asyncCancelation:Boolean)(k:*]]] for more generic version providing a
+   *   finalizer
    * @see
-   *   [[asyncCheckAttempt]] for more generic version with option of providing immediate result
-   *   of computation and finalizer
+   *   [[[Async!.asyncCheckAttempt[A](asyncCancelation:Boolean)(k:*]]] for more generic version
+   *   with option of providing immediate result of computation and finalizer
    */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
     async[A](cb => as(delay(k(cb)), None))
@@ -272,6 +348,10 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   /**
    * Like [[fromFuture]], but is cancelable via the provided finalizer.
+   *
+   * @see
+   *   [[onCancelRequested]] for a safer alternative. This method can lose data if the future
+   *   completes before the finalizaer can stop it.
    */
   def fromFutureCancelable[A](futCancel: F[(Future[A], F[Unit])]): F[A] =
     flatMap(executionContext) { implicit ec =>
@@ -281,6 +361,20 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
             onCancel(
               poll(async[A](cb => as(delay(fut.onComplete(t => cb(t.toEither))), Some(unit)))),
               fin)
+        }
+      }
+    }
+
+  /**
+   * Like [[fromFuture]], but is cancelable via asynchronous cancelation.
+   */
+  def fromFutureCancelableAsync[A](futCancel: F[(Future[A], F[Unit])]): F[A] =
+    flatMap(executionContext) { implicit ec =>
+      uncancelable { poll =>
+        flatMap(poll(futCancel)) {
+          case (fut, fin) =>
+            asyncCancelableAsync[A](cb =>
+              as(delay(fut.onComplete(t => cb(t.toEither))), Some(fin)))
         }
       }
     }

@@ -33,6 +33,7 @@ import scala.concurrent.duration._
 import java.util.concurrent.atomic.AtomicBoolean
 
 import munit.DisciplineSuite
+import scala.util.Failure
 
 class AsyncSuite extends BaseSuite with DisciplineSuite {
 
@@ -94,6 +95,51 @@ class AsyncSuite extends BaseSuite with DisciplineSuite {
     val go = for {
       started <- IO(new AtomicBoolean)
       fiber <- IO.fromFutureCancelable {
+        IO {
+          started.set(true)
+          mkf()
+        }.map(f => f -> IO.never)
+      }.start
+      _ <- IO.cede.whileM_(IO(!started.get))
+      _ <- fiber.cancel
+    } yield ()
+
+    TestControl
+      .executeEmbed(go, IORuntimeConfig(1, 2))
+      .as(false)
+      .recover { case _: TestControl.NonTerminationException => true }
+      .replicateA(1000)
+      .map(r => assert(r.forall(identity(_))))
+  }
+
+  real("fromFutureCancelableAsync should cancel on fiber cancelation") {
+    val smallDelay: IO[Unit] = IO.sleep(10.millis)
+    def mkf() = Promise[Unit]()
+
+    val go = for {
+      canceled <- IO(new AtomicBoolean)
+      fiber <- IO.fromFutureCancelableAsync {
+        IO(mkf()).map(f =>
+          f.future -> IO {
+            canceled.set(true); f.complete(Failure(new InterruptedException()))
+          }.void)
+      }.start
+      _ <- smallDelay
+      _ <- fiber.cancel
+      res <- IO(assert(canceled.get()))
+    } yield res
+
+    TestControl.executeEmbed(go, IORuntimeConfig(1, 2)).replicateA_(1000)
+
+  }
+
+  real("fromFutureCancelableAsync should backpressure on cancelation") {
+    // a non-cancelable, never-completing Future
+    def mkf() = Promise[Unit]().future
+
+    val go = for {
+      started <- IO(new AtomicBoolean)
+      fiber <- IO.fromFutureCancelableAsync {
         IO {
           started.set(true)
           mkf()

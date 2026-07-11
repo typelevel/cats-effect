@@ -32,8 +32,18 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
   // format: on
 
   // format: off
+  def asyncCheckAttemptCancelableAsyncImmediateIsPure[A](a: A) =
+    (F.asyncCheckAttemptCancelableAsync[A](_ => F.pure(Right(a))) <* F.unit) <-> (F.pure(a))
+  // format: on
+
+  // format: off
   def asyncCheckAttemptSuspendedRightIsAsyncRight[A](a: A, fu: F[Unit]) =
     (F.asyncCheckAttempt[A](k => F.delay(k(Right(a))) >> fu.as(Left(None))) <* F.unit) <-> (F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <* F.unit)
+  // format: on
+
+  // format: off
+  def asyncCheckAttemptCancelableAsyncSuspendedRightIsAsyncRight[A](a: A, fu: F[Unit]) =
+    (F.asyncCheckAttemptCancelableAsync[A](k => F.delay(k(Right(a))) >> fu.as(Left(None))) <* F.unit) <-> (F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <* F.unit)
   // format: on
 
   // format: off
@@ -42,8 +52,18 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
   // format: on
 
   // format: off
+  def asyncCheckAttemptCancelableAsyncSuspendedLeftIsAsyncLeft[A](e: Throwable, fu: F[Unit]) =
+    (F.asyncCheckAttemptCancelableAsync[A](k => F.delay(k(Left(e))) >> fu.as(Left(None))) <* F.unit) <-> (F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <* F.unit)
+  // format: on
+
+  // format: off
   def asyncRightIsUncancelableSequencedPure[A](a: A, fu: F[Unit]) =
     (F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <* F.unit) <-> (F.uncancelable(_ => fu) >> F.pure(a))
+  // format: on
+
+  // format: off
+  def asyncCancelableAsyncRightIsUncancelableSequencedPure[A](a: A, fu: F[Unit]) =
+    (F.asyncCancelableAsync[A](k => F.delay(k(Right(a))) >> fu.as(None)) <* F.unit) <-> (F.uncancelable(_ => fu) >> F.pure(a))
   // format: on
 
   // format: off
@@ -51,14 +71,29 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
     (F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <* F.unit) <-> (F.uncancelable(_ => fu) >> F.raiseError(e))
   // format: on
 
+  // format: off
+  def asyncCancelableAsyncLeftIsUncancelableSequencedRaiseError[A](e: Throwable, fu: F[Unit]) =
+    (F.asyncCancelableAsync[A](k => F.delay(k(Left(e))) >> fu.as(None)) <* F.unit) <-> (F.uncancelable(_ => fu) >> F.raiseError(e))
+  // format: on
+
   def asyncRepeatedCallbackIgnored[A](a: A) =
     F.async[A](k => F.delay(k(Right(a))) >> F.delay(k(Right(a))).as(None)) <-> F.pure(a)
+
+  def asyncCancelableAsyncRepeatedCallbackIgnored[A](a: A) =
+    F.asyncCancelableAsync[A](k => F.delay(k(Right(a))) >> F.delay(k(Right(a))).as(None)) <-> F.pure(a)
 
   def asyncCancelTokenIsUnsequencedOnCompletion[A](a: A, fu: F[Unit]) =
     F.async[A](k => F.delay(k(Right(a))) >> F.pure(Some(fu))) <-> F.pure(a)
 
+  def asyncCancelableAsyncCancelTokenIsUnsequencedOnCompletion[A](a: A, fu: F[Unit]) =
+    F.asyncCancelableAsync[A](k => F.delay(k(Right(a))) >> F.pure(Some(fu))) <-> F.pure(a)
+
   def asyncCancelTokenIsUnsequencedOnError[A](e: Throwable, fu: F[Unit]) =
     F.async[A](k => F.delay(k(Left(e))) >> F.pure(Some(fu))) <-> F.raiseError(e)
+
+  def asyncCancelableAsyncCancelTokenIsUnsequencedOnError[A](e: Throwable, fu: F[Unit]) =
+    F.asyncCancelableAsync[A](k => F.delay(k(Left(e))) >> F.pure(Some(fu))) <-> F.raiseError(e)
+
 
   def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async[A](_ => F.pure(Some(F.unit)))

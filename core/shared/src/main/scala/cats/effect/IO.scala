@@ -1380,6 +1380,46 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   }
 
   /**
+   * Suspends an asynchronous side effect with optional immediate result in `IO`.
+   *
+   * The given function `k` will be invoked during evaluation of the `IO` to:
+   *   - check if result is already available;
+   *   - "schedule" the asynchronous callback, where the callback of type `Either[Throwable, A]
+   *     \=> Unit` is the parameter passed to that function. Only the ''first'' invocation of
+   *     the callback will be effective! All subsequent invocations will be silently dropped.
+   *
+   * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
+   * `IO[Either[Option[IO[Unit]], A]]`).
+   *
+   * The effect returns `Either[Option[IO[Unit]], A]` where:
+   *   - right side `A` is an immediate result of computation (callback invocation will be
+   *     dropped);
+   *   - left side `Option[IO[Unit]]` is an optional acknowledgement to be run in the event that
+   *     cancelation of the fiber running `asyncCheckAttemptCancelableAsync(k)` is requested.
+   *
+   * Note that `asyncCheckAttemptCancelableAsync` is uncancelable during its registration.
+   *
+   * @see
+   *   [[async]] for a simplified variant without an option for immediate result
+   */
+  def asyncCheckAttemptCancelableAsync[A](
+      k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] = {
+    val body = new Cont[IO, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { _ =>
+          lift(k(resume)) flatMap {
+            case Right(a) => G.pure(a)
+            case Left(Some(fin)) => G.onCancelRequested(get, lift(fin))
+            case Left(None) => get
+          }
+        }
+      }
+    }
+
+    IOCont(body, Tracing.calculateTracingEvent(k))
+  }
+
+  /**
    * Suspends an asynchronous side effect in `IO`.
    *
    * The given function `k` will be invoked during evaluation of the `IO` to "schedule" the
@@ -1433,6 +1473,50 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
         G.uncancelable { poll =>
           lift(k(resume)) flatMap {
             case Some(fin) => G.onCancel(poll(get), lift(fin))
+            case None => get
+          }
+        }
+      }
+    }
+
+    IOCont(body, Tracing.calculateTracingEvent(k))
+  }
+
+  /**
+   * Suspends an asynchronous side effect in `IO`.
+   *
+   * The given function `k` will be invoked during evaluation of the `IO` to "schedule" the
+   * asynchronous callback, where the callback of type `Either[Throwable, A] => Unit` is the
+   * parameter passed to that function. Only the ''first'' invocation of the callback will be
+   * effective! All subsequent invocations will be silently dropped.
+   *
+   * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
+   * `IO[Option[IO[Unit]]]`).
+   *
+   * The effect returns `Option[IO[Unit]]` which is an optional cancelation acknowledgement to
+   * be run in the event that cancelation of the fiber running `asyncCancelableAsync(k)` is
+   * requested.
+   *
+   * @note
+   *   `asyncCancelableAsync` is always uncancelable during its registration. The created effect
+   *   will be uncancelable during its execution if the registration callback provides no
+   *   cancelation acknowledgement (i.e. evaluates to `None`). If you need the created task to
+   *   be cancelable, return a acknowledgement effect upon the registration. In a rare case when
+   *   there's nothing to finalize, you can return `Some(IO.unit)` for that.
+   *
+   * @see
+   *   [[async_]] for a simplified uncancelable variant
+   * @see
+   *   [[asyncCheckAttemptCancelableAsync]] for more generic version providing an optional
+   *   immediate result of computation
+   */
+  def asyncCancelableAsync[A](
+      k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
+    val body = new Cont[IO, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { _ =>
+          lift(k(resume)) flatMap {
+            case Some(fin) => G.onCancelRequested(get, lift(fin))
             case None => get
           }
         }
@@ -1777,9 +1861,19 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
   /**
    * Like [[fromFuture]], but is cancelable via the provided finalizer.
+   *
+   * @see
+   *   [[onCancelRequested]] for a safer alternative. This method can lose data if the future
+   *   completes before the finalizaer can stop it.
    */
   def fromFutureCancelable[A](fut: IO[(Future[A], IO[Unit])]): IO[A] =
     asyncForIO.fromFutureCancelable(fut)
+
+  /**
+   * Like [[fromFuture]], but is cancelable asynchronously.
+   */
+  def fromFutureCancelableAsync[A](fut: IO[(Future[A], IO[Unit])]): IO[A] =
+    asyncForIO.fromFutureCancelableAsync(fut)
 
   /**
    * Run two IO tasks concurrently, and return the first to finish, either in success or error.
