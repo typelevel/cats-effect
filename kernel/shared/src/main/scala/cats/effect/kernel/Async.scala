@@ -122,9 +122,9 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
    *   - left side `Option[F[Unit]]` is an optional acknowledgement to be run in the event that
-   *     cancelation of the fiber running `asyncCheckAttemptCancelableAsync(k)` is requested.
+   *     cancelation of the fiber running `asyncCheckAttemptParCancelable(k)` is requested.
    *
-   * Also, note that `asyncCheckAttemptCancelableAsync` is uncancelable during its registration.
+   * Also, note that `asyncCheckAttemptParCancelable` is uncancelable during its registration.
    *
    * @see
    *   [[async]] for a simplified variant without an option for immediate result
@@ -132,7 +132,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *   [[async_]] for a simplified variant without an option for immediate result or cancelation
    *   support
    */
-  def asyncCheckAttemptCancelableAsync[A](
+  def asyncCheckAttemptParCancelable[A](
       k: (Either[Throwable, A] => Unit) => F[Either[Option[F[Unit]], A]]
   ): F[A] = {
     val body = new Cont[F, A, A] {
@@ -192,10 +192,10 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * `F[Option[F[Unit]]]`).
    *
    * The effect returns `Option[F[Unit]]` which is an optional acknowledgement to be run in the
-   * event that the cancelation of the fiber running `asyncCancelableAsync(k)` is requested.
+   * event that the cancelation of the fiber running `asyncParCancelable(k)` is requested.
    *
    * @note
-   *   `asyncCancelableAsync` is always uncancelable during its registration. The created effect
+   *   `asyncParCancelable` is always uncancelable during its registration. The created effect
    *   will be uncancelable during its execution if the registration callback provides no
    *   finalizer (i.e. evaluates to `None`). If you need the created task to be cancelable,
    *   return a finalizer effect upon the registration. In a rare case when there's nothing to
@@ -204,11 +204,11 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * @see
    *   [[async_]] for a simplified variant without cancelation support
    * @see
-   *   [[asyncCheckAttemptCancelableAsync]] for more generic version with option of providing
+   *   [[asyncCheckAttemptParCancelable]] for more generic version with option of providing
    *   immediate result of computation
    */
-  def asyncCancelableAsync[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
-    asyncCheckAttemptCancelableAsync[A](cb => map(k(cb))(Left(_)))
+  def asyncParCancelable[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
+    asyncCheckAttemptParCancelable[A](cb => map(k(cb))(Left(_)))
 
   /**
    * Suspends an asynchronous side effect in `F`.
@@ -368,12 +368,12 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   /**
    * Like [[fromFuture]], but is cancelable via asynchronous cancelation.
    */
-  def fromFutureCancelableAsync[A](futCancel: F[(Future[A], F[Unit])]): F[A] =
+  def fromFutureParCancelable[A](futCancel: F[(Future[A], F[Unit])]): F[A] =
     flatMap(executionContext) { implicit ec =>
       uncancelable { poll =>
         flatMap(poll(futCancel)) {
           case (fut, fin) =>
-            asyncCancelableAsync[A](cb =>
+            asyncParCancelable[A](cb =>
               as(delay(fut.onComplete(t => cb(t.toEither))), Some(fin)))
         }
       }

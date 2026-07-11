@@ -1396,14 +1396,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
    *   - left side `Option[IO[Unit]]` is an optional acknowledgement to be run in the event that
-   *     cancelation of the fiber running `asyncCheckAttemptCancelableAsync(k)` is requested.
+   *     cancelation of the fiber running `asyncCheckAttemptParCancelable(k)` is requested.
    *
-   * Note that `asyncCheckAttemptCancelableAsync` is uncancelable during its registration.
+   * Note that `asyncCheckAttemptParCancelable` is uncancelable during its registration.
    *
    * @see
    *   [[async]] for a simplified variant without an option for immediate result
    */
-  def asyncCheckAttemptCancelableAsync[A](
+  def asyncCheckAttemptParCancelable[A](
       k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
@@ -1495,11 +1495,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * `IO[Option[IO[Unit]]]`).
    *
    * The effect returns `Option[IO[Unit]]` which is an optional cancelation acknowledgement to
-   * be run in the event that cancelation of the fiber running `asyncCancelableAsync(k)` is
+   * be run in the event that cancelation of the fiber running `asyncParCancelable(k)` is
    * requested.
    *
    * @note
-   *   `asyncCancelableAsync` is always uncancelable during its registration. The created effect
+   *   `asyncParCancelable` is always uncancelable during its registration. The created effect
    *   will be uncancelable during its execution if the registration callback provides no
    *   cancelation acknowledgement (i.e. evaluates to `None`). If you need the created task to
    *   be cancelable, return a acknowledgement effect upon the registration. In a rare case when
@@ -1508,10 +1508,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * @see
    *   [[async_]] for a simplified uncancelable variant
    * @see
-   *   [[asyncCheckAttemptCancelableAsync]] for more generic version providing an optional
+   *   [[asyncCheckAttemptParCancelable]] for more generic version providing an optional
    *   immediate result of computation
    */
-  def asyncCancelableAsync[A](
+  def asyncParCancelable[A](
       k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
@@ -1873,8 +1873,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   /**
    * Like [[fromFuture]], but is cancelable asynchronously.
    */
-  def fromFutureCancelableAsync[A](fut: IO[(Future[A], IO[Unit])]): IO[A] =
-    asyncForIO.fromFutureCancelableAsync(fut)
+  def fromFutureParCancelable[A](fut: IO[(Future[A], IO[Unit])]): IO[A] =
+    asyncForIO.fromFutureParCancelable(fut)
 
   /**
    * Run two IO tasks concurrently, and return the first to finish, either in success or error.

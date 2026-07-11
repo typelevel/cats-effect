@@ -112,13 +112,13 @@ class AsyncSuite extends BaseSuite with DisciplineSuite {
       .map(r => assert(r.forall(identity(_))))
   }
 
-  real("fromFutureCancelableAsync should cancel on fiber cancelation") {
+  real("fromFutureParCancelable should cancel on fiber cancelation") {
     val smallDelay: IO[Unit] = IO.sleep(10.millis)
     def mkf() = Promise[Unit]()
 
     val go = for {
       canceled <- IO(new AtomicBoolean)
-      fiber <- IO.fromFutureCancelableAsync {
+      fiber <- IO.fromFutureParCancelable {
         IO(mkf()).map(f =>
           f.future -> IO {
             canceled.set(true); f.complete(Failure(new InterruptedException()))
@@ -133,13 +133,13 @@ class AsyncSuite extends BaseSuite with DisciplineSuite {
 
   }
 
-  real("fromFutureCancelableAsync should backpressure on cancelation") {
+  real("fromFutureParCancelable should backpressure on cancelation") {
     // a non-cancelable, never-completing Future
     def mkf() = Promise[Unit]().future
 
     val go = for {
       started <- IO(new AtomicBoolean)
-      fiber <- IO.fromFutureCancelableAsync {
+      fiber <- IO.fromFutureParCancelable {
         IO {
           started.set(true)
           mkf()

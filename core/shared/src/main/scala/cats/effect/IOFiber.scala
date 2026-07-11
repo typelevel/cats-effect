@@ -919,7 +919,7 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
           val next =
-            IO.asyncCancelableAsync[
+            IO.asyncParCancelable[
               Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] { cb =>
               IO {
                 val ec = currentCtx
