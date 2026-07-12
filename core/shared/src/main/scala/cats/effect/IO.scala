@@ -594,12 +594,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.OnCancel(this, fin)
 
   def onCancelRequested(ack: IO[Unit]): IO[A] = {
-    val complete = IO.PopCancelRequested.flatMap {
-      case Some(fiber) => fiber.join.void
-      case None => IO.unit
-    }
-
-      IO.PushCancelRequested(ack.reportError) *> this.guarantee(complete)
+    IO.PushCancelRequested(ack) *> this.guarantee(IO.PopCancelRequested)
   }
 
   @deprecated("Use onError with PartialFunction argument", "3.6.0")
@@ -2441,7 +2436,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     def tag = 25
   }
 
-  private[effect] case object PopCancelRequested extends IO[Option[FiberIO[Unit]]] {
+  private[effect] case object PopCancelRequested extends IO[Unit] {
     def tag = 26
   }
 

@@ -341,9 +341,11 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * cancelation, the acknowledgement is unregistered before proceeding. If `ack` was invoked,
    * further execution will be blocked until it completes. If cancelation is observed, the `ack`
    * will be awaited on before cancelation completes. Once cancelation has been observed, this
-   * method has no effect.
+   * method has no effect. When cancelation is requested, all registered acknowledgements will
+   * be started concurrently.
    *
-   * If asynchronous cancelation is not supported by `F`, this function equivalent to `fa`
+   * @note
+   *   If asynchronous cancelation is not supported by `F`, this function equivalent to `fa`.
    */
   def onCancelRequested[A](fa: F[A], ack: F[Unit]): F[A] = {
     val _ = ack
