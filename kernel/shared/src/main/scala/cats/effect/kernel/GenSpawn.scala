@@ -371,8 +371,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *   [[race]] for a simpler variant that returns the successful outcome.
    */
   def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
-    uncancelable { poll =>
-      poll(racePair(fa, fb)).flatMap {
+    uncancelable { _ =>
+      racePair(fa, fb).flatMap {
         case Left((oc, f)) => f.cancel.as(Left(oc))
         case Right((f, oc)) => f.cancel.as(Right(oc))
       }
@@ -403,7 +403,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    */
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     uncancelable { poll =>
-      poll(racePair(fa, fb)).flatMap {
+      racePair(fa, fb).flatMap {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) => f.cancel *> fa.map(Left(_))
@@ -443,8 +443,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *   [[both]] for a simpler variant that returns the results of both fibers.
    */
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
-    uncancelable { poll =>
-      poll(racePair(fa, fb)).flatMap {
+    uncancelable { _ =>
+      racePair(fa, fb).flatMap {
         case Left((oc, f)) => f.joinOrCancel.tupleLeft(oc)
         case Right((f, oc)) => f.joinOrCancel.tupleRight(oc)
       }
@@ -476,7 +476,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    */
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
     uncancelable { poll =>
-      poll(racePair(fa, fb)).flatMap {
+      racePair(fa, fb).flatMap {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>

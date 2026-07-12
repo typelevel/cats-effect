@@ -862,7 +862,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def timeoutTo[A2 >: A](duration: Duration, fallback: IO[A2]): IO[A2] = {
     handleDuration[IO[A2]](duration, this) { finiteDuration =>
       IO.uncancelable { poll =>
-        poll(racePair(IO.sleep(finiteDuration))) flatMap {
+        racePair(IO.sleep(finiteDuration)) flatMap {
           case Left((oc, f)) => f.cancel *> oc.embed(poll(IO.canceled) *> IO.never)
           case Right((f, _)) =>
             f.cancel *> f.join.flatMap { oc => oc.fold(fallback, IO.raiseError, identity) }
