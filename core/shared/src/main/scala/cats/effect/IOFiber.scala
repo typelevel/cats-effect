@@ -143,7 +143,7 @@ private final class IOFiber[A](
   private[this] var _cancel: IO[Unit] = IO uncancelable { _ =>
     canceled = true
 
-    // println(s"${name}: attempting cancelation")
+    // println(s"${this}: attempting cancelation")
 
     /* check to see if the target fiber is suspended */
     if (resume()) {
@@ -151,7 +151,7 @@ private final class IOFiber[A](
       /* ...it was! was it masked? */
       if (isUnmasked()) {
         /* ...nope! take over the target fiber's runloop and run the finalizers */
-        // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+        // println(s"$this: running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
         /* if we have async finalizers, runLoop may return early */
         IO.async_[Unit] { fin =>
@@ -162,6 +162,7 @@ private final class IOFiber[A](
           scheduleFiber(ec, this)
         }
       } else {
+        // println(s"$this: masked, it will cancel)
         /*
          * it was masked, so we need to wait for it to finish whatever
          * it was doing  and cancel itself
@@ -170,7 +171,7 @@ private final class IOFiber[A](
         join.void
       }
     } else {
-      // println(s"${name}: had to join")
+      // println(s"$this: had to join")
       /* it's already being run somewhere; await the finalizers */
       join.void
     }
@@ -826,7 +827,7 @@ private final class IOFiber[A](
              * race condition check: we may have been canceled
              * after setting the state but before we suspended
              */
-            if (shouldFinalize()) {
+            if (shouldFinalize() || shouldAcknowledgeCancelation()) {
               /*
                * if we can re-acquire the run-loop, we can finalize,
                * otherwise somebody else acquired it and will eventually finalize.
@@ -1185,7 +1186,7 @@ private final class IOFiber[A](
   }
 
   private[this] def acknowledgeCancelation(): Unit = {
-    if (canceled && !finalizing && !acknowledgers.isEmpty() && acknowledgers.peek().isLeft) {
+    if (shouldAcknowledgeCancelation() && acknowledgers.peek().isLeft) {
       val acknowledgement =
         acknowledgers.pop().asInstanceOf[Left[IO[Unit], IOFiber[Unit]]].value
       // println(s"$this: starting cancelation acknowledgement in thread ${Thread.currentThread()}; total ${acknowledgers.unsafeIndex()}")
@@ -1216,6 +1217,9 @@ private final class IOFiber[A](
 
   private[this] def isUnmasked(): Boolean =
     masks == 0
+
+  private[this] def shouldAcknowledgeCancelation(): Boolean =
+    canceled && !finalizing && !acknowledgers.isEmpty()
 
   /*
    * You should probably just read this as `suspended.compareAndSet(true, false)`.
