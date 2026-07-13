@@ -948,12 +948,7 @@ private final class IOFiber[A](
                 scheduleFiber(ec, fiberB)
 
                 val cancel =
-                  for {
-                    cancelA <- fiberA.cancel.start
-                    cancelB <- fiberB.cancel.start
-                    _ <- cancelA.join
-                    _ <- cancelB.join
-                  } yield ()
+                  fiberA.cancel.start.flatMap(cancelA => fiberB.cancel *> cancelA.join.void)
 
                 Some(cancel)
               }
@@ -1085,9 +1080,9 @@ private final class IOFiber[A](
           val ack = EvalOn(cur.ack, currentCtx)
           val push =
             if (finalizing)
-              IO.unit
+              IO.unit // it is too late to cancel
             else if (startedAcks)
-              runAcknowledgement(ack)
+              runAcknowledgement(ack) // already started, run immediately
             else
               ack
 

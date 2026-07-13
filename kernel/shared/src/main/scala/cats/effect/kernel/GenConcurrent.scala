@@ -169,13 +169,8 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
         back <- onCancelRequested(
           result.get,
-          for {
-            canA <- start(fibA.cancel)
-            canB <- start(fibB.cancel)
-
-            _ <- canA.join
-            _ <- canB.join
-          } yield ())
+          start(fibA.cancel).flatMap(canA => fibB.cancel *> canA.join.void)
+        )
       } yield back match {
         case Left(oc) => Left((oc, fibB))
         case Right(oc) => Right((fibA, oc))
