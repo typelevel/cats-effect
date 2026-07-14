@@ -336,13 +336,16 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   def onCancel[A](fa: F[A], fin: F[Unit]): F[A]
 
   /**
-   * Registers an acknowledgement that is invoked asynchronously if cancelation is requested
-   * during the evaluation of `fa`. If the evaluation of `fa` completes without encountering a
-   * cancelation, the acknowledgement is unregistered before proceeding. If `ack` was invoked,
-   * further execution will be blocked until it completes. If cancelation is observed, the `ack`
-   * will be awaited on before cancelation completes. Once cancelation has been observed, this
-   * method has no effect. When cancelation is requested, all registered acknowledgements will
-   * be started concurrently.
+   * Registers a cancelation acknowledgment that is invoked if cancelation is requested.
+   *
+   * If the evaluation of `fa` completes without the cancelation being requested, the
+   * acknowledgement is unregistered before proceeding. If a cancelation request is observed
+   * while `fa` is running, then `ack` is started concurrently.
+   *
+   * After `ack` has been started, if `fa` completes, the fiber is blocked until the cancelation
+   * request completes. If the fiber is canceled before `fa` completes, then the fiber will
+   * block on the completion of `ack` before running finalizers. After finalizers have started,
+   * [[onCancelRequested]] has no effect.
    *
    * @note
    *   If asynchronous cancelation is not supported by `F`, this function equivalent to `fa`.
