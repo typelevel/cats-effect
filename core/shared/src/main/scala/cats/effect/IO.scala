@@ -594,7 +594,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.OnCancel(this, fin)
 
   def onCancelRequested(ack: IO[Unit]): IO[A] = {
-    IO.PushCancelRequested(ack) *> this.guarantee(IO.PopCancelRequested)
+    IO.OnCancelRequested(this, ack)
   }
 
   @deprecated("Use onError with PartialFunction argument", "3.6.0")
@@ -2432,12 +2432,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     def tag = 24
   }
 
-  private[effect] final case class PushCancelRequested(ack: IO[Unit]) extends IO[Unit] {
+  private[effect] final case class OnCancelRequested[A](f: IO[A], ack: IO[Unit]) extends IO[A] {
     def tag = 25
-  }
-
-  private[effect] case object PopCancelRequested extends IO[Unit] {
-    def tag = 26
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations

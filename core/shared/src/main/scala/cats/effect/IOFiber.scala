@@ -1076,24 +1076,27 @@ private final class IOFiber[A](
 
         /* OnCancelRequested */
         case 25 =>
-          val cur = cur0.asInstanceOf[PushCancelRequested]
+          val cur = cur0.asInstanceOf[OnCancelRequested[Any]]
           val ack = EvalOn(cur.ack, currentCtx)
-          val push =
-            if (finalizing)
-              IO.unit // it is too late to cancel
-            else if (startedAcks)
-              runAcknowledgement(ack) // already started, run immediately
-            else
-              ack
 
-          acks.push(push)
-          runLoop(IO.unit, nextCancelation, nextAutoCede)
+          // otherwise it is too late to request cancelation
+          if (!finalizing) {
+            val push =
+              if (startedAcks)
+                runAcknowledgement(ack) // already started, run immediately
+              else
+                ack
+            acks.push(push)
+            conts = ByteStack.push(conts, OnCancelRequestedK)
+          }
 
+          runLoop(cur.f, nextCancelation, nextAutoCede)
         case 26 =>
-          val ack = acks.pop()
-          val ackCompletion = if (startedAcks) ack else IO.unit
+          if (!startedAcks) {
+            val _ = acks.pop()
+          }
 
-          runLoop(ackCompletion, nextCancelation, nextAutoCede)
+          runLoop(IO.unit, nextCancelation, nextAutoCede)
       }
     }
   }
@@ -1157,7 +1160,7 @@ private final class IOFiber[A](
    * because cancelation has been triggered.
    */
   private[this] def prepareFiberForCancelation(cb: Either[Throwable, Unit] => Unit): IO[Any] = {
-    if (!finalizers.isEmpty()) {
+    if (!finalizers.isEmpty() || !acks.isEmpty()) {
       if (!finalizing) {
         // Do not nuke the fiber execution state repeatedly.
         finalizing = true
@@ -1173,7 +1176,8 @@ private final class IOFiber[A](
       }
 
       // Return the first finalizer for execution.
-      finalizers.pop()
+      if (!acks.isEmpty()) acks.pop()
+      else finalizers.pop()
     } else {
       // There are no finalizers to execute.
 
@@ -1220,7 +1224,7 @@ private final class IOFiber[A](
       rt
     )
     scheduleFiber(ec, runningAcknowledgement)
-    runningAcknowledgement.join.void
+    runningAcknowledgement.join.flatMap(_.embed(IO.unit))
   }
 
   /*
@@ -1328,6 +1332,14 @@ private final class IOFiber[A](
 
       case 9 => // attemptK
         succeeded(Right(result), depth)
+
+      case 10 => // onCancelRequestedSuccessK
+        if (startedAcks) {
+          acks.pop().as(result)
+        } else {
+          val _ = acks.pop()
+          succeeded(result, depth + 1)
+        }
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -1390,6 +1402,14 @@ private final class IOFiber[A](
         failed(error, depth + 1)
 
       case 9 => succeeded(Left(error), depth) // attemptK
+
+      case 10 => // onCancelRequestedFailureK
+        if (startedAcks) {
+          acks.pop() >> failed(error, depth + 1)
+        } else {
+          val _ = acks.pop()
+          failed(error, depth + 1)
+        }
     }
   }
 
@@ -1529,7 +1549,11 @@ private final class IOFiber[A](
   /* Implementations of continuations */
 
   private[this] def cancelationLoopSuccessK(): IO[Any] = {
-    if (!finalizers.isEmpty()) {
+    if (!acks.isEmpty()) {
+      // There are still remaining finalizers to execute. Continue.
+      conts = ByteStack.push(conts, CancelationLoopK)
+      acks.pop()
+    } else if (!finalizers.isEmpty()) {
       // There are still remaining finalizers to execute. Continue.
       conts = ByteStack.push(conts, CancelationLoopK)
       finalizers.pop()
