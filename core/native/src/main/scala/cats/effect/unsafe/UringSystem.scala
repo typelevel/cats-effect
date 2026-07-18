@@ -56,25 +56,24 @@ object UringSystem extends PollingSystem {
     if (ring == null)
       throw new IOException(fromCString(strerror(errno)))
 
-    val flags = IORING_SETUP_SUBMIT_ALL |
-      IORING_SETUP_COOP_TASKRUN |
-      IORING_SETUP_TASKRUN_FLAG
-
-    val ret = io_uring_queue_init(MaxEvents.toUInt, ring, flags.toUInt)
+    val queueInitFlags =
+      IORING_SETUP_SUBMIT_ALL | IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG
+    val ret = io_uring_queue_init(MaxEvents.toUInt, ring, queueInitFlags.toUInt)
     if (ret < 0) {
       stdlib.free(ring.asInstanceOf[Ptr[Byte]])
       throw new IOException(fromCString(strerror(-ret)))
     }
 
-    val pipeFds = stackalloc[CInt](2)
-    if (unistd.pipe(pipeFds) != 0) {
+    val wakeupFdFlags = eventfd.EFD_NONBLOCK | eventfd.EFD_CLOEXEC
+    val wakeupFd = eventfd.eventfd(0, wakeupFdFlags)
+    if (wakeupFd == -1) {
       val msg = fromCString(strerror(errno))
       io_uring_queue_exit(ring)
       stdlib.free(ring.asInstanceOf[Ptr[Byte]])
       throw new IOException(msg)
     }
 
-    new Poller(ring, pipeFds(0), pipeFds(1))
+    new Poller(ring, wakeupFd)
   }
 
   def closePoller(poller: Poller): Unit = poller.close()
@@ -516,6 +515,18 @@ object UringSystem extends PollingSystem {
   private final val CategoryWrite = 2
   private final val CategoryAccept = 3
   private final val CategoryConnect = 4
+
+  @nowarn212
+  @extern
+  private object eventfd {
+    final val EFD_CLOEXEC =
+      0x80000 // Do not leak the wakeup descriptor into programs launched with execve (i.e new ProcessBuilder("git", "status").start()).
+    final val EFD_NONBLOCK =
+      0x00800 // Return EAGAIN instead of blocking on an empty read or an overflowing write.
+
+    def eventfd(initval: Int, flags: Int): Int =
+      extern
+  }
 
   @nowarn212
   @link("uring")
