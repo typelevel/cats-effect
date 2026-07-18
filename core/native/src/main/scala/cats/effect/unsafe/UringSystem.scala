@@ -386,17 +386,17 @@ object UringSystem extends PollingSystem {
     }
 
     private[UringSystem] def wakeup(): Unit = {
-      val buf = stackalloc[Byte](1)
-      !buf = 1.toByte
-      unistd.write(writeEnd, buf, sizeof[Byte])
-      ()
+      val buf = stackalloc[ULong]()
+      !buf = 1.toULong
+      val rtn = unistd.write(wakeupFd, buf, sizeof[ULong])
+      if (rtn < 0 && errno != EAGAIN)
+        throw new IOException(fromCString(strerror(errno)))
     }
 
     private[this] def armWakeup(): Unit = {
       val sqe = io_uring_get_sqe(ring)
       sqe.user_data = 0L.toULong
-      io_uring_prep_poll_add(sqe, readEnd, POLLIN.toUInt)
-      pendingSubmissions = true
+      io_uring_prep_poll_add(sqe, wakeupFd, POLLIN.toUInt)
       listeningWakeup = true
     }
 
@@ -412,8 +412,7 @@ object UringSystem extends PollingSystem {
     private[UringSystem] def close(): Unit = {
       io_uring_queue_exit(ring)
       stdlib.free(ring.asInstanceOf[Ptr[Byte]])
-      unistd.close(readEnd)
-      unistd.close(writeEnd)
+      unistd.close(wakeupFd)
       ()
     }
 
@@ -474,8 +473,10 @@ object UringSystem extends PollingSystem {
         val cqe = !(cqes + i.toLong)
         val id = cqe.user_data.toLong
         if (id == 0L) {
-          val buf = stackalloc[Byte](1)
-          unistd.read(readEnd, buf, sizeof[Byte])
+          val buf = stackalloc[ULong]()
+          val rtn = unistd.read(wakeupFd, buf, sizeof[ULong])
+          if (rtn < 0 && errno != EAGAIN)
+            throw new IOException(fromCString(strerror(errno)))
           listeningWakeup = false
         } else {
           val cb = callbacks.remove(id)
