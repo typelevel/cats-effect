@@ -206,8 +206,7 @@ object UringSystem extends PollingSystem {
 
   final class Poller private[UringSystem] (
       ring: Ptr[io_uring],
-      readEnd: CInt,
-      writeEnd: CInt
+      wakeupFd: CInt
   ) extends PollerMetrics {
     private[this] var pendingSubmissions: Boolean = false
     private[this] var listeningWakeup: Boolean = false
