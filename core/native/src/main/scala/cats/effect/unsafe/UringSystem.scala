@@ -48,8 +48,7 @@ object UringSystem extends PollingSystem {
 
   def close(): Unit = ()
 
-  def makeApi(ctx: PollingContext[Poller]): Api =
-    new UringApi(ctx)
+  def makeApi(ctx: PollingContext[Poller]): Api = new UringApi(ctx)
 
   def makePoller(): Poller = {
     val ring = stdlib.malloc(sizeof[io_uring]).asInstanceOf[Ptr[io_uring]]
