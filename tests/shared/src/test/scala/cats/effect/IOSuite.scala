@@ -1096,6 +1096,41 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       Outcome.succeeded[IO, Throwable, Int](IO.pure(42)))
   }
 
+  real("racePair completes when canceled") {
+    for {
+      started <- IO.deferred[Unit]
+      racingFiber <- IO
+        .racePair(
+          IO.deferred[Unit]
+            .flatMap(complete =>
+              started.complete(()) *> complete.get.cancelable(complete.complete(()).void))
+            .uncancelable,
+          IO.never.as(())
+        )
+        .start
+      _ <- started.get
+      _ <- racingFiber.cancel
+      outcome <- racingFiber.join
+    } yield assert(outcome.isSuccess, s"racing fiber was unable to complete, was $outcome")
+  }
+
+  real("cancelable callback handled before inner onCancel") {
+    for {
+      started <- IO.deferred[Unit]
+      cancelable <- IO.deferred[Boolean]
+      callbacks <- {
+        started.complete(()) *> cancelable
+          .get
+          // with the default cancelable implementation, the onCancel would run first
+          .onCancel(cancelable.complete(false).void)
+          .cancelable(cancelable.complete(true).void)
+      }.uncancelable.start
+      _ <- started.get
+      _ <- callbacks.cancel
+      isCancelable <- cancelable.get
+    } yield assert(isCancelable, s"cancelable finalizer not called before cancelation observed")
+  }
+
   real("async - race - immediately cancel inner race when outer unit") {
     for {
       start <- IO.monotonic

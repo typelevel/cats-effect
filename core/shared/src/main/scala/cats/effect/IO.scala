@@ -447,7 +447,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   [[onCancel]]
    */
   def cancelable(fin: IO[Unit]): IO[A] =
-    Spawn[IO].cancelable(this, fin)
+    IO.Cancelable(this, fin)
 
   def forceR[B](that: IO[B]): IO[B] =
     // cast is needed here to trick the compiler into avoiding the IO[Any]
@@ -2059,6 +2059,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     def onCancel[A](ioa: IO[A], fin: IO[Unit]): IO[A] =
       ioa.onCancel(fin)
 
+    override def cancelable[A](poll: Poll[IO], ioa: IO[A], ack: IO[Unit]): IO[A] =
+      ioa.cancelable(ack)
+
+    override def cancelable[A](ioa: IO[A], ack: IO[Unit]): IO[A] =
+      ioa.cancelable(ack)
+
     override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
         release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
       IO.bracketFull(acquire)(use)(release)
@@ -2326,6 +2332,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
   private[effect] case object ReadRT extends IO[IORuntime] {
     def tag = 24
+  }
+
+  private[effect] final case class Cancelable[A](f: IO[A], ack: IO[Unit]) extends IO[A] {
+    def tag = 25
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
