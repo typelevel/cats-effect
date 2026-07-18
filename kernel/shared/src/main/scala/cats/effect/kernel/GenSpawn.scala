@@ -252,6 +252,13 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * be equal to `never` (similar to [[race]]). Under normal circumstances, if `fa`
    * self-cancels, that cancelation will be propagated to the calling context.
    *
+   * @note
+   *   The default implementation of `cancelable` ensures that `fa` is completed before
+   *   cancelation continues, but cannot ensure that `fa` gets canceled before `fa` completes
+   *   normally. When this race condition occurs, the result of `fa` is lost. Implementations of
+   *   [[GenSpawn]] should override `cancelable` with an implementation that returns normally if
+   *   `fa` wins the race between it and `fin`.
+   *
    * @param fa
    *   the effect to be canceled
    * @param fin
@@ -264,10 +271,42 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def cancelable[A](fa: F[A], fin: F[Unit]): F[A] =
     uncancelable { poll =>
       start(fa) flatMap { fiber =>
+        // Note: cannot be replaced with joinOrCancel, as this is used to implement joinOrCancel
         poll(fiber.join)
           .onCancel(fin.guarantee(fiber.cancel))
           .flatMap(_.embed(poll(canceled *> never)))
       }
+    }
+
+  /**
+   * An override of [[cancelable[A](fa:F[A],fin:F[Unit]):* cancelable]] that can be safely used
+   * when `fa` and `fin` use a resource-like construct that must be used without allowing
+   * cancelation.
+   *
+   * @note
+   *   The default implementation of `cancelable` ensures that `fa` is completed before
+   *   cancelation continues, but cannot ensure that `fa` gets canceled before `fa` completes
+   *   normally. When this race condition occurs, the result of `fa` is lost. Implementations of
+   *   [[GenSpawn]] should override `cancelable` with an implementation that returns normally if
+   *   `fa` wins the race between it and `fin`.
+   *
+   * @param poll
+   *   the poller for the uncancelable context the cancelable finalizer is constructed in.
+   * @param fa
+   *   the effect to be canceled
+   * @param fin
+   *   an effect which orchestrates some external state which terminates `fa`
+   * @see
+   *   [[uncancelable]]
+   * @see
+   *   [[onCancel]]
+   */
+  def cancelable[A](poll: Poll[F], fa: F[A], fin: F[Unit]): F[A] =
+    start(fa) flatMap { fiber =>
+      // Note: cannot be replaced with joinOrCancel, as this is used to implement joinOrCancel.
+      poll(fiber.join)
+        .onCancel(fin.guarantee(fiber.cancel))
+        .flatMap(_.embed(poll(canceled *> never)))
     }
 
   /**
@@ -442,8 +481,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     uncancelable { poll =>
       poll(racePair(fa, fb)).flatMap {
-        case Left((oc, f)) => poll(f.join).onCancel(f.cancel).tupleLeft(oc)
-        case Right((f, oc)) => poll(f.join).onCancel(f.cancel).tupleRight(oc)
+        case Left((oc, f)) => f.joinOrCancel(poll)(this).tupleLeft(oc)
+        case Right((f, oc)) => f.joinOrCancel(poll)(this).tupleRight(oc)
       }
     }
 
@@ -477,7 +516,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.joinOrCancel(poll)(this).flatMap {
                 case Outcome.Succeeded(fb) => fa.product(fb)
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => poll(canceled) *> never
@@ -488,7 +527,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         case Right((f, oc)) =>
           oc match {
             case Outcome.Succeeded(fb) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              f.joinOrCancel(poll)(this).flatMap {
                 case Outcome.Succeeded(fa) => fa.product(fb)
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => poll(canceled) *> never
