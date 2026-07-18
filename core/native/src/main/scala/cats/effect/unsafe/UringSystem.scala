@@ -91,11 +91,10 @@ object UringSystem extends PollingSystem {
   def metrics(poller: Poller): PollerMetrics = poller.metrics()
 
   abstract class Uring private[UringSystem] () {
-    def call(prep: Ptr[io_uring_sqe] => Unit): IO[Int]
+    def call(prep: Ptr[io_uring_sqe] => Unit, checkErrors: Boolean = true): IO[Int]
 
-    def bracket(prep: Ptr[io_uring_sqe] => Unit)(
-        release: Int => IO[Unit]
-    ): Resource[IO, Int]
+    def bracket(prep: Ptr[io_uring_sqe] => Unit, checkErrors: Boolean = true)(
+        release: Int => IO[Unit]): Resource[IO, Int]
   }
 
   object Uring {
@@ -111,15 +110,19 @@ object UringSystem extends PollingSystem {
       with FileDescriptorPoller {
     private[this] val noopRelease: Int => IO[Unit] = _ => IO.unit
 
-    def call(prep: Ptr[io_uring_sqe] => Unit): IO[Int] =
-      exec(prep)(noopRelease)
+    def call(prep: Ptr[io_uring_sqe] => Unit, checkErrors: Boolean = true): IO[Int] =
+      exec(prep, checkErrors)(noopRelease)
 
-    def bracket(prep: Ptr[io_uring_sqe] => Unit)(
-        release: Int => IO[Unit]
-    ): Resource[IO, Int] =
-      Resource.makeFull[IO, Int](poll => poll(exec(prep)(release)))(release(_))
+    def bracket(prep: Ptr[io_uring_sqe] => Unit, checkErrors: Boolean = true)(
+        release: Int => IO[Unit]): Resource[IO, Int] = {
+      val releaseSuccessful: Int => IO[Unit] = result =>
+        if (result >= 0) release(result) else IO.unit
 
-    private def exec(prep: Ptr[io_uring_sqe] => Unit)(
+      Resource.makeFull[IO, Int] { poll => poll(exec(prep, checkErrors)(releaseSuccessful)) }(
+        releaseSuccessful)
+    }
+
+    private def exec(prep: Ptr[io_uring_sqe] => Unit, checkErrors: Boolean)(
         release: Int => IO[Unit]
     ): IO[Int] =
       IO.cont {
@@ -147,14 +150,17 @@ object UringSystem extends PollingSystem {
                           F.unit,
                           // If cannot cancel, fallback to get
                           get.flatMap { rtn =>
-                            if (rtn < 0)
+                            if (checkErrors && rtn < 0)
                               F.raiseError(new IOException(fromCString(strerror(-rtn))))
                             else lift(release(rtn))
                           }
                         )
                       )
                   }
-                  .flatTap(e => F.raiseWhen(e < 0)(new IOException(fromCString(strerror(-e)))))
+                  .flatTap { e =>
+                    F.raiseWhen(checkErrors && e < 0)(
+                      new IOException(fromCString(strerror(-e))))
+                  }
               }
           }
         }
