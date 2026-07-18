@@ -945,16 +945,29 @@ private final class IOFiber[A](
               _ <- cancelB.join
             } yield ()
 
-          val next =
-            IO.async_[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
-              cb =>
-                fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
-                fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
+          type RacePairResult =
+            Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]
 
-                scheduleFiber(ec, fiberA)
-                scheduleFiber(ec, fiberB)
-            }.cancelable(cancel)
-              .uncancelable
+          val callback: ((Either[Throwable, RacePairResult] => Unit) => Unit) = cb => {
+            fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
+            fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
+
+            scheduleFiber(ec, fiberA)
+            scheduleFiber(ec, fiberB)
+          }
+
+          // inline and specialize `async_` so the `G.uncancelable` call be be removed, since
+          // the entire operation must be uncancelable.
+          val next = IO
+            .cont {
+              new Cont[IO, RacePairResult, RacePairResult] {
+                def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = {
+                  (resume, get, lift) => G.flatMap(lift(IO.delay(callback(resume))))(_ => get)
+                }
+              }
+            }
+            .cancelable(cancel)
+            .uncancelable
 
           runLoop(next, nextCancelation, nextAutoCede)
 
