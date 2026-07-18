@@ -306,11 +306,39 @@ object UringSystem extends PollingSystem {
     private[UringSystem] def getSqe(
         cb: Either[Throwable, Int] => Unit
     ): Ptr[io_uring_sqe] = {
-      pendingSubmissions = true
-      val sqe = io_uring_get_sqe(ring)
       val id = nextId()
-      callbacks.put(id, cb)
-      sqe.user_data = id.toULong
+      try {
+        val sqe = getAvailableSqe()
+        callbacks.put(id, cb)
+        sqe.user_data = id.toULong
+        sqe
+      } catch {
+        case t: Throwable =>
+          ids.clear(id.toInt)
+          throw t
+      }
+    }
+
+    private[this] def getAvailableSqe(): Ptr[io_uring_sqe] = {
+      var sqe = io_uring_get_sqe(ring)
+      while (sqe == null) {
+        // The SQ is full, so submit its pending entries to free a slot.
+        var rtn = io_uring_submit(ring)
+        // EBUSY indicates CQ pressure. Drain ready completions before retrying.
+        while (rtn == -EBUSY && processReadyEvents()) {
+          rtn = io_uring_submit(ring)
+        }
+
+        if (rtn < 0)
+          throw new IOException(fromCString(strerror(-rtn)))
+        // A zero result cannot free a slot, so another retry would not help.
+        else if (rtn == 0)
+          throw new IOException("io_uring submission queue is full")
+
+        sqe = io_uring_get_sqe(ring)
+      }
+
+      pendingSubmissions = true
       sqe
     }
 
@@ -399,7 +427,7 @@ object UringSystem extends PollingSystem {
     }
 
     private[this] def armWakeup(): Unit = {
-      val sqe = io_uring_get_sqe(ring)
+      val sqe = getAvailableSqe()
       sqe.user_data = 0L.toULong
       io_uring_prep_poll_add(sqe, wakeupFd, POLLIN.toUInt)
       listeningWakeup = true
