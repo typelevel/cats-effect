@@ -1,6 +1,7 @@
 /* your custom css */
 
 .homeContainer code.hljs {
+  background: transparent;
   display: inline;
 }
 
