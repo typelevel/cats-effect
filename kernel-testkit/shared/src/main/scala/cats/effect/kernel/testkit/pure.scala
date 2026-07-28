@@ -43,9 +43,12 @@ object pure {
 
   private[pure] final case class MaskFrame(id: MaskId)
 
-  // None defers finalizer selection until observation; Some scopes an in-fiber request.
-  private[pure] final case class CancelationSignal[E](
-      finalizers: Option[List[PureConc[E, Unit]]])
+  private[pure] sealed trait CancelationSignal
+
+  private[pure] object CancelationSignal {
+    case object Self extends CancelationSignal
+    case object External extends CancelationSignal
+  }
 
   private[pure] final class CancelationListenerId
 
@@ -71,18 +74,13 @@ object pure {
       masks: List[MaskId] = Nil,
       finalizers: List[PureConc[E, Unit]] = Nil) {
 
-    private[pure] def selfCancelationBoundary: Option[Int] = None
-
     private[pure] def finalizing: Boolean = false
 
     private[pure] def withFinalizers(value: List[PureConc[E, Unit]]): FiberCtx[E] =
-      FiberCtx.internal(self, masks, value, selfCancelationBoundary, finalizing)
-
-    private[pure] def withSelfCancelationBoundary(value: Option[Int]): FiberCtx[E] =
-      FiberCtx.internal(self, masks, finalizers, value, finalizing)
+      FiberCtx.internal(self, masks, value, finalizing)
 
     private[pure] def withFinalizing(value: Boolean): FiberCtx[E] =
-      FiberCtx.internal(self, masks, finalizers, selfCancelationBoundary, value)
+      FiberCtx.internal(self, masks, finalizers, value)
   }
 
   object FiberCtx {
@@ -90,7 +88,6 @@ object pure {
         self: PureFiber[E, ?],
         masks: List[MaskId],
         finalizers: List[PureConc[E, Unit]],
-        override private[pure] val selfCancelationBoundary: Option[Int],
         override private[pure] val finalizing: Boolean)
         extends FiberCtx[E](self, masks, finalizers)
 
@@ -98,9 +95,8 @@ object pure {
         self: PureFiber[E, ?],
         masks: List[MaskId],
         finalizers: List[PureConc[E, Unit]],
-        selfCancelationBoundary: Option[Int],
         finalizing: Boolean): FiberCtx[E] =
-      new Internal(self, masks, finalizers, selfCancelationBoundary, finalizing)
+      new Internal(self, masks, finalizers, finalizing)
   }
 
   type ResolvedPC[E, A] = ThreadT[IdOC[E, *], A]
@@ -165,11 +161,11 @@ object pure {
       type Main[X] = MVarR[ResolvedPC[E, *], X]
 
       MVar.empty[Main, Outcome[PureConc[E, *], E, A]].flatMap { state0 =>
-        MVar.empty[Main, CancelationSignal[E]] flatMap { canceled0 =>
+        MVar.empty[Main, CancelationSignal] flatMap { canceled0 =>
           MVar[Main, List[MaskFrame]](Nil) flatMap { masks =>
             MVar[Main, List[CancelationListener[E]]](Nil) flatMap { cancelationListeners =>
               MVar[Main, Boolean](false) flatMap { finalizing =>
-                MVar[Main, Int](0) flatMap { activePolls =>
+                MVar[Main, List[List[Finalizer[E]]]](Nil) flatMap { activePolls =>
                   val state = state0[Main]
                   val fiber =
                     new PureFiber[E, A](
@@ -374,25 +370,26 @@ object pure {
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, *], E, A]] =
         Thread.annotate("start", true) {
           MVar.empty[PureConc[E, *], Outcome[PureConc[E, *], E, A]].flatMap { state =>
-            MVar.empty[PureConc[E, *], CancelationSignal[E]] flatMap { canceled =>
+            MVar.empty[PureConc[E, *], CancelationSignal] flatMap { canceled =>
               MVar[PureConc[E, *], List[MaskFrame]](Nil) flatMap { masks =>
                 MVar[PureConc[E, *], List[CancelationListener[E]]](Nil) flatMap {
                   cancelationListeners =>
                     MVar[PureConc[E, *], Boolean](false) flatMap { finalizing =>
-                      MVar[PureConc[E, *], Int](0) flatMap { activePolls =>
-                        val fiber =
-                          new PureFiber[E, A](
-                            state,
-                            canceled,
-                            masks,
-                            cancelationListeners,
-                            finalizing,
-                            activePolls)
+                      MVar[PureConc[E, *], List[List[Finalizer[E]]]](Nil) flatMap {
+                        activePolls =>
+                          val fiber =
+                            new PureFiber[E, A](
+                              state,
+                              canceled,
+                              masks,
+                              cancelationListeners,
+                              finalizing,
+                              activePolls)
 
-                        // the tryPut here is interesting: it encodes first-wins semantics on cancelation/completion
-                        val body = guaranteeCase(fa)(state.tryPut[PureConc[E, *]](_).void)
-                        val identified = localCtx(FiberCtx(fiber), body)
-                        Thread.start(identified.attempt.void).as(fiber)
+                          // the tryPut here is interesting: it encodes first-wins semantics on cancelation/completion
+                          val body = guaranteeCase(fa)(state.tryPut[PureConc[E, *]](_).void)
+                          val identified = localCtx(FiberCtx(fiber), body)
+                          Thread.start(identified.attempt.void).as(fiber)
                       }
                     }
                 }
@@ -452,8 +449,6 @@ object pure {
         Thread.annotate("uncancelable", true) {
           withCtx { ctx =>
             val mask = new MaskId
-            val selfCancelationBoundary =
-              ctx.selfCancelationBoundary.getOrElse(ctx.finalizers.length)
 
             val self = ctx.self
             def updateMasks[B](f: List[MaskFrame] => (List[MaskFrame], B)): PureConc[E, B] =
@@ -481,33 +476,23 @@ object pure {
                   if (callCtx.self eq self)
                     removeF.flatMap { update =>
                       val restoreF = restore(update)
-                      val pollCtx = update match {
-                        case MaskUpdate.Removed =>
-                          callCtx.withSelfCancelationBoundary(
-                            callCtx
-                              .selfCancelationBoundary
-                              .orElse(Some(selfCancelationBoundary)))
-
-                        case MaskUpdate.Shadowed | MaskUpdate.Absent =>
-                          callCtx
-                      }
 
                       val enterF = update match {
-                        case MaskUpdate.Removed => self.enterPoll
+                        case MaskUpdate.Removed => self.enterPoll(callCtx.finalizers)
                         case MaskUpdate.Shadowed | MaskUpdate.Absent => unit
                       }
 
                       enterF *>
                         localCtx(
-                          pollCtx,
+                          callCtx,
                           onCancel(
                             self
-                              .realizeCancelationWith(pollCtx)
+                              .realizeCancelationWith(callCtx)
                               .ifM(
                                 Thread.done,
                                 fa.attempt.flatMap { result =>
                                   self
-                                    .realizeCancelationWith(pollCtx)
+                                    .realizeCancelationWith(callCtx)
                                     .ifM(
                                       Thread.done,
                                       restoreF *> result.pure[PureConc[E, *]].rethrow)
@@ -592,11 +577,11 @@ object pure {
   // todo: MVar is not Serializable, release then update here
   final class PureFiber[E, A](
       val state0: MVar[Outcome[PureConc[E, *], E, A]],
-      private[this] val canceled0: MVar[CancelationSignal[E]],
+      private[this] val canceled0: MVar[CancelationSignal],
       private[pure] val masks: MVar[List[MaskFrame]],
       private[this] val cancelationListeners: MVar[List[CancelationListener[E]]],
       private[this] val finalizing: MVar[Boolean],
-      private[this] val activePolls: MVar[Int])
+      private[this] val activePolls: MVar[List[List[Finalizer[E]]]])
       extends Fiber[PureConc[E, *], E, A]
       with Serializable {
 
@@ -611,21 +596,26 @@ object pure {
 
     private[pure] val hasActivePoll: PureConc[E, Boolean] =
       if (activePolls eq null) false.pure[PureConc[E, *]]
-      else activePolls.read[PureConc[E, *]].map(_ > 0)
+      else activePolls.read[PureConc[E, *]].map(_.nonEmpty)
 
-    private[pure] val enterPoll: PureConc[E, Unit] =
+    private[pure] def enterPoll(finalizers: List[Finalizer[E]]): PureConc[E, Unit] =
       if (activePolls eq null) ().pure[PureConc[E, *]]
       else
-        activePolls.read[PureConc[E, *]].flatMap { n =>
-          activePolls.swap[PureConc[E, *]](n + 1).void
+        activePolls.read[PureConc[E, *]].flatMap { polls =>
+          activePolls.swap[PureConc[E, *]](finalizers :: polls).void
         }
 
     private[pure] val exitPoll: PureConc[E, Unit] =
       if (activePolls eq null) ().pure[PureConc[E, *]]
       else
-        activePolls.read[PureConc[E, *]].flatMap { n =>
-          activePolls.swap[PureConc[E, *]]((n - 1) max 0).void
+        activePolls.read[PureConc[E, *]].flatMap {
+          case _ :: polls => activePolls.swap[PureConc[E, *]](polls).void
+          case Nil => ().pure[PureConc[E, *]]
         }
+
+    private[pure] val currentPollFinalizers: PureConc[E, List[Finalizer[E]]] =
+      if (activePolls eq null) List.empty[Finalizer[E]].pure[PureConc[E, *]]
+      else activePolls.read[PureConc[E, *]].map(_.headOption.getOrElse(Nil))
 
     private[pure] def registerCancelationListener(
         notify: PureConc[E, Unit]): PureConc[E, CancelationListenerId] = {
@@ -726,18 +716,16 @@ object pure {
       }
 
     private[this] def cancelationFinalizers(
-        signal: CancelationSignal[E],
-        ctx: FiberCtx[E]): List[PureConc[E, Unit]] =
-      signal.finalizers match {
-        case None => ctx.finalizers
-        case Some(Nil) if ctx.selfCancelationBoundary.nonEmpty =>
-          cancelationBoundaryFinalizers(ctx)
-        case Some(finalizers) => finalizers
+        signal: CancelationSignal,
+        ctx: FiberCtx[E]): PureConc[E, List[Finalizer[E]]] =
+      signal match {
+        case CancelationSignal.Self => ctx.self.currentPollFinalizers
+        case CancelationSignal.External => ctx.finalizers.pure[PureConc[E, *]]
       }
 
     private[this] def realizeCancelationWithSignal(
         ctx: FiberCtx[E],
-        signal: CancelationSignal[E]): PureConc[E, Boolean] =
+        signal: CancelationSignal): PureConc[E, Boolean] =
       if (ctx.finalizing) false.pure[PureConc[E, *]]
       else
         isFinalizing.ifM(
@@ -747,7 +735,8 @@ object pure {
             .currentMasks
             .map(_.isEmpty)
             .ifM(
-              whileFinalizing(ctx)(finalizeWith(ctx, cancelationFinalizers(signal, ctx))),
+              cancelationFinalizers(signal, ctx)
+                .flatMap(finalizers => whileFinalizing(ctx)(finalizeWith(ctx, finalizers))),
               false.pure[PureConc[E, *]]
             )
         )
@@ -762,12 +751,6 @@ object pure {
             case None => false.pure[PureConc[E, *]]
           }
         )
-
-    private[this] def cancelationBoundaryFinalizers(ctx: FiberCtx[E]): List[PureConc[E, Unit]] =
-      ctx.selfCancelationBoundary match {
-        case Some(boundary) => ctx.finalizers.take((ctx.finalizers.length - boundary) max 0)
-        case None => Nil
-      }
 
     private[pure] def awaitCancelationWith(ctx: FiberCtx[E]): PureConc[E, Boolean] = {
       def blocked =
@@ -794,24 +777,21 @@ object pure {
           ctx.self.currentMasks.flatMap {
             case Nil =>
               whileFinalizing(ctx) {
-                canceled0
-                  .tryPut[PureConc[E, *]](CancelationSignal[E](Some(ctx.finalizers)))
-                  .flatMap {
-                    case true =>
-                      notifyCancelationListeners *> finalizeWith(ctx, ctx.finalizers)
-                    case false => finalizeWith(ctx, ctx.finalizers)
-                  }
+                canceled0.tryPut[PureConc[E, *]](CancelationSignal.Self).flatMap {
+                  case true =>
+                    notifyCancelationListeners *> finalizeWith(ctx, ctx.finalizers)
+                  case false => finalizeWith(ctx, ctx.finalizers)
+                }
               }
 
             case _ =>
-              requestCancelation(Some(Nil)).as(false)
+              requestCancelation(CancelationSignal.Self).as(false)
           }
         )
 
-    private[this] def requestCancelation(
-        finalizers: Option[List[PureConc[E, Unit]]]): PureConc[E, Unit] =
+    private[this] def requestCancelation(signal: CancelationSignal): PureConc[E, Unit] =
       canceled0
-        .tryPut[PureConc[E, *]](CancelationSignal[E](finalizers))
+        .tryPut[PureConc[E, *]](signal)
         .flatMap(inserted =>
           if (inserted) notifyCancelationListeners else ().pure[PureConc[E, *]])
 
@@ -828,7 +808,7 @@ object pure {
           state.tryRead.flatMap {
             case Some(_) => ().pure[PureConc[E, *]]
             case None =>
-              requestCancelation(None) *> state.read.void
+              requestCancelation(CancelationSignal.External) *> state.read.void
           }
         }
   }

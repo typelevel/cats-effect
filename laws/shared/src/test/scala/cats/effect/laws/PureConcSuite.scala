@@ -351,6 +351,75 @@ class PureConcSuite
         Outcome.Succeeded[Option, Int, (Int, Boolean)](Some((1, false))))
     }
 
+    test("run only finalizers installed after a masked self-cancel") {
+      val t = for {
+        before <- F.ref(0)
+        after <- F.ref(0)
+        ran <- F.ref(false)
+        fiber <- F.start {
+          F.uncancelable { poll =>
+            F.onCancel(F.canceled, before.update(_ + 1)) *>
+              F.onCancel(poll(ran.set(true)), after.update(_ + 1))
+          }
+        }
+        _ <- fiber.join
+        beforeCount <- before.get
+        afterCount <- after.get
+        body <- ran.get
+      } yield (beforeCount, afterCount, body)
+
+      assertEquals(
+        pure.run(t),
+        Outcome.Succeeded[Option, Int, (Int, Int, Boolean)](Some((0, 1, false))))
+    }
+
+    test("select the innermost active poll finalizers") {
+      val t = for {
+        finalized <- F.ref("")
+        fiber <- F.start {
+          F.uncancelable { outerPoll =>
+            F.onCancel(
+              outerPoll {
+                F.uncancelable { innerPoll =>
+                  F.onCancel(
+                    innerPoll(F.uncancelable(_ => F.canceled)),
+                    finalized.update(_ + "B"))
+                }
+              },
+              finalized.update(_ + "A"))
+          }
+        }
+        _ <- fiber.join
+        back <- finalized.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, String](Some("BA")))
+    }
+
+    test("restore outer poll finalizers after an inner poll completes") {
+      val t = for {
+        outerFinalized <- F.ref(0)
+        innerFinalized <- F.ref(0)
+        fiber <- F.start {
+          F.uncancelable { outerPoll =>
+            F.onCancel(
+              outerPoll {
+                F.uncancelable { innerPoll =>
+                  F.onCancel(innerPoll(F.unit), innerFinalized.update(_ + 1))
+                } *> F.uncancelable(_ => F.canceled)
+              },
+              outerFinalized.update(_ + 1)
+            )
+          }
+        }
+        _ <- fiber.join
+        outer <- outerFinalized.get
+        inner <- innerFinalized.get
+      } yield (outer, inner)
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, (Int, Int)](Some((1, 0))))
+    }
+
     test("observe nested self-cancel inside a polled region before continuing") {
       val t = for {
         ran <- F.ref(false)
@@ -366,6 +435,34 @@ class PureConcSuite
       } yield back
 
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Boolean](Some(false)))
+    }
+
+    test("preserve masked self-cancel through poll") {
+      val maskedCancel = F.uncancelable(_ => F.canceled)
+      val fa = F.onCancel(maskedCancel, F.never[Unit])
+
+      assertEquals(pure.run(maskedCancel), Outcome.Canceled[Option, Int, Unit]())
+      assertEquals(
+        pure.run(F.uncancelable(poll => poll(maskedCancel))),
+        Outcome.Canceled[Option, Int, Unit]())
+      assertEquals(pure.run(fa), Outcome.Canceled[Option, Int, Unit]())
+      assertEquals(
+        pure.run(F.uncancelable(poll => poll(fa))),
+        Outcome.Canceled[Option, Int, Unit]())
+    }
+
+    test("run a guarantee finalizer around a masked self-cancel") {
+      val fa = F.guarantee(F.uncancelable(_ => F.canceled), F.never[Unit])
+
+      assertEquals(pure.run(fa), Outcome.Succeeded[Option, Int, Unit](None))
+    }
+
+    test("associate finalizers across an uncancelable boundary") {
+      val left = F.uncancelable(_ => F.onCancel(F.canceled, F.never[Unit]))
+      val right = F.onCancel(F.uncancelable(_ => F.canceled), F.never[Unit])
+
+      assertEquals(pure.run(left), Outcome.Canceled[Option, Int, Unit]())
+      assertEquals(pure.run(right), Outcome.Canceled[Option, Int, Unit]())
     }
 
     test("implement locals via Kleisli and FreeT") {
