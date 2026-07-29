@@ -291,6 +291,45 @@ class PureConcSuite
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Boolean](Some(false)))
     }
 
+    test("select current finalizers for external cancelation inside poll") {
+      val t = for {
+        polled <- F.deferred[Unit]
+        gate <- F.deferred[Unit]
+        finalized <- F.ref(0)
+        fiber <- F.start {
+          F.uncancelable { poll =>
+            poll(F.onCancel(polled.complete(()) *> gate.get, finalized.update(_ + 1)))
+          }
+        }
+        _ <- polled.get
+        _ <- fiber.cancel
+        back <- finalized.get
+      } yield back
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
+    }
+
+    test("unregister finalizers before observing masked external cancelation") {
+      val t = for {
+        masked <- F.deferred[Unit]
+        gate <- F.deferred[Unit]
+        finalized <- F.ref(0)
+        fiber <- F.start {
+          F.onCancel(
+            F.uncancelable(_ => masked.complete(()) *> gate.get),
+            finalized.update(_ + 1))
+        }
+        _ <- masked.get
+        releaser <- F.start(F.cede *> gate.complete(()))
+        _ <- fiber.cancel
+        _ <- releaser.join
+        outcome <- fiber.join
+        back <- finalized.get
+      } yield (outcome === Outcome.canceled[F, Int, Unit], back)
+
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, (Boolean, Int)](Some((true, 0))))
+    }
+
     test("run finalizers around a self-canceling polled region") {
       val t = for {
         finalized <- F.ref(0)
