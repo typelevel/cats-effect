@@ -450,9 +450,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     Spawn[IO].cancelable(this, fin)
 
   /**
-   * Run the given finalizer when cancelation is requested. Unlike [[onCancel]], this will run
-   * before cancelation is observed, which may allow `fa` to complete before cancelation becomes
-   * effective.
+   * Run the given effect when cancelation is requested. Unlike [[onCancel]], this will run
+   * before cancelation is observed, on a separate fiber, and will always allow `fa` to complete
+   * before cancelation is observed.
    *
    * @param ack
    *   an effect which orchestrates some external state which terminates `fa`
@@ -2073,11 +2073,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
       ioa.onCancel(fin)
 
     /**
-     * Run the given finalizer when cancelation is requested. Unlike [[onCancel]], this will run
-     * before cancelation is observed, which may allow `fa` to complete before cancelation
-     * becomes effective.
+     * Run the given effect when cancelation is requested. Unlike [[onCancel]], this will run
+     * before cancelation is observed, on a separate fiber, and will always allow `fa` to
+     * complete before cancelation is observed.
      *
-     * @param ioa
+     * @param fa
      *   the effect to be canceled
      * @param ack
      *   an effect which orchestrates some external state which terminates `fa`
@@ -2086,8 +2086,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
      * @see
      *   [[onCancel]]
      */
-    override def onCancelRequested[A](ioa: IO[A], ack: IO[Unit]): IO[A] =
-      ioa.onCancelRequested(ack)
+    override def onCancelRequested[A](fa: IO[A], ack: IO[Unit]): IO[A] =
+      fa.onCancelRequested(ack)
 
     override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
         release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =

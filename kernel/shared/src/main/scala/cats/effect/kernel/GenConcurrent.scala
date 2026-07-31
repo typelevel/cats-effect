@@ -79,7 +79,6 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
                 deferredFiber.complete(fiber) *>
                   poll(fiber.join.flatMap(_.embed(productR(canceled)(never))))
                     .onCancel(unsubscribe(deferredFiber))
-
               }
 
               Evaluating(deferredFiber, 1) -> eval

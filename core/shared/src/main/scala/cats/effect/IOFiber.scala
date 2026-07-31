@@ -1102,7 +1102,7 @@ private final class IOFiber[A](
               else
                 ack
             acks.push(push)
-            conts = ByteStack.push(conts, CancelableK)
+            conts = ByteStack.push(conts, OnCancelRequestedK)
           }
 
           runLoop(cur.f, nextCancelation, nextAutoCede)
@@ -1343,7 +1343,7 @@ private final class IOFiber[A](
       case 9 => // attemptK
         succeeded(Right(result), depth)
 
-      case 10 => // cancelableSuccessK
+      case 10 => // onCancelRequestedSuccessK
         masks -= 1
         if (startedAcks) {
           acks.pop().as(result)
@@ -1414,7 +1414,7 @@ private final class IOFiber[A](
 
       case 9 => succeeded(Left(error), depth) // attemptK
 
-      case 10 => // cancelableFailureK
+      case 10 => // onCancelRequestedFailureK
         if (startedAcks) {
           acks.pop() >> failed(error, depth + 1)
         } else {

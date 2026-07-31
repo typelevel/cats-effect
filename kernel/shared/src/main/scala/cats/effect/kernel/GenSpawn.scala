@@ -252,13 +252,6 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * be equal to `never` (similar to [[race]]). Under normal circumstances, if `fa`
    * self-cancels, that cancelation will be propagated to the calling context.
    *
-   * @note
-   *   The default implementation of `cancelable` ensures that `fa` is completed before
-   *   cancelation continues, but cannot ensure that `fa` gets canceled before `fa` completes
-   *   normally. When this race condition occurs, the result of `fa` is lost. Implementations of
-   *   [[GenSpawn]] should override `cancelable` with an implementation that returns normally if
-   *   `fa` wins the race between it and `fin`.
-   *
    * @param fa
    *   the effect to be canceled
    * @param fin
@@ -271,23 +264,22 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def cancelable[A](fa: F[A], fin: F[Unit]): F[A] =
     uncancelable { poll =>
       start(fa) flatMap { fiber =>
-        // Note: cannot be replaced with joinOrCancel, as this is used to implement joinOrCancel
         onCancelRequested(poll(fiber.join), fin.guarantee(fiber.cancel))
           .flatMap(_.embed(poll(canceled *> never)))
       }
     }
 
   /**
-   * Run the given finalizer when cancelation is requested. Unlike [[onCancel]], this may run
+   * Run the given effect when cancelation is requested. Unlike [[onCancel]], this may run
    * before cancelation is observed, which may allow `fa` to complete before cancelation becomes
    * effective.
    *
    * @note
    *   The default implementation of `onCancelRequested` is equivalent to `onCancel` ensures
-   *   that `fin` is completed before cancelation continues, but cannot ensure that `fa` gets
+   *   that `ack` is completed before cancelation continues, but cannot ensure that `fa` gets
    *   completes before the fiber is canceled. When this race condition occurs, the result of
    *   `fa` is lost. Implementations of [[GenSpawn]] should override `onCancelRequested` with an
-   *   implementation that returns normally if `fa` wins the race between it and `fin`.
+   *   implementation that returns normally if `fa` wins the race between it and `ack`.
    *
    * @param fa
    *   the effect to be canceled

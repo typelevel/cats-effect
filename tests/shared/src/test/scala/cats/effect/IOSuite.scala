@@ -1278,6 +1278,31 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       assert(!failed)
   }
 
+  ticked("cancelation - support re-enablement via cancelable") { implicit ticker =>
+    assertCompleteAs(
+      IO.deferred[Unit].flatMap { gate =>
+        val test = IO.deferred[Unit] flatMap { latch =>
+          IO.uncancelable(poll =>
+            (gate.complete(()) *> poll(latch.get)).cancelable(latch.complete(()).void))
+        }
+
+        test.start.flatMap(gate.get *> _.cancel)
+      },
+      ()
+    )
+  }
+
+  ticked("cancelation - cancelable waits for termination") { implicit ticker =>
+    def test(fin: IO[Unit]) = {
+      val go = IO.never.uncancelable.cancelable(fin)
+      go.start.flatMap(IO.sleep(1.second) *> _.cancel)
+    }
+
+    assertNonTerminate(test(IO.unit))
+    assertNonTerminate(test(IO.raiseError(new Exception)))
+    assertNonTerminate(test(IO.canceled))
+  }
+
   ticked("cancelation - support re-enablement via onCancelRequested") { implicit ticker =>
     assertCompleteAs(
       IO.deferred[Unit].flatMap { gate =>
