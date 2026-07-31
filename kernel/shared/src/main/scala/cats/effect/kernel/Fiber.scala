@@ -59,8 +59,7 @@ trait Fiber[F[_], E, A] extends Serializable {
    *
    * @note
    *   This method provides a safer version of `join.onCancel(cancel)` for [[GenSpawn]]
-   *   implementations where
-   *   [[cats.effect.kernel.GenSpawn.cancelable[A](poll:cats\.effect\.kernel\.Poll[F],fa:F[A],fin:F[Unit]):* the polling cancelable]]
+   *   implementations where [[cats.effect.kernel.GenSpawn.onCancelRequested onCancelRequested]]
    *   has a data-loss safe implementation.
    */
   def joinOrCancel(poll: Poll[F])(implicit F: GenSpawn[F, E]): F[Outcome[F, E, A]] =
