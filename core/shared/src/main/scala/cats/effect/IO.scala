@@ -405,49 +405,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.asyncForIO.backgroundOnExecutor(this, executor)
 
   /**
-   * Given an effect which might be [[uncancelable]] and a finalizer, produce an effect which
-   * can be canceled by running the finalizer. This combinator is useful for handling scenarios
-   * in which an effect is inherently uncancelable but may be canceled through setting some
-   * external state. A trivial example of this might be the following:
+   * Run the given finalizer when cancelation is requested. Unlike [[onCancel]], this will run
+   * before cancelation is observed, which may allow `fa` to complete before cancelation becomes
+   * effective.
    *
-   * {{{
-   *   val flag = new AtomicBoolean(false)
-   *   val ioa = IO blocking {
-   *     while (!flag.get()) {
-   *       Thread.sleep(10)
-   *     }
-   *   }
-   *
-   *   ioa.cancelable(IO.delay(flag.set(true)))
-   * }}}
-   *
-   * Without `cancelable`, effects constructed by `blocking`, `delay`, and similar are
-   * inherently uncancelable. Simply adding an `onCancel` to such effects is insufficient to
-   * resolve this, despite the fact that under *some* circumstances (such as the above), it is
-   * possible to enrich an otherwise-uncancelable effect with early termination. `cancelable`
-   * addresses this use-case.
-   *
-   * Note that there is no free lunch here. If an effect truly cannot be prematurely terminated,
-   * `cancelable` will not allow for cancelation. As an example, if you attempt to cancel
-   * `uncancelable(_ => never)`, the cancelation will hang forever (in other words, it will be
-   * itself equivalent to `never`). Applying `cancelable` will not change this in any way. Thus,
-   * attempting to cancel `cancelable(uncancelable(_ => never), unit)` will ''also'' hang
-   * forever. As in all cases, cancelation will only return when all finalizers have run and the
-   * fiber has fully terminated.
-   *
-   * If the `IO` self-cancels and the `cancelable` itself is uncancelable, the resulting fiber
-   * will be equal to `never` (similar to [[race]]). Under normal circumstances, if `IO`
-   * self-cancels, that cancelation will be propagated to the calling context.
-   *
-   * @param fin
-   *   an effect which orchestrates some external state which terminates the `IO`
-   * @see
-   *   [[uncancelable]]
+   * @param ack
+   *   an effect which orchestrates some external state which terminates `fa`
    * @see
    *   [[onCancel]]
    */
-  def cancelable(fin: IO[Unit]): IO[A] =
-    IO.Cancelable(this, fin)
+  def onCancelRequested(ack: IO[Unit]): IO[A] =
+    IO.OnCancelRequested(this, ack)
 
   def forceR[B](that: IO[B]): IO[B] =
     // cast is needed here to trick the compiler into avoiding the IO[Any]
@@ -2059,11 +2027,22 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     def onCancel[A](ioa: IO[A], fin: IO[Unit]): IO[A] =
       ioa.onCancel(fin)
 
-    override def cancelable[A](poll: Poll[IO], ioa: IO[A], ack: IO[Unit]): IO[A] =
-      ioa.cancelable(ack)
-
-    override def cancelable[A](ioa: IO[A], ack: IO[Unit]): IO[A] =
-      ioa.cancelable(ack)
+    /**
+     * Run the given finalizer when cancelation is requested. Unlike [[onCancel]], this will run
+     * before cancelation is observed, which may allow `fa` to complete before cancelation
+     * becomes effective.
+     *
+     * @param ioa
+     *   the effect to be canceled
+     * @param ack
+     *   an effect which orchestrates some external state which terminates `fa`
+     * @see
+     *   [[cancelable]]
+     * @see
+     *   [[onCancel]]
+     */
+    override def onCancelRequested[A](ioa: IO[A], ack: IO[Unit]): IO[A] =
+      ioa.onCancelRequested(ack)
 
     override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
         release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
@@ -2334,7 +2313,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     def tag = 24
   }
 
-  private[effect] final case class Cancelable[A](f: IO[A], ack: IO[Unit]) extends IO[A] {
+  private[effect] final case class OnCancelRequested[A](f: IO[A], ack: IO[Unit]) extends IO[A] {
     def tag = 25
   }
 

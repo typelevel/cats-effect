@@ -77,11 +77,9 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
               val eval = go.start.flatMap { fiber =>
                 deferredFiber.complete(fiber) *>
-                  poll(
-                    fiber
-                      .join
-                      .flatMap(_.embed(productR(canceled)(never)))
-                      .cancelable(unsubscribe(deferredFiber)))
+                  F.onCancelRequested(
+                    poll(fiber.join.flatMap(_.embed(productR(canceled)(never)))),
+                    unsubscribe(deferredFiber))
 
               }
 
@@ -89,12 +87,9 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
             case (poll, Evaluating(fiber, subscribers)) =>
               Evaluating(fiber, subscribers + 1) ->
-                poll(
-                  fiber
-                    .get
-                    .flatMap(_.join)
-                    .flatMap(_.embed(productR(canceled)(never)))
-                    .cancelable(unsubscribe(fiber)))
+                F.onCancelRequested(
+                  poll(fiber.get.flatMap(_.join).flatMap(_.embed(productR(canceled)(never)))),
+                  unsubscribe(fiber))
 
             case (_, finished @ Finished(result)) =>
               finished -> fromEither(result).flatten
@@ -175,9 +170,8 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
         fibA <- start(guaranteeCase(fa)(oc => result.complete(Left(oc)).void))
         fibB <- start(guaranteeCase(fb)(oc => result.complete(Right(oc)).void))
 
-        back <- cancelable(
-          poll,
-          result.get,
+        back <- onCancelRequested(
+          poll(result.get),
           for {
             canA <- start(fibA.cancel)
             canB <- start(fibB.cancel)

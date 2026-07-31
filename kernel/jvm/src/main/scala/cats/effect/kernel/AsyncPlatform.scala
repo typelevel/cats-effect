@@ -52,7 +52,7 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
           }
         }
 
-        cancelable(poll, wait, void(delay(cf.cancel(true))))
+        onCancelRequested(poll(wait), void(delay(cf.cancel(true))))
       }
     }
 }

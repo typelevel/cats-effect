@@ -958,16 +958,15 @@ private final class IOFiber[A](
 
           // inline and specialize `async_` so the `G.uncancelable` call be be removed, since
           // the entire operation must be uncancelable.
-          val next = IO
-            .cont {
+          val next =
+            IO.cont {
               new Cont[IO, RacePairResult, RacePairResult] {
                 def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = {
                   (resume, get, lift) => G.flatMap(lift(IO.delay(callback(resume))))(_ => get)
                 }
               }
-            }
-            .cancelable(cancel)
-            .uncancelable
+            }.onCancelRequested(cancel)
+              .uncancelable
 
           runLoop(next, nextCancelation, nextAutoCede)
 
@@ -1089,13 +1088,14 @@ private final class IOFiber[A](
         case 24 =>
           runLoop(succeeded(runtime, 0), nextCancelation, nextAutoCede)
 
-        /* Cancelable */
+        /* OnCancelRequested */
         case 25 =>
-          val cur = cur0.asInstanceOf[Cancelable[Any]]
+          val cur = cur0.asInstanceOf[OnCancelRequested[Any]]
           val ack = EvalOn(cur.ack, currentCtx)
 
           // otherwise it is too late to request cancelation
           if (!finalizing) {
+            masks += 1
             val push =
               if (startedAcks)
                 runAcknowledgement(ack) // already started, run immediately
@@ -1344,6 +1344,7 @@ private final class IOFiber[A](
         succeeded(Right(result), depth)
 
       case 10 => // cancelableSuccessK
+        masks -= 1
         if (startedAcks) {
           acks.pop().as(result)
         } else {

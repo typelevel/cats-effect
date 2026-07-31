@@ -272,42 +272,34 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     uncancelable { poll =>
       start(fa) flatMap { fiber =>
         // Note: cannot be replaced with joinOrCancel, as this is used to implement joinOrCancel
-        poll(fiber.join)
-          .onCancel(fin.guarantee(fiber.cancel))
+        onCancelRequested(poll(fiber.join), fin.guarantee(fiber.cancel))
           .flatMap(_.embed(poll(canceled *> never)))
       }
     }
 
   /**
-   * An override of [[cancelable[A](fa:F[A],fin:F[Unit]):* cancelable]] that can be safely used
-   * when `fa` and `fin` use a resource-like construct that must be used without allowing
-   * cancelation.
+   * Run the given finalizer when cancelation is requested. Unlike [[onCancel]], this may run
+   * before cancelation is observed, which may allow `fa` to complete before cancelation becomes
+   * effective.
    *
    * @note
-   *   The default implementation of `cancelable` ensures that `fa` is completed before
-   *   cancelation continues, but cannot ensure that `fa` gets canceled before `fa` completes
-   *   normally. When this race condition occurs, the result of `fa` is lost. Implementations of
-   *   [[GenSpawn]] should override `cancelable` with an implementation that returns normally if
-   *   `fa` wins the race between it and `fin`.
+   *   The default implementation of `onCancelRequested` is equivalent to `onCancel` ensures
+   *   that `fin` is completed before cancelation continues, but cannot ensure that `fa` gets
+   *   completes before the fiber is canceled. When this race condition occurs, the result of
+   *   `fa` is lost. Implementations of [[GenSpawn]] should override `onCancelRequested` with an
+   *   implementation that returns normally if `fa` wins the race between it and `fin`.
    *
-   * @param poll
-   *   the poller for the uncancelable context the cancelable finalizer is constructed in.
    * @param fa
    *   the effect to be canceled
-   * @param fin
+   * @param ack
    *   an effect which orchestrates some external state which terminates `fa`
    * @see
-   *   [[uncancelable]]
+   *   [[cancelable]]
    * @see
    *   [[onCancel]]
    */
-  def cancelable[A](poll: Poll[F], fa: F[A], fin: F[Unit]): F[A] =
-    start(fa) flatMap { fiber =>
-      // Note: cannot be replaced with joinOrCancel, as this is used to implement joinOrCancel.
-      poll(fiber.join)
-        .onCancel(fin.guarantee(fiber.cancel))
-        .flatMap(_.embed(poll(canceled *> never)))
-    }
+  def onCancelRequested[A](fa: F[A], ack: F[Unit]): F[A] =
+    fa.onCancel(ack)
 
   /**
    * A non-terminating effect that never completes, which causes a fiber to semantically block

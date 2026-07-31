@@ -64,7 +64,7 @@ trait Fiber[F[_], E, A] extends Serializable {
    *   has a data-loss safe implementation.
    */
   def joinOrCancel(poll: Poll[F])(implicit F: GenSpawn[F, E]): F[Outcome[F, E, A]] =
-    F.cancelable(poll, F.uncancelable(_ => join), cancel)
+    F.onCancelRequested(poll(join), cancel)
 
   /**
    * Awaits the completion of the bound fiber and returns its result once it completes.
