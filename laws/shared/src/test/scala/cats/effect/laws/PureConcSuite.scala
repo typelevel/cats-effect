@@ -248,6 +248,57 @@ class PureConcSuite
       assertEquals(forked, Outcome.Succeeded[Option, Int, Unit](None))
     }
 
+    test("observe pending cancelation before a pure polled action") {
+      val t = F.uncancelable(poll => F.canceled *> poll(F.unit))
+
+      assertEquals(pure.run(t), Outcome.Canceled[Option, Int, Unit]())
+    }
+
+    test("observe pending cancelation before an error handler") {
+      val t = for {
+        handlerRan <- F.ref(false)
+        finalizerCount <- F.ref(0)
+        fiber <- F.start {
+          F.onCancel(
+            F.handleErrorWith(F.uncancelable(_ => F.canceled *> F.raiseError[Unit](1)))(_ =>
+              handlerRan.set(true)),
+            finalizerCount.update(_ + 1))
+        }
+        outcome <- fiber.join
+        handled <- handlerRan.get
+        finalized <- finalizerCount.get
+      } yield (outcome === Outcome.canceled[F, Int, Unit], handled, finalized)
+
+      assertEquals(
+        pure.run(t),
+        Outcome.Succeeded[Option, Int, (Boolean, Boolean, Int)](Some((true, false, 1))))
+    }
+
+    test("observe pending cancelation before the next tailRecM iteration") {
+      val t = for {
+        iterationRan <- F.ref(false)
+        finalizerCount <- F.ref(0)
+        fiber <- F.start {
+          F.onCancel(
+            F.tailRecM[Int, Unit](0) {
+              case 0 =>
+                F.uncancelable(_ => F.canceled.as(Left(1): Either[Int, Unit]))
+              case _ =>
+                iterationRan.set(true).as(Right(()): Either[Int, Unit])
+            },
+            finalizerCount.update(_ + 1)
+          )
+        }
+        outcome <- fiber.join
+        iterated <- iterationRan.get
+        finalized <- finalizerCount.get
+      } yield (outcome === Outcome.canceled[F, Int, Unit], iterated, finalized)
+
+      assertEquals(
+        pure.run(t),
+        Outcome.Succeeded[Option, Int, (Boolean, Boolean, Int)](Some((true, false, 1))))
+    }
+
     test("ignore poll from another fiber") {
       val t = for {
         started <- F.deferred[Unit]
@@ -309,7 +360,7 @@ class PureConcSuite
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
     }
 
-    test("unregister finalizers before observing masked external cancelation") {
+    test("allow masked completion after unregistering external cancelation finalizers") {
       val t = for {
         masked <- F.deferred[Unit]
         gate <- F.deferred[Unit]
@@ -325,7 +376,7 @@ class PureConcSuite
         _ <- releaser.join
         outcome <- fiber.join
         back <- finalized.get
-      } yield (outcome === Outcome.canceled[F, Int, Unit], back)
+      } yield (outcome.isSuccess, back)
 
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, (Boolean, Int)](Some((true, 0))))
     }
@@ -356,7 +407,7 @@ class PureConcSuite
       assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
     }
 
-    test("run outer finalizers when a masked self-cancel is observed inside poll") {
+    test("skip outer finalizers when a masked self-cancel reaches the fiber terminus") {
       val t = for {
         finalized <- F.ref(0)
         fiber <- F.start {
@@ -364,11 +415,11 @@ class PureConcSuite
             F.uncancelable { poll => poll(F.uncancelable(_ => F.canceled)) },
             finalized.update(_ + 1))
         }
-        _ <- fiber.join
+        outcome <- fiber.join
         back <- finalized.get
-      } yield back
+      } yield (outcome.isSuccess, back)
 
-      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, Int](Some(1)))
+      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, (Boolean, Int)](Some((true, 0))))
     }
 
     test("observe pending self-cancel before running a polled region") {
@@ -412,7 +463,7 @@ class PureConcSuite
         Outcome.Succeeded[Option, Int, (Int, Int, Boolean)](Some((0, 1, false))))
     }
 
-    test("select the innermost active poll finalizers") {
+    test("skip active poll finalizers when a masked self-cancel reaches the fiber terminus") {
       val t = for {
         finalized <- F.ref("")
         fiber <- F.start {
@@ -428,14 +479,16 @@ class PureConcSuite
               finalized.update(_ + "A"))
           }
         }
-        _ <- fiber.join
+        outcome <- fiber.join
         back <- finalized.get
-      } yield back
+      } yield (outcome.isSuccess, back)
 
-      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, String](Some("BA")))
+      assertEquals(
+        pure.run(t),
+        Outcome.Succeeded[Option, Int, (Boolean, String)](Some((true, ""))))
     }
 
-    test("restore outer poll finalizers after an inner poll completes") {
+    test("skip restored poll finalizers when a masked self-cancel reaches the fiber terminus") {
       val t = for {
         outerFinalized <- F.ref(0)
         innerFinalized <- F.ref(0)
@@ -451,12 +504,14 @@ class PureConcSuite
             )
           }
         }
-        _ <- fiber.join
+        outcome <- fiber.join
         outer <- outerFinalized.get
         inner <- innerFinalized.get
-      } yield (outer, inner)
+      } yield (outcome.isSuccess, outer, inner)
 
-      assertEquals(pure.run(t), Outcome.Succeeded[Option, Int, (Int, Int)](Some((1, 0))))
+      assertEquals(
+        pure.run(t),
+        Outcome.Succeeded[Option, Int, (Boolean, Int, Int)](Some((true, 0, 0))))
     }
 
     test("observe nested self-cancel inside a polled region before continuing") {
@@ -572,11 +627,13 @@ class PureConcSuite
       assertEquals(
         pure.run(
           TimeT.run(T.race(TimeT.liftF(F.uncancelable(_ => F.canceled.as(1))), T.never[Unit]))),
-        Outcome.Canceled[Option, Int, Either[Int, Unit]]())
+        Outcome.Succeeded[Option, Int, Either[Int, Unit]](Some(Left(1)))
+      )
       assertEquals(
         pure.run(
           TimeT.run(T.race(T.never[Unit], TimeT.liftF(F.uncancelable(_ => F.canceled.as(1)))))),
-        Outcome.Canceled[Option, Int, Either[Unit, Int]]())
+        Outcome.Succeeded[Option, Int, Either[Unit, Int]](Some(Right(1)))
+      )
       assertEquals(
         pure.run(
           TimeT.run(T.race(TimeT.liftF(F.start(F.unit).flatMap(_.join).as(1)), T.never[Unit]))),
