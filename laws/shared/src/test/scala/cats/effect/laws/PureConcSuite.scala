@@ -545,10 +545,137 @@ class PureConcSuite
         Outcome.Canceled[Option, Int, Unit]())
     }
 
+    test("allow the owning poll after unregistering a cancelation finalizer") {
+      val fa = F.uncancelable { poll =>
+        F.onCancel(poll(F.unit), F.never[Unit]) *> poll(F.canceled) *> F.never[Unit]
+      }
+
+      assertEquals(pure.run(fa), Outcome.Canceled[Option, Int, Unit]())
+    }
+
     test("run a guarantee finalizer around a masked self-cancel") {
       val fa = F.guarantee(F.uncancelable(_ => F.canceled), F.never[Unit])
 
       assertEquals(pure.run(fa), Outcome.Succeeded[Option, Int, Unit](None))
+    }
+
+    test("preserve success when a finalizer self-cancels at the fiber terminus") {
+      val fa = F.guarantee(F.pure(1), F.canceled)
+
+      assertEquals(pure.run(fa), Outcome.Succeeded[Option, Int, Int](Some(1)))
+    }
+
+    test("preserve error when a finalizer self-cancels at the fiber terminus") {
+      val fa = F.guarantee(F.raiseError[Int](42), F.canceled)
+
+      assertEquals(pure.run(fa), Outcome.Errored[Option, Int, Int](42))
+    }
+
+    test("run a self-canceling finalizer to completion") {
+      val fa = for {
+        finalized <- F.ref(false)
+        fiber <- F.start(F.guarantee(F.pure(1), F.canceled *> finalized.set(true)))
+        outcome <- fiber.join
+        result <- outcome.embedNever
+        didFinalize <- finalized.get
+      } yield (result, didFinalize)
+
+      assertEquals(
+        pure.run(fa),
+        Outcome.Succeeded[Option, Int, (Int, Boolean)](Some((1, true))))
+    }
+
+    test("run a self-canceling error finalizer to completion") {
+      val fa = for {
+        finalized <- F.ref(false)
+        fiber <- F.start(F.guarantee(F.raiseError[Int](42), F.canceled *> finalized.set(true)))
+        outcome <- fiber.join
+        didFinalize <- finalized.get
+      } yield (outcome.fold(false, _ == 42, _ => false), didFinalize)
+
+      assertEquals(
+        pure.run(fa),
+        Outcome.Succeeded[Option, Int, (Boolean, Boolean)](Some((true, true))))
+    }
+
+    test("observe finalizer self-cancel before the next unmasked continuation") {
+      val fa = for {
+        finalized <- F.ref(false)
+        continued <- F.ref(false)
+        fiber <- F.start(
+          F.guarantee(F.unit, F.canceled *> finalized.set(true)) *>
+            continued.set(true))
+        outcome <- fiber.join
+        didFinalize <- finalized.get
+        didContinue <- continued.get
+      } yield (outcome.isCanceled, didFinalize, didContinue)
+
+      assertEquals(
+        pure.run(fa),
+        Outcome.Succeeded[Option, Int, (Boolean, Boolean, Boolean)](Some((true, true, false))))
+    }
+
+    test("retain finalizer deferral through an enclosing mask") {
+      val fa = F.uncancelable { _ =>
+        F.guarantee(F.pure(1), F.canceled).flatMap(i => F.pure(i + 1))
+      }
+
+      assertEquals(pure.run(fa), Outcome.Succeeded[Option, Int, Int](Some(2)))
+    }
+
+    test("observe nested finalizer self-cancel before the next unmasked continuation") {
+      val fa = for {
+        finalized <- F.ref(false)
+        maskedContinuation <- F.ref(false)
+        unmaskedContinuation <- F.ref(false)
+        fiber <- F.start(F.uncancelable { _ =>
+          F.guarantee(F.unit, F.canceled *> finalized.set(true)) *>
+            maskedContinuation.set(true)
+        } *> unmaskedContinuation.set(true))
+        outcome <- fiber.join
+        didFinalize <- finalized.get
+        didRunMasked <- maskedContinuation.get
+        didRunUnmasked <- unmaskedContinuation.get
+      } yield (outcome.isCanceled, didFinalize, didRunMasked, didRunUnmasked)
+
+      assertEquals(
+        pure.run(fa),
+        Outcome.Succeeded[Option, Int, (Boolean, Boolean, Boolean, Boolean)](
+          Some((true, true, true, false))))
+    }
+
+    test("remain cancelable after a successful bracket release") {
+      val fa =
+        F.bracketFull(_ => F.unit)(_ => F.pure(1))((_, _) => F.unit) *>
+          F.canceled *>
+          F.never[Unit]
+
+      assertEquals(pure.run(fa), Outcome.Canceled[Option, Int, Unit]())
+    }
+
+    test("remain cancelable after an errored bracket release") {
+      val fa = F.flatMap(
+        F.attempt(F.bracketFull(_ => F.unit)(_ => F.raiseError[Int](42))((_, _) => F.unit))) {
+        case Left(42) => F.canceled *> F.never[Unit]
+        case _ => F.raiseError[Unit](0)
+      }
+
+      assertEquals(pure.run(fa), Outcome.Canceled[Option, Int, Unit]())
+    }
+
+    test("ignore the owning poll in a canceled bracket release") {
+      val fa = for {
+        finalized <- F.ref(false)
+        fiber <- F.start(F.bracketFull(poll => F.pure(poll))(_ => F.canceled) { (poll, _) =>
+          poll(F.canceled) *> finalized.set(true)
+        })
+        outcome <- fiber.join
+        didFinalize <- finalized.get
+      } yield (outcome.isCanceled, didFinalize)
+
+      assertEquals(
+        pure.run(fa),
+        Outcome.Succeeded[Option, Int, (Boolean, Boolean)](Some((true, true))))
     }
 
     test("associate finalizers across an uncancelable boundary") {

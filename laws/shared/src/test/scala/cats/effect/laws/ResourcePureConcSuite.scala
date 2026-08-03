@@ -17,7 +17,8 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.{GenConcurrent, MonadCancel, Outcome, Resource}
+import cats.CommutativeApplicative
+import cats.effect.kernel.{GenConcurrent, MonadCancel, Outcome, ParallelF, Resource}
 import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TestInstances}
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
@@ -83,6 +84,22 @@ class ResourcePureConcSuite extends DisciplineSuite with BaseSuite with TestInst
     }
 
     assertEquals(pure.run(expected.use(F.pure)), pure.run(received.use(F.pure)))
+  }
+
+  test("ignore release self-cancelation through parallel applicative identity") {
+    type F[A] = PureConc[Throwable, A]
+    type R[A] = Resource[F, A]
+    type P[A] = ParallelF[R, A]
+
+    val F = GenConcurrent[F]
+    val P = CommutativeApplicative[P]
+
+    val resource = Resource(F.pure(1 -> F.canceled))
+    val identityApplied = ParallelF.value(P.ap(P.pure((i: Int) => i))(ParallelF(resource)))
+    val expected = Outcome.Succeeded[Option, Throwable, Int](Some(1))
+
+    assertEquals(pure.run(resource.use(F.pure)), expected)
+    assertEquals(pure.run(identityApplied.use(F.pure)), expected)
   }
 
   implicit def exec(sbool: Resource[PureConc[Throwable, *], Boolean]): Prop =
