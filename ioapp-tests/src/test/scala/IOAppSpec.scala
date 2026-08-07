@@ -217,6 +217,26 @@ class IOAppSpec extends Specification {
         h.stdout() must not(contain("sadness"))
       }
 
+      // https://github.com/typelevel/cats-effect/issues/4505
+      "exit on fatal error from async_" in {
+        val h = platform("FatalErrorFromAsync", List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+        h.stdout() must not(contain("sadness"))
+      }
+
+      "exit on fatal error from CompletableFuture" in {
+        if (platform == JVM) {
+          val h = platform("FatalErrorFromCompletableFuture", List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+          h.stdout() must not(contain("sadness"))
+        } else {
+          // CompletableFuture is JVM-only
+          ok
+        }
+      }
+
       "warn on global runtime collision" in {
         val h = platform("GlobalRacingInit", List.empty)
         h.awaitStatus() mustEqual 0

@@ -131,6 +131,14 @@ package examples {
     }
   }
 
+  // https://github.com/typelevel/cats-effect/issues/4505
+  object FatalErrorFromAsync extends IOApp {
+    def run(args: List[String]): IO[ExitCode] =
+      IO.async_[Unit] { cb => cb(Left(new OutOfMemoryError("Boom!"))) }
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+  }
+
   object Canceled extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
       IO.canceled.as(ExitCode.Success)

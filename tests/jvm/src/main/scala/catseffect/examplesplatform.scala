@@ -92,4 +92,17 @@ package examples {
     val run =
       IO.cede.foreverM.start >> IO(Thread.sleep(2.seconds.toMillis))
   }
+
+  // https://github.com/typelevel/cats-effect/issues/4505
+  object FatalErrorFromCompletableFuture extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      import java.util.concurrent.CompletableFuture
+
+      IO.fromCompletableFuture(IO(CompletableFuture.runAsync(() => {
+        throw new OutOfMemoryError("Boom!")
+      })))
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
 }

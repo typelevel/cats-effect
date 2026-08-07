@@ -865,7 +865,13 @@ private final class IOFiber[A](
             if (!shouldFinalize()) {
               /* we weren't canceled, so resume the runloop */
               val next = result match {
-                case Left(t) => failed(t, 0)
+                case Left(t) =>
+                  // Match Error/raiseError: fatal errors delivered via cont/async resume
+                  // (including IO.fromCompletableFuture) must crash rather than become
+                  // Outcome.Errored (see #4505).
+                  if (!UnsafeNonFatal(t))
+                    onFatalFailure(t)
+                  failed(t, 0)
                 case Right(a) => succeeded(a, 0)
               }
 
@@ -1405,6 +1411,10 @@ private final class IOFiber[A](
 
   private[this] def asyncContinueFailedR(): Unit = {
     val t = objectState.pop().asInstanceOf[Throwable]
+    // Match Error/raiseError: fatal errors from async callbacks must crash the process
+    // rather than complete the fiber as Outcome.Errored (see #4505).
+    if (!UnsafeNonFatal(t))
+      onFatalFailure(t)
     runLoop(failed(t, 0), runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
