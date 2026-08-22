@@ -20,11 +20,11 @@ import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.metrics._
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
 
 import java.lang.management.ManagementFactory
-import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 import javax.management.ObjectName
@@ -40,14 +40,15 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       blockerThreadPrefix: String,
       runtimeBlockingExpiration: Duration,
       reportFailure: Throwable => Unit
-  ): (WorkStealingThreadPool[?], () => Unit) = createWorkStealingComputeThreadPool(
-    threads,
-    threadPrefix,
-    blockerThreadPrefix,
-    runtimeBlockingExpiration,
-    reportFailure,
-    false
-  )
+  ): (ExecutionContextExecutor with Scheduler, () => Unit) =
+    createWorkStealingComputeThreadPool(
+      threads,
+      threadPrefix,
+      blockerThreadPrefix,
+      runtimeBlockingExpiration,
+      reportFailure,
+      false
+    )
 
   @deprecated("Preserved for binary-compatibility", "3.6.0")
   def createWorkStealingComputeThreadPool(
@@ -57,7 +58,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       runtimeBlockingExpiration: Duration,
       reportFailure: Throwable => Unit,
       blockedThreadDetectionEnabled: Boolean
-  ): (WorkStealingThreadPool[?], () => Unit) = {
+  ): (ExecutionContextExecutor with Scheduler, () => Unit) = {
     val (pool, _, shutdown) = createWorkStealingComputeThreadPool(
       threads,
       threadPrefix,
@@ -70,6 +71,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     )
     (pool, shutdown)
   }
+
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
@@ -82,7 +84,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       pollingSystem: PollingSystem = SelectorSystem(),
       uncaughtExceptionHandler: Thread.UncaughtExceptionHandler = (_, ex) =>
         ex.printStackTrace()
-  ): (WorkStealingThreadPool[?], pollingSystem.Api, () => Unit) = {
+  ): (ExecutionContextExecutor with Scheduler, pollingSystem.Api, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool[pollingSystem.Poller](
         threads,
@@ -213,7 +215,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute",
       blockerThreadPrefix: String = DefaultBlockerPrefix)
-      : (WorkStealingThreadPool[?], () => Unit) =
+      : (ExecutionContextExecutor with Scheduler, () => Unit) =
     createWorkStealingComputeThreadPool(
       threads,
       threadPrefix,
@@ -227,7 +229,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def createDefaultComputeThreadPool(
       self: () => IORuntime,
       threads: Int,
-      threadPrefix: String): (WorkStealingThreadPool[?], () => Unit) =
+      threadPrefix: String): (ExecutionContextExecutor with Scheduler, () => Unit) =
     createDefaultComputeThreadPool(self(), threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
@@ -249,19 +251,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     (ExecutionContext.fromExecutor(executor, reportFailure), { () => executor.shutdown() })
   }
 
-  def createDefaultScheduler(threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) = {
-    val scheduler = new ScheduledThreadPoolExecutor(
-      1,
-      { r =>
-        val t = new Thread(r)
-        t.setName(threadPrefix)
-        t.setDaemon(true)
-        t.setPriority(Thread.MAX_PRIORITY)
-        t
-      })
-    scheduler.setRemoveOnCancelPolicy(true)
-    (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
-  }
+  def createDefaultScheduler(threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) =
+    Scheduler.createDefaultScheduler(threadPrefix)
 
   def createDefaultPollingSystem(): PollingSystem = SelectorSystem()
 

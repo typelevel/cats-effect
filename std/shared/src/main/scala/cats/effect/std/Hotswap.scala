@@ -16,8 +16,7 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Concurrent, Ref, Resource}
-import cats.effect.kernel.syntax.all._
+import cats.effect.kernel.{Concurrent, Resource}
 import cats.syntax.all._
 
 /**
@@ -51,6 +50,7 @@ import cats.syntax.all._
  *
  * Ported from https://github.com/typelevel/fs2.
  */
+@deprecated("Use NonEmptyHotswap", "3.7.0")
 sealed trait Hotswap[F[_], R] {
 
   /**
@@ -94,6 +94,7 @@ object Hotswap {
    * Creates a new [[Hotswap]] initialized with the specified resource. The [[Hotswap]] instance
    * and the initial resource are returned.
    */
+  @deprecated("Use NonEmptyHotswap.apply", "3.7.0")
   def apply[F[_]: Concurrent, R](initial: Resource[F, R]): Resource[F, (Hotswap[F, R], R)] =
     create[F, R].evalMap(hotswap => hotswap.swap(initial).tupleLeft(hotswap))
 
@@ -101,71 +102,19 @@ object Hotswap {
    * Creates a new [[Hotswap]], which represents a [[cats.effect.kernel.Resource]] that can be
    * swapped during the lifetime of this [[Hotswap]].
    */
+  @deprecated("Use NonEmptyHotswap.empty", "3.7.0")
   def create[F[_], R](implicit F: Concurrent[F]): Resource[F, Hotswap[F, R]] =
-    Resource.eval(Semaphore[F](Long.MaxValue)).flatMap { semaphore =>
-      sealed abstract class State
-      case object Cleared extends State
-      case class Acquired(r: R, fin: F[Unit]) extends State
-      case object Finalized extends State
-
-      def initialize: F[Ref[F, State]] =
-        F.ref(Cleared)
-
-      def finalize(state: Ref[F, State]): F[Unit] =
-        state.getAndSet(Finalized).flatMap {
-          case Acquired(_, finalizer) => exclusive.surround(finalizer)
-          case Cleared => F.unit
-          case Finalized => raise("Hotswap already finalized")
+    NonEmptyHotswap.empty[F, R].map { nes =>
+      new Hotswap[F, R] {
+        override def swap(next: Resource[F, R]): F[R] = {
+          // Warning: this leaks the contents of the Resource.
+          // This is done intentionally to satisfy the mistakes of the old API
+          nes.swap(next.map(_.some)) *> get.use(_.get.pure[F])
         }
 
-      def raise(message: String): F[Unit] =
-        F.raiseError[Unit](new RuntimeException(message))
+        override def get: Resource[F, Option[R]] = nes.getOpt
 
-      def exclusive: Resource[F, Unit] =
-        Resource.makeFull[F, Unit](poll => poll(semaphore.acquireN(Long.MaxValue)))(_ =>
-          semaphore.releaseN(Long.MaxValue))
-
-      Resource.make(initialize)(finalize).map { state =>
-        new Hotswap[F, R] {
-
-          override def swap(next: Resource[F, R]): F[R] =
-            F.uncancelable { poll =>
-              poll(next.allocated).flatMap {
-                case (r, fin) =>
-                  exclusive.mapK(poll).onCancel(Resource.eval(fin)).surround {
-                    swapFinalizer(Acquired(r, fin)).as(r)
-                  }
-              }
-            }
-
-          override def get: Resource[F, Option[R]] =
-            Resource.makeFull[F, Option[R]] { poll =>
-              poll(semaphore.acquire) *> // acquire shared lock
-                state.get.flatMap {
-                  case Acquired(r, _) => F.pure(Some(r))
-                  case _ => semaphore.release.as(None)
-                }
-            } { r => if (r.isDefined) semaphore.release else F.unit }
-
-          override def clear: F[Unit] =
-            exclusive.surround(swapFinalizer(Cleared).uncancelable)
-
-          private def swapFinalizer(next: State): F[Unit] =
-            state.modify {
-              case Acquired(_, fin) =>
-                next -> fin
-              case Cleared =>
-                next -> F.unit
-              case Finalized =>
-                val fin = next match {
-                  case Acquired(_, fin) => fin
-                  case _ => F.unit
-                }
-                Finalized -> (fin *> raise("Cannot swap after finalization"))
-            }.flatten
-
-        }
+        override def clear: F[Unit] = nes.clear
       }
     }
-
 }

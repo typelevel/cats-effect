@@ -240,6 +240,10 @@ sealed trait IOLocal[A] extends IOLocalPlatform[A] { self =>
    */
   def lens[B](get: A => B)(set: A => B => A): IOLocal[B]
 
+  /**
+   * @return
+   *   a [[cats.mtl.Local `Local`]] backed by this `IOLocal`
+   */
   final def asLocal: Local[IO, A] =
     new Local[IO, A] {
       def applicative: Applicative[IO] =
@@ -250,6 +254,18 @@ sealed trait IOLocal[A] extends IOLocalPlatform[A] { self =>
 
       def local[B](iob: IO[B])(f: A => A): IO[B] =
         self.modify(e => f(e) -> e).bracket(Function.const(iob))(self.set)
+    }
+
+  /**
+   * @return
+   *   a [[cats.mtl.Local `Local`]] lifted to `F` backed by this `IOLocal`
+   */
+  final def asLocal[F[_]](implicit F: LiftIO[F], FMC: MonadCancel[F, ?]): Local[F, A] =
+    new Local[F, A] {
+      def applicative: Applicative[F] = FMC
+      def ask[A2 >: A]: F[A2] = FMC.widen(self.get.to[F])
+      def local[B](fb: F[B])(f: A => A): F[B] =
+        FMC.bracket(self.modify(a => f(a) -> a).to[F])(_ => fb)(self.set(_).to[F])
     }
 }
 

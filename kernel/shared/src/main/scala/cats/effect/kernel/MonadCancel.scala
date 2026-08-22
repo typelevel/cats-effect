@@ -51,8 +51,9 @@ import cats.syntax.all._
  * ==Cancelation==
  *
  * Cancelation refers to the act of requesting that the execution of a fiber be abnormally
- * terminated. [[MonadCancel]] exposes a means of self-cancelation, with which a fiber can
- * request that its own execution be terminated. Self-cancelation is achieved via
+ * terminated. A fiber is canceled when it observes a cancelation request before it completes.
+ * [[MonadCancel]] exposes a means of self-cancelation, with which a fiber can request that its
+ * own execution be terminated. Self-cancelation is achieved via
  * [[MonadCancel!.canceled canceled]].
  *
  * Cancelation is vaguely similar to the short-circuiting behavior introduced by
@@ -68,10 +69,11 @@ import cats.syntax.all._
  *
  * ==Masking==
  *
- * Masking allows a fiber to suppress cancelation for a period of time, which is achieved via
- * [[MonadCancel!.uncancelable uncancelable]]. If a fiber is canceled while it is masked, the
- * cancelation is suppressed for as long as the fiber remains masked. Once the fiber reaches a
- * completely unmasked state, it responds to the cancelation.
+ * Masking allows a fiber to suppress the observation of cancelation until the fiber is
+ * unmasked, which is achieved via [[MonadCancel!.uncancelable uncancelable]]. If a fiber would
+ * be canceled while it is masked, the cancelation is suppressed for as long as the fiber
+ * remains masked. Once the fiber reaches a completely unmasked state, it will be canceled if it
+ * has not already completed.
  *
  * While a fiber is masked, it may optionally unmask by "polling", rendering itself cancelable
  * again.
@@ -79,7 +81,7 @@ import cats.syntax.all._
  * {{{
  *
  *   F.uncancelable { poll =>
- *     // can only observe cancelation within `fb`
+ *     // can only be canceled immediately before `fb` is executed, or between combinators in `fb`.
  *     fa *> poll(fb) *> fc
  *   }
  *
@@ -90,87 +92,57 @@ import cats.syntax.all._
  *
  * ==Cancelation Boundaries==
  *
- * A boundary corresponds to an iteration of the internal runloop. In general they are
- * introduced by any of the combinators from the cats/cats effect hierarchy (`map`, `flatMap`,
- * `handleErrorWith`, `attempt`, etc).
+ * A cancelation boundary is a boundary where the cancelation status of a fiber ''may'' be
+ * checked and hence canceled. Cancelation is advisory. It does not have to be checked at every
+ * boundary, so it is possible for a fiber to complete after cancelation has been requested, but
+ * before it is observed.
  *
- * A cancelation boundary is a boundary where the cancelation status of a fiber may be checked
- * and hence cancelation observed. Note that in general you cannot guarantee that cancelation
- * will be observed at a given boundary. However, in the absence of masking it will be observed
- * eventually.
+ * In general they are introduced before each of the combinators from the Cats/Cats Effect
+ * hierarchy (`map`, `flatMap`, `handleErrorWith`, `attempt`, etc). Typeclasses which extend
+ * `MonadCancel` may introduce additional cancelation boundaries with their combinators.
+ * Importantly, there will never be a cancelation boundary after a combinator, as this would
+ * allow cancelation between the end of a poll and the next action, losing the result of the
+ * polled operation.
  *
- * With a small number of exceptions covered below, all boundaries are cancelable boundaries ie
- * cancelation may be observed before the invocation of any combinator.
+ * Outside `uncancelable` cancelation may be observed at any cancelation boundary:
  *
  * {{{
+ *   /* boundary */
  *   fa
  *     .flatMap(f)
+ *     /* boundary */
  *     .handleErrorWith(g)
+ *     /* boundary */
  *     .map(h)
  * }}}
  *
- * If the fiber above is canceled then the cancelation status may be checked and the execution
- * terminated between any of the combinators.
+ * If cancelation of the fiber above is requested then the cancelation status may be checked and
+ * the execution terminated before each combinator is executed, or it may not be observed at all
+ * before the fiber completes.
  *
- * As noted above, there are some boundaries which are not cancelable boundaries:
- *
- *   1. Any boundary inside `uncancelable` and not inside `poll`. This is the definition of
- *      masking as above.
+ * Inside `uncancelable`, the observation of cancelation at boundaries outside of `poll` is
+ * suppressed. This is the definition of masking as above.
  *
  * {{{
- *   F.uncancelable( _ =>
+ *   /* boundary */
+ *   F.uncancelable( poll =>
  *     fa
  *       .flatMap(f)
- *       .handleErrorWith(g)
- *       .map(h)
+ *       .poll(/* boundary */g)
+ *       .handleErrorWith(h)
+ *       .map(i)
  *   )
  * }}}
  *
- * None of the boundaries above are cancelation boundaries as cancelation is masked.
+ * The only points above where cancelation can be observed are:
  *
- * 2. The boundary after `uncancelable`
+ *   1. before the `uncancelable` block
+ *   1. the boundary before `g` is executed inside `poll`
+ *   1. between any combinators that `g` is composed of.
  *
- * {{{
- *   F.uncancelable(poll => foo(poll)).flatMap(f)
- * }}}
- *
- * It is guaranteed that we will not observe cancelation after `uncancelable` and hence
- * `flatMap(f)` will be invoked. This is necessary for `uncancelable` to compose. Consider for
- * example `Resource#allocated`
- *
- * {{{
- *   def allocated[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, F[Unit])]
- * }}}
- *
- * which returns a tuple of the resource and a finalizer which needs to be invoked to clean-up
- * once the resource is no longer needed. The implementation of `allocated` can make sure it is
- * safe by appropriate use of `uncancelable`. However, if it were possible to observe
- * cancelation on the boundary directly after `allocated` then we would have a leak as the
- * caller would be unable to ensure that the finalizer is invoked. In other words, the safety of
- * `allocated` and the safety of `f` would not guarantee the safety of the composition
- * `allocated.flatMap(f)`.
- *
- * This does however mean that we violate the functor law that `fa.map(identity) <-> fa` as
- *
- * {{{
- *   F.uncancelable(_ => fa).onCancel(fin)  <-!-> F.uncancelable(_ => fa).map(identity).onCancel(fin)
- * }}}
- *
- * as cancelation may be observed before the `onCancel` on the RHS. The justification is that
- * cancelation is a hint rather than a mandate and so enshrining its behaviour in laws will
- * always be awkward. Given this, it is better to pick a semantic that allows safe composition
- * of regions.
- *
- * 3. The boundary after `poll`
- *
- * {{{
- *   F.uncancelable(poll => poll(fa).flatMap(f))
- * }}}
- *
- * If `fa` completes successfully then cancelation may not be observed after `poll` but before
- * `flatMap`. The reasoning is similar to above - if `fa` has successfully produced a value then
- * the caller should have the opportunity to observe the value and ensure finalizers are
- * in-place, etc.
+ * Since uncancelable regions compose, if `uncancelable` is called within `g`, the observation
+ * of cancelation will again be suppressed until after that block. Cancelation will ''not'' be
+ * observed ''after'' `g` completes
  *
  * ==Finalization==
  *
@@ -219,6 +191,21 @@ import cats.syntax.all._
  * other variants of the bracket pattern. If more specialized behavior is necessary, it is
  * recommended to use [[MonadCancel!.uncancelable uncancelable]] and
  * [[MonadCancel!.onCancel onCancel]] directly.
+ *
+ * ==Law Violations==
+ *
+ * Because cancelation may be checked before each combinator, `MonadCancel` introduces a subtle
+ * violation of identity functor law that `fa.map(identity) <-> fa`. For example, in:
+ *
+ * {{{
+ *   F.uncancelable(_ => fa).onCancel(fin)  <-!-> F.uncancelable(_ => fa).map(identity).onCancel(fin)
+ * }}}
+ *
+ * cancelation may be observed before the execution of `map` on the right-hand side, causing the
+ * `onCancel` combinator to never be registered. The monad right identity law, and other similar
+ * laws that allow the insertion of a combinator are similarly violated. The justification is
+ * that cancelation is a hint rather than a mandate and so enshrining its behaviour in laws will
+ * always be awkward.
  */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
   implicit private[this] def F: MonadError[F, E] = this
@@ -241,7 +228,8 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * natural transformation `F ~> F` that enables polling. Polling causes a fiber to unmask
    * within a masked region so that cancelation can be observed again.
    *
-   * In the following example, cancelation can be observed only within `fb` and nowhere else:
+   * In the following `uncancelable` block, cancelation can only be observed immediately before
+   * `fb` inside the poll or between combinators it is composed from:
    *
    * {{{
    *

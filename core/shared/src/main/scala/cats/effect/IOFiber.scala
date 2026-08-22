@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
-import Platform.static
+import Platform.{static, volatileNative}
 
 /*
  * Rationale on memory barrier exploitation in this class...
@@ -138,6 +138,7 @@ private final class IOFiber[A](
   /* backing fields for `cancel` and `join` */
 
   /* this is swapped for an `IO.unit` when we complete */
+  @volatileNative
   private[this] var _cancel: IO[Unit] = IO uncancelable { _ =>
     canceled = true
 
@@ -174,6 +175,7 @@ private final class IOFiber[A](
   }
 
   /* this is swapped for an `IO.pure(outcome)` when we complete */
+  @volatileNative
   private[this] var _join: IO[OutcomeIO[A]] = IO.asyncCheckAttempt { cb =>
     IO {
       if (outcome == null) {
@@ -1002,7 +1004,7 @@ private final class IOFiber[A](
 
         case 21 =>
           val cur = cur0.asInstanceOf[Blocking[Any]]
-          /* we know we're on the JVM here */
+          /* we know we're on JVM or Native here */
 
           if (isStackTracing) {
             pushTracingEvent(cur.event)

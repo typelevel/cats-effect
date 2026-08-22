@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 import scala.util.{Random, Try}
 import scala.util.control.NonFatal
 
-import java.util.{Base64, Comparator}
+import java.util.{Base64, Collections, Comparator}
 import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
@@ -60,11 +60,11 @@ import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
  * }}}
  */
 final class TestContext private (_seed: Long) extends ExecutionContext { self =>
-  import TestContext.{ConcurrentState, Encoder, State, Task}
+  import TestContext.{InternalState, Encoder, State, Task}
 
   private[this] val random = new Random(_seed)
 
-  private[this] val stateRef = new ConcurrentState()
+  private[this] val stateRef = new InternalState()
 
   def execute(runnable: Runnable): Unit = {
     val current = stateRef
@@ -280,10 +280,19 @@ object TestContext {
   def apply(seed: String): TestContext =
     new TestContext(new String(Decoder.decode(seed)).toLong)
 
+  @deprecated("Not intended to be public", "3.7.1")
   final class ConcurrentState(
       val currentID: AtomicLong = new AtomicLong(),
       val currentNanos: AtomicLong = new AtomicLong(),
       val tasks: ConcurrentSkipListSet[Task] = new ConcurrentSkipListSet(Task.comparator),
+      val lastReportedFailure: AtomicReference[Throwable] = new AtomicReference()
+  )
+
+  private final class InternalState(
+      val currentID: AtomicLong = new AtomicLong(),
+      val currentNanos: AtomicLong = new AtomicLong(),
+      val tasks: java.util.SortedSet[Task] =
+        Collections.synchronizedSortedSet(new ConcurrentSkipListSet(Task.comparator)),
       val lastReportedFailure: AtomicReference[Throwable] = new AtomicReference()
   )
 

@@ -286,8 +286,10 @@ object Dispatcher {
 
               launchAll.as(new Dispatcher[F] {
                 def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit]) = {
-                  def inner[E](fe: F[E], result: Promise[E], finalizer: Boolean)
-                      : () => Future[Unit] = {
+                  def inner[E](
+                      fe: F[E],
+                      result: Promise[E],
+                      finalizer: Boolean): () => Future[Unit] = {
                     if (doneR.get()) {
                       throw new IllegalStateException("Dispatcher already closed")
                     }

@@ -52,7 +52,7 @@ object MapRef extends MapRefCompanionPlatform {
   def apply[F[_]: Concurrent, K, V]: F[MapRef[F, K, Option[V]]] = {
     Concurrent[F] match {
       case s: Sync[F] =>
-        ofConcurrentHashMap()(s)
+        ofConcurrentHashMap()(using s)
       case _ =>
         ofShardedImmutableMap[F, K, V](shardCount = Runtime.getRuntime.availableProcessors())
     }
@@ -388,8 +388,8 @@ object MapRef extends MapRefCompanionPlatform {
         }
 
       def tryModify[B](
-          f: Option[V] => (Option[V], B))
-          : F[Option[B]] = // we need the suspend because we do effects inside
+          f: Option[V] => (Option[V], B)
+      ): F[Option[B]] = // we need the suspend because we do effects inside
         sync.delay {
           val init = map.get(k)
           init match {

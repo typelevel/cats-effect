@@ -38,21 +38,24 @@ scastie_sbt_string="$(echo "$scastie_sbt_full" | jq -R -s '.')"
 post_file="$(mktemp)"
 cat > "$post_file" << JSON
 {
-  "_isWorksheetMode": false,
-  "code": $scastie_scala_string,
-  "isShowingInUserProfile": false,
-  "libraries": [],
-  "librariesFromList": [],
-  "sbtConfigExtra": $scastie_sbt_string,
-  "sbtPluginsConfigExtra": "",
-  "target": {
-    "scalaVersion": "2.13.10",
-    "tpe": "Jvm"
+  "SbtInputs": {
+    "isWorksheetMode": false,
+    "code": $scastie_scala_string,
+    "isShowingInUserProfile": false,
+    "libraries": [],
+    "librariesFromList": [],
+    "sbtConfigExtra": $scastie_sbt_string,
+    "sbtPluginsConfigExtra": "",
+    "target": {
+      "Scala3": {
+        "scalaVersion": "3.3.7"
+      }
+    }
   }
 }
 JSON
 
-# echo "$post_body" | jq
+# cat "$post_file" | jq
 
 uuid=$(curl \
   -X POST \

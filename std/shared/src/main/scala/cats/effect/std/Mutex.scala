@@ -43,6 +43,8 @@ import cats.syntax.all._
  *
  * @see
  *   [[cats.effect.std.AtomicCell]]
+ * @see
+ *   [[cats.effect.std.KeyedMutex]]
  */
 abstract class Mutex[F[_]] {
 
@@ -65,122 +67,46 @@ object Mutex {
    */
   def apply[F[_]](implicit F: Concurrent[F]): F[Mutex[F]] =
     Ref
-      .of[F, ConcurrentImpl.LockQueueCell](
+      .of[F, LockQueue.Cell](
         // Initialize the state with an already completed cell.
-        ConcurrentImpl.EmptyCell
+        LockQueue.EmptyCell
       )
-      .map(state => new ConcurrentImpl[F](state))
+      .map(state => new ConcurrentImpl(state))
 
   /**
    * Creates a new `Mutex`. Like `apply` but initializes state using another effect constructor.
    */
   def in[F[_], G[_]](implicit F: Sync[F], G: Async[G]): F[Mutex[G]] =
     Ref
-      .in[F, G, ConcurrentImpl.LockQueueCell](
+      .in[F, G, LockQueue.Cell](
         // Initialize the state with an already completed cell.
-        ConcurrentImpl.EmptyCell
+        LockQueue.EmptyCell
       )
-      .map(state => new ConcurrentImpl[G](state))
+      .map(state => new ConcurrentImpl(state))
 
   private final class ConcurrentImpl[F[_]](
-      state: Ref[F, ConcurrentImpl.LockQueueCell]
+      state: Ref[F, LockQueue.Cell]
   )(
       implicit F: Concurrent[F]
   ) extends Mutex[F] {
-
-    // This is a variant of the Craig, Landin, and Hagersten
-    // (CLH) queue lock. Queue nodes (called cells below)
-    // are `Deferred`s, so fibers can suspend and wake up
-    // (instead of spinning, like in the original algorithm).
-
-    // Awakes whoever is waiting for us with the next cell in the queue.
-    private def awakeCell(
-        ourCell: ConcurrentImpl.WaitingCell[F],
-        nextCell: ConcurrentImpl.LockQueueCell
-    ): F[Unit] =
-      state.access.flatMap {
-        // If the current last cell in the queue is our cell,
-        // then that means nobody is waiting for us.
-        // Thus, we can just set the state to the next cell in the queue.
-        // Otherwise, we awake whoever is waiting for us.
-        case (lastCell, setter) =>
-          if (lastCell eq ourCell) setter(nextCell)
-          else F.pure(false)
-      } flatMap {
-        case false => ourCell.complete(nextCell).void
-        case true => F.unit
-      }
-
-    // Cancels a Fiber waiting for the Mutex.
-    private def cancel(
-        ourCell: ConcurrentImpl.WaitingCell[F],
-        nextCell: ConcurrentImpl.LockQueueCell
-    ): F[Unit] =
-      awakeCell(ourCell, nextCell)
-
-    // Acquires the Mutex.
-    private def acquire(poll: Poll[F]): F[ConcurrentImpl.WaitingCell[F]] =
-      ConcurrentImpl.LockQueueCell[F].flatMap { ourCell =>
-        // Atomically get the last cell in the queue,
-        // and put ourselves as the last one.
-        state.getAndSet(ourCell).flatMap { lastCell =>
-          // Then we check what the next cell is.
-          // There are two options:
-          //  + EmptyCell: Signaling that the mutex is free.
-          //  + WaitingCell: Which means there is someone ahead of us in the queue.
-          //    Thus, we wait for that cell to complete; and then check again.
-          //
-          // Only the waiting process is cancelable.
-          // If we are cancelled while waiting,
-          // we notify our waiter with the cell ahead of us.
-          def loop(
-              nextCell: ConcurrentImpl.LockQueueCell
-          ): F[ConcurrentImpl.WaitingCell[F]] =
-            if (nextCell eq ConcurrentImpl.EmptyCell) F.pure(ourCell)
-            else {
-              F.onCancel(
-                poll(nextCell.asInstanceOf[ConcurrentImpl.WaitingCell[F]].get),
-                cancel(ourCell, nextCell)
-              ).flatMap(loop)
-            }
-
-          loop(nextCell = lastCell)
-        }
-      }
-
-    // Releases the Mutex.
-    private def release(ourCell: ConcurrentImpl.WaitingCell[F]): F[Unit] =
-      awakeCell(ourCell, nextCell = ConcurrentImpl.EmptyCell)
-
     override final val lock: Resource[F, Unit] =
-      Resource.makeFull[F, ConcurrentImpl.WaitingCell[F]](acquire)(release).void
+      LockQueue.lock(queue = state)
 
     override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, ?]): Mutex[G] =
-      new Mutex.TransformedMutex(this, f)
-  }
-
-  private object ConcurrentImpl {
-    // Represents a queue of waiters for the mutex.
-    private[Mutex] final type LockQueueCell = AnyRef
-    // Represents the first cell of the queue.
-    private[Mutex] final type EmptyCell = LockQueueCell
-    private[Mutex] final val EmptyCell: EmptyCell = null
-    // Represents a waiting cell in the queue.
-    private[Mutex] final type WaitingCell[F[_]] = Deferred[F, LockQueueCell]
-
-    private[Mutex] def LockQueueCell[F[_]](implicit F: Concurrent[F]): F[WaitingCell[F]] =
-      Deferred[F, LockQueueCell]
+      new TransformedMutex(this, f)
   }
 
   private final class TransformedMutex[F[_], G[_]](
       underlying: Mutex[F],
       f: F ~> G
-  )(implicit F: MonadCancel[F, ?], G: MonadCancel[G, ?])
-      extends Mutex[G] {
+  )(
+      implicit F: MonadCancel[F, ?],
+      G: MonadCancel[G, ?]
+  ) extends Mutex[G] {
     override final val lock: Resource[G, Unit] =
       underlying.lock.mapK(f)
 
     override def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, ?]): Mutex[H] =
-      new Mutex.TransformedMutex(this, f)
+      new TransformedMutex(this, f)
   }
 }

@@ -132,8 +132,8 @@ trait ApplicativeErrorGenerators[F[_], E] extends ApplicativeGenerators[F] {
   override protected def recursiveGen[A](
       deeper: GenK[F])(implicit AA: Arbitrary[A], AC: Cogen[A]): List[(String, Gen[F[A]])] =
     List(
-      "handleErrorWith" -> genHandleErrorWith[A](deeper)(AA, AC)
-    ) ++ super.recursiveGen(deeper)(AA, AC)
+      "handleErrorWith" -> genHandleErrorWith[A](deeper)(using AA, AC)
+    ) ++ super.recursiveGen(deeper)(using AA, AC)
 
   private def genRaiseError[A]: Gen[F[A]] =
     arbitrary[E].map(F.raiseError[A](_))
@@ -295,7 +295,7 @@ trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with Syn
       result <- arbitrary[Either[Throwable, A]]
 
       fo <- deeper[Option[F[Unit]]](
-        Arbitrary(Gen.option[F[Unit]](deeper[Unit])),
+        using Arbitrary(Gen.option[F[Unit]](deeper[Unit])),
         Cogen.cogenOption(cogenFU))
     } yield F
       .async[A](k => F.delay(k(result)) >> fo)
@@ -323,7 +323,7 @@ trait AsyncGeneratorsWithoutEvalShift[F[_]]
       result <- arbitrary[Either[Throwable, A]]
 
       fo <- deeper[Option[F[Unit]]](
-        Arbitrary(Gen.option[F[Unit]](deeper[Unit])),
+        using Arbitrary(Gen.option[F[Unit]](deeper[Unit])),
         Cogen.cogenOption(cogenFU))
     } yield F
       .async[A](k => F.delay(k(result)) >> fo)

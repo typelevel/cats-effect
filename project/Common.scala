@@ -42,7 +42,7 @@ object Common extends AutoPlugin {
       ),
       tlVersionIntroduced ++= {
         if (crossProjectPlatform.?.value.contains(NativePlatform))
-          List("2.12", "2.13", "3").map(_ -> "3.4.0").toMap
+          List("2.12", "2.13", "3").map(_ -> "3.7.0").toMap
         else
           Map.empty
       }

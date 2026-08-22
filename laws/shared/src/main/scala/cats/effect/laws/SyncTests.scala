@@ -62,7 +62,7 @@ trait SyncTests[F[_]]
       val bases: Seq[(String, Laws#RuleSet)] = Nil
       val parents = Seq(
         monadCancel[A, B, C](
-          implicitly[Arbitrary[A]],
+          using implicitly[Arbitrary[A]],
           implicitly[Eq[A]],
           implicitly[Arbitrary[B]],
           implicitly[Eq[B]],

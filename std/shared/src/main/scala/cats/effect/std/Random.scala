@@ -355,7 +355,7 @@ object Random extends RandomCompanionPlatform {
         f <- nextFloat
       } yield {
         val diff = maxExclusive - minInclusive
-        val next = if (diff != java.lang.Double.POSITIVE_INFINITY) {
+        val next = if (diff != java.lang.Float.POSITIVE_INFINITY) {
           (f * diff) + minInclusive
         } else { // overflow:
           val maxHalf = maxExclusive / 2.0f

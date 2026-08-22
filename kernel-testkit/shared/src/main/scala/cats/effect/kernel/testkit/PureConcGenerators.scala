@@ -36,9 +36,6 @@ object PureConcGenerators {
 
       val F: GenSpawn[PureConc[E, *], E] = allocateForPureConc[E]
 
-      def cogenCase[A: Cogen]: Cogen[Outcome[PureConc[E, *], E, A]] =
-        OutcomeGenerators.cogenOutcome[PureConc[E, *], E, A]
-
       override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[PureConc[E, *]]) =
         super
           .recursiveGen[B](deeper)

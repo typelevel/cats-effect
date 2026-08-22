@@ -58,7 +58,7 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
       fuPP: F[Unit] => Pretty,
       ePP: E => Pretty): RuleSet =
     monadCancel[A, B, C](
-      implicitly[Arbitrary[A]],
+      using implicitly[Arbitrary[A]],
       implicitly[Eq[A]],
       implicitly[Arbitrary[B]],
       implicitly[Eq[B]],

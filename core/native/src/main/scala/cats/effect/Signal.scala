@@ -18,12 +18,11 @@ package cats.effect
 
 import cats.syntax.all._
 
-import scala.scalanative.libc.errno._
+import org.typelevel.scalaccompat.annotation._
+
 import scala.scalanative.meta.LinktimeInfo._
 import scala.scalanative.posix.errno._
 import scala.scalanative.posix.fcntl._
-import scala.scalanative.posix.signal._
-import scala.scalanative.posix.signalOps._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd._
 import scala.scalanative.unsafe._
@@ -34,7 +33,7 @@ import java.io.IOException
 private object Signal {
 
   private[this] def mkPipe() = if (isLinux || isMac) {
-    val fd = stackalloc[CInt](2.toULong)
+    val fd = stackalloc[CInt](2.toCSize)
     if (pipe(fd) != 0)
       throw new IOException(fromCString(strerror(errno)))
 
@@ -57,7 +56,7 @@ private object Signal {
   private[this] def onInterrupt(signum: CInt): Unit = {
     val _ = signum
     val buf = stackalloc[Byte]()
-    write(interruptWriteFd, buf, 1.toULong)
+    write(interruptWriteFd, buf, 1.toCSize)
     ()
   }
 
@@ -68,7 +67,7 @@ private object Signal {
   private[this] def onTerm(signum: CInt): Unit = {
     val _ = signum
     val buf = stackalloc[Byte]()
-    write(termWriteFd, buf, 1.toULong)
+    write(termWriteFd, buf, 1.toCSize)
     ()
   }
 
@@ -79,15 +78,12 @@ private object Signal {
   private[this] def onDump(signum: CInt): Unit = {
     val _ = signum
     val buf = stackalloc[Byte]()
-    write(dumpWriteFd, buf, 1.toULong)
+    write(dumpWriteFd, buf, 1.toCSize)
     ()
   }
 
   private[this] def installHandler(signum: CInt, handler: CFuncPtr1[CInt, Unit]): Unit = {
-    val action = stackalloc[sigaction]()
-    action.sa_handler = handler
-    sigaddset(action.at2, 13) // mask SIGPIPE
-    if (sigaction(signum, action, null) != 0)
+    if (signal_helper.cats_effect_install_handler(signum, handler) != 0)
       throw new IOException(fromCString(strerror(errno)))
   }
 
@@ -121,11 +117,17 @@ private object Signal {
     handle.pollReadRec(()) { _ =>
       IO {
         val buf = stackalloc[Byte]()
-        val rtn = read(fd, buf, 1.toULong)
+        val rtn = read(fd, buf, 1.toCSize)
         if (rtn >= 0) Either.unit
         else if (errno == EAGAIN) Left(())
         else throw new IOException(fromCString(strerror(errno)))
       }
     }
 
+  @extern
+  @nowarn212
+  @define("CATS_EFFECT_SIGNAL_HELPER")
+  private object signal_helper { // see signal_helper.c
+    def cats_effect_install_handler(signum: CInt, handler: CFuncPtr1[CInt, Unit]): CInt = extern
+  }
 }

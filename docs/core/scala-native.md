@@ -52,7 +52,7 @@ Benchmark 1: ./target/native-image/cats-effect-3-hello-world-out
 ```
 
 Another way to get your cats effect app compiled to a native executable is to leverage
-the package command of scala-cli, like in the [example](../faq.md#Scala-Native-Example)
+the package command of scala-cli, like in the [example](../faq.md#scala-native-example).
 
 ## Limitations
 

@@ -1234,9 +1234,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   }
 
   implicit class IOSequenceOps[T[_], A](tioa: T[IO[A]]) {
-    def sequence(implicit T: Traverse[T], G: Applicative[IO]): IO[T[A]] = T.sequence(tioa)(G)
+    def sequence(implicit T: Traverse[T], G: Applicative[IO]): IO[T[A]] =
+      T.sequence(tioa)(using G)
 
-    def sequence_(implicit F: Foldable[T], G: Applicative[IO]): IO[Unit] = F.sequence_(tioa)(G)
+    def sequence_(implicit F: Foldable[T], G: Applicative[IO]): IO[Unit] =
+      F.sequence_(tioa)(using G)
   }
 
   @static private[this] val _alignForIO = new IOAlign
@@ -1309,7 +1311,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * The effect returns `Either[Option[IO[Unit]], A]` where:
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
-   *   - left side `Option[IO[Unit]] `is an optional finalizer to be run in the event that the
+   *   - left side `Option[IO[Unit]]` is an optional finalizer to be run in the event that the
    *     fiber running `asyncCheckAttempt(k)` is canceled.
    *
    * For example, here is a simplified version of `IO.fromCompletableFuture`:
@@ -1553,7 +1555,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   def monotonic: IO[FiniteDuration] = Monotonic
 
   /**
-   * A non-terminating `IO`, alias for `async(_ => ())`.
+   * A non-terminating, cancelable `IO`, alias for `async(_ => pure(Some(unit)))`.
    */
   def never[A]: IO[A] = _never
 

@@ -336,7 +336,7 @@ method can look like this:
 import cats.effect._
 import java.io.File
 
-object Main extends IOApp {
+object CopyFile extends IOApp {
 
   // copy as defined before
   def copy(origin: File, destination: File): IO[Long] = ???

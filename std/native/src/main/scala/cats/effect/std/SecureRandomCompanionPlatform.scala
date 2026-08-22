@@ -38,7 +38,7 @@ private[std] trait SecureRandomCompanionPlatform {
       var i = 0
       while (i < len) {
         val n = Math.min(256, len - i)
-        if (sysrandom.getentropy(bytes.atUnsafe(i), n.toULong) < 0)
+        if (sysrandom.getentropy(bytes.atUnsafe(i), n.toCSize) < 0)
           throw new RuntimeException(fromCString(strerror(errno)))
         i += n
       }
@@ -57,7 +57,13 @@ private[std] trait SecureRandomCompanionPlatform {
 
   }
 
+  @deprecated("Use 'of' instead", "3.7.0")
   def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
+    Sync[F].delay(unsafeJavaSecuritySecureRandom())
+
+  def of[F[_]: Sync]: F[SecureRandom[F]] = in[F, F]
+
+  def in[F[_]: Sync, G[_]: Sync]: F[SecureRandom[G]] =
     Sync[F].delay(unsafeJavaSecuritySecureRandom())
 
   private[effect] def unsafeJavaSecuritySecureRandom[F[_]: Sync](): SecureRandom[F] =

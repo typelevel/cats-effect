@@ -32,7 +32,7 @@ private[unsafe] final class LiveFiberSnapshotTrigger(monitor: FiberMonitor)
     extends LiveFiberSnapshotTriggerMBean {
   def liveFiberSnapshot(): Array[String] = {
     val buffer = new ArrayBuffer[String]
-    monitor.liveFiberSnapshot(buffer += _)
+    monitor.printLiveFiberSnapshot(buffer += _)
     buffer.toArray
   }
 }

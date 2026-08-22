@@ -52,7 +52,7 @@ trait QueueSink[F[_], A] {
    * @param list
    *   the elements to be put at the back of the queue
    * @return
-   *   an effect that contains the remaining valus that could not be offered.
+   *   an effect that contains the remaining elements that could not be offered.
    */
   def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] =
     QueueSink.tryOfferN(list, tryOffer)

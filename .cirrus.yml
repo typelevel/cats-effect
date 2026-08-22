@@ -10,3 +10,16 @@ jvm_highcore_task:
       script: sbt '++ 2.13' testsJVM/test ioAppTestsJVM/test
     - name: JVM high-core-count 3
       script: sbt '++ 3' testsJVM/test ioAppTestsJVM/test
+
+native_highcore_task:
+  only_if: $CIRRUS_TAG != '' || $CIRRUS_PR != ''
+  required_pr_labels: Cirrus Native
+  container:
+    dockerfile: .cirrus/Dockerfile
+    cpu: 8
+    memory: 16G
+  matrix:
+    - name: Native high-core-count 2.13
+      script: sbt '++ 2.13' testsNative/test ioAppTestsNative/test
+    - name: Native high-core-count 3
+      script: sbt '++ 3' testsNative/test ioAppTestsNative/test

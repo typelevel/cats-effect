@@ -72,7 +72,7 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * setter is a noop and returns `false`.
    *
    * Satisfies: `r.access.map(_._1) == r.get` and `r.access.flatMap { case (v, setter) =>
-   * setter(f(v)) } == r.tryUpdate(f).map(_.isDefined)`.
+   * setter(f(v)) } == r.tryUpdate(f)`.
    */
   def access: F[(A, A => F[Boolean])]
 

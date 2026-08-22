@@ -129,8 +129,7 @@ class ExampleSuite extends CatsEffectSuite {
 To get started, add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "weaver-cats" % "0.9.3" % Test
-testFrameworks += new TestFramework("weaver.framework.CatsEffect")
+libraryDependencies += "org.typelevel" %% "weaver-cats" % "0.10.1" % Test
 ```
 
 Similarly to MUnit, this setup allows you to write your tests directly against `IO`.

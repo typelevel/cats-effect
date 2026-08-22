@@ -67,4 +67,4 @@ Benchmark 1: ./target/native-image/cats-effect-3-hello-world
 ```
 
 Another way to get your cats effect app compiled with native-image is to leverage
-the package command of scala-cli, like in the [example](../faq.md#Native-Image-Example)
+the package command of scala-cli, like in the [example](../faq.md#native-image-example).

@@ -21,6 +21,7 @@ import cats.data.Kleisli
 import cats.effect.kernel.Resource.Pure
 import cats.effect.kernel.implicits._
 import cats.effect.kernel.instances.spawn
+import cats.mtl.{LiftKind, LiftValue}
 import cats.syntax.all._
 
 import scala.annotation.tailrec
@@ -1287,6 +1288,10 @@ private[effect] trait ResourceHOInstances0 extends ResourceHOInstances1 {
       def K = K0
       def G = G0
     }
+
+  implicit def catsEffectLiftKindForResource[F[_]](
+      implicit F: MonadCancel[F, ?]): LiftKind[F, Resource[F, *]] =
+    liftKindImpl(F)
 }
 
 private[effect] trait ResourceHOInstances1 extends ResourceHOInstances2 {
@@ -1301,6 +1306,25 @@ private[effect] trait ResourceHOInstances1 extends ResourceHOInstances2 {
       def F = F0
       def rootCancelScope = F0.rootCancelScope
     }
+
+  protected[this] def liftKindImpl[F[_]](F: MonadCancel[F, ?]): LiftKind[F, Resource[F, *]] =
+    new LiftKind[F, Resource[F, *]] {
+      implicit val applicativeF: MonadCancel[F, ?] = F
+      val applicativeG: Applicative[Resource[F, *]] = catsEffectMonadForResource
+      def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
+      def limitedMapK[A](ga: Resource[F, A])(scope: F ~> F): Resource[F, A] =
+        ga.mapK(scope)
+    }
+
+  implicit def catsEffectLiftKindForResourceComposed[F[_], G[_]](
+      implicit inner: LiftKind[F, G],
+      G: MonadCancel[G, ?]
+  ): LiftKind[F, Resource[G, *]] =
+    inner.andThen(liftKindImpl(G))
+
+  implicit def catsEffectLiftValueForResource[F[_]](
+      implicit F: Applicative[F]): LiftValue[F, Resource[F, *]] =
+    liftValueImpl(F)
 }
 
 private[effect] trait ResourceHOInstances2 extends ResourceHOInstances3 {
@@ -1320,6 +1344,18 @@ private[effect] trait ResourceHOInstances2 extends ResourceHOInstances3 {
 
   final implicit def catsEffectDeferForResource[F[_]]: Defer[Resource[F, *]] =
     new ResourceDefer[F]
+
+  protected[this] def liftValueImpl[F[_]](F: Applicative[F]): LiftValue[F, Resource[F, *]] =
+    new LiftValue[F, Resource[F, *]] {
+      val applicativeF: Applicative[F] = F
+      val applicativeG: Applicative[Resource[F, *]] = catsEffectMonadForResource
+      def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
+    }
+
+  implicit def catsEffectLiftValueForResourceComposed[F[_], G[_]](
+      implicit inner: LiftValue[F, G]
+  ): LiftValue[F, Resource[G, *]] =
+    inner.andThen(liftValueImpl(inner.applicativeG))
 }
 
 private[effect] trait ResourceHOInstances3 extends ResourceHOInstances4 {

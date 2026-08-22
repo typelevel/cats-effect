@@ -233,7 +233,7 @@ trait IOApp {
 
     if (LinkingInfo.developmentMode && isStackTracing) {
       val listener: js.Function0[Unit] = () =>
-        runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_))
+        runtime.fiberMonitor.printLiveFiberSnapshot(System.err.print(_))
       process.on("SIGUSR2", listener)
       process.on("SIGINFO", listener)
     }

@@ -89,7 +89,7 @@ This section contains a very much *not* comprehensive list of common root causes
 
 The easiest and most obvious source of CPU starvation is when blocking tasks are being run on the compute thread pool. One example of this can be seen above, but usually it's a lot less straightforwardly obvious than that one, and tracking down what is or is not blocking in third party libraries (particularly those written for Java) can be challenging. Once the offending code is found, it is relatively easy to swap an `IO(...)` for `IO.blocking(...)` or `IO.interruptible(...)`.
 
-If your application is an `IOApp` then the easiest way to find these offending expressions is to enable thread blocking detection like this:
+If your application is an `IOApp` then the easiest way to find these offending expressions is to enable thread blocking detection. You can do this via the system property `cats.effect.detectBlockedThreads=true`, or by overriding a method in your `IOApp`:
 
 ```scala
 object Example extends IOApp.Simple {

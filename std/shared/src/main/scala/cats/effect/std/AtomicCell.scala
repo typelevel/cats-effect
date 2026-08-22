@@ -153,34 +153,28 @@ object AtomicCell {
       of(M.empty)(F)
   }
 
-  private[effect] def async[F[_], A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
-    Mutex.apply[F].map(mutex => new AsyncImpl(init, mutex))
+  private[effect] def async[F[_], A](
+      init: A
+  )(
+      implicit F: Async[F]
+  ): F[AtomicCell[F, A]] =
+    Mutex.apply[F].map(mutex => new AsyncImpl(init, lock = mutex.lock))
 
-  private[effect] def concurrent[F[_], A](init: A)(
-      implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
-    (Ref.of[F, A](init), Mutex.apply[F]).mapN { (ref, m) => new ConcurrentImpl(ref, m) }
-
-  private final class ConcurrentImpl[F[_], A](
-      ref: Ref[F, A],
-      mutex: Mutex[F]
+  private[effect] def concurrent[F[_], A](
+      init: A
   )(
       implicit F: Concurrent[F]
+  ): F[AtomicCell[F, A]] =
+    (Ref.of[F, A](init), Mutex.apply[F]).mapN { (ref, mutex) =>
+      new ConcurrentImpl(ref, lock = mutex.lock)
+    }
+
+  // Provides common implementations for derived methods that depend on F being an applicative.
+  private[effect] sealed abstract class CommonImpl[F[_], A](
+      implicit F: Applicative[F]
   ) extends AtomicCell[F, A] {
-    override def get: F[A] = ref.get
-
-    override def set(a: A): F[Unit] =
-      mutex.lock.surround(ref.set(a))
-
     override def modify[B](f: A => (A, B)): F[B] =
       evalModify(a => F.pure(f(a)))
-
-    override def evalModify[B](f: A => F[(A, B)]): F[B] =
-      mutex.lock.surround {
-        ref.get.flatMap(f).flatMap {
-          case (a, b) =>
-            ref.set(a).as(b)
-        }
-      }
 
     override def evalUpdate(f: A => F[A]): F[Unit] =
       evalModify(a => f(a).map(aa => (aa, ())))
@@ -192,12 +186,33 @@ object AtomicCell {
       evalModify(a => f(a).map(aa => (aa, aa)))
   }
 
-  private final class AsyncImpl[F[_], A](
+  private[effect] final class ConcurrentImpl[F[_], A](
+      ref: Ref[F, A],
+      lock: Resource[F, Unit]
+  )(
+      implicit F: Concurrent[F]
+  ) extends CommonImpl[F, A] {
+    override def get: F[A] =
+      ref.get
+
+    override def set(a: A): F[Unit] =
+      lock.surround(ref.set(a))
+
+    override def evalModify[B](f: A => F[(A, B)]): F[B] =
+      lock.surround {
+        ref.get.flatMap(f).flatMap {
+          case (a, b) =>
+            ref.set(a).as(b)
+        }
+      }
+  }
+
+  private[effect] final class AsyncImpl[F[_], A](
       init: A,
-      mutex: Mutex[F]
+      lock: Resource[F, Unit]
   )(
       implicit F: Async[F]
-  ) extends AtomicCell[F, A] {
+  ) extends CommonImpl[F, A] {
     @volatile private var cell: A = init
 
     override def get: F[A] =
@@ -206,17 +221,14 @@ object AtomicCell {
       }
 
     override def set(a: A): F[Unit] =
-      mutex.lock.surround {
+      lock.surround {
         F.delay {
           cell = a
         }
       }
 
-    override def modify[B](f: A => (A, B)): F[B] =
-      evalModify(a => F.pure(f(a)))
-
     override def evalModify[B](f: A => F[(A, B)]): F[B] =
-      mutex.lock.surround {
+      lock.surround {
         F.delay(cell).flatMap(f).flatMap {
           case (a, b) =>
             F.delay {
@@ -225,14 +237,93 @@ object AtomicCell {
             }
         }
       }
+  }
 
-    override def evalUpdate(f: A => F[A]): F[Unit] =
-      evalModify(a => f(a).map(aa => (aa, ())))
+  /**
+   * Allows seeing a `AtomicCell[F, Option[A]]` as a `AtomicCell[F, A]`. This is useful not only
+   * for ergonomic reasons, but because some implementations may save space.
+   *
+   * Setting the `default` value is the same as storing a `None` in the underlying `AtomicCell`.
+   */
+  def defaultedAtomicCell[F[_], A](
+      atomicCell: AtomicCell[F, Option[A]],
+      default: A
+  )(
+      implicit F: Applicative[F]
+  ): AtomicCell[F, A] =
+    new DefaultedAtomicCell[F, A](atomicCell, default)
 
-    override def evalGetAndUpdate(f: A => F[A]): F[A] =
-      evalModify(a => f(a).map(aa => (aa, a)))
+  private[effect] final class DefaultedAtomicCell[F[_], A](
+      atomicCell: AtomicCell[F, Option[A]],
+      default: A
+  )(
+      implicit F: Applicative[F]
+  ) extends CommonImpl[F, A] {
+    override def get: F[A] =
+      atomicCell.get.map(_.getOrElse(default))
 
-    override def evalUpdateAndGet(f: A => F[A]): F[A] =
-      evalModify(a => f(a).map(aa => (aa, aa)))
+    override def set(a: A): F[Unit] =
+      if (a == default) atomicCell.set(None) else atomicCell.set(Some(a))
+
+    override def evalModify[B](f: A => F[(A, B)]): F[B] =
+      atomicCell.evalModify { opt =>
+        val a = opt.getOrElse(default)
+        f(a).map {
+          case (result, b) =>
+            if (result == default) (None, b) else (Some(result), b)
+        }
+      }
+  }
+
+  implicit def atomicCellOptionSyntax[F[_], A](
+      atomicCell: AtomicCell[F, Option[A]]
+  )(
+      implicit F: Applicative[F]
+  ): AtomicCellOptionOps[F, A] =
+    new AtomicCellOptionOps(atomicCell)
+
+  final class AtomicCellOptionOps[F[_], A] private[effect] (
+      atomicCell: AtomicCell[F, Option[A]]
+  )(
+      implicit F: Applicative[F]
+  ) {
+    def getOrElse(default: A): F[A] =
+      atomicCell.get.map(_.getOrElse(default))
+
+    def unset: F[Unit] =
+      atomicCell.set(None)
+
+    def setValue(a: A): F[Unit] =
+      atomicCell.set(Some(a))
+
+    def modifyValueIfSet[B](f: A => (A, B)): F[Option[B]] =
+      evalModifyValueIfSet(a => F.pure(f(a)))
+
+    def evalModifyValueIfSet[B](f: A => F[(A, B)]): F[Option[B]] =
+      atomicCell.evalModify {
+        case None =>
+          F.pure((None, None))
+
+        case Some(a) =>
+          f(a).map {
+            case (result, b) =>
+              (Some(result), Some(b))
+          }
+      }
+
+    def updateValueIfSet(f: A => A): F[Unit] =
+      evalUpdateValueIfSet(a => F.pure(f(a)))
+
+    def evalUpdateValueIfSet(f: A => F[A]): F[Unit] =
+      atomicCell.evalUpdate {
+        case None => F.pure(None)
+        case Some(a) => f(a).map(Some.apply)
+      }
+
+    def getAndSetValue(a: A): F[Option[A]] =
+      atomicCell.getAndSet(Some(a))
+
+    def withDefaultValue(default: A): AtomicCell[F, A] =
+      defaultedAtomicCell(atomicCell, default)
   }
 }

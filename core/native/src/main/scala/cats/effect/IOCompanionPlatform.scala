@@ -16,51 +16,6 @@
 
 package cats.effect
 
-import cats.effect.std.Console
-
-import java.time.Instant
-
-private[effect] abstract class IOCompanionPlatform { this: IO.type =>
-
-  private[this] val TypeDelay = Sync.Type.Delay
-
-  def blocking[A](thunk: => A): IO[A] =
-    // do our best to mitigate blocking
-    IO.cede *> apply(thunk).guarantee(IO.cede)
-
-  private[effect] def interruptible[A](many: Boolean, thunk: => A): IO[A] = {
-    val _ = many
-    blocking(thunk)
-  }
-
-  def interruptible[A](thunk: => A): IO[A] = interruptible(false, thunk)
-
-  def interruptibleMany[A](thunk: => A): IO[A] = interruptible(true, thunk)
-
-  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
-    if (hint eq TypeDelay)
-      apply(thunk)
-    else
-      blocking(thunk)
-
-  def realTimeInstant: IO[Instant] = asyncForIO.realTimeInstant
-
-  /**
-   * Reads a line as a string from the standard input using the platform's default charset, as
-   * per `java.nio.charset.Charset.defaultCharset()`.
-   *
-   * The effect can raise a `java.io.EOFException` if no input has been consumed before the EOF
-   * is observed. This should never happen with the standard input, unless it has been replaced
-   * with a finite `java.io.InputStream` through `java.lang.System#setIn` or similar.
-   *
-   * @see
-   *   `cats.effect.std.Console#readLineWithCharset` for reading using a custom
-   *   `java.nio.charset.Charset`
-   *
-   * @return
-   *   an IO effect that describes reading the user's input from the standard input as a string
-   */
-  def readLine: IO[String] =
-    Console[IO].readLine
-
+private[effect] abstract class IOCompanionPlatform extends IOCompanionMultithreadedPlatform {
+  this: IO.type =>
 }

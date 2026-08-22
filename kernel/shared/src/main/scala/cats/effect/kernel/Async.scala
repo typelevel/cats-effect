@@ -21,7 +21,9 @@ import cats.arrow.FunctionK
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.implicits._
 
-import scala.annotation.{nowarn, tailrec}
+import org.typelevel.scalaccompat.annotation.unused
+
+import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
 import java.util.concurrent.Executor
@@ -158,7 +160,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
     async[A](cb => as(delay(k(cb)), None))
 
   /**
-   * An effect that never terminates.
+   * An effect that never terminates but is cancelable.
    *
    * Polymorphic so it can be used in situations where an arbitrary effect is expected eg
    * [[Fiber.joinWithNever]]
@@ -296,8 +298,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * @param limit
    *   The maximum number of stages to evaluate prior to forcibly yielding to `F`
    */
-  @nowarn("msg=never used")
-  def syncStep[G[_], A](fa: F[A], limit: Int)(implicit G: Sync[G]): G[Either[F[A], A]] =
+  def syncStep[G[_], A](fa: F[A], @unused limit: Int)(implicit G: Sync[G]): G[Either[F[A], A]] =
     G.pure(Left(fa))
 
   /*

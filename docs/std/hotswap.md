@@ -10,35 +10,33 @@ Constructing a new [`Resource`](./resource.md) inside the body of a
 until after the inner resource is released. Consider for example writing a
 logger that will rotate log files every `n` bytes. 
 
-## Hotswap
+## NonEmptyHotswap
 
-`Hotswap` addresses this by exposing a linear sequence of resources as a single
+`NonEmptyHotswap` addresses this by exposing a linear sequence of resources as a single
 `Resource`. We can run the finalizers for the current resource and advance to
-the next one in the sequence using `Hotswap#swap`. An error may be raised if
+the next one in the sequence using `NonEmptyHotswap#swap`. An error may be raised if
 the previous resource in the sequence is referenced after `swap` is invoked
 (as the resource will have been finalized).
 
 ```scala
-sealed trait Hotswap[F[_], R] {
-
-  def swap(next: Resource[F, R]): F[R]
+sealed trait NonEmptyHotswap[F[_], R] {
+  def swap(next: Resource[F, R]): F[Unit]
+  def get: Resource[F, R]
 }
 ```
 
 A rotating logger would then look something like this:
 
 ```scala
-def rotating(n: Int): Resource[IO, Logger[IO]] =
-  Hotswap.create[IO, File].flatMap { hs =>
-    def file(name: String): Resource[IO, File] = ???
-    def write(file: File, msg: String): IO[Unit] = ???
+def rotating(n: Int): Resource[IO, Logger[IO]] = {
+  def file(name: String): Resource[IO, File] = ???
+  def write(file: File, msg: String): IO[Unit] = ???
 
+  NonEmptyHotswap[IO, File](file("0.log").flatMap { hs =>
     Resource.eval {
       for {
         index <- Ref[IO].of(0)
         count <- Ref[IO].of(0)
-        // Open the initial log file
-        _ <- hs.swap(file("0.log"))
       } yield new Logger[IO] {
         def log(msg: String): IO[Unit] =
           count.get.flatMap { currentCount =>
@@ -61,4 +59,5 @@ def rotating(n: Int): Resource[IO, Logger[IO]] =
       }
     }
   }
+}
 ```
