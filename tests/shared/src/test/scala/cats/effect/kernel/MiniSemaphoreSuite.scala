@@ -92,4 +92,21 @@ class MiniSemaphoreSuite extends BaseSuite { outer =>
     assertNonTerminate(p)
   }
 
+  ticked("skip canceled waiters when releasing") { implicit ticker =>
+    val p = for {
+      sem <- MiniSemaphore[IO](1)
+      f1 <- sem.withPermit(IO.sleep(3.seconds)).start
+      _ <- IO.sleep(500.millis)
+      f2 <- sem.withPermit(IO.unit).start
+      _ <- IO.sleep(500.millis)
+      f3 <- sem.withPermit(IO.unit).start
+      _ <- IO.sleep(500.millis)
+      _ <- f2.cancel
+      _ <- f1.joinWithNever
+      _ <- f3.joinWithNever
+    } yield ()
+
+    assertCompleteAs(p, ())
+  }
+
 }

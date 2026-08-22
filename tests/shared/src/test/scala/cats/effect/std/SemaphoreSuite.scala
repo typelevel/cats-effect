@@ -178,6 +178,42 @@ class SemaphoreSuite extends BaseSuite { outer =>
       assertCompleteAs(op, ())
     }
 
+    ticked(s"$name skip canceled waiters when distributing permits") { implicit ticker =>
+      val op = for {
+        s <- sc(0)
+        f1 <- s.acquire.start
+        _ <- IO.sleep(1.second)
+        f2 <- s.acquire.start
+        _ <- IO.sleep(1.second)
+        f3 <- s.acquire.start
+        _ <- IO.sleep(1.second)
+        _ <- f2.cancel
+        _ <- s.releaseN(2)
+        _ <- f1.joinWithNever
+        _ <- f3.joinWithNever
+      } yield ()
+
+      assertCompleteAs(op, ())
+    }
+
+    ticked(s"$name redistribute permits sunk into a canceled waiter") { implicit ticker =>
+      val op = for {
+        s <- sc(0)
+        f1 <- s.acquire.start
+        _ <- IO.sleep(1.second)
+        f2 <- s.acquireN(2).start
+        _ <- IO.sleep(1.second)
+        f3 <- s.acquire.start
+        _ <- IO.sleep(1.second)
+        _ <- f2.cancel
+        _ <- s.releaseN(2)
+        _ <- f1.joinWithNever
+        _ <- f3.joinWithNever
+      } yield ()
+
+      assertCompleteAs(op, ())
+    }
+
     def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
       s.acquireN(n).background.surround {
         // w/o cs.shift this hangs for coreJS

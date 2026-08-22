@@ -1183,7 +1183,24 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.std.AtomicCell.evalUpdateAndGet"),
         // #4500, private class:
         ProblemFilters.exclude[ReversedMissingMethodProblem](
-          "cats.effect.std.Supervisor#State.numberOfFibers")
+          "cats.effect.std.Supervisor#State.numberOfFibers"),
+        // introduced by #4648, O(1) cancelation for Semaphore
+        // reworked the waiter-queue bookkeeping of `Semaphore.impl`: `Request` gained a
+        // `requested`/`remaining` split and lost `of`/`n`, and the `Action`/`Wait`/`Done`
+        // ADT was removed. All of these live inside `private class impl` and are never
+        // visible to user code; they only exist as public members at the bytecode level,
+        // so the removals cannot break binary compatibility
+        ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.std.Semaphore#impl.*"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Semaphore#impl#Request.*"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem](
+          "cats.effect.std.Semaphore#impl#Request.copy$default$2"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem](
+          "cats.effect.std.Semaphore#impl#Request._2"),
+        ProblemFilters.exclude[MissingTypesProblem]("cats.effect.std.Semaphore$impl$Request$"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Semaphore$impl$Action"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Semaphore$impl$Done$"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Semaphore$impl$Wait$")
       )
   )
   .jsSettings(
