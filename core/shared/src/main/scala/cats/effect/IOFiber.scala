@@ -1415,6 +1415,7 @@ private final class IOFiber[A](
       case 9 => succeeded(Left(error), depth) // attemptK
 
       case 10 => // onCancelRequestedFailureK
+        masks -= 1
         if (startedAcks) {
           acks.pop() >> failed(error, depth + 1)
         } else {
