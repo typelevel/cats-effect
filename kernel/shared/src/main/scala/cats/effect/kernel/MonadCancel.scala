@@ -331,9 +331,9 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * [[cats.MonadError!.onError onError]], and [[MonadCancel!.onCancel onCancel]].
    *
    * @param fa
-   *   The effect that is run after `fin` is registered.
+   *   The effect that is run with the guaranteed finalizer `fin`.
    * @param fin
-   *   The effect to run in the event of a cancelation or error.
+   *   The effect to run unconditionally on completion of `fa`.
    *
    * @see
    *   [[guaranteeCase]] for a more powerful variant
@@ -352,7 +352,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * [[cats.MonadError!.onError onError]], and [[MonadCancel!.onCancel onCancel]].
    *
    * @param fa
-   *   The effect that is run after `fin` is registered.
+   *   The effect that is run, finalized by the effect chosen based on the outcome by `fin`.
    * @param fin
    *   A function that returns the effect to run based on the outcome.
    *
