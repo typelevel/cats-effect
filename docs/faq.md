@@ -29,7 +29,7 @@ cats.effect.IO.println("hello")
 
 ```scala-cli
 //> using scala "2.13.8"
-//> using lib "org.typelevel::cats-effect:3.6.4"
+//> using lib "org.typelevel::cats-effect:3.7.1"
 
 import cats.effect._
 
