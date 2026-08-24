@@ -579,6 +579,25 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def map[B](f: A => B): IO[B] = IO.Map(this, f, Tracing.calculateTracingEvent(f))
 
   /**
+   * Like [[map]], but inserts a [[IO#cede]] before and after `f`. Use this when `f` is a
+   * long-running, compute-bound operation.
+   *
+   * @see
+   *   [[IO#cede]] for more details
+   */
+  def computeMap[B](f: A => B): IO[B] =
+    this.flatMap(a => IO.compute(f(a)))
+
+  /**
+   * Like [[computeMap]], but allows raising errors in an Either.
+   *
+   * @see
+   *   [[computeMap]] for more details
+   */
+  def computeMapAttempt[B](f: A => Either[Throwable, B]): IO[B] =
+    this.flatMap(a => IO.computeAttempt(f(a)))
+
+  /**
    * Applies rate limiting to this `IO` based on provided backpressure semantics.
    *
    * @return
@@ -1285,6 +1304,27 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     val fn = () => thunk
     Delay(fn, Tracing.calculateTracingEvent(fn))
   }
+
+  /**
+   * Suspends a long-running, compute-bound operation. Like [[delay]], but inserts a [[cede]]
+   * before and after computing the result.
+   *
+   * @see
+   *   [[cede]] for more details
+   * @see
+   *   [[delay]] for more details
+   */
+  def compute[A](thunk: => A): IO[A] =
+    IO.cede >> IO.delay(thunk).guarantee(IO.cede)
+
+  /**
+   * Like [[compute]], but allows raising errors in an Either.
+   *
+   * @see
+   *   [[compute]] for more details
+   */
+  def computeAttempt[A](thunk: => Either[Throwable, A]): IO[A] =
+    IO.cede >> IO.delay(thunk).rethrow.guarantee(IO.cede)
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
@@ -2101,7 +2141,20 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
       fa.flatMap(f)
 
-    override def delay[A](thunk: => A): IO[A] = IO(thunk)
+    override def computeMap[A, B](fa: IO[A])(f: A => B): IO[B] =
+      fa.computeMap(f)
+
+    override def computeMapAttempt[A, B](fa: IO[A])(f: A => Either[Throwable, B]): IO[B] =
+      fa.computeMapAttempt(f)
+
+    override def delay[A](thunk: => A): IO[A] =
+      IO.delay(thunk)
+
+    override def compute[A](thunk: => A): IO[A] =
+      IO.compute(thunk)
+
+    override def computeAttempt[A](thunk: => Either[Throwable, A]): IO[A] =
+      IO.computeAttempt(thunk)
 
     /**
      * Like [[IO.delay]] but intended for thread blocking operations. `blocking` will shift the

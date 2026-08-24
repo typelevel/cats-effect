@@ -110,7 +110,8 @@ class SyntaxSuite {
     }
   }
 
-  def genSpawnSyntax[F[_], A, B, E](target: F[A], another: F[B])(implicit F: GenSpawn[F, E]) = {
+  def genSpawnSyntax[F[_], A, B, E](target: F[A], another: F[B], f: A => B)(
+      implicit F: GenSpawn[F, E]) = {
     import syntax.spawn._
 
     GenSpawn[F]: F.type
@@ -144,6 +145,16 @@ class SyntaxSuite {
     {
       val result = target.bothOutcome(another)
       result: F[(Outcome[F, E, A], Outcome[F, E, B])]
+    }
+
+    {
+      val result = target.computeMap(f)
+      result: F[B]
+    }
+
+    {
+      val result = target.computeMapAttempt(f andThen Right.apply)
+      result: F[B]
     }
   }
 

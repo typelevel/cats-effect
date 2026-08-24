@@ -337,6 +337,25 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def cede: F[Unit]
 
   /**
+   * Like [[map]], but inserts a [[cede]] before and after `f`. Use this when `f` is a
+   * long-running, compute-bound operation.
+   *
+   * @see
+   *   [[cede]] for more details
+   */
+  def computeMap[A, B](fa: F[A])(f: A => B): F[B] =
+    cede >> fa.map(f).guarantee(cede)
+
+  /**
+   * Like [[computeMap]], but allows raising errors in an Either.
+   *
+   * @see
+   *   [[computeMap]] for more details
+   */
+  def computeMapAttempt[A, B](fa: F[A])(f: A => Either[E, B]): F[B] =
+    cede >> fa.flatMap(a => fromEither(f(a))).guarantee(cede)
+
+  /**
    * A low-level primitive for racing the evaluation of two fibers that returns the [[Outcome]]
    * of the winner and the [[Fiber]] of the loser. The winner of the race is considered to be
    * the first fiber that completes with an outcome.

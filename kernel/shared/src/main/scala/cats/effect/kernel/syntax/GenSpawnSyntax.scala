@@ -35,11 +35,14 @@ trait GenSpawnSyntax {
 
 final class GenSpawnOps_[F[_], A] private[syntax] (private val wrapped: F[A]) extends AnyVal {
 
-  def race[B](another: F[B])(implicit F: GenSpawn[F, ?]) =
+  def race[B](another: F[B])(implicit F: GenSpawn[F, ?]): F[Either[A, B]] =
     F.race(wrapped, another)
 
   def both[B](another: F[B])(implicit F: GenSpawn[F, ?]): F[(A, B)] =
     F.both(wrapped, another)
+
+  def computeMap[B](f: A => B)(implicit F: GenSpawn[F, ?]): F[B] =
+    F.computeMap(wrapped)(f)
 }
 
 final class GenSpawnOps[F[_], A, E] private[syntax] (private val wrapped: F[A]) extends AnyVal {
@@ -62,4 +65,7 @@ final class GenSpawnOps[F[_], A, E] private[syntax] (private val wrapped: F[A]) 
       implicit F: GenSpawn[F, E]
   ): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     F.bothOutcome(wrapped, another)
+
+  def computeMapAttempt[B](f: A => Either[E, B])(implicit F: GenSpawn[F, E]): F[B] =
+    F.computeMapAttempt(wrapped)(f)
 }
