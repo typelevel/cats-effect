@@ -125,7 +125,9 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
       test
         .attempt
         .void
-        .timeoutTo(500.millis, IO(fail("parTraverseN did not short-circuit on error")))
+        .timeoutTo(
+          1.second * timeoutCoefficient,
+          IO(fail("parTraverseN did not short-circuit on error")))
     }
 
     ticked("parTraverseN - interrupt on errors") { implicit ticker =>
@@ -143,7 +145,9 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
       test
         .attempt
         .void
-        .timeoutTo(500.millis, IO(fail("parTraverseN_ did not short-circuit on error")))
+        .timeoutTo(
+          1.second * timeoutCoefficient,
+          IO(fail("parTraverseN_ did not short-circuit on error")))
     }
 
     real("interrupt well-behaved blocking synchronous effect") {

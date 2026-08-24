@@ -431,25 +431,29 @@ class DispatcherSuite extends BaseSuite with DetectPlatform {
     }
 
     real(s"$name - report exception if raised during unsafeRunAndForget") {
-      def ec2(ec1: ExecutionContext, er: Promise[Boolean]) = new ExecutionContext {
-        def reportFailure(t: Throwable) = er.success(true)
-        def execute(r: Runnable) = ec1.execute(r)
-      }
+      def ec2(ec1: ExecutionContext, cb: Either[Throwable, Throwable] => Unit) =
+        new ExecutionContext {
+          def reportFailure(t: Throwable) = cb(Right(t))
+          def execute(r: Runnable) = ec1.execute(r)
+        }
 
-      val test = for {
-        ec <- Resource.eval(IO.executionContext)
-        errorReporter <- Resource.eval(IO(Promise[Boolean]()))
-        customEc = ec2(ec, errorReporter)
-        _ <- dispatcher
-          .evalOn(customEc)
-          .flatMap(runner =>
-            Resource.eval(IO(runner.unsafeRunAndForget(IO.raiseError(new Exception("boom"))))))
-      } yield errorReporter
+      val failure = new Exception("boom")
 
-      test
-        .use(t =>
-          IO.fromFutureCancelable(IO((t.future, IO.unit))).timeoutTo(3.second, IO.pure(false)))
-        .flatMap(t => IO(assertEquals(t, true)))
+      for {
+        ec <- IO.executionContext
+        releaseRef <- IO.ref[IO[Unit]](IO.unit)
+        actual <- IO
+          .async[Throwable] { cb =>
+            dispatcher.evalOn(ec2(ec, cb)).allocated.flatMap {
+              case (runner, release) =>
+                releaseRef.set(release) *>
+                  IO(runner.unsafeRunAndForget(IO.raiseError(failure))) *>
+                  IO.pure[Option[IO[Unit]]](Some(IO.unit))
+            }
+          }
+          .guarantee(releaseRef.get.flatten)
+        _ <- IO(assert(actual eq failure))
+      } yield ()
     }
 
     real(s"$name - do not treat exception in unsafeRunToFuture as unhandled") {
