@@ -16,21 +16,16 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.Sync
+import cats.data._
+import cats.effect._
 
 import java.util.UUID
 
-private[std] trait UUIDGenCompanionPlatform extends UUIDGenCompanionPlatformMediumPriority
+object ImplicitPriorityPlayground {
 
-private[std] trait UUIDGenCompanionPlatformLowPriority {
+  def foo[F[_]: UUIDGen]: F[UUID] = UUIDGen[F].randomUUID
 
-  @deprecated(
-    "Put an implicit `SecureRandom.javaSecuritySecureRandom` into scope to get a more efficient `UUIDGen`, or directly call `UUIDGen.fromSecureRandom`",
-    "3.6.0"
-  )
-  implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = new UUIDGen[F] {
-    override final val randomUUID: F[UUID] =
-      ev.blocking(UUID.randomUUID())
+  SecureRandom.javaSecuritySecureRandom[IO].flatMap { implicit random =>
+    foo[Kleisli[IO, String, *]].run("hello world")
   }
-
 }

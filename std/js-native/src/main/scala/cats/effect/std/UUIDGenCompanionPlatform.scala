@@ -30,7 +30,7 @@ package cats.effect.std
 
 import cats.effect.kernel.Sync
 
-private[std] trait UUIDGenCompanionPlatform extends UUIDGenCompanionPlatformLowPriority
+private[std] trait UUIDGenCompanionPlatform extends UUIDGenCompanionPlatformMediumPriority
 
 private[std] trait UUIDGenCompanionPlatformLowPriority {
 
