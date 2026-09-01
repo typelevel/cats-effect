@@ -1096,6 +1096,60 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       Outcome.succeeded[IO, Throwable, Int](IO.pure(42)))
   }
 
+  real("racePair completes when canceled") {
+    for {
+      started <- IO.deferred[Unit]
+      racingFiber <- IO
+        .racePair(
+          IO.deferred[Unit]
+            .flatMap(complete =>
+              IO.uncancelable(poll =>
+                started.complete(()) *> poll(complete.get).onCancelRequested(
+                  complete.complete(()).void))),
+          IO.never.as(())
+        )
+        .start
+      _ <- started.get
+      _ <- racingFiber.cancel
+      outcome <- racingFiber.join
+    } yield assert(outcome.isSuccess, s"racing fiber was unable to complete, was $outcome")
+  }
+
+  real("onCancelRequested callback handled before inner onCancel") {
+    for {
+      started <- IO.deferred[Unit]
+      cancelable <- IO.deferred[Boolean]
+      callbacks <- IO.uncancelable { poll =>
+        started.complete(()) *> poll(cancelable.get)
+          // with the default cancelable implementation, the onCancel would run first
+          .onCancel(cancelable.complete(false).void)
+          .onCancelRequested(cancelable.complete(true).void)
+      }.start
+      _ <- started.get
+      _ <- callbacks.cancel
+      isCancelable <- cancelable.get
+    } yield assert(
+      isCancelable,
+      s"onCancelRequested finalizer not called before cancelation observed")
+  }
+
+  real("cancelable - blocking can be canceled") {
+    for {
+      started <- IO.deferred[Unit]
+      await <- IO.delay(new java.util.concurrent.atomic.AtomicBoolean(true))
+      callbacks <- {
+        started.complete(()) *> IO
+          .blocking {
+            while (await.get()) {}
+          }
+          .cancelable(IO.delay(await.set(false)))
+      }.start
+      _ <- started.get
+      _ <- callbacks.cancel
+      _ <- callbacks.join
+    } yield ()
+  }
+
   real("async - race - immediately cancel inner race when outer unit") {
     for {
       start <- IO.monotonic
@@ -1228,7 +1282,8 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAs(
       IO.deferred[Unit].flatMap { gate =>
         val test = IO.deferred[Unit] flatMap { latch =>
-          (gate.complete(()) *> latch.get).uncancelable.cancelable(latch.complete(()).void)
+          IO.uncancelable(poll =>
+            (gate.complete(()) *> poll(latch.get)).cancelable(latch.complete(()).void))
         }
 
         test.start.flatMap(gate.get *> _.cancel)
@@ -1240,6 +1295,31 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
   ticked("cancelation - cancelable waits for termination") { implicit ticker =>
     def test(fin: IO[Unit]) = {
       val go = IO.never.uncancelable.cancelable(fin)
+      go.start.flatMap(IO.sleep(1.second) *> _.cancel)
+    }
+
+    assertNonTerminate(test(IO.unit))
+    assertNonTerminate(test(IO.raiseError(new Exception)))
+    assertNonTerminate(test(IO.canceled))
+  }
+
+  ticked("cancelation - support re-enablement via onCancelRequested") { implicit ticker =>
+    assertCompleteAs(
+      IO.deferred[Unit].flatMap { gate =>
+        val test = IO.deferred[Unit] flatMap { latch =>
+          IO.uncancelable(poll =>
+            (gate.complete(()) *> poll(latch.get)).onCancelRequested(latch.complete(()).void))
+        }
+
+        test.start.flatMap(gate.get *> _.cancel)
+      },
+      ()
+    )
+  }
+
+  ticked("cancelation - onCancelRequested waits for termination") { implicit ticker =>
+    def test(fin: IO[Unit]) = {
+      val go = IO.uncancelable(poll => poll(IO.never).onCancelRequested(fin))
       go.start.flatMap(IO.sleep(1.second) *> _.cancel)
     }
 
