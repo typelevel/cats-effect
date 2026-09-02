@@ -53,7 +53,7 @@ package examples {
 
   object FatalErrorRaw extends RawApp {
     def main(args: Array[String]): Unit = {
-      import cats.effect.unsafe.implicits._
+      import cats.effect.unsafe.implicits.*
       val action =
         IO(throw new OutOfMemoryError("Boom!")).attempt.flatMap(_ => IO.println("sadness"))
       action.unsafeToFuture()
@@ -131,6 +131,14 @@ package examples {
     }
   }
 
+  object AsyncFatalError extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = {
+      IO.async_[Unit](cb => cb(Left(new OutOfMemoryError("Boom!"))))
+        .flatMap(_ => IO.println("sadness"))
+        .as(ExitCode.Success)
+    }
+  }
+
   object Canceled extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
       IO.canceled.as(ExitCode.Success)
@@ -171,7 +179,7 @@ package examples {
 
   object LiveFiberSnapshot extends IOApp.Simple {
 
-    import scala.concurrent.duration._
+    import scala.concurrent.duration.*
 
     lazy val loop: IO[Unit] =
       IO.unit.map(_ => ()) >>
