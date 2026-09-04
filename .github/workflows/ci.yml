@@ -32,7 +32,7 @@ jobs:
           - ubuntu-22.04-arm
           - windows-2022
           - macos-14
-        scala: [3.3.7, 2.12.21, 2.13.18]
+        scala: [3.3.7, 2.12.21, 3.9.0]
         java:
           - temurin@8
           - temurin@11
@@ -311,7 +311,7 @@ jobs:
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.18' || matrix.scala == '3.3.7') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17'
+      - if: (matrix.scala == '3.9.0' || matrix.scala == '3.3.7') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' docs/mdoc
 
@@ -331,12 +331,12 @@ jobs:
         run: example/test-native.sh ${{ matrix.scala }}
 
       - name: Test GraalVM Native Image
-        if: (matrix.scala == '2.13.18' || matrix.scala == '3.3.7') && matrix.java == 'graalvm@21' && matrix.os == 'ubuntu-latest'
+        if: (matrix.scala == '3.9.0' || matrix.scala == '3.3.7') && matrix.java == 'graalvm@21' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.18' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '3.9.0' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix
