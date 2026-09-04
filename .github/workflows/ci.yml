@@ -506,52 +506,52 @@ jobs:
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.18, ciJVM)
+      - name: Download target directories (3.9.0, ciJVM)
         uses: actions/download-artifact@v6
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.9.0-ciJVM
 
-      - name: Inflate target directories (2.13.18, ciJVM)
+      - name: Inflate target directories (3.9.0, ciJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.18, ciNative)
+      - name: Download target directories (3.9.0, ciNative)
         uses: actions/download-artifact@v6
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.9.0-ciNative
 
-      - name: Inflate target directories (2.13.18, ciNative)
+      - name: Inflate target directories (3.9.0, ciNative)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.18, ciJS)
+      - name: Download target directories (3.9.0, ciJS)
         uses: actions/download-artifact@v6
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.9.0-ciJS
 
-      - name: Inflate target directories (2.13.18, ciJS)
+      - name: Inflate target directories (3.9.0, ciJS)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.18, ciFirefox)
+      - name: Download target directories (3.9.0, ciFirefox)
         uses: actions/download-artifact@v6
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciFirefox
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.9.0-ciFirefox
 
-      - name: Inflate target directories (2.13.18, ciFirefox)
+      - name: Inflate target directories (3.9.0, ciFirefox)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.18, ciChrome)
+      - name: Download target directories (3.9.0, ciChrome)
         uses: actions/download-artifact@v6
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciChrome
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.9.0-ciChrome
 
-      - name: Inflate target directories (2.13.18, ciChrome)
+      - name: Inflate target directories (3.9.0, ciChrome)
         run: |
           tar xf targets.tar
           rm targets.tar
@@ -674,5 +674,5 @@ jobs:
       - name: Submit Dependencies
         uses: scalacenter/sbt-dependency-submission@v2
         with:
-          modules-ignore: cats-effect-benchmarks_3 cats-effect-benchmarks_2.12 cats-effect-benchmarks_2.13 cats-effect_3 cats-effect_2.12 cats-effect_2.13 cats-effect-example_sjs1_3 cats-effect-example_sjs1_2.12 cats-effect-example_sjs1_2.13 rootjs_3 rootjs_2.12 rootjs_2.13 ioapptestsnative_3 ioapptestsnative_2.12 ioapptestsnative_2.13 cats-effect-graalvm-example_3 cats-effect-graalvm-example_2.12 cats-effect-graalvm-example_2.13 cats-effect-tests_sjs1_3 cats-effect-tests_sjs1_2.12 cats-effect-tests_sjs1_2.13 rootjvm_3 rootjvm_2.12 rootjvm_2.13 rootnative_3 rootnative_2.12 rootnative_2.13 cats-effect-example_native0.5_3 cats-effect-example_native0.5_2.12 cats-effect-example_native0.5_2.13 cats-effect-example_3 cats-effect-example_2.12 cats-effect-example_2.13 cats-effect-tests_3 cats-effect-tests_2.12 cats-effect-tests_2.13 ioapptestsjvm_3 ioapptestsjvm_2.12 ioapptestsjvm_2.13 ioapptestsjs_3 ioapptestsjs_2.12 ioapptestsjs_2.13 cats-effect-tests_native0.5_3 cats-effect-tests_native0.5_2.12 cats-effect-tests_native0.5_2.13
+          modules-ignore: cats-effect-benchmarks_3 cats-effect-benchmarks_2.12 cats-effect-benchmarks_3 cats-effect_3 cats-effect_2.12 cats-effect_3 cats-effect-example_sjs1_3 cats-effect-example_sjs1_2.12 cats-effect-example_sjs1_3 rootjs_3 rootjs_2.12 rootjs_3 ioapptestsnative_3 ioapptestsnative_2.12 ioapptestsnative_3 cats-effect-graalvm-example_3 cats-effect-graalvm-example_2.12 cats-effect-graalvm-example_3 cats-effect-tests_sjs1_3 cats-effect-tests_sjs1_2.12 cats-effect-tests_sjs1_3 rootjvm_3 rootjvm_2.12 rootjvm_3 rootnative_3 rootnative_2.12 rootnative_3 cats-effect-example_native0.5_3 cats-effect-example_native0.5_2.12 cats-effect-example_native0.5_3 cats-effect-example_3 cats-effect-example_2.12 cats-effect-example_3 cats-effect-tests_3 cats-effect-tests_2.12 cats-effect-tests_3 ioapptestsjvm_3 ioapptestsjvm_2.12 ioapptestsjvm_3 ioapptestsjs_3 ioapptestsjs_2.12 ioapptestsjs_3 cats-effect-tests_native0.5_3 cats-effect-tests_native0.5_2.12 cats-effect-tests_native0.5_3
           configs-ignore: test scala-tool scala-doc-tool test-internal
