@@ -377,18 +377,16 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
 
   /**
    * Races the evaluation of two fibers that returns the result of the winner, except in the
-   * case of cancelation.
+   * case of cancelation which cancels the whole race.
    *
    * The semantics of [[race]] are described by the following rules:
    *
    *   1. If the winner completes with [[Outcome.Succeeded]], the race returns the successful
    *      value. The loser is canceled before returning. 2. If the winner completes with
    *      [[Outcome.Errored]], the race raises the error. The loser is canceled before
-   *      returning. 3. If the winner completes with [[Outcome.Canceled]], the race returns the
-   *      result of the loser, consistent with the first two rules. 4. If both the winner and
-   *      loser complete with [[Outcome.Canceled]], the race is canceled. 8. If the race is
-   *      masked and is canceled because both participants canceled, the fiber will block
-   *      indefinitely.
+   *      returning. 3. If the winner completes with [[Outcome.Canceled]], the loser is canceled
+   *      immediately but its outcome is returned if already completed. 4. If the race is masked
+   *      and is canceled because both participants canceled, the fiber will block indefinitely.
    *
    * @param fa
    *   the effect for the first racing fiber
