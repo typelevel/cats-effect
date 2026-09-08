@@ -48,11 +48,11 @@ class ScalQueueBenchmark {
   @Param(Array("4")) // keep this a power of 2
   var threads: Int = _
 
-  val thing = new AnyRef
+  val thing = new Runnable { def run(): Unit = {} }
 
   @Benchmark
   def scalConcurrentEnqueueDequeue(): Unit = {
-    val q = new ScalQueue[AnyRef](threads)
+    val q = new ScalQueue(threads)
     val latch = new CountDownLatch(threads)
 
     // every thread will send and receive this number of events

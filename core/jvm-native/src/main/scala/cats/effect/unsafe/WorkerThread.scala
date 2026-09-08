@@ -52,7 +52,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
     private[unsafe] var parked: AtomicReference[ParkedSignal],
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
-    private[this] val external: ScalQueue[AnyRef],
+    private[this] val external: ScalQueue,
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
     private[this] var sleepers: TimerHeap,
