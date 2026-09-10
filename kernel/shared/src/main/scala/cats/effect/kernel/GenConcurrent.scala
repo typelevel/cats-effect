@@ -148,11 +148,13 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   }
 
   /**
-   * Shared core implementation for both [[parTraverseN()]] and [[parFlatTraverseN()]], taking a function that decides
-   * on how to sequence the result.
-   * @tparam B the intermediate result type of the function `f`, needs to be sequenceable to `C`
+   * Shared core implementation for both [[parTraverseN()]] and [[parFlatTraverseN()]], taking a
+   * function that decides on how to sequence the result.
+   * @tparam B
+   *   the intermediate result type of the function `f`, needs to be sequenceable to `C`
    */
-  private def parTraverseNImpl[T[_]: Traverse, A, B, C](n: Int)(ta: T[A])(f: A => F[B])(seq: T[F[B]] => F[T[C]]): F[T[C]] = {
+  private def parTraverseNImpl[T[_]: Traverse, A, B, C](n: Int)(ta: T[A])(f: A => F[B])(
+      seq: T[F[B]] => F[T[C]]): F[T[C]] = {
     require(n >= 1, s"Concurrency limit should be at least 1, was: $n")
 
     implicit val F: GenConcurrent[F, E] = this
