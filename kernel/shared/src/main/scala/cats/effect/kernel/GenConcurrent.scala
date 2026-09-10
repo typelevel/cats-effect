@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{Foldable, Monoid, Semigroup, Traverse}
+import cats.{FlatMap, Foldable, Monoid, Semigroup, Traverse}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 import cats.effect.kernel.instances.spawn._
 import cats.effect.kernel.syntax.all._
@@ -143,6 +143,18 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
    * limit.
    */
   def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => F[B]): F[T[B]] = {
+    implicit val F: GenConcurrent[F, E] = this
+    parTraverseNImpl[T, A, B, B](n)(ta)(f)(_.sequence[F, B])
+  }
+
+  /**
+   * Shared core implementation for both [[parTraverseN()]] and [[parFlatTraverseN()]], taking a
+   * function that decides on how to sequence the result.
+   * @tparam B
+   *   the intermediate result type of the function `f`, needs to be sequenceable to `C`
+   */
+  private def parTraverseNImpl[T[_]: Traverse, A, B, C](n: Int)(ta: T[A])(f: A => F[B])(
+      seq: T[F[B]] => F[T[C]]): F[T[C]] = {
     require(n >= 1, s"Concurrency limit should be at least 1, was: $n")
 
     implicit val F: GenConcurrent[F, E] = this
@@ -242,7 +254,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
               }
             }
 
-            results.flatMap(_.sequence).onCancel(cancelAllAndJoin)
+            results.flatMap(seq).onCancel(cancelAllAndJoin)
           }
       }
     }
@@ -334,6 +346,23 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
         }
       }
     }
+  }
+
+  /**
+   * Like `Parallel.parFlatSequence`, but limits the degree of parallelism.
+   */
+  def parFlatSequenceN[T[_]: Traverse: FlatMap, A](n: Int)(tma: T[F[T[A]]]): F[T[A]] =
+    parFlatTraverseN(n)(tma)(identity)
+
+  /**
+   * Like `Parallel.parFlatTraverse`, but limits the degree of parallelism. Note that the
+   * semantics of this operation aim to maximise fairness: when a spot to execute becomes
+   * available, every task has a chance to claim it, and not only the next `n` tasks in `ta`
+   */
+  def parFlatTraverseN[T[_]: Traverse: FlatMap, A, B](n: Int)(ta: T[A])(
+      f: A => F[T[B]]): F[T[B]] = {
+    implicit val F: GenConcurrent[F, E] = this
+    parTraverseNImpl[T, A, T[B], B](n)(ta)(f)(_.flatSequence)
   }
 
   override def racePair[A, B](fa: F[A], fb: F[B])

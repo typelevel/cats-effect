@@ -2268,6 +2268,53 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAs(test.attempt.void, ())
   }
 
+  real("parFlatTraverseN - throw when n < 1") {
+    IO.defer {
+      List.empty[Int].parFlatTraverseN(0)(List(_).pure[IO])
+    }.mustFailWith[IllegalArgumentException]
+  }
+
+  real("parFlatTraverseN - propagate errors") {
+    List(1, 2, 3)
+      .parFlatTraverseN(2) { (n: Int) =>
+        if (n == 2) IO.raiseError(new RuntimeException) else List(n).pure[IO]
+      }
+      .mustFailWith[RuntimeException]
+  }
+
+  ticked("parFlatTraverseN - be cancelable") { implicit ticker =>
+    val p = for {
+      f <- List(1, 2, 3).parFlatTraverseN(2)(_ => IO.never[List[Int]]).start
+      _ <- IO.sleep(100.millis)
+      _ <- f.cancel
+    } yield true
+
+    assertCompleteAs(p, true)
+  }
+
+  real("parFlatSequenceN - throw when n < 1") {
+    IO.defer {
+      List.empty[IO[List[Int]]].parFlatSequenceN(0)
+    }.mustFailWith[IllegalArgumentException]
+  }
+
+  real("parFlatSequenceN - propagate errors") {
+    List(1, 2, 3)
+      .map { (n: Int) => if (n == 2) IO.raiseError(new RuntimeException) else List(n).pure[IO] }
+      .parFlatSequenceN(2)
+      .mustFailWith[RuntimeException]
+  }
+
+  ticked("parFlatSequenceN - be cancelable") { implicit ticker =>
+    val p = for {
+      f <- List(1, 2, 3).map(_ => IO.never[List[IO[Int]]]).parFlatSequenceN(2).start
+      _ <- IO.sleep(100.millis)
+      _ <- f.cancel
+    } yield true
+
+    assertCompleteAs(p, true)
+  }
+
   real("parallel - run parallel actually in parallel") {
     val x = IO.sleep(2.seconds) >> IO.pure(1)
     val y = IO.sleep(2.seconds) >> IO.pure(2)
