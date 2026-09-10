@@ -111,12 +111,17 @@ ThisBuild / developers := List(
 
 val PrimaryOS = "ubuntu-latest"
 val ArmOS = "ubuntu-22.04-arm"
-val Windows = "windows-latest"
+val Windows = "windows-2022"
 val MacOS = "macos-14"
 
-val Scala212 = "2.12.20"
-val Scala213 = "2.13.16"
-val Scala3 = "3.3.5"
+val ScalaNativeLLVM = "/usr/lib/llvm-15/bin"
+val ArmNativeCI = s"matrix.ci == '${CI.Native.command}' && matrix.os == '$ArmOS'"
+val NonArmNativeCI = s"matrix.ci != '${CI.Native.command}' || matrix.os != '$ArmOS'"
+val ArmNativeEnv = Map("LLVM_BIN" -> ScalaNativeLLVM)
+
+val Scala212 = "2.12.21"
+val Scala213 = "2.13.18"
+val Scala3 = "3.3.7"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
@@ -129,11 +134,6 @@ ThisBuild / tlCiReleaseTags := true
 ThisBuild / tlCiReleaseBranches := Nil
 
 ThisBuild / githubWorkflowArtifactDownloadExtraKeys += "ci"
-ThisBuild / githubWorkflowPublishPreamble +=
-  WorkflowStep.Use(
-    UseRef.Public("typelevel", "await-cirrus", "main"),
-    name = Some("Wait for Cirrus CI")
-  )
 
 val OldGuardJava = JavaSpec.temurin("8")
 val LTSJava = JavaSpec.temurin("11")
@@ -183,7 +183,15 @@ ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
     ) // windows has file lock issues due to shared sources
   )
 } ++ Seq(
-  WorkflowStep.Sbt(List("${{ matrix.ci }}")),
+  WorkflowStep.Sbt(
+    List("${{ matrix.ci }}"),
+    cond = Some(ArmNativeCI),
+    env = ArmNativeEnv
+  ),
+  WorkflowStep.Sbt(
+    List("${{ matrix.ci }}"),
+    cond = Some(NonArmNativeCI)
+  ),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
     cond = Some(
@@ -326,11 +334,11 @@ ThisBuild / autoAPIMappings := true
 ThisBuild / Test / testOptions += Tests.Argument("+l")
 
 val CatsVersion = "2.13.0"
-val CatsMtlVersion = "1.5.0"
-val ScalaCheckVersion = "1.18.1"
+val CatsMtlVersion = "1.7.0"
+val ScalaCheckVersion = "1.20.0"
 val CoopVersion = "1.3.0"
 val MUnitVersion = "1.1.0"
-val MUnitScalaCheckVersion = "1.1.0"
+val MUnitScalaCheckVersion = "1.3.0"
 val DisciplineMUnitVersion = "2.0.0"
 
 val MacrotaskExecutorVersion = "1.1.1"
@@ -363,7 +371,7 @@ Global / tlCommandAliases ++= Map(
 
 lazy val nativeTestSettings = Seq(
   nativeConfig ~= { c =>
-    c.withSourceLevelDebuggingConfig(_.enableAll.generateFunctionSourcePositions(false))
+    c.withSourceLevelDebuggingConfig(_.enableAll)
       .withOptimize(
         true
       ) // `false` doesn't work due to https://github.com/scala-native/scala-native/issues/4366
@@ -426,6 +434,7 @@ lazy val rootJVM = project
     core.jvm,
     testkit.jvm,
     tests.jvm,
+    ioAppTestsJVM,
     std.jvm,
     example.jvm,
     graalVMExample,
@@ -445,7 +454,9 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-effect-kernel",
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % CatsVersion
+      "org.typelevel" %%% "cats-core" % CatsVersion,
+      "org.typelevel" %%% "cats-mtl" % CatsMtlVersion,
+      "org.scalameta" %%% "munit" % MUnitVersion % Test
     ),
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef"),
@@ -456,7 +467,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
   .nativeSettings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.6.0"
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.7.0"
   )
 
 /**
@@ -501,7 +512,9 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     name := "cats-effect-laws",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
-      "org.typelevel" %%% "discipline-munit" % DisciplineMUnitVersion % Test)
+      "org.typelevel" %%% "cats-mtl-laws" % CatsMtlVersion % Test,
+      "org.typelevel" %%% "discipline-munit" % DisciplineMUnitVersion % Test
+    )
   )
 
 /**
@@ -517,6 +530,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-mtl" % CatsMtlVersion
     ),
+    scalacOptions ++= {
+      if (scalaVersion.value.startsWith("2.13"))
+        Some("-Xlint:-overload")
+      else
+        None
+    },
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -1073,6 +1092,12 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= Seq(
       "org.scalameta" %%% "munit" % MUnitVersion % Test
     ),
+    scalacOptions ++= {
+      if (scalaVersion.value.startsWith("2.13"))
+        Some("-Xlint:-overload")
+      else
+        None
+    },
     mimaBinaryIssueFilters ++= {
       if (tlIsScala3.value) {
         Seq(
@@ -1144,12 +1169,46 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.std.Dispatcher#RegState#Unstarted.toString"),
         ProblemFilters.exclude[DirectMissingMethodProblem](
           "cats.effect.std.Dispatcher#Registration#Primary.*"),
+        // #4500, private class:
+        ProblemFilters.exclude[ReversedMissingMethodProblem](
+          "cats.effect.std.Supervisor#State.numberOfFibers"),
         // #4065, moved to its own file.
         ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Mutex$ConcurrentImpl$"),
         ProblemFilters.exclude[DirectMissingMethodProblem](
           "cats.effect.std.Mutex#ConcurrentImpl.EmptyCell"),
         ProblemFilters.exclude[DirectMissingMethodProblem](
-          "cats.effect.std.Mutex#ConcurrentImpl.LockQueueCell")
+          "cats.effect.std.Mutex#ConcurrentImpl.LockQueueCell"),
+        // #4424, refactored private classes
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
+          "cats.effect.std.AtomicCell#AsyncImpl.this"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
+          "cats.effect.std.AtomicCell#ConcurrentImpl.this"),
+        // #4424, false warnings in CommonImpl due to lightbend-labs/mima#211
+        ProblemFilters.exclude[DirectAbstractMethodProblem](
+          "cats.effect.std.AtomicCell.modify"),
+        ProblemFilters.exclude[DirectAbstractMethodProblem](
+          "cats.effect.std.AtomicCell.evalUpdate"),
+        ProblemFilters.exclude[DirectAbstractMethodProblem](
+          "cats.effect.std.AtomicCell.evalGetAndUpdate"),
+        ProblemFilters.exclude[DirectAbstractMethodProblem](
+          "cats.effect.std.AtomicCell.evalUpdateAndGet"),
+        // introduced by #4648, O(1) cancelation for Semaphore
+        // reworked the waiter-queue bookkeeping of `Semaphore.impl`: `Request` gained a
+        // `requested`/`remaining` split and lost `of`/`n`, and the `Action`/`Wait`/`Done`
+        // ADT was removed. All of these live inside `private class impl` and are never
+        // visible to user code; they only exist as public members at the bytecode level,
+        // so the removals cannot break binary compatibility
+        ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.std.Semaphore#impl.*"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.std.Semaphore#impl#Request.*"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem](
+          "cats.effect.std.Semaphore#impl#Request.copy$default$2"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem](
+          "cats.effect.std.Semaphore#impl#Request._2"),
+        ProblemFilters.exclude[MissingTypesProblem]("cats.effect.std.Semaphore$impl$Request$"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Semaphore$impl$Action"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Semaphore$impl$Done$"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Semaphore$impl$Wait$")
       )
   )
   .jsSettings(

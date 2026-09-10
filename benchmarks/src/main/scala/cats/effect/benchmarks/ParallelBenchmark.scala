@@ -17,11 +17,14 @@
 package cats.effect.benchmarks
 
 import cats.effect.IO
+import cats.effect.syntax.all._
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{catsSyntaxParallelTraverse1, toTraverseOps}
 
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
+
+import scala.concurrent.duration._
 
 import java.util.concurrent.TimeUnit
 
@@ -54,6 +57,24 @@ class ParallelBenchmark {
   @Benchmark
   def parTraverse(): Unit =
     1.to(size).toList.parTraverse(_ => IO(Blackhole.consumeCPU(cpuTokens))).void.unsafeRunSync()
+
+  @Benchmark
+  def parTraverseN(): Unit =
+    1.to(size)
+      .toList
+      .parTraverseN(size / 100)(_ => IO(Blackhole.consumeCPU(cpuTokens)))
+      .void
+      .unsafeRunSync()
+
+  @Benchmark
+  def parTraverseNCancel(): Unit = {
+    val e = new RuntimeException
+    val test = 1.to(size * 100).toList.parTraverseN(size / 100) { _ =>
+      IO.sleep(100.millis) *> IO.raiseError(e)
+    }
+
+    test.attempt.void.unsafeRunSync()
+  }
 
   @Benchmark
   def traverse(): Unit =

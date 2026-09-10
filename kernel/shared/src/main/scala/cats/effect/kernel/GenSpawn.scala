@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{~>, Applicative, Monoid, Semigroup}
+import cats.{Applicative, Monoid, Semigroup}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.effect.kernel.syntax.monadCancel._
 import cats.syntax.all._
@@ -851,12 +851,11 @@ object GenSpawn {
       }
 
     private def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
-
-      val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
-        def apply[B](fa: F[B]) = Kleisli.liftF(fa)
+      oc match {
+        case Outcome.Canceled() => Outcome.Canceled()
+        case Outcome.Errored(e) => Outcome.Errored(e)
+        case Outcome.Succeeded(fa) => Outcome.Succeeded(Kleisli.liftF(fa))
       }
-
-      oc.mapK(nat)
     }
 
     private def liftFiber[A](fib: Fiber[F, E, A]): Fiber[Kleisli[F, R, *], E, A] =

@@ -148,14 +148,13 @@ object Semaphore {
     def requireNonNegative(n: Long): Unit =
       require(n >= 0, s"n must be nonnegative, was: $n")
 
-    case class Request(n: Long, gate: Deferred[F, Unit]) {
-      // the number of permits can change if the request is partially fulfilled
+    case class Request(requested: Long, remaining: Long, gate: Deferred[F, Unit]) {
       def sameAs(r: Request) = r.gate eq gate
-      def of(newN: Long) = Request(newN, gate)
+      def sunk = requested - remaining
+      def withRemaining(newN: Long) = copy(remaining = newN)
       def wait_ = gate.get
       def complete = gate.complete(())
     }
-    def newRequest = F.deferred[Unit].map(Request(0, _))
 
     /*
      * Invariant:
@@ -164,45 +163,44 @@ object Semaphore {
     case class State(permits: Long, waiting: Q[Request])
     def initialState = State(n, Q())
 
-    sealed trait Action
-    case object Wait extends Action
-    case object Done extends Action
-
     def semaphore(state: Ref[F, State]) =
       new Semaphore[F] { self =>
+        private[this] def reclaim(req: Request): F[Unit] =
+          state.flatModify {
+            case State(permits, waiting) =>
+              waiting.dequeueOption match {
+                case Some((head, tail)) if head sameAs req =>
+                  State(permits, tail) -> releaseN(head.sunk)
+                case _ =>
+                  State(permits, waiting) -> F.unit
+              }
+          }
+
         def acquireN(n: Long): F[Unit] = {
           requireNonNegative(n)
 
           if (n == 0) F.unit
           else
             F.uncancelable { poll =>
-              newRequest.flatMap { req =>
+              F.deferred[Unit].flatMap { gate =>
+                val req = Request(n, n, gate)
+
+                val cleanup = req.complete.flatMap { won =>
+                  if (won) reclaim(req)
+                  else releaseN(n)
+                }
+
+                val await = poll(req.wait_).onCancel(cleanup)
+
                 state.modify {
                   case State(permits, waiting) =>
-                    val (newState, decision) =
-                      if (waiting.nonEmpty) State(0, waiting enqueue req.of(n)) -> Wait
-                      else {
-                        val diff = permits - n
-                        if (diff >= 0) State(diff, Q()) -> Done
-                        else State(0, req.of(diff.abs).pure[Q]) -> Wait
-                      }
-
-                    val cleanup = state.modify {
-                      case State(permits, waiting) =>
-                        // both hold correctly even if the Request gets canceled
-                        // after having been fulfilled
-                        val permitsAcquiredSoFar = n - waiting.find(_ sameAs req).foldMap(_.n)
-                        val waitingNow = waiting.filterNot(_ sameAs req)
-                        // releaseN is commutative, the separate Ref access is ok
-                        State(permits, waitingNow) -> releaseN(permitsAcquiredSoFar)
-                    }.flatten
-
-                    val action = decision match {
-                      case Done => F.unit
-                      case Wait => poll(req.wait_).onCancel(cleanup)
+                    if (waiting.nonEmpty)
+                      State(0, waiting.enqueue(req)) -> await
+                    else {
+                      val diff = permits - n
+                      if (diff >= 0) State(diff, Q()) -> F.unit
+                      else State(0, req.withRemaining(diff.abs).pure[Q]) -> await
                     }
-
-                    newState -> action
                 }.flatten
               }
             }
@@ -217,10 +215,10 @@ object Semaphore {
               requests: Q[Request],
               wakeup: Q[Request]): (Long, Q[Request], Q[Request]) = {
             val (req, tail) = requests.dequeue
-            if (n < req.n) // partially fulfil one request
-              (0, req.of(req.n - n) +: tail, wakeup)
+            if (n < req.remaining) // partially fulfil one request
+              (0, req.withRemaining(req.remaining - n) +: tail, wakeup)
             else { // fulfil as many requests as `n` allows
-              val newN = n - req.n
+              val newN = n - req.remaining
               val newWakeup = wakeup.enqueue(req)
 
               if (tail.isEmpty || newN == 0) (newN, tail, newWakeup)
@@ -235,7 +233,22 @@ object Semaphore {
                 if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
                 else {
                   val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
-                  State(newN, waitingNow) -> wakeup.traverse_(_.complete)
+
+                  val wake = wakeup.traverse_ { req =>
+                    req.complete.flatMap { won =>
+                      if (won) F.unit
+                      else releaseN(req.requested)
+                    }
+                  }
+
+                  val sweep = waitingNow.headOption.traverse_ { req =>
+                    req.gate.tryGet.flatMap {
+                      case Some(_) => reclaim(req)
+                      case None => F.unit
+                    }
+                  }
+
+                  State(newN, waitingNow) -> (wake *> sweep)
                 }
             }
         }
@@ -245,7 +258,7 @@ object Semaphore {
         def count: F[Long] =
           state.get.map {
             case State(permits, waiting) =>
-              if (waiting.nonEmpty) -waiting.foldMap(_.n)
+              if (waiting.nonEmpty) -waiting.foldMap(_.remaining)
               else permits
           }
 

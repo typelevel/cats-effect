@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.implicits._
 import cats.effect.std.Semaphore
 import cats.effect.unsafe.{
   IORuntime,
@@ -114,6 +115,39 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
       }
 
       task.replicateA_(100)
+    }
+
+    real("parTraverseN - short-circuit on error") {
+      case object TestException extends RuntimeException
+      val target = 0.until(100000).toList
+      val test = target.parTraverseN(2)(_ => IO.raiseError(TestException))
+
+      test
+        .attempt
+        .void
+        .timeoutTo(
+          1.second * timeoutCoefficient,
+          IO(fail("parTraverseN did not short-circuit on error")))
+    }
+
+    ticked("parTraverseN - interrupt on errors") { implicit ticker =>
+      case object TestException extends RuntimeException
+      val test = (0 to 10).toList.parTraverseN(2)(_ => IO.raiseError(TestException))
+
+      assertCompleteAs(test.attempt.void.parReplicateA_(100000), ())
+    }
+
+    real("parTraverseN_ - short-circuit on error") {
+      case object TestException extends RuntimeException
+      val target = 0.until(100000).toList
+      val test = target.parTraverseN_(2)(_ => IO.raiseError(TestException))
+
+      test
+        .attempt
+        .void
+        .timeoutTo(
+          1.second * timeoutCoefficient,
+          IO(fail("parTraverseN_ did not short-circuit on error")))
     }
 
     real("interrupt well-behaved blocking synchronous effect") {
@@ -257,7 +291,7 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
           delay.race(IO.sleep(2.seconds)).flatMap(res => IO(assert(res.isLeft)))
 
         case _ =>
-          IO.println("test not running against WSTP")
+          IO(assume(false, "test not running against WSTP"))
       }
     }
 
@@ -276,7 +310,7 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
           }
 
         case _ =>
-          IO.println("test not running against WSTP")
+          IO(assume(false, "test not running against WSTP"))
       }
     }
 
@@ -297,7 +331,7 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
           // if the timer fires correctly, the timeout will not be hit
           delay.race(IO.sleep(2.seconds)).flatMap(res => IO(assert(res.isLeft)))
 
-        case _ => IO.println("test not running against WSTP")
+        case _ => IO(assume(false, "test not running against WSTP"))
       }
     }
 
@@ -452,6 +486,39 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
       }
 
       ()
+    }
+
+    testUnit("cached threads should be used in LIFO order") {
+      val (pool, poller, shutdown) =
+        IORuntime.createWorkStealingComputeThreadPool(threads = 1, pollingSystem = SleepSystem)
+
+      implicit val runtime: IORuntime =
+        IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()
+
+      try {
+        val test = for {
+          // create 3 blocker threads, which will be cached in order:
+          th1 <- IO(new AtomicReference[Thread])
+          fib1 <- IO.blocking { th1.set(Thread.currentThread()); Thread.sleep(200L) }.start
+          th2 <- IO(new AtomicReference[Thread])
+          fib2 <- IO.blocking { th2.set(Thread.currentThread()); Thread.sleep(400L) }.start
+          th3 <- IO(new AtomicReference[Thread])
+          fib3 <- IO.blocking { th3.set(Thread.currentThread()); Thread.sleep(600L) }.start
+          _ <- fib1.join
+          _ <- fib2.join
+          _ <- fib3.join
+          // now we have 3 cached threads, and when we do `blocking`, the LAST one should be used,
+          // so the first 2 should remain cached (blocked in SynchronousQueue#poll):
+          _ <- IO.blocking { Thread.sleep(100L) }
+          _ <- IO.cede // move back to the WSTP
+          _ <- IO(assertEquals(th1.get().getState(), Thread.State.TIMED_WAITING))
+          _ <- IO(assertEquals(th2.get().getState(), Thread.State.TIMED_WAITING))
+          _ <- IO(assertNotEquals(th3.get().getState(), Thread.State.TIMED_WAITING))
+        } yield ()
+        test.unsafeRunSync()
+      } finally {
+        runtime.shutdown()
+      }
     }
 
     trait DummyPoller {
@@ -661,6 +728,59 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
         runtime.shutdown()
       }
       assertEquals(poller.wasInterrupted.get(), true)
+    }
+
+    testUnit("handle mixed-mode poller/simple interruption with complex timers") {
+      val delegate = IORuntime.createDefaultPollingSystem()
+
+      val (pool, poller, shutdown) = IORuntime.createWorkStealingComputeThreadPool(
+        threads = 1,
+        shutdownTimeout = 60.seconds,
+        pollingSystem = new PollingSystem {
+          type Api = delegate.Api
+          type Poller = delegate.Poller
+          def makeApi(ctx: PollingContext[Poller]) = delegate.makeApi(ctx)
+          def close() = delegate.close()
+          def makePoller() = delegate.makePoller()
+          def closePoller(poller: Poller) = delegate.closePoller(poller)
+          def poll(poller: Poller, nanos: Long) = delegate.poll(poller, nanos)
+
+          // allows us to test what happens when some threads suspend with polling and some simple
+          def needsPoll(poller: Poller) = math.random() >= 0.5d
+
+          def interrupt(thread: Thread, poller: Poller) = delegate.interrupt(thread, poller)
+          def metrics(poller: Poller) = delegate.metrics(poller)
+          def processReadyEvents(poller: Poller) = delegate.processReadyEvents(poller)
+        }
+      )
+
+      implicit val runtime: IORuntime =
+        IORuntime.builder().setCompute(pool, shutdown).addPoller(poller, () => ()).build()
+
+      val (scheduler, schedShut) =
+        IORuntime.createDefaultScheduler(threadPrefix = "complex-timer-test")
+
+      // just create a bit of chaos with timers and async completion
+      val sleeps = 0.until(10).map(i => IO.sleep((i * 10).millis)).toList
+
+      val externalSleeps = 0.until(10).toList map { i =>
+        IO.async_[Unit] { cb =>
+          val _ = scheduler.sleep((i * 10 + 5).millis, () => cb(Right(())))
+          ()
+        }
+      }
+
+      val latch = IO.deferred[Unit].flatMap(d => d.complete(()).start *> d.get)
+      val latches = 0.until(10).map(_ => latch).toList
+
+      val test = (sleeps ::: externalSleeps ::: latches).parSequence.parReplicateA_(100)
+
+      try {
+        assert(test.unsafeRunTimed(20.seconds).nonEmpty)
+      } finally {
+        runtime.shutdown()
+        schedShut()
+      }
     }
   }
 }

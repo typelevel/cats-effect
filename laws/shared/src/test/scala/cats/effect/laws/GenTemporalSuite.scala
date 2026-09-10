@@ -26,7 +26,7 @@ import cats.syntax.all._
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-import munit.FunSuite
+import munit.{FunSuite, TestOptions}
 
 class GenTemporalSuite extends FunSuite {
   outer =>
@@ -149,24 +149,21 @@ class GenTemporalSuite extends FunSuite {
     assertEquals(F.timeoutAndForget(fa, Duration.Inf), fa)
   }
 
-  // TODO enable these tests once Temporal for TimeT is fixed
-  /*"temporal" should {
-      "cancel a loop" in {
-        val op: TimeT[F, Either[Throwable, Unit]] = F.timeout(loop, 5.millis).attempt
+  test(TestOptions("temporal should cancel a loop").ignore) {
+    val op: TimeT[F, Either[Throwable, Unit]] = F.timeout(loop, 5.millis).attempt
 
-        run(TimeT.run(op)) must beLike {
-          case Succeeded(Some(Left(e))) => e must haveClass[TimeoutException]
-        }
-      }.pendingUntilFixed
+    run(TimeT.run(op)) match {
+      case Outcome.Succeeded(Some(Left(e))) => assert(e.isInstanceOf[TimeoutException])
+      case other => fail(s"Expected a successful TimeoutException attempt, got $other")
     }
+  }
 
-    "timeoutTo" should {
-      "use fallback" in {
-        val op: TimeT[F, Boolean] = F.timeoutTo(loop >> F.pure(false), 5.millis, F.pure(true))
+  test(TestOptions("timeoutTo should use fallback").ignore) {
+    val op: TimeT[F, Boolean] = F.timeoutTo(loop >> F.pure(false), 5.millis, F.pure(true))
 
-        run(TimeT.run(op)) , Succeeded(Some(true))
-      }.pendingUntilFixed
-    }
-  }*/
+    assertEquals(
+      run(TimeT.run(op)),
+      Outcome.Succeeded(Some(true)): Outcome[Option, Throwable, Boolean])
+  }
 
 }

@@ -301,10 +301,10 @@ private[effect] final class WorkerThread[P <: AnyRef](
   }
 
   private[unsafe] def ownsPoller(poller: P): Boolean =
-    poller eq _poller
+    (poller eq _poller) && (!blocking)
 
   private[unsafe] def ownsTimers(timers: TimerHeap): Boolean =
-    sleepers eq timers
+    (sleepers eq timers) && (!blocking)
 
   /**
    * The run loop of the [[WorkerThread]].

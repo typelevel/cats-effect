@@ -82,14 +82,6 @@ private class Tail extends Head {
    * integer value are ignored in most operations).
    */
   protected var tail: Int = 0
-
-  @volatile
-  private[this] var tailPublisher: Int = 0
-
-  {
-    // prevent unused warnings
-    tailPublisher = 0
-  }
 }
 
 private object Tail {

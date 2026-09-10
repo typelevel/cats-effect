@@ -111,8 +111,9 @@ trait Runners extends TestInstances with RunnersPlatform with DetectPlatform {
   }
 
   implicit class TestOptionsSyntax(options: TestOptions) {
-    // todo: munit 1.0 has `options.pending`
-    def pendingNative: TestOptions = if (PlatformCompat.isNative) options.ignore else options
+    def pendingNative: TestOptions =
+      if (PlatformCompat.isNative) options.fail.pending("unsupported on Scala Native")
+      else options
     def ignoreNative: TestOptions = if (PlatformCompat.isNative) options.ignore else options
     def ignoreJS: TestOptions = if (PlatformCompat.isJS) options.ignore else options
   }

@@ -21,7 +21,11 @@ import cats.implicits._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-class SyntaxSuite {
+import munit.FunSuite
+
+class SyntaxSuite extends FunSuite {
+
+  test("kernel syntax") {}
 
   def concurrentForwarder[F[_]: Concurrent] =
     Concurrent[F]

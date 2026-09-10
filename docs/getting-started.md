@@ -6,7 +6,7 @@ title: Getting Started
 Add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.6.3"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.7.1"
 ```
 
 Naturally, if you're using ScalaJS, you should replace the double `%%` with a triple `%%%`. If you're on Scala 2, it is *highly* recommended that you enable the [better-monadic-for](https://github.com/oleg-py/better-monadic-for) plugin, which fixes a number of surprising elements of the `for`-comprehension syntax in the Scala language:
@@ -68,7 +68,7 @@ We will learn more about constructs like `start` and `*>` in later pages, but fo
 Of course, the easiest way to play with Cats Effect is to try it out in a Scala REPL. We recommend using [Ammonite](https://ammonite.io/#Ammonite-REPL) for this kind of thing. To get started, run the following lines (if not using Ammonite, skip the first line and make sure that Cats Effect and its dependencies are correctly configured on the classpath):
 
 ```scala
-import $ivy.`org.typelevel::cats-effect:3.6.3`
+import $ivy.`org.typelevel::cats-effect:3.7.1`
 
 import cats.effect.unsafe.implicits._
 import cats.effect.IO
@@ -122,14 +122,14 @@ class ExampleSuite extends CatsEffectSuite {
 
 ### Weaver-test
 
-[![weaver-cats Scala version support](https://index.scala-lang.org/disneystreaming/weaver-test/weaver-cats/latest-by-scala-version.svg)](https://index.scala-lang.org/disneystreaming/weaver-test/weaver-cats)
+[![weaver-cats Scala version support](https://index.scala-lang.org/typelevel/weaver-test/weaver-cats/latest-by-scala-version.svg)](https://index.scala-lang.org/typelevel/weaver-test/weaver-cats)
 
-[Weaver](https://github.com/disneystreaming/weaver-test) is a test-framework built directly on top of Cats Effect. It is designed specifically to handle thousands of tests exercising I/O layers (http, database calls) concurrently. Weaver makes heavy use of the concurrency constructs and abstractions provided by Cats Effect to safely share resources (clients) across tests and suite, and runs all tests in parallel by default.
+[Weaver](https://github.com/typelevel/weaver-test) is a test-framework built directly on top of Cats Effect. It is designed specifically to handle thousands of tests exercising I/O layers (http, database calls) concurrently. Weaver makes heavy use of the concurrency constructs and abstractions provided by Cats Effect to safely share resources (clients) across tests and suite, and runs all tests in parallel by default.
 
 To get started, add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "com.disneystreaming" %% "weaver-cats" % "0.7.6" % Test
+libraryDependencies += "org.typelevel" %% "weaver-cats" % "0.9.3" % Test
 testFrameworks += new TestFramework("weaver.framework.CatsEffect")
 ```
 

@@ -39,7 +39,7 @@ object KqueueSystem extends PollingSystem {
   import event._
   import eventImplicits._
 
-  private final val MaxEvents = 64
+  private final val MaxEvents = WorkStealingThreadPoolConstants.PollingTicks
 
   type Api = Kqueue
 

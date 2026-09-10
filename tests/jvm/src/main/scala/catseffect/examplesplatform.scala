@@ -50,11 +50,14 @@ package examples {
   }
 
   object EvalOnMainThread extends IOApp {
-    def run(args: List[String]): IO[ExitCode] =
-      IO(Thread.currentThread().getId()).evalOn(MainThread) map {
-        case 1L => ExitCode.Success
-        case _ => ExitCode.Error
+    def run(args: List[String]): IO[ExitCode] = {
+      val mainThread = Thread.currentThread()
+
+      IO(Thread.currentThread() eq mainThread).evalOn(MainThread) map {
+        case true => ExitCode.Success
+        case false => ExitCode.Error
       }
+    }
   }
 
   object MainThreadReportFailure extends IOApp {

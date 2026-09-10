@@ -16,7 +16,7 @@
 
 package cats.effect.kernel.instances
 
-import cats.{~>, Align, Applicative, CommutativeApplicative, Functor, Monad, Parallel}
+import cats.{~>, Align, Applicative, CommutativeApplicative, Functor, Id, Monad, Parallel}
 import cats.data.Ior
 import cats.effect.kernel.{GenSpawn, ParallelF}
 import cats.implicits._
@@ -32,15 +32,9 @@ trait GenSpawnInstances {
 
       def monad: Monad[M] = M
 
-      def sequential: F ~> M =
-        new (F ~> M) {
-          def apply[A](fa: F[A]): M[A] = ParallelF.value[M, A](fa)
-        }
+      def sequential: F ~> M = GenSpawnInstances.sequential[M]
 
-      def parallel: M ~> F =
-        new (M ~> F) {
-          def apply[A](ma: M[A]): F[A] = ParallelF[M, A](ma)
-        }
+      def parallel: M ~> F = GenSpawnInstances.parallel[M]
     }
 
   implicit def commutativeApplicativeForParallelF[F[_], E](
@@ -90,4 +84,22 @@ trait GenSpawnInstances {
         )
 
     }
+}
+
+private object GenSpawnInstances {
+  private[this] val cachedSequential: ParallelF[Id, *] ~> Id =
+    new (ParallelF[Id, *] ~> Id) {
+      def apply[A](fa: ParallelF[Id, A]): Id[A] = ParallelF.value[Id, A](fa)
+    }
+
+  private def sequential[M[_]]: ParallelF[M, *] ~> M =
+    cachedSequential.asInstanceOf[ParallelF[M, *] ~> M]
+
+  private[this] val cachedParallel: Id ~> ParallelF[Id, *] =
+    new (Id ~> ParallelF[Id, *]) {
+      def apply[A](ma: Id[A]): ParallelF[Id, A] = ParallelF[Id, A](ma)
+    }
+
+  private def parallel[M[_]]: M ~> ParallelF[M, *] =
+    cachedParallel.asInstanceOf[M ~> ParallelF[M, *]]
 }

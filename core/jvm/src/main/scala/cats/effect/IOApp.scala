@@ -145,32 +145,36 @@ trait IOApp {
   private[this] var _runtime: unsafe.IORuntime = null
 
   /**
-   * The runtime which will be used by `IOApp` to evaluate the [[IO]] produced by the `run`
-   * method. This may be overridden by `IOApp` implementations which have extremely specialized
-   * needs, but this is highly unlikely to ever be truly needed. As an example, if an
-   * application wishes to make use of an alternative compute thread pool (such as
-   * `Executors.fixedThreadPool`), it is almost always better to leverage [[IO.evalOn]] on the
-   * value produced by the `run` method, rather than directly overriding `runtime`.
+   * The runtime which will be used by `IOApp` to evaluate the [[cats.effect.IO IO]] produced by
+   * the `run` method. This may be overridden by `IOApp` implementations which have extremely
+   * specialized needs, but this is highly unlikely to ever be truly needed. As an example, if
+   * an application wishes to make use of an alternative compute thread pool (such as
+   * `Executors.fixedThreadPool`), it is almost always better to leverage
+   * [[cats.effect.IO.evalOn IO.evalOn]] on the value produced by the `run` method, rather than
+   * directly overriding `runtime`.
    *
    * In other words, this method is made available to users, but its use is strongly discouraged
    * in favor of other, more precise solutions to specific use-cases.
    *
-   * This value is guaranteed to be equal to [[unsafe.IORuntime.global]].
+   * This value is guaranteed to be equal to
+   * [[cats.effect.unsafe.IORuntime.global unsafe.IORuntime.global]].
    */
   protected def runtime: unsafe.IORuntime = _runtime
 
   /**
-   * The configuration used to initialize the [[runtime]] which will evaluate the [[IO]]
-   * produced by `run`. It is very unlikely that users will need to override this method.
+   * The configuration used to initialize the [[runtime]] which will evaluate the
+   * [[cats.effect.IO IO]] produced by `run`. It is very unlikely that users will need to
+   * override this method.
    */
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   /**
-   * The [[unsafe.PollingSystem]] used by the [[runtime]] which will evaluate the [[IO]]
-   * produced by `run`. It is very unlikely that users will need to override this method.
+   * The [[cats.effect.unsafe.PollingSystem PollingSystem]] used by the [[runtime]] which will
+   * evaluate the [[cats.effect.IO IO]] produced by `run`. It is very unlikely that users will
+   * need to override this method.
    *
-   * [[unsafe.PollingSystem]] implementors may provide their own flavors of [[IOApp]] that
-   * override this method.
+   * [[cats.effect.unsafe.PollingSystem PollingSystem]] implementors may provide their own
+   * flavors of [[cats.effect.IOApp IOApp]] that override this method.
    */
   protected def pollingSystem: unsafe.PollingSystem =
     unsafe.IORuntime.createDefaultPollingSystem()
@@ -386,16 +390,16 @@ trait IOApp {
   /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
-   * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
-   * will be used as the exit code when the process terminates unless terminated exceptionally
-   * or by interrupt.
+   * made available in the `args` parameter. The numeric value within the resulting
+   * [[cats.effect.ExitCode ExitCode]] will be used as the exit code when the process terminates
+   * unless terminated exceptionally or by interrupt.
    *
    * @param args
    *   The arguments passed to the process, if supported by the underlying runtime. For example,
    *   `java com.company.MyApp --foo --bar baz` or `node com-mycompany-fastopt.js --foo --bar
    *   baz` would each result in `List("--foo", "--bar", "baz")`.
    * @see
-   *   [[IOApp.Simple!.run:cats\.effect\.IO[Unit]*]]
+   *   [[cats.effect.IOApp.Simple!.run:cats\.effect\.IO[Unit]*]]
    */
   def run(args: List[String]): IO[ExitCode]
 

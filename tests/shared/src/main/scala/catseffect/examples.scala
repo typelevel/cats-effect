@@ -83,10 +83,12 @@ package examples {
       } catch {
         case _: TimeoutException => println("sadness (timeout)")
       }
-      Thread.sleep(500L)
-      // by now the WSTP (and all its threads) must've been shut down:
       if (thread eq null) println("sadness (thread is null)")
-      else if (thread.isAlive()) println("sadness (thread is alive)")
+      else {
+        thread.join(2000L)
+        // by now the WSTP (and all its threads) must've been shut down:
+        if (thread.isAlive()) println("sadness (thread is alive)")
+      }
       println("done")
     }
   }
@@ -178,11 +180,12 @@ package examples {
     val run = for {
       fibers <- loop.timeoutTo(5.seconds, IO.unit).start.replicateA(32)
 
-      sleeper = for {
-        _ <- IO.unit
-        _ <- IO.unit
-        _ <- IO.sleep(3.seconds)
-      } yield ()
+      sleeper =
+        for {
+          _ <- IO.unit
+          _ <- IO.unit
+          _ <- IO.sleep(3.seconds)
+        } yield ()
 
       _ <- sleeper.start
       _ <- IO.println("ready")

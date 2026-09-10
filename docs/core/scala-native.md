@@ -22,7 +22,7 @@ lazy val root = project.in(file("."))
   .enablePlugins(ScalaNativePlugin)
   .settings(
     name                := "cats-effect-3-hello-world",
-    libraryDependencies += "org.typelevel" %%% "cats-effect" % "3.6.3",
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % "3.7.1",
     Compile / mainClass := Some("com.example.Main")
  )
 
@@ -52,7 +52,7 @@ Benchmark 1: ./target/native-image/cats-effect-3-hello-world-out
 ```
 
 Another way to get your cats effect app compiled to a native executable is to leverage
-the package command of scala-cli, like in the [example](../faq.md#scala-native-example).
+the package command of scala-cli, like in the [example](../faq.md#Scala-Native-Example)
 
 ## Limitations
 

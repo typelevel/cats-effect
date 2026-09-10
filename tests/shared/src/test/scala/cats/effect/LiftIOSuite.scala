@@ -15,21 +15,19 @@
  */
 
 package cats.effect
-package unsafe
 
-import munit.TestOptions
+import cats.Applicative
+import cats.data.IdT
+import cats.mtl.LiftValue
 
-class IORuntimeBuilderSuite extends BaseSuite with DetectPlatform {
-
-  testUnit(("configure the failure reporter": TestOptions).pendingNative) {
-    if (isNative) {
-      fail("unsupported on Scala Native")
-    } else {
-      var invoked = false
-      val rt = IORuntime.builder().setFailureReporter(_ => invoked = true).build()
-      rt.compute.reportFailure(new Exception)
-      assert(invoked)
-    }
+class LiftIOSuite extends BaseSuite {
+  ticked("LiftIO from LiftValue") { implicit ticker =>
+    implicit val lift: LiftValue[IO, IdT[IO, *]] =
+      new LiftValue[IO, IdT[IO, *]] {
+        def applicativeF: Applicative[IO] = implicitly
+        def applicativeG: Applicative[IdT[IO, *]] = implicitly
+        def apply[A](fa: IO[A]): IdT[IO, A] = IdT(fa)
+      }
+    assertCompleteAs(IO.pure(42).to[IdT[IO, *]].value, 42)
   }
-
 }

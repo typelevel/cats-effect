@@ -5,10 +5,6 @@ title: Atomic Cell
 
 A synchronized, concurrent, mutable reference.
 
-Provides safe concurrent access and modification of its contents, by ensuring only one fiber
-can operate on them at the time. Thus, all operations except `get` may semantically block the
-calling fiber.
-
 ```scala mdoc:silent
 abstract class AtomicCell[F[_], A] {
   def get: F[A]
@@ -20,34 +16,45 @@ abstract class AtomicCell[F[_], A] {
 }
 ```
 
+Provides safe concurrent access and modification of its contents, by ensuring only one fiber
+can operate on them at the time. Thus, all operations except `get` may semantically block the
+calling fiber.
+
 ## Using `AtomicCell`
 
 The `AtomicCell` can be treated as a combination of `Mutex` and `Ref`:
-```scala mdoc:reset:silent
-import cats.effect.{IO, Ref}
-import cats.effect.std.Mutex
 
-trait State
-class Service(mtx: Mutex[IO], ref: Ref[IO, State]) {
-  def modify(f: State => IO[State]): IO[Unit] = 
-    mtx.lock.surround {
-      for {
-        current <- ref.get
-        next <- f(current)
-        _ <- ref.set(next) 
-      } yield ()
-    }
-}
-```
-
-The following is the equivalent of the example above:
 ```scala mdoc:reset:silent
 import cats.effect.IO
 import cats.effect.std.AtomicCell
 
 trait State
+
 class Service(cell: AtomicCell[IO, State]) {
-  def modify(f: State => IO[State]): IO[Unit] = 
-    cell.evalUpdate(current => f(current))
+  def modify(f: State => IO[State]): IO[Unit] =
+    cell.evalUpdate(f)
+}
+```
+
+### Example
+
+Imagine a random data generator,
+that requires running some effectual operations _(e.g. checking a database)_
+to produce a new value.
+In that case, it may be better to block than to repeat the operation.
+
+```scala mdoc:reset:silent
+import cats.effect.IO
+import cats.effect.std.AtomicCell
+
+trait Data
+
+class RandomDataGenerator(cell: AtomicCell[IO, Data]) {
+  // Generates a new random value.
+  def next: IO[Data] =
+    cell.evalUpdateAndGet(generate)
+
+  private def generate(previous: Data): IO[Data] =
+    ???
 }
 ```

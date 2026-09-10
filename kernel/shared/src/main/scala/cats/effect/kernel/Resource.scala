@@ -21,6 +21,7 @@ import cats.data.Kleisli
 import cats.effect.kernel.Resource.Pure
 import cats.effect.kernel.implicits._
 import cats.effect.kernel.instances.spawn
+import cats.mtl.{LiftKind, LiftValue}
 import cats.syntax.all._
 
 import scala.annotation.tailrec
@@ -621,74 +622,81 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   def start(
       implicit
       F: Concurrent[F]): Resource[F, Fiber[Resource[F, *], Throwable, A @uncheckedVariance]] = {
-    final case class State(
-        fin: F[Unit] = F.unit,
-        finalizeOnComplete: Boolean = false,
-        confirmedFinalizeOnComplete: Boolean = false)
 
     Resource {
       import Outcome._
 
-      F.ref[State](State()) flatMap { state =>
+      F.ref[Resource.FiberState[F]](Resource.FiberState(F.unit)) flatMap { state =>
         val finalized: F[A] = F uncancelable { poll =>
-          poll(this.allocated) guarantee {
+          poll(this.allocated) guaranteeCase {
             // confirm that we completed and we were asked to clean up
             // note that this will run even if the inner effect short-circuited
-            state update { s =>
-              if (s.finalizeOnComplete)
-                s.copy(confirmedFinalizeOnComplete = true)
-              else
-                s
-            }
-          } flatMap {
-            // if the inner F has a zero, we lose the finalizers, but there's no avoiding that
-            case (a, rel) =>
-              val action = state modify { s =>
-                if (s.confirmedFinalizeOnComplete)
-                  (s, rel.handleError(_ => ()))
+            case Canceled() | Errored(_) =>
+              state.update { s =>
+                if (s.finalizeOnComplete)
+                  s.copy(confirmedFinalizeOnComplete = true)
                 else
-                  (s.copy(fin = rel), F.unit)
+                  s
               }
-
-              action.flatten.as(a)
-          }
-        }
-
-        F.start(finalized) map { outer =>
-          val fiber = new Fiber[Resource[F, *], Throwable, A] {
-            def cancel =
-              Resource eval {
-                F uncancelable { poll =>
-                  // technically cancel is uncancelable, but separation of concerns and what not
-                  poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
-                }
-              }
-
-            def join =
-              Resource eval {
-                outer.join.flatMap[Outcome[Resource[F, *], Throwable, A]] {
-                  case Canceled() =>
-                    Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
-
-                  case Errored(e) =>
-                    Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
-
-                  case Succeeded(fp) =>
-                    state.get map { s =>
-                      if (s.confirmedFinalizeOnComplete)
-                        Outcome.canceled[Resource[F, *], Throwable, A]
-                      else
-                        Outcome.succeeded(Resource.eval(fp))
+            case Succeeded(fp) =>
+              // if the inner F has a zero, we lose the finalizers, but there's no avoiding that
+              fp.flatMap {
+                case (_, rel) =>
+                  val action = state.modify { s =>
+                    if (s.finalizeOnComplete) {
+                      // finalize immediately
+                      (s.copy(confirmedFinalizeOnComplete = true), rel.voidError)
+                    } else {
+                      // save the finalizer for later
+                      (s.copy(fin = rel), F.unit)
                     }
-                }
+                  }
+                  action.flatten
               }
+          } map {
+            case (a, _) =>
+              // Note: we've already saved/used the finalizer, see above
+              a
           }
-
-          val finalizeOuter =
-            state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
-
-          (fiber, finalizeOuter)
         }
+
+        F.start(finalized)
+          .map { outer =>
+            val fiber = new Fiber[Resource[F, *], Throwable, A] {
+              def cancel =
+                Resource eval {
+                  F uncancelable { poll =>
+                    // technically cancel is uncancelable, but separation of concerns and what not
+                    poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
+                  }
+                }
+
+              def join =
+                Resource eval {
+                  outer.join.flatMap[Outcome[Resource[F, *], Throwable, A]] {
+                    case Canceled() =>
+                      Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
+
+                    case Errored(e) =>
+                      Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
+
+                    case Succeeded(fp) =>
+                      state.get map { s =>
+                        if (s.confirmedFinalizeOnComplete)
+                          Outcome.canceled[Resource[F, *], Throwable, A]
+                        else
+                          Outcome.succeeded(Resource.eval(fp))
+                      }
+                  }
+                }
+            }
+
+            val finalizeOuter =
+              state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
+
+            (fiber, finalizeOuter)
+          }
+          .uncancelable
       }
     }
   }
@@ -795,6 +803,11 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
 }
 
 object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with ResourcePlatform {
+
+  private final case class FiberState[F[_]](
+      fin: F[Unit],
+      finalizeOnComplete: Boolean = false,
+      confirmedFinalizeOnComplete: Boolean = false)
 
   /**
    * Creates a resource from an allocating effect.
@@ -992,13 +1005,16 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def onFinalizeCase[F[_]: Applicative](release: ExitCase => F[Unit]): Resource[F, Unit] =
     unit.onFinalizeCase(release)
 
+  private[this] val cachedLiftK: Id ~> Resource[Id, *] =
+    new (Id ~> Resource[Id, *]) {
+      def apply[A](fa: Id[A]): Resource[Id, A] = Resource.eval(fa)
+    }
+
   /**
    * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
    */
   def liftK[F[_]]: F ~> Resource[F, *] =
-    new (F ~> Resource[F, *]) {
-      def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
-    }
+    cachedLiftK.asInstanceOf[F ~> Resource[F, *]]
 
   /**
    * Allocates two resources concurrently, and combines their results in a tuple.
@@ -1275,6 +1291,10 @@ private[effect] trait ResourceHOInstances0 extends ResourceHOInstances1 {
       def K = K0
       def G = G0
     }
+
+  implicit def catsEffectLiftKindForResource[F[_]](
+      implicit F: MonadCancel[F, ?]): LiftKind[F, Resource[F, *]] =
+    liftKindImpl(F)
 }
 
 private[effect] trait ResourceHOInstances1 extends ResourceHOInstances2 {
@@ -1289,6 +1309,25 @@ private[effect] trait ResourceHOInstances1 extends ResourceHOInstances2 {
       def F = F0
       def rootCancelScope = F0.rootCancelScope
     }
+
+  protected[this] def liftKindImpl[F[_]](F: MonadCancel[F, ?]): LiftKind[F, Resource[F, *]] =
+    new LiftKind[F, Resource[F, *]] {
+      implicit val applicativeF: MonadCancel[F, ?] = F
+      val applicativeG: Applicative[Resource[F, *]] = catsEffectMonadForResource
+      def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
+      def limitedMapK[A](ga: Resource[F, A])(scope: F ~> F): Resource[F, A] =
+        ga.mapK(scope)
+    }
+
+  implicit def catsEffectLiftKindForResourceComposed[F[_], G[_]](
+      implicit inner: LiftKind[F, G],
+      G: MonadCancel[G, ?]
+  ): LiftKind[F, Resource[G, *]] =
+    inner.andThen(liftKindImpl(G))
+
+  implicit def catsEffectLiftValueForResource[F[_]](
+      implicit F: Applicative[F]): LiftValue[F, Resource[F, *]] =
+    liftValueImpl(F)
 }
 
 private[effect] trait ResourceHOInstances2 extends ResourceHOInstances3 {
@@ -1308,6 +1347,18 @@ private[effect] trait ResourceHOInstances2 extends ResourceHOInstances3 {
 
   final implicit def catsEffectDeferForResource[F[_]]: Defer[Resource[F, *]] =
     new ResourceDefer[F]
+
+  protected[this] def liftValueImpl[F[_]](F: Applicative[F]): LiftValue[F, Resource[F, *]] =
+    new LiftValue[F, Resource[F, *]] {
+      val applicativeF: Applicative[F] = F
+      val applicativeG: Applicative[Resource[F, *]] = catsEffectMonadForResource
+      def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
+    }
+
+  implicit def catsEffectLiftValueForResourceComposed[F[_], G[_]](
+      implicit inner: LiftValue[F, G]
+  ): LiftValue[F, Resource[G, *]] =
+    inner.andThen(liftValueImpl(inner.applicativeG))
 }
 
 private[effect] trait ResourceHOInstances3 extends ResourceHOInstances4 {

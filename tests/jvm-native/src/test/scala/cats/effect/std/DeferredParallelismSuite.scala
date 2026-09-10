@@ -83,58 +83,6 @@ abstract class BaseDeferredParallelismTests(parallelism: Int)
         IO.unit
     }
 
-  // test("Deferred — issue #380: producer keeps its thread, consumer stays forked") {
-  //   for (_ <- 0 until iterations) {
-  //     val name = Thread.currentThread().getName
-
-  //     def get(df: Deferred[IO, Unit]) =
-  //       for {
-  //         _ <- IO(Thread.currentThread().getName must not be equalTo(name))
-  //         _ <- df.get
-  //         _ <- IO(Thread.currentThread().getName must not be equalTo(name))
-  //       } yield ()
-
-  //     val task = for {
-  //       df <- Deferred[IO, Unit]
-  //       fb <- get(df).start
-  //       _ <- IO(Thread.currentThread().assertEquals(getName, name))
-  //       _ <- df.complete(())
-  //       _ <- IO(Thread.currentThread().assertEquals(getName, name))
-  //       _ <- fb.join
-  //     } yield ()
-
-  //     task.unsafeRunTimed(timeout).assert(nonEmpty)
-  //   }
-
-  //   success
-  // }
-
-  // test("Deferred — issue #380: with foreverM") {
-  //   for (_ <- 0 until iterations) {
-  //     val cancelLoop = new AtomicBoolean(false)
-  //     val unit = IO {
-  //       if (cancelLoop.get()) throw new CancelationException
-  //     }
-
-  //     try {
-  //       val task = for {
-  //         df <- Deferred[IO, Unit]
-  //         latch <- Deferred[IO, Unit]
-  //         fb <- (latch.complete(()) *> df.get *> unit.foreverM).start
-  //         _ <- latch.get
-  //         _ <- cleanupOnError(df.complete(()).timeout(timeout), fb)
-  //         _ <- fb.cancel
-  //       } yield ()
-
-  //       task.unsafeRunTimed(timeout).assert(nonEmpty)
-  //     } finally {
-  //       cancelLoop.set(true)
-  //     }
-  //   }
-
-  //   success
-  // }
-
   test("Deferred — issue #380: with cooperative light async boundaries") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] =

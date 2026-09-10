@@ -20,7 +20,7 @@ class ThunkSuite extends BaseSuite {
 
   testUnit("return the same function") {
     var i = 0
-    val f = () => i += 1
+    val f = () => { i = i + 1 }
     assertEquals(IO.delay(f()).asInstanceOf[IO.Delay[Unit]].thunk, f)
   }
 

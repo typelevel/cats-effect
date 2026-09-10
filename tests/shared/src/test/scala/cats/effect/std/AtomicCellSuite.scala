@@ -26,53 +26,66 @@ final class AtomicCellSuite extends BaseSuite {
   tests("ConcurrentAtomicCell", AtomicCell.concurrent)
 
   def tests(name: String, factory: Int => IO[AtomicCell[IO, Int]]) = {
-
-    real(s"$name get and set successfully") {
-      val op = for {
+    real(
+      s"${name} should getAndSet successfully"
+    ) {
+      val p = for {
         cell <- factory(0)
         getAndSetResult <- cell.getAndSet(1)
         getResult <- cell.get
-      } yield getAndSetResult == 0 && getResult == 1
+      } yield getAndSetResult == 0 &&
+        getResult == 1
 
-      op.mustEqual(true)
+      p.mustEqual(true)
     }
 
-    real(s"$name get and update successfully") {
-      val op = for {
+    real(
+      s"${name} should getAndUpdate successfully"
+    ) {
+      val p = for {
         cell <- factory(0)
         getAndUpdateResult <- cell.getAndUpdate(_ + 1)
         getResult <- cell.get
-      } yield getAndUpdateResult == 0 && getResult == 1
+      } yield getAndUpdateResult == 0 &&
+        getResult == 1
 
-      op.mustEqual(true)
+      p.mustEqual(true)
     }
 
-    real(s"$name update and get successfully") {
-      val op = for {
+    real(
+      s"${name} should updateAndGet successfully"
+    ) {
+      val p = for {
         cell <- factory(0)
         updateAndGetResult <- cell.updateAndGet(_ + 1)
         getResult <- cell.get
-      } yield updateAndGetResult == 1 && getResult == 1
+      } yield updateAndGetResult == 1 &&
+        getResult == 1
 
-      op.mustEqual(true)
+      p.mustEqual(true)
     }
 
-    ticked(s"$name evalModify successfully") { implicit ticker =>
-      val op = factory(0).flatMap { cell =>
+    ticked(
+      s"${name} should evalModify successfully"
+    ) { implicit ticker =>
+      val p = factory(0).flatMap { cell =>
         cell.evalModify { x =>
           val y = x + 1
           IO.sleep(1.second).as((y, (x, y)))
         } map {
           case (oldValue, newValue) =>
-            oldValue == 0 && newValue == 1
+            oldValue == 0 &&
+            newValue == 1
         }
       }
 
-      assertCompleteAs(op, true)
+      assertCompleteAs(p, true)
     }
 
-    ticked(s"$name evalUpdate should block and cancel should release") { implicit ticker =>
-      val op = for {
+    ticked(
+      s"${name} evalUpdate should block and cancel should release"
+    ) { implicit ticker =>
+      val p = for {
         cell <- factory(0)
         b <- cell.evalUpdate(x => IO.never.as(x + 1)).start
         _ <- IO.sleep(1.second)
@@ -86,21 +99,25 @@ final class AtomicCellSuite extends BaseSuite {
         r <- cell.get
       } yield r == 1
 
-      assertCompleteAs(op, true)
+      assertCompleteAs(p, true)
     }
 
-    ticked(s"$name evalModify should properly suspend read") { implicit ticker =>
-      val op = for {
+    ticked(
+      s"${name} evalModify should properly suspend read"
+    ) { implicit ticker =>
+      val p = for {
         cell <- factory(0)
         _ <- cell.update(_ + 1).replicateA_(2)
         r <- cell.get
       } yield r == 2
 
-      assertCompleteAs(op, true)
+      assertCompleteAs(p, true)
     }
 
-    ticked(s"$name get should not block during concurrent modification") { implicit ticker =>
-      val op = for {
+    ticked(
+      s"${name} get should not block during concurrent modification"
+    ) { implicit ticker =>
+      val p = for {
         cell <- factory(0)
         gate <- IO.deferred[Unit]
         _ <- cell.evalModify(_ => gate.complete(()) *> IO.never).start
@@ -108,8 +125,7 @@ final class AtomicCellSuite extends BaseSuite {
         r <- cell.get
       } yield r == 0
 
-      assertCompleteAs(op, true)
+      assertCompleteAs(p, true)
     }
-
   }
 }

@@ -127,8 +127,8 @@ private[kernel] trait LowPriorityImplicits {
   implicit def showUnknown[F[_], E, A](implicit E: Show[E]): Show[Outcome[F, E, A]] =
     Show show {
       case Canceled() => "Canceled"
-      case Errored(left) => s"Errored(${left.show})"
-      case Succeeded(_) => s"Succeeded(...)"
+      case Errored(e) => s"Errored(${e.show})"
+      case Succeeded(_) => "Succeeded(...)"
     }
 
   implicit def eq[F[_], E: Eq, A](implicit FA: Eq[F[A]]): Eq[Outcome[F, E, A]] =

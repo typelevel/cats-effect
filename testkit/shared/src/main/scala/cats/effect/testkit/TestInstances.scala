@@ -56,9 +56,6 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
 
         val F: Async[IO] = IO.asyncForIO
 
-        def cogenCase[B: Cogen]: Cogen[OutcomeIO[B]] =
-          OutcomeGenerators.cogenOutcome[IO, Throwable, B]
-
         val arbitraryEC: Arbitrary[ExecutionContext] = outer.arbitraryExecutionContext
 
         val cogenFU: Cogen[IO[Unit]] = cogenIO[Unit]
@@ -256,7 +253,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
   }
 
   @implicitNotFound(
-    "could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")
+    "could not find an instance of Ticker; try declaring one with `implicit val ticker: Ticker = Ticker()`")
   case class Ticker(ctx: TestContext = TestContext())
 }
 

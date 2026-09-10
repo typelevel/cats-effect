@@ -40,7 +40,7 @@ object EpollSystem extends PollingSystem {
   import epoll._
   import epollImplicits._
 
-  private[this] final val MaxEvents = 64
+  private[this] final val MaxEvents = WorkStealingThreadPoolConstants.PollingTicks
 
   type Api = FileDescriptorPoller
 

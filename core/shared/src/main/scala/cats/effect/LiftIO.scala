@@ -19,12 +19,13 @@ package cats.effect
 import cats.{~>, Applicative, FlatMap, Functor}
 import cats.data.{ContT, EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 import cats.kernel.Monoid
+import cats.mtl.LiftValue
 
 trait LiftIO[F[_]] {
   def liftIO[A](ioa: IO[A]): F[A]
 }
 
-object LiftIO {
+object LiftIO extends LiftIOInstances0 {
 
   def apply[F[_]](implicit F: LiftIO[F]): F.type = F
 
@@ -154,4 +155,11 @@ object LiftIO {
     def liftIO[A](ioa: IO[A]): Resource[F, A] =
       Resource.eval(F0.liftIO(ioa))
   }
+}
+
+private[effect] sealed trait LiftIOInstances0 {
+  implicit def catsEffectLiftIOFromLiftValue[F[_]](implicit lift: LiftValue[IO, F]): LiftIO[F] =
+    new LiftIO[F] {
+      override def liftIO[A](ioa: IO[A]): F[A] = lift(ioa)
+    }
 }

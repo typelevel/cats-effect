@@ -1185,8 +1185,10 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
       )
     }
 
-    // TODO enable once `PureConc` finalizer bug is fixed.
-    testUnit("does not leak if canceled right after delayed acquire is canceled".ignore) {
+    testUnit(
+      "does not leak if canceled right after delayed acquire is canceled"
+        .fail
+        .pending("PureConc finalizer bug")) {
       import cats.effect.kernel.testkit.pure._
       type F[A] = PureConc[Throwable, A]
       val F = Concurrent[F]
@@ -1207,6 +1209,93 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
 
       assertEquals(run(go), Outcome.succeeded[Option, Throwable, Boolean](Some(true)))
     }
+  }
+
+  // issue #4489 repro (1)
+  real("timeout finalizer (start/release race)") {
+    val test: IO[Unit] = IO.ref(false).flatMap { ref =>
+      val res = Resource.make(ref.set(true))(_ => ref.set(false))
+      val timedRes = res.timeout(1.hour)
+      timedRes.use_ *> ref.get.ifM(IO.raiseError(new Exception("not released")), IO.unit)
+    }
+
+    test.replicateA_(1000)
+  }
+
+  // issue #4489 repro (2)
+  real("racePair finalizer (start/release race)") {
+    val test: IO[Unit] = IO.ref(false).flatMap { ref =>
+      val res = Resource.make(ref.set(true))(_ => ref.set(false))
+      val racedRes = Spawn[Resource[IO, *]].racePair(res, Resource.never)
+      racedRes.use_ *> ref.get.ifM(IO.raiseError(new Exception("not released")), IO.unit)
+    }
+
+    test.replicateA_(1000)
+  }
+
+  // issue #4489 repro (2) variant (never actually failed)
+  real("racePair finalizer (start/cancel race)") {
+    val test: IO[Unit] = IO.ref(false).flatMap { ref =>
+      val res = Resource.make(ref.set(true))(_ => ref.set(false))
+      val racedRes = Spawn[Resource[IO, *]].racePair(res, Resource.unit).flatMap {
+        case Left((_, fib)) => fib.cancel
+        case Right((fib, _)) => fib.cancel
+      }
+      racedRes.use_ *> ref.get.ifM(IO.raiseError(new Exception("not released")), IO.unit)
+    }
+
+    test.parReplicateA_(1000)
+  }
+
+  // issue #4489 repro (3)
+  real("racePair finalizer variant (start/release race)") {
+    val test: IO[Unit] = IO.ref(false).flatMap { ref =>
+      IO.deferred[Unit].flatMap { d =>
+        val res = Resource.make(ref.set(true))(_ => ref.set(false) <* d.complete(()))
+        val racedRes = Spawn[Resource[IO, *]].racePair(res, Resource.never)
+        racedRes.use_ *> ref.get.ifM(d.get, IO.unit)
+      }
+    }
+
+    test.replicateA_(1000)
+  }
+
+  // issue #4059 test (1) specialized to Resource
+  real("propagate successful result from a completed effect") {
+    Resource
+      .catsEffectTemporalForResource[IO]
+      .sleep(50.millis)
+      .map(_ => true)
+      .uncancelable
+      .timeout(10.millis)
+      .use(res => IO(assert(res)))
+  }
+
+  // issue #4059 test (2) specialized to Resource
+  real("propagate error from a completed effect") {
+    Resource
+      .catsEffectTemporalForResource[IO]
+      .sleep(50.millis)
+      .flatMap(_ => Resource.raiseError[IO, Unit, Throwable](new RuntimeException))
+      .uncancelable
+      .timeout(10.millis)
+      .attempt
+      .use { res => IO(assert(res.left.exists(_.getClass == classOf[RuntimeException]))) }
+  }
+
+  // additional #4059 test for Resource
+  real("timeout finalizer (#4059)") {
+    val test = IO.ref(false).flatMap { ref =>
+      val program = Resource
+        .make(ref.set(true) *> IO.sleep(10.millis))(_ => ref.set(false))
+        .timeout(10.millis)
+        .use_
+      program.attempt.flatMap { _ =>
+        ref.get.ifM(IO.raiseError(new Exception("not released")), IO.unit)
+      }
+    }
+
+    test.parReplicateA_(1000)
   }
 
   ticked("attempt - releases resource on error") { implicit ticker =>

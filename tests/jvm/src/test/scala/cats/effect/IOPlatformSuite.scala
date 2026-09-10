@@ -19,13 +19,38 @@ package cats.effect
 import org.scalacheck.Prop.forAll
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
-import java.util.concurrent.{CompletableFuture, ExecutorService, Executors}
+import java.util.concurrent.{CompletableFuture, CountDownLatch, ExecutorService, Executors}
 
 trait IOPlatformSuite extends IOConcurrencySuite { this: BaseScalaCheckSuite =>
 
   def platformTests() = {
     concurrencyTests()
+
+    testUnit("unsafeRunTimed cancels task if timed-out") {
+      val latch1 = new CountDownLatch(1)
+      val latch2 = new CountDownLatch(1)
+      val task = IO.never.onCancel(IO.blocking(latch1.await()) *> IO(latch2.countDown()))
+      task.unsafeRunTimed(100.millis)(runtime())
+      latch1.countDown() // didn't backpressure on finalizer
+      assert(latch2.await(1, SECONDS)) // but it does eventually run
+    }
+
+    realWithRuntime("unsafeRunSync cancels task if interrupted") { implicit rt =>
+      for {
+        latch1 <- IO.deferred[Unit]
+        latch2 <- IO.deferred[Unit]
+        latch3 <- IO.deferred[Unit]
+        task = (latch1.complete(()) *> IO.never.as(false))
+          .onCancel(latch2.get *> latch3.complete(()).void)
+        fiber <- IO.interruptible(task.unsafeRunSync()).start
+        result <- latch1.get *> fiber.cancel *> fiber.joinWith(IO.pure(true))
+        _ <- IO(assert(result)) // canceled
+        _ <- latch2.complete(()) // didn't backpressure on finalizer
+        _ <- latch3.get // but it does eventually run
+      } yield ()
+    }
 
     tickedProperty("round trip non-canceled through j.u.c.CompletableFuture") {
       implicit ticker =>
@@ -75,8 +100,10 @@ trait IOPlatformSuite extends IOConcurrencySuite { this: BaseScalaCheckSuite =>
         }.evalOn(loomEc)
           .map(assert(_))
       }
-    // else
-    // "block in-place on virtual threads" in skipped("virtual threads not supported")
+    else
+      real("block in-place on virtual threads".ignore) {
+        IO.unit // virtual threads not supported
+      }
 
   }
 }

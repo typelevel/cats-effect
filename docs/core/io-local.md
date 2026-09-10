@@ -67,13 +67,13 @@ Hence, the children operations are not reflected on the parent context.
 ```scala mdoc:nest:silent
 def update(name: String, local: IOLocal[Int], f: Int => Int): IO[Unit] =
   local.update(f) >> local.get.flatMap(current => IO.println(s"$name: $current"))
-    
+
 for {
   local   <- IOLocal(42)
-  fiberA  <- update("fiber B", local, _ - 1).start
-  fiberB  <- update("fiber C", local, _ + 1).start
-  _       <- fiberA.joinWithNever
+  fiberB  <- update("fiber B", local, _ - 1).start
+  fiberC  <- update("fiber C", local, _ + 1).start
   _       <- fiberB.joinWithNever
+  _       <- fiberC.joinWithNever
   current <- local.get
   _       <- IO.println(s"fiber A: $current")
 } yield ()
@@ -106,13 +106,13 @@ for {
 ```scala mdoc:nest:passthrough
 def update(name: String, local: IOLocal[Int], f: Int => Int): IO[Unit] =
   IO.sleep(1.second) >> local.update(f) >> local.get.flatMap(current => IO.println(s"$name: $current"))
-  
+
 for {
   local  <- IOLocal(42)
-  fiber1 <- update("fiber B", local, _ + 1).start
-  fiber2 <- update("fiber C", local, _ + 2).start
-  _      <- fiber1.joinWithNever
-  _      <- fiber2.joinWithNever
+  fiberB <- update("fiber B", local, _ + 1).start
+  fiberC <- update("fiber C", local, _ + 2).start
+  _      <- fiberB.joinWithNever
+  _      <- fiberC.joinWithNever
   _      <- update("fiber A", local, _ - 1)
 } yield ()
 

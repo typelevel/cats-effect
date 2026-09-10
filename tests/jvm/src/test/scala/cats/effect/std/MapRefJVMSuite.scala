@@ -99,7 +99,7 @@ class MapRefJVMSuite extends BaseSuite {
       r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
       _ <- r(()).set(Some(0))
       accessed <- r(()).access
-      (value, setter) = accessed
+      (_, setter) = accessed
       _ <- r(()).set(Some(5))
       success <- setter(None)
       result <- r(()).get

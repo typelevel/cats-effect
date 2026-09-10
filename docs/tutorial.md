@@ -42,11 +42,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.6.3"
+version := "3.7.1"
 
 scalaVersion := "2.13.13"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.6.3" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.7.1" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -336,7 +336,7 @@ method can look like this:
 import cats.effect._
 import java.io.File
 
-object CopyFile extends IOApp {
+object Main extends IOApp {
 
   // copy as defined before
   def copy(origin: File, destination: File): IO[Long] = ???

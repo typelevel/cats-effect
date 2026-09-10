@@ -30,6 +30,22 @@ trait SyncIOPlatformSuite { self: BaseSuite =>
       assertCompleteAsSync(op, true)
     }
 
+    testUnit(
+      "realTimeZonedDateTime should return a ZonedDateTime constructed from realTime with UTC offset") {
+
+      // Unfortunately since SyncIO doesn't use on a controllable
+      // clock source, so a diff best we can do
+      val op = for {
+        realTime <- SyncIO.realTime
+        now <- SyncIO.realTimeZonedDateTime
+      } yield (
+        (now.toInstant.toEpochMilli - realTime.toMillis) <= 10000,
+        now.getOffset.getTotalSeconds
+      )
+
+      assertCompleteAsSync(op, (true, 0))
+    }
+
   }
 
 }

@@ -27,10 +27,9 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * A cut-down version of semaphore used to implement parTraverseN
  */
 private[kernel] abstract class MiniSemaphore[F[_]] extends Serializable {
+  def acquire: F[Unit]
+  def release: F[Unit]
 
-  /**
-   * Sequence an action while holding a permit
-   */
   def withPermit[A](fa: F[A]): F[A]
 }
 
@@ -63,12 +62,7 @@ private[kernel] object MiniSemaphore {
         def acquire: F[Unit] =
           F.uncancelable { poll =>
             F.deferred[Unit].flatMap { wait =>
-              val cleanup = state.update {
-                case s @ State(waiting, permits) =>
-                  if (waiting.nonEmpty)
-                    State(waiting.filterNot(_ eq wait), permits)
-                  else s
-              }
+              val cleanup = wait.complete(()).flatMap { won => if (won) F.unit else release }
 
               state.modify {
                 case State(waiting, permits) =>
@@ -84,7 +78,9 @@ private[kernel] object MiniSemaphore {
           state.flatModify {
             case State(waiting, permits) =>
               if (waiting.nonEmpty)
-                State(waiting.tail, permits) -> waiting.head.complete(()).void
+                State(waiting.tail, permits) -> waiting.head.complete(()).flatMap { granted =>
+                  if (granted) F.unit else release
+                }
               else
                 State(waiting, permits + 1) -> ().pure[F]
           }

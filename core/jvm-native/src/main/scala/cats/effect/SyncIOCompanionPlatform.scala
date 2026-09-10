@@ -16,9 +16,11 @@
 
 package cats.effect
 
-import java.time.Instant
+import java.time.{Instant, ZonedDateTime}
 
 private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
-  final def realTimeInstant: SyncIO[Instant] =
-    realTime.map(d => Instant.ofEpochMilli(d.toMillis))
+
+  final def realTimeInstant: SyncIO[Instant] = syncForSyncIO.realTimeInstant
+
+  final def realTimeZonedDateTime: SyncIO[ZonedDateTime] = syncForSyncIO.realTimeZonedDateTime
 }

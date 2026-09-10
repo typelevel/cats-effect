@@ -277,21 +277,86 @@ class SupervisorSuite extends BaseSuite with DetectPlatform {
       }
     }
 
-    real(s"$name - restart / cancel race") {
-      val tsk = constructor(false, Some(_ => true)).use { supervisor =>
-        IO.ref(0).flatMap { counter =>
-          supervisor.supervise(counter.update(_ + 1) *> IO.canceled).flatMap { adaptedFiber =>
-            IO.sleep(100.millis) *> adaptedFiber.cancel *> adaptedFiber.join *> (
-              (counter.get, IO.sleep(100.millis) *> counter.get).flatMapN {
-                case (v1, v2) =>
-                  IO(assertEquals(v1, v2))
-              }
-            )
-          }
-        }
-      }
+    real(s"$name - cancel beats restart") {
+      val test = for {
+        count <- IO.ref(0)
+        firstStarted <- IO.deferred[Unit]
+        cancelReachedChild <- IO.deferred[Unit]
+        releaseCancel <- IO.deferred[Unit]
+        _ <- constructor(false, Some(_ => true)).use { supervisor =>
+          val action =
+            (count.update(_ + 1) *> firstStarted.complete(()) *> IO.never[Unit]).onCancel(
+              cancelReachedChild.complete(()) *> IO.uncancelable(_ => releaseCancel.get))
 
-      tsk.parReplicateA_(if (isJVM) 1000 else 1)
+          for {
+            adapted <- supervisor.supervise(action)
+            _ <- firstStarted.get
+            cancel <- adapted.cancel.start
+            _ <- cancelReachedChild.get
+            _ <- releaseCancel.complete(())
+            _ <- cancel.join
+            _ <- adapted.join
+          } yield ()
+        }
+        result <- count.get
+        _ <- IO(assertEquals(result, 1))
+      } yield ()
+
+      test
+    }
+
+    real(s"$name - restart beats cancel") {
+      val test = for {
+        count <- IO.ref(0)
+        restarted <- IO.deferred[Unit]
+        _ <- constructor(false, Some(_ => true)).use { supervisor =>
+          val action = count.updateAndGet(_ + 1).flatMap {
+            case 1 => IO.canceled
+            case 2 => restarted.complete(()) *> IO.never[Unit]
+            case n => IO.raiseError(new AssertionError(s"unexpected invocation: $n"))
+          }
+
+          for {
+            adapted <- supervisor.supervise(action)
+            _ <- restarted.get
+            _ <- adapted.cancel
+            _ <- adapted.join
+          } yield ()
+        }
+        result <- count.get
+        _ <- IO(assertEquals(result, 2))
+      } yield ()
+
+      test
+    }
+
+    def superviseCancelRace(mkSupervisor: Resource[IO, Supervisor[IO]]) = {
+      val N = if (isJVM) 1000 else 5
+      val M = if (isJVM) 20 else 2
+      val tsk = mkSupervisor.use { supervisor =>
+        supervisor
+          .supervise(IO.unit)
+          .flatMap(_.cancel)
+          .replicateA_(N)
+          .parReplicateA_(M)
+          .flatMap { _ =>
+            // let's wait a bit (for cleanup to happen):
+            IO.sleep(0.2.second) *> {
+              val st = supervisor.asInstanceOf[Supervisor.SupervisorImpl[IO]].state
+              // the supervised fibers must've been cleaned up from the internal state:
+              st.numberOfFibers.flatMap { numFibs => IO(assertEquals(numFibs, 0)) }
+            }
+          }
+      }
+      tsk
+    }
+
+    real(s"$name - supervise / cancel race cleanup") {
+      superviseCancelRace(constructor(false, None))
+    }
+
+    real(s"$name - supervise / cancel race cleanup (with restart)") {
+      superviseCancelRace(constructor(false, Some(_ => true)))
     }
   }
 }

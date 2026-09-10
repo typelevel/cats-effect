@@ -98,7 +98,7 @@ class MapRefSuite extends BaseSuite {
       r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
       _ <- r(()).set(Some(0))
       accessed <- r(()).access
-      (value, setter) = accessed
+      (_, setter) = accessed
       _ <- r(()).set(Some(5))
       success <- setter(None)
       result <- r(()).get
@@ -227,7 +227,7 @@ class MapRefSuite extends BaseSuite {
       r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
       _ <- r(()).set(Some(0))
       accessed <- r(()).access
-      (value, setter) = accessed
+      (_, setter) = accessed
       _ <- r(()).set(Some(5))
       success <- setter(None)
       result <- r(()).get

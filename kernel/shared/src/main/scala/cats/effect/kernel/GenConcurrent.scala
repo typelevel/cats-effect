@@ -130,29 +130,210 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
     parTraverseN_(n)(tma)(identity)
 
   /**
-   * Like `Parallel.parTraverse`, but limits the degree of parallelism. Note that the semantics
-   * of this operation aim to maximise fairness: when a spot to execute becomes available, every
-   * task has a chance to claim it, and not only the next `n` tasks in `ta`
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism. The semantics of this
+   * function are ordered based on the `Traverse`. The first ''n'' actions will be started
+   * first, with subsequent actions starting in order as each one completes. Actions which are
+   * reached earlier in `traverse` order will be started slightly sooner than later actions, in
+   * a non-blocking fashion. Any errors or self-cancelation will immediately abort the sequence.
+   * If multiple actions produce errors simultaneously, one of them will be nondeterministically
+   * selected for production. If all actions succeed, their results are returned in the same
+   * order as their corresponding inputs, regardless of the order in which they executed.
+   *
+   * The `f` function is run as part of running the action: in parallel and subject to the
+   * limit.
    */
   def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => F[B]): F[T[B]] = {
     require(n >= 1, s"Concurrency limit should be at least 1, was: $n")
 
     implicit val F: GenConcurrent[F, E] = this
 
-    MiniSemaphore[F](n).flatMap { sem => ta.parTraverse { a => sem.withPermit(f(a)) } }
+    F.deferred[Option[E]] flatMap { preempt =>
+      F.ref[Set[(Fiber[F, ?, ?], Deferred[F, Outcome[F, E, B]])]](Set()) flatMap {
+        supervision =>
+          // has to be done in parallel to avoid head of line issues
+          def cancelAll(cause: Option[E]) = supervision.get flatMap { states =>
+            val causeOC: Outcome[F, E, B] = cause match {
+              case Some(e) => Outcome.Errored(e)
+              case None => Outcome.Canceled()
+            }
+
+            states.toList parTraverse_ {
+              case (fiber, result) =>
+                result.complete(causeOC).ifM(fiber.cancel, F.unit)
+            }
+          }
+
+          def cancelAllAndJoin =
+            preempt.complete(None).ifM(cancelAll(None), F.unit) *>
+              supervision.get.flatMap(_.toList.traverse_ { case (fiber, _) => fiber.join.void })
+
+          MiniSemaphore[F](n) flatMap { sem =>
+            val results = ta traverse { a =>
+              preempt.tryGet flatMap {
+                case Some(Some(e)) => F.pure(F.raiseError[B](e))
+                case Some(None) => F.pure(F.canceled *> F.never[B])
+
+                case None =>
+                  F.uncancelable { poll =>
+                    F.deferred[Outcome[F, E, B]] flatMap { result =>
+                      // acquire the semaphore *before* creating and starting the fiber
+                      // the semaphore gates the traverse, and thus the spawning, not the execution
+                      // the laziness is a poor mans defer; this ensures the f gets pushed to the fiber
+                      val action = poll(sem.acquire) *> (F.unit >> f(a))
+                        .guaranteeCase { oc =>
+                          val completion = oc match {
+                            case Outcome.Succeeded(_) =>
+                              preempt.tryGet flatMap {
+                                case Some(Some(e)) =>
+                                  result.complete(Outcome.Errored(e))
+
+                                case Some(None) =>
+                                  result.complete(Outcome.Canceled())
+
+                                case None =>
+                                  result.complete(oc)
+                              }
+
+                            case Outcome.Errored(e) =>
+                              preempt
+                                .complete(Some(e))
+                                .ifM(
+                                  // we can't fire-and-forget this one because final results don't block on cancelation
+                                  result.complete(oc) <* cancelAll(Some(e)),
+                                  false.pure[F])
+
+                            case Outcome.Canceled() =>
+                              preempt
+                                .complete(None)
+                                .ifM(
+                                  // we *need* to fire-and-forget this cancelation to avoid deadlock loops when we're already canceling
+                                  // the final `onCancel` on the results sequence joins the supervised fibers
+                                  result.complete(oc) <* cancelAll(None).start,
+                                  false.pure[F]
+                                )
+                          }
+
+                          completion *> sem.release
+                        }
+                        .void
+                        .voidError
+                        .start
+
+                      action flatMap { fiber =>
+                        supervision.update(_ + ((fiber, result))) *>
+                          // double-check to catch situations where preemption happens after check before supervision
+                          preempt.tryGet flatMap {
+                            case Some(Some(e)) => fiber.cancel.as(F.raiseError[B](e))
+                            case Some(None) => fiber.cancel.as(F.canceled *> F.never[B])
+
+                            case None =>
+                              F.pure(
+                                result
+                                  .get
+                                  .flatMap(_.embed(F.canceled *> F.never))
+                                  .guaranteeCase {
+                                    case Outcome.Canceled() => F.unit
+                                    case _ => supervision.update(_ - ((fiber, result)))
+                                  })
+                          }
+                      }
+                    }
+                  }
+              }
+            }
+
+            results.flatMap(_.sequence).onCancel(cancelAllAndJoin)
+          }
+      }
+    }
   }
 
   /**
-   * Like `Parallel.parTraverse_`, but limits the degree of parallelism. Note that the semantics
-   * of this operation aim to maximise fairness: when a spot to execute becomes available, every
-   * task has a chance to claim it, and not only the next `n` tasks in `ta`
+   * Like `Parallel.parTraverse_`, but limits the degree of parallelism. The semantics of this
+   * function are ordered based on the `Foldable`. The first ''n'' actions will be started
+   * first, with subsequent actions starting in order as each one completes. Actions which are
+   * reached earlier in `traverse_` order will be started slightly before later actions, in a
+   * non-blocking fashion. Any errors or self-cancelation will immediately abort the sequence.
+   * If multiple actions produce errors simultaneously, one of them will be nondeterministically
+   * selected for production.
+   *
+   * The `f` function is run as part of running the action: in parallel and subject to the
+   * limit.
    */
   def parTraverseN_[T[_]: Foldable, A, B](n: Int)(ta: T[A])(f: A => F[B]): F[Unit] = {
     require(n >= 1, s"Concurrency limit should be at least 1, was: $n")
 
     implicit val F: GenConcurrent[F, E] = this
 
-    MiniSemaphore[F](n).flatMap { sem => ta.parTraverse_ { a => sem.withPermit(f(a)) } }
+    F.deferred[Option[E]] flatMap { preempt =>
+      F.ref[List[Fiber[F, E, Unit]]](Nil) flatMap { supervision =>
+        MiniSemaphore[F](n) flatMap { sem =>
+          val cancelAll = supervision.get.flatMap(_.parTraverse_(_.cancel))
+
+          // doesn't complete until every fiber has been at least *started*
+          val startAll = ta traverse_ { a =>
+            // first check to see if any of the effects have errored out
+            // don't bother starting new things if that happens
+            preempt.tryGet flatMap {
+              case Some(Some(e)) =>
+                F.raiseError[Unit](e)
+
+              case Some(None) =>
+                F.canceled
+
+              case None =>
+                F.uncancelable { poll =>
+                  // if the effect produces a non-success, race to kill all the rest
+                  // the laziness is a poor mans defer; this ensures the f gets pushed to the fiber
+                  val wrapped = (F.unit >> f(a)) guaranteeCase {
+                    case Outcome.Succeeded(_) =>
+                      F.unit
+
+                    case Outcome.Errored(e) =>
+                      preempt.complete(Some(e)).void
+
+                    case Outcome.Canceled() =>
+                      preempt.complete(None).void
+                  }
+
+                  // release the semaphore after every possible outcome
+                  val suppressed = wrapped.void.voidError.guarantee(sem.release)
+
+                  poll(sem.acquire) *> suppressed.start flatMap { fiber =>
+                    // supervision is handled very differently here: we never remove from the set
+                    supervision.update(fiber :: _)
+                  }
+                }
+            }
+          }
+
+          // we only run this when we know that supervision is full
+          val awaitAll = preempt.tryGet flatMap {
+            case Some(_) => cancelAll
+            case None =>
+              F.race(
+                preempt.get.void *> cancelAll,
+                supervision.get.flatMap(_.traverse_(f => f.join.void).onCancel(cancelAll)))
+                .void
+          }
+
+          // if we hit an error or self-cancelation in any effect, resurface it here
+          def resurface(poll: Poll[F]) = preempt.tryGet flatMap {
+            case Some(Some(e)) => F.raiseError[Unit](e)
+            case Some(None) => poll(F.canceled)
+            case None => F.unit
+          }
+
+          val work = (startAll *> awaitAll) guaranteeCase {
+            case Outcome.Succeeded(_) => F.unit
+            case Outcome.Errored(e) => preempt.complete(Some(e)) *> cancelAll
+            case Outcome.Canceled() => preempt.complete(None) *> cancelAll
+          }
+
+          F.uncancelable(poll => poll(work) *> resurface(poll))
+        }
+      }
+    }
   }
 
   /**
@@ -196,10 +377,11 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
             _ <- canA.join
             _ <- canB.join
           } yield ())
-      } yield back match {
-        case Left(oc) => Left((oc, fibB))
-        case Right(oc) => Right((fibA, oc))
-      }
+        result <- back match {
+          case Left(oc) => fibA.join.as(Left((oc, fibB)))
+          case Right(oc) => fibB.join.as(Right((fibA, oc)))
+        }
+      } yield result
     }
   }
 }

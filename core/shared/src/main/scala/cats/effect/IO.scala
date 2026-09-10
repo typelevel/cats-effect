@@ -1555,7 +1555,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
   def monotonic: IO[FiniteDuration] = Monotonic
 
   /**
-   * A non-terminating `IO`, alias for `async(_ => ())`.
+   * A non-terminating, cancelable `IO`, alias for `async(_ => pure(Some(unit)))`.
    */
   def never[A]: IO[A] = _never
 

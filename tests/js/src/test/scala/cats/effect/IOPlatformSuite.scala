@@ -26,19 +26,25 @@ trait IOPlatformSuite { self: BaseScalaCheckSuite =>
 
   def platformTests() = {
 
-    tickedProperty("round trip through js.Promise".ignore) { implicit ticker =>
-      forAll { (ioa: IO[Int]) =>
-        assertEqv(ioa, IO.fromPromise(IO(ioa.unsafeToPromise())))
-      } // "callback scheduling gets in the way here since Promise doesn't use TestContext"
+    tickedProperty(
+      "round trip through js.Promise"
+        .fail
+        .pending(
+          "callback scheduling gets in the way because Promise does not use TestContext")) {
+      implicit ticker =>
+        forAll { (ioa: IO[Int]) => assertEqv(ioa, IO.fromPromise(IO(ioa.unsafeToPromise()))) }
     }
 
-    tickedProperty("round trip through js.Promise via Async".ignore) { implicit ticker =>
-      def lossy[F[_]: Async, A](fa: F[A])(f: F[A] => js.Promise[A]): F[A] =
-        Async[F].fromPromise(Sync[F].delay(f(fa))).map(x => x)
+    tickedProperty(
+      "round trip through js.Promise via Async"
+        .fail
+        .pending(
+          "callback scheduling gets in the way because Promise does not use TestContext")) {
+      implicit ticker =>
+        def lossy[F[_]: Async, A](fa: F[A])(f: F[A] => js.Promise[A]): F[A] =
+          Async[F].fromPromise(Sync[F].delay(f(fa))).map(x => x)
 
-      forAll { (ioa: IO[Int]) =>
-        assertEqv(ioa, lossy(ioa)(_.unsafeToPromise()))
-      } // "callback scheduling gets in the way here since Promise doesn't use TestContext"
+        forAll { (ioa: IO[Int]) => assertEqv(ioa, lossy(ioa)(_.unsafeToPromise())) }
     }
 
     ticked("realTimeDate should return a js.Date constructed from realTime") {
