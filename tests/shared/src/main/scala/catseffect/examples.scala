@@ -16,13 +16,13 @@
 
 package catseffect
 
+import cats.effect.{ExitCode, IO, IOApp}
 import cats.effect.std.{Console, Random}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
-import cats.effect.{ExitCode, IO, IOApp}
-import cats.syntax.all.*
+import cats.syntax.all._
 
 import scala.concurrent.Await
-import scala.concurrent.duration.*
+import scala.concurrent.duration._
 
 package examples {
 
