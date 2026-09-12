@@ -393,6 +393,14 @@ class IOAppSuite extends FunSuite {
         assert(!h.stdout().contains("sadness"))
         assert(h.stdout().contains("done"))
       }
+
+      test(
+        "exit on a fatal error surfaced through a fiber started via `fromCompletableFuture`") {
+        val h = platform("FatalErrorFromCompletableFuture", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+        assert(!h.stdout().contains("sadness"))
+      }
     }
 
     if (platform == Node) {

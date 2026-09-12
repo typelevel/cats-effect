@@ -16,12 +16,13 @@
 
 package catseffect
 
-import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
+import java.util.concurrent.{CompletableFuture, Executor, Executors}
 import java.util.concurrent.atomic.AtomicReference
 
 package object examples {
@@ -94,5 +95,35 @@ package examples {
     // performing the blocked check. Cedeing makes the test more deterministic
     val run =
       IO.cede.foreverM.start >> IO(Thread.sleep(2.seconds.toMillis))
+  }
+
+  object FatalErrorFromCompletableFuture extends IOApp {
+
+    private val pingIO =
+      (IO.println("ping") *> IO.sleep(1.seconds)).foreverM
+
+    private def boomFromCompletableFuture(executor: Executor): IO[Unit] =
+      IO.fromCompletableFuture(
+        IO(
+          CompletableFuture.runAsync(
+            () => {
+              println("Waiting 2 seconds before boom...")
+              Thread.sleep(2000)
+              println("Gonna boom!")
+              throw new OutOfMemoryError("Boom!")
+            },
+            executor)))
+        .void
+
+    override def run(args: List[String]): IO[ExitCode] =
+      Resource.make(IO(Executors.newFixedThreadPool(1)))(es => IO(es.shutdown())).use {
+        executor =>
+          for {
+            pingFiber <- pingIO.start
+            _ <- boomFromCompletableFuture(ExecutionContext.fromExecutor(executor)).start
+            _ <- pingFiber.join
+          } yield ExitCode.Success
+      }
+
   }
 }
