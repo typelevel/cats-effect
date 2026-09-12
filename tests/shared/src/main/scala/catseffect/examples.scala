@@ -16,13 +16,13 @@
 
 package catseffect
 
-import cats.effect.{ExitCode, IO, IOApp}
 import cats.effect.std.{Console, Random}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
-import cats.syntax.all._
+import cats.effect.{ExitCode, IO, IOApp}
+import cats.syntax.all.*
 
 import scala.concurrent.Await
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 package examples {
 
@@ -134,6 +134,8 @@ package examples {
   object AsyncFatalError extends IOApp {
     def run(args: List[String]): IO[ExitCode] = {
       IO.async_[Unit](cb => cb(Left(new OutOfMemoryError("Boom!"))))
+        .start
+        .flatMap(_.join)
         .flatMap(_ => IO.println("sadness"))
         .as(ExitCode.Success)
     }
