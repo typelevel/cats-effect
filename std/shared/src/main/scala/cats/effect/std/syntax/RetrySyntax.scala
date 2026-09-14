@@ -14,7 +14,25 @@
  * limitations under the License.
  */
 
-package cats.effect
-package std.syntax
+package cats.effect.std.syntax
 
-trait AllSyntax extends BackpressureSyntax with SupervisorSyntax with RetrySyntax
+import cats.effect.kernel.GenTemporal
+import cats.effect.std.Retry
+
+trait RetrySyntax {
+  implicit def retryOps[F[_], A](wrapped: F[A]): RetryOps[F, A] =
+    new RetryOps(wrapped)
+}
+
+final class RetryOps[F[_], A] private[syntax] (private val fa: F[A]) extends AnyVal {
+
+  def retry[E](policy: Retry[F, E])(implicit F: GenTemporal[F, E]): F[A] =
+    Retry.retry(policy)(fa)
+
+  def retry[E](
+      policy: Retry[F, E],
+      onError: (Retry.Status, E, Retry.Decision) => F[Unit]
+  )(implicit F: GenTemporal[F, E]): F[A] =
+    Retry.retry(policy, onError)(fa)
+
+}
