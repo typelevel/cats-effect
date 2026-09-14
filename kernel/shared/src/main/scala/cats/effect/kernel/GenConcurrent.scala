@@ -349,15 +349,15 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   }
 
   /**
-   * Like `Parallel.parFlatSequence`, but limits the degree of parallelism.
+   * Like `Parallel.parFlatSequence`, but limits the degree of parallelism. See
+   * [[parSequenceN()]] for fairness considerations, the same semantics apply here.
    */
   def parFlatSequenceN[T[_]: Traverse: FlatMap, A](n: Int)(tma: T[F[T[A]]]): F[T[A]] =
     parFlatTraverseN(n)(tma)(identity)
 
   /**
-   * Like `Parallel.parFlatTraverse`, but limits the degree of parallelism. Note that the
-   * semantics of this operation aim to maximise fairness: when a spot to execute becomes
-   * available, every task has a chance to claim it, and not only the next `n` tasks in `ta`
+   * Like `Parallel.parFlatTraverse`, but limits the degree of parallelism. See
+   * [[parTraverseN()]] for fairness considerations, the same semantics apply here.
    */
   def parFlatTraverseN[T[_]: Traverse: FlatMap, A, B](n: Int)(ta: T[A])(
       f: A => F[T[B]]): F[T[B]] = {
