@@ -86,9 +86,51 @@ sealed trait WorkStealingThreadPoolMetrics {
   def suspendedFiberCount(): Long
 
   /**
+   * External queue metrics for this work-stealing thread pool.
+   */
+  def externalQueue: ExternalQueueMetrics
+
+  /**
    * The list of worker-specific metrics of this work-stealing thread pool.
    */
   def workerThreads: List[WorkerThreadMetrics]
+}
+
+/**
+ * Represents metrics for the external task queue in a work-stealing thread pool.
+ */
+sealed trait ExternalQueueMetrics {
+
+  /**
+   * Returns the total number of singleton tasks submitted to the queue.
+   */
+  def totalSingletonCount(): Long
+
+  /**
+   * Returns the number of singleton tasks currently in the queue.
+   */
+  def singletonCount(): Long
+
+  /**
+   * Returns the total number of batch tasks submitted to the queue.
+   */
+  def totalBatchCount(): Long
+
+  /**
+   * Returns the number of batch tasks currently in the queue.
+   */
+  def batchCount(): Long
+
+  /**
+   * Returns the total number of fibers (individual tasks + fibers in batches) submitted to the
+   * queue.
+   */
+  def totalFiberCount(): Long
+
+  /**
+   * Returns the number of fibers (individual tasks + fibers in batches) currently in the queue.
+   */
+  def fiberCount(): Long
 }
 
 sealed trait WorkerThreadMetrics {
@@ -264,9 +306,22 @@ object WorkStealingThreadPoolMetrics {
     def localQueueFiberCount(): Long = wstp.getLocalQueueFiberCount()
     def suspendedFiberCount(): Long = wstp.getSuspendedFiberCount()
 
+    val externalQueue: ExternalQueueMetrics = externalQueueMetrics(wstp.externalQueue)
+
     val workerThreads: List[WorkerThreadMetrics] =
       List.range(0, workerThreadCount()).map(workerThreadMetrics(wstp, _))
   }
+
+  private def externalQueueMetrics(queue: ScalQueue): ExternalQueueMetrics =
+    new ExternalQueueMetrics {
+
+      def totalSingletonCount(): Long = queue.getTotalSingletonCount()
+      def singletonCount(): Long = queue.getSingletonCount()
+      def totalBatchCount(): Long = queue.getTotalBatchCount()
+      def batchCount(): Long = queue.getBatchCount()
+      def totalFiberCount(): Long = queue.getTotalFiberCount()
+      def fiberCount(): Long = queue.getFiberCount()
+    }
 
   private def workerThreadMetrics[P <: AnyRef](
       wstp: WorkStealingThreadPool[P],

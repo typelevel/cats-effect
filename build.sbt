@@ -745,6 +745,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // internal API change, makes CpuStarvationMetrics available on all platforms
       ProblemFilters.exclude[MissingClassProblem](
         "cats.effect.metrics.JvmCpuStarvationMetrics$NoOpCpuStarvationMetrics"),
+      // introduced by #4292, external queue metrics
+      // WorkStealingThreadPoolMetrics is a sealed trait, so we control all of its implementations.
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.unsafe.metrics.WorkStealingThreadPoolMetrics.externalQueue"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvationMetrics"),
       // package-private classes moved to the `cats.effect.unsafe.metrics` package
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.metrics.CpuStarvation"),
@@ -755,7 +759,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.unsafe.WorkerThread.getSuspendedFiberCount"),
       // protected constructor modified when fixing #4359
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.IORuntimeBuilder.<init>$default$10")
+        "cats.effect.unsafe.IORuntimeBuilder.<init>$default$10"),
+      ProblemFilters.exclude[Problem]("cats.effect.unsafe.ScalQueue*")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions

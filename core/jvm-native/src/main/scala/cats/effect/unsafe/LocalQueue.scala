@@ -193,7 +193,7 @@ private final class LocalQueue extends LocalQueuePadding {
    *   a reference to an uncontended source of randomness, to be passed along to the striped
    *   concurrent queues when executing their enqueue operations
    */
-  def enqueue(fiber: Runnable, external: ScalQueue[AnyRef], random: ThreadLocalRandom): Unit = {
+  def enqueue(fiber: Runnable, external: ScalQueue, random: ThreadLocalRandom): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -281,7 +281,7 @@ private final class LocalQueue extends LocalQueuePadding {
 
         // Enqueue all of the batches of fibers on the batched queue with a bulk
         // add operation.
-        external.offerAll(batches, random)
+        external.offerAllBatches(batches, random)
         // Loop again for a chance to insert the original fiber to be enqueued
         // on the local queue.
       }
@@ -657,7 +657,7 @@ private final class LocalQueue extends LocalQueuePadding {
    *   a reference to an uncontended source of randomness, to be passed along to the striped
    *   concurrent queues when executing their enqueue operations
    */
-  def drainBatch(external: ScalQueue[AnyRef], random: ThreadLocalRandom): Unit = {
+  def drainBatch(external: ScalQueue, random: ThreadLocalRandom): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -702,8 +702,7 @@ private final class LocalQueue extends LocalQueuePadding {
           totalSpilloverCount += SpilloverBatchSize
           Tail.updater.lazySet(this, tl)
         }
-
-        external.offer(batch, random)
+        external.offerBatch(batch, random)
         return
       }
     }
