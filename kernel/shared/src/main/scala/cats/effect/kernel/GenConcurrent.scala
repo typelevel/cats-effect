@@ -148,7 +148,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   }
 
   /**
-   * Shared core implementation for both [[parTraverseN()]] and [[parFlatTraverseN()]], taking a
+   * Shared core implementation for both [[parTraverseN]] and [[parFlatTraverseN]], taking a
    * function that decides on how to sequence the result.
    * @tparam B
    *   the intermediate result type of the function `f`, needs to be sequenceable to `C`
@@ -349,15 +349,15 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   }
 
   /**
-   * Like `Parallel.parFlatSequence`, but limits the degree of parallelism. See
-   * [[parSequenceN()]] for fairness considerations, the same semantics apply here.
+   * Like `Parallel.parFlatSequence`, but limits the degree of parallelism. See [[parSequenceN]]
+   * for fairness considerations, the same semantics apply here.
    */
   def parFlatSequenceN[T[_]: Traverse: FlatMap, A](n: Int)(tma: T[F[T[A]]]): F[T[A]] =
     parFlatTraverseN(n)(tma)(identity)
 
   /**
-   * Like `Parallel.parFlatTraverse`, but limits the degree of parallelism. See
-   * [[parTraverseN()]] for fairness considerations, the same semantics apply here.
+   * Like `Parallel.parFlatTraverse`, but limits the degree of parallelism. See [[parTraverseN]]
+   * for fairness considerations, the same semantics apply here.
    */
   def parFlatTraverseN[T[_]: Traverse: FlatMap, A, B](n: Int)(ta: T[A])(
       f: A => F[T[B]]): F[T[B]] = {
