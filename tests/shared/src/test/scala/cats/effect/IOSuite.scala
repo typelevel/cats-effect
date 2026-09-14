@@ -2268,6 +2268,15 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAs(test.attempt.void, ())
   }
 
+  ticked("parFlatTraverseN - run tasks in parallel and flatten the results (ticked)") {
+    implicit ticker =>
+      val p = List(1, 2, 3)
+        .parFlatTraverseN(2) { (n: Int) => IO.sleep(2.seconds) >> IO.pure(List.fill(n)(())) }
+        .timeoutTo(5.seconds, IO(fail("parFlatSequenceN took too long")))
+
+      assertCompleteAs(p, List.fill(1 + 2 + 3)(()))
+  }
+
   real("parFlatTraverseN - throw when n < 1") {
     IO.defer {
       List.empty[Int].parFlatTraverseN(0)(List(_).pure[IO])
@@ -2290,6 +2299,16 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield true
 
     assertCompleteAs(p, true)
+  }
+
+  ticked("parFlatSequenceN - run tasks in parallel and flatten the results (ticked)") {
+    implicit ticker =>
+      val p = List(1, 2, 3)
+        .map { (n: Int) => IO.sleep(2.seconds) >> IO.pure(List.fill(n)(())) }
+        .parFlatSequenceN(2)
+        .timeoutTo(5.seconds, IO(fail("parFlatSequenceN took too long")))
+
+      assertCompleteAs(p, List.fill(1 + 2 + 3)(()))
   }
 
   real("parFlatSequenceN - throw when n < 1") {
