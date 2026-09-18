@@ -2759,6 +2759,58 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAsSync(sio.map(_.bimap(_ => (), _ => ())), Right(()))
   }
 
+  ticked(
+    "syncStep - remainder runs Resource release on self-cancelation"
+      .fail
+      .pending("syncStep strips onCancel from the remainder")) { implicit ticker =>
+    var released = false
+    val io = Resource.make(IO.unit)(_ => IO { released = true }).use(_ => IO.canceled)
+    val rest = io.syncStep(Int.MaxValue).unsafeRunSync() match {
+      case Left(rest) => rest
+      case Right(a) => IO.pure(a)
+    }
+    assertSelfCancel(rest)
+    assert(released)
+  }
+
+  ticked(
+    "syncStep - remainder runs Resource release on external cancelation"
+      .fail
+      .pending("syncStep strips onCancel from the remainder")) { implicit ticker =>
+    var released = false
+    val io = Resource.make(IO.unit)(_ => IO { released = true }).use(_ => IO.never[Unit])
+    val rest = io.syncStep(Int.MaxValue).unsafeRunSync() match {
+      case Left(rest) => rest
+      case Right(a) => IO.pure(a)
+    }
+    val test = for {
+      started <- Deferred[IO, Unit]
+      f <- (started.complete(()) *> rest).start
+      _ <- started.get
+      _ <- f.cancel
+    } yield ()
+    assertCompleteAs(test, ())
+    assert(released)
+  }
+
+  ticked(
+    "syncStep - remainder stays uncancelable"
+      .fail
+      .pending("syncStep strips uncancelable from the remainder")) { implicit ticker =>
+    val io = IO.uncancelable(_ => IO.never[Unit])
+    val rest = io.syncStep(Int.MaxValue).unsafeRunSync() match {
+      case Left(rest) => rest
+      case Right(a) => IO.pure(a)
+    }
+    val test = for {
+      started <- Deferred[IO, Unit]
+      f <- (started.complete(()) *> rest).start
+      _ <- started.get
+      _ <- f.cancel
+    } yield ()
+    assertNonTerminate(test)
+  }
+
   real("fiber repeated yielding test") {
     def yieldUntil(ref: Ref[IO, Boolean]): IO[Unit] =
       ref.get.flatMap(b => if (b) IO.unit else IO.cede *> yieldUntil(ref))
