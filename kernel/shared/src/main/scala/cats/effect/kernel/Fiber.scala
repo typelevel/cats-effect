@@ -54,6 +54,18 @@ trait Fiber[F[_], E, A] extends Serializable {
   def join: F[Outcome[F, E, A]]
 
   /**
+   * Awaits the completion of the fiber bound to this [[Fiber]] and returns its [[Outcome]] once
+   * it completes and cancels the fiber if cancelation is requested.
+   *
+   * @note
+   *   This method provides a safer version of `join.onCancel(cancel)` for [[GenSpawn]]
+   *   implementations where [[cats.effect.kernel.GenSpawn.onCancelRequested onCancelRequested]]
+   *   has a data-loss safe implementation.
+   */
+  def joinOrCancel(poll: Poll[F])(implicit F: GenSpawn[F, E]): F[Outcome[F, E, A]] =
+    F.onCancelRequested(poll(join), cancel)
+
+  /**
    * Awaits the completion of the bound fiber and returns its result once it completes.
    *
    * If the fiber completes with [[Outcome.Succeeded]], the successful value is returned. If the

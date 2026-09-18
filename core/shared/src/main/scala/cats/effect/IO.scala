@@ -449,6 +449,19 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def cancelable(fin: IO[Unit]): IO[A] =
     Spawn[IO].cancelable(this, fin)
 
+  /**
+   * Run the given effect when cancelation is requested. Unlike [[onCancel]], this will run
+   * before cancelation is observed, on a separate fiber, and will always allow `fa` to complete
+   * before cancelation is observed.
+   *
+   * @param ack
+   *   an effect which orchestrates some external state which terminates `fa`
+   * @see
+   *   [[onCancel]]
+   */
+  def onCancelRequested(ack: IO[Unit]): IO[A] =
+    IO.OnCancelRequested(this, ack)
+
   def forceR[B](that: IO[B]): IO[B] =
     // cast is needed here to trick the compiler into avoiding the IO[Any]
     asInstanceOf[IO[Unit]].handleError(_ => ()).productR(that)
@@ -2059,6 +2072,23 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     def onCancel[A](ioa: IO[A], fin: IO[Unit]): IO[A] =
       ioa.onCancel(fin)
 
+    /**
+     * Run the given effect when cancelation is requested. Unlike [[onCancel]], this will run
+     * before cancelation is observed, on a separate fiber, and will always allow `fa` to
+     * complete before cancelation is observed.
+     *
+     * @param fa
+     *   the effect to be canceled
+     * @param ack
+     *   an effect which orchestrates some external state which terminates `fa`
+     * @see
+     *   [[cancelable]]
+     * @see
+     *   [[onCancel]]
+     */
+    override def onCancelRequested[A](fa: IO[A], ack: IO[Unit]): IO[A] =
+      fa.onCancelRequested(ack)
+
     override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
         release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
       IO.bracketFull(acquire)(use)(release)
@@ -2326,6 +2356,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
   private[effect] case object ReadRT extends IO[IORuntime] {
     def tag = 24
+  }
+
+  private[effect] final case class OnCancelRequested[A](f: IO[A], ack: IO[Unit]) extends IO[A] {
+    def tag = 25
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
