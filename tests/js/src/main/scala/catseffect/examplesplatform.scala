@@ -49,6 +49,7 @@ package examples {
     register(RaiseFatalErrorHandle)
     register(RaiseFatalErrorMap)
     register(RaiseFatalErrorFlatMap)
+    register(AsyncFatalError)
     registerRaw(FatalErrorRaw)
     register(Canceled)
     registerLazy("catseffect.examples.GlobalRacingInit", GlobalRacingInit)
