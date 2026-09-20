@@ -331,13 +331,7 @@ private final class LocalQueue extends LocalQueuePadding {
     val tl = tail
 
     while (true) {
-      // A load of the head of the queue using `acquire` semantics.
-      val hd = Head.updater.get(this)
-      val steal = msb(hd)
-
-      // Check the usable capacity of the queue.
-      val len = unsignedShortSubtraction(tl, steal)
-      if (len <= LocalQueueCapacityMinusBatch) {
+      if (hasCapacityForBatch()) {
         // It is safe to transfer the fibers from the batch to the queue.
         val startPos = tl - 1
         var i = 1
@@ -368,7 +362,8 @@ private final class LocalQueue extends LocalQueuePadding {
         return fiber
       }
 
-      // Not enough usable capacity, which means there is an ongoing steal
+      // Not enough usable capacity. Callers guarantee that the queue has spare
+      // capacity to hold the batch, which means there is an ongoing steal
       // operation. Spin until it completes.
     }
 
@@ -377,6 +372,20 @@ private final class LocalQueue extends LocalQueuePadding {
     // to `Unit` in Scala, which does not match the return type of the method,
     // so **something** has to be returned.
     null
+  }
+
+  /**
+   * Checks whether this queue has enough usable capacity to hold a batch of fibers.
+   *
+   * @note
+   *   Can '''only''' be correctly called by the owner [[WorkerThread]].
+   *
+   * @return
+   *   `true` if a batch of fibers can be enqueued on this local queue, `false` otherwise
+   */
+  def hasCapacityForBatch(): Boolean = {
+    val hd = Head.updater.get(this)
+    unsignedShortSubtraction(tail, msb(hd)) <= LocalQueueCapacityMinusBatch
   }
 
   /**
