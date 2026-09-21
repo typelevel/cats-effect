@@ -16,7 +16,7 @@
 
 package cats.effect.kernel.syntax
 
-import cats.{Foldable, Traverse}
+import cats.{FlatMap, Foldable, Traverse}
 import cats.effect.kernel.GenConcurrent
 
 trait GenConcurrentSyntax {
@@ -33,6 +33,11 @@ trait GenConcurrentSyntax {
       wrapped: T[F[A]]
   ): ConcurrentParSequenceNOps[T, F, A] =
     new ConcurrentParSequenceNOps(wrapped)
+
+  implicit def concurrentParFlatSequenceOps[T[_], F[_], A](
+      wrapped: T[F[T[A]]]
+  ): ConcurrentParFlatSequenceNOps[T, F, A] =
+    new ConcurrentParFlatSequenceNOps(wrapped)
 
 }
 
@@ -57,6 +62,11 @@ final class ConcurrentParTraverseNOps[T[_], A] private[syntax] (
       f: A => F[B]
   )(implicit T: Foldable[T], F: GenConcurrent[F, ?]): F[Unit] =
     F.parTraverseN_(n)(wrapped)(f)
+
+  def parFlatTraverseN[F[_], B](n: Int)(
+      f: A => F[T[B]]
+  )(implicit T: Traverse[T], FM: FlatMap[T], F: GenConcurrent[F, ?]): F[T[B]] =
+    F.parFlatTraverseN(n)(wrapped)(f)
 }
 
 final class ConcurrentParSequenceNOps[T[_], F[_], A] private[syntax] (
@@ -67,4 +77,12 @@ final class ConcurrentParSequenceNOps[T[_], F[_], A] private[syntax] (
 
   def parSequenceN_(n: Int)(implicit T: Foldable[T], F: GenConcurrent[F, ?]): F[Unit] =
     F.parSequenceN_(n)(wrapped)
+}
+
+final class ConcurrentParFlatSequenceNOps[T[_], F[_], A] private[syntax] (
+    private val wrapped: T[F[T[A]]]
+) extends AnyVal {
+  def parFlatSequenceN(
+      n: Int)(implicit T: Traverse[T], FM: FlatMap[T], F: GenConcurrent[F, ?]): F[T[A]] =
+    F.parFlatSequenceN(n)(wrapped)
 }
