@@ -95,4 +95,13 @@ package examples {
     val run =
       IO.cede.foreverM.start >> IO(Thread.sleep(2.seconds.toMillis))
   }
+
+  object DetectBlockOn extends IOApp.Simple {
+
+    System.setProperty("cats.effect.detectBlockOn", "true")
+
+    def blockOn(): Unit = scala.concurrent.blocking(Thread.sleep(10))
+
+    val run = IO(blockOn()).replicateA_(3)
+  }
 }

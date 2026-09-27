@@ -1064,8 +1064,32 @@ private[effect] final class WorkerThread[P <: AnyRef](
    *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+    if (DetectBlockOn && !blocking) reportBlockOn()
     prepareForBlocking()
     thunk
+  }
+
+  private[this] def reportBlockOn(): Unit = {
+    def isRuntime(e: StackTraceElement): Boolean = {
+      val cls = e.getClassName()
+      cls.startsWith("java.lang.Thread") || cls.startsWith("cats.effect.unsafe.")
+    }
+
+    val site = getStackTrace().dropWhile(isRuntime).takeWhile(!isRuntime(_))
+    if (WorkerThread.blockOnSites.add(site.mkString("\n"))) {
+      val fiber = currentIOFiber
+      val fiberTrace =
+        if (fiber eq null) "" else s"\nFiber trace:\n${fiber.captureTrace().pretty}"
+      System
+        .err
+        .println(
+          s"""|[WARNING] A Cats Effect worker thread was blocked via `BlockContext.blockOn`
+              |${site.map("  at " + _).mkString("\n")}$fiberTrace
+              |This is very likely to be due to `scala.concurrent.blocking` or `Await.result`
+              |in `IO.delay` or `IO.apply`. If this is the case then you should use
+              |`IO.blocking` or `IO.interruptible` instead.""".stripMargin
+        )
+    }
   }
 
   private[this] def init(newState: TransferState): Unit = {
@@ -1092,6 +1116,9 @@ private[effect] final class WorkerThread[P <: AnyRef](
 }
 
 private[effect] object WorkerThread {
+
+  private val blockOnSites: java.util.Set[String] =
+    java.util.concurrent.ConcurrentHashMap.newKeySet[String]()
 
   private[unsafe] final class TransferState {
     var index: Int = _

@@ -51,4 +51,6 @@ final class WorkStealingThreadPoolConstants {
   static final int PollingTicks = 2 * ExternalWorkTicks;
 
   static final int PollingTicksMask = PollingTicks - 1;
+
+  static final boolean DetectBlockOn = Boolean.getBoolean("cats.effect.detectBlockOn");
 }

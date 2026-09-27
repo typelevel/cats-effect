@@ -380,6 +380,15 @@ class IOAppSuite extends FunSuite {
             "[WARNING] A Cats Effect worker thread was detected to be in a blocked state"))
       }
 
+      test("report blockOn call sites once") {
+        val h = platform("DetectBlockOn", List.empty)
+        assertEquals(h.awaitStatus(), 0)
+        val err = h.stderr()
+        val warning = "was blocked via `BlockContext.blockOn`"
+        assertEquals(err.split(warning, -1).length - 1, 1, err)
+        assert(err.contains("catseffect.examples.DetectBlockOn$.blockOn"), err)
+      }
+
       test("shut down WSTP on fatal error without IOApp") {
         val h = platform("FatalErrorShutsDownRt", List.empty)
         h.awaitStatus()
