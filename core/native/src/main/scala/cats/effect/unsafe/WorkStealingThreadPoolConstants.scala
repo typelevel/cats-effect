@@ -59,4 +59,6 @@ private object WorkStealingThreadPoolConstants {
 
   final val PollingTicksMask = PollingTicks - 1
 
+  final val DetectBlockOn: Boolean = java.lang.Boolean.getBoolean("cats.effect.detectBlockOn")
+
 }
