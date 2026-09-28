@@ -866,12 +866,14 @@ private final class IOFiber[A](
 
             if (!shouldFinalize()) {
               /* we weren't canceled, so resume the runloop */
-              val next = result match {
-                case Left(t) => failed(t, 0)
-                case Right(a) => succeeded(a, 0)
+              result match {
+                case Left(t) if !UnsafeNonFatal(t) =>
+                  onFatalFailure(t)
+                case Left(t) =>
+                  runLoop(failed(t, 0), nextCancelation, nextAutoCede)
+                case Right(a) =>
+                  runLoop(succeeded(a, 0), nextCancelation, nextAutoCede)
               }
-
-              runLoop(next, nextCancelation, nextAutoCede)
             } else if (outcome == null) {
               /*
                * we were canceled, but `cancel` cannot run the finalisers
@@ -1407,7 +1409,10 @@ private final class IOFiber[A](
 
   private[this] def asyncContinueFailedR(): Unit = {
     val t = objectState.pop().asInstanceOf[Throwable]
-    runLoop(failed(t, 0), runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
+    if (!UnsafeNonFatal(t))
+      onFatalFailure(t)
+    else
+      runLoop(failed(t, 0), runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def asyncContinueCanceledR(): Unit = {

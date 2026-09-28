@@ -225,6 +225,13 @@ class IOAppSuite extends FunSuite {
         assert(!h.stdout().contains("sadness"))
       }
 
+      test("exit on a fatal error surfaced through async_ with attempt") {
+        val h = platform("AsyncFatalError", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+        assert(!h.stdout().contains("sadness"))
+      }
+
       test("warn on global runtime collision") {
         val h = platform("GlobalRacingInit", List.empty)
         assertEquals(h.awaitStatus(), 0)
@@ -385,6 +392,14 @@ class IOAppSuite extends FunSuite {
         h.awaitStatus()
         assert(!h.stdout().contains("sadness"))
         assert(h.stdout().contains("done"))
+      }
+
+      test(
+        "exit on a fatal error surfaced through a fiber started via `fromCompletableFuture`") {
+        val h = platform("FatalErrorFromCompletableFuture", List.empty)
+        assertEquals(h.awaitStatus(), 1)
+        assert(h.stderr().contains("Boom!"))
+        assert(!h.stdout().contains("sadness"))
       }
     }
 
