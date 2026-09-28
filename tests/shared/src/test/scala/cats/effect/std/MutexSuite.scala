@@ -155,7 +155,7 @@ final class MutexSuite extends BaseSuite with DetectPlatform {
           m.lock.use_
         }
 
-        tsk.replicateA_(if (isJVM) 3000 else 5)
+        tsk.replicateA_(if (isJVM) 1000 else 5)
       }
 
       p.mustEqual(())

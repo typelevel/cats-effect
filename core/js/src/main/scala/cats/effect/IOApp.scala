@@ -270,7 +270,7 @@ trait IOApp {
         case Left(Outcome.Errored(t)) => IO.raiseError(t)
         case Left(Outcome.Succeeded(code)) => code
         case Right(Outcome.Errored(t)) => IO.raiseError(t)
-        case Right(_) => sys.error("impossible")
+        case Right(_) => IO.delay(sys.error("impossible"))
       }
       .unsafeRunFiber(
         hardExit(cancelCode),
