@@ -121,9 +121,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       worker.ownsPoller(poller)
     } else false
   }
-
-  private[this] val externalQueue: ScalQueue[AnyRef] =
-    new ScalQueue(threadCount << 2)
+  private[unsafe] val externalQueue: ScalQueue = new ScalQueue(threadCount << 2)
 
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
