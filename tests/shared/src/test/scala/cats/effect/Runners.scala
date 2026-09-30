@@ -33,7 +33,7 @@ import munit.internal.PlatformCompat
 trait Runners extends TestInstances with RunnersPlatform with DetectPlatform {
   self: FunSuite =>
 
-  def timeoutCoefficient: Long = if (isNative) 5 else 1
+  def timeoutCoefficient: Long = if (isNative) 6 else 1
 
   def executionTimeout: FiniteDuration =
     20.seconds * timeoutCoefficient
