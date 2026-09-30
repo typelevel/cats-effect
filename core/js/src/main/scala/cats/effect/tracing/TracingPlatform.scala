@@ -52,7 +52,9 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     calculateTracingEventForFunctions(f, function1Property)
   }
 
-  private[this] final def calculateTracingEventForFunctions(f: AnyRef, propertyName: String): TracingEvent = {
+  private[this] final def calculateTracingEventForFunctions(
+      f: AnyRef,
+      propertyName: String): TracingEvent = {
     if ((propertyName ne null) && f.isInstanceOf[js.Object]) {
       val jsf = f.asInstanceOf[js.Object]
       if (jsf.hasOwnProperty(propertyName)) {
