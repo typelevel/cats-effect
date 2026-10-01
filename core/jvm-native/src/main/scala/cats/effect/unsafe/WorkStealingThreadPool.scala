@@ -203,6 +203,9 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
    * worker threads starting at a random index. If the stealing attempt was unsuccessful, this
    * method falls back to checking the external queue.
    *
+   * Stealing from external queue is skipped if the calling worker thread's own local queue is
+   * too full to take a batch of fibers from the external queue.
+   *
    * @param dest
    *   the index of the worker thread attempting to steal work from other worker threads (used
    *   to avoid stealing from its own local queue)
@@ -239,7 +242,16 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     }
 
     // The worker thread could not steal any work. Fall back to checking the
-    // external queue.
+    // external queue, but only if the local queue can hold a batch of fibers.
+    // Expired timers stolen just before this call may have resumed enough
+    // fibers onto the local queue to leave no room for a batch, in which case
+    // `enqueueBatch` would spin forever, as it expects to be called only when
+    // there is capacity for the batch.
+    // See https://github.com/typelevel/cats-effect/issues/4674.
+    if (!destQueue.hasCapacityForBatch()) {
+      return null
+    }
+
     val element = externalQueue.poll(random)
     if (element.isInstanceOf[Array[Runnable]]) {
       val batch = element.asInstanceOf[Array[Runnable]]
