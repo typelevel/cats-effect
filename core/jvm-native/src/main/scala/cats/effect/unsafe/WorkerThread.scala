@@ -432,6 +432,12 @@ private[effect] final class WorkerThread[P <: AnyRef](
         // First try to steal some expired timers.
         val stoleTimers = pool.stealTimers(now, rnd)
 
+        // Callbacks may have submitted local work. Run it before looking for more.
+        if (queue.nonEmpty()) {
+          pool.transitionWorkerFromSearching(rnd)
+          return
+        }
+
         // Try stealing fibers from other worker threads.
         val fiber = pool.stealFromOtherWorkerThread(index, rnd, self)
 
@@ -535,6 +541,12 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
         // First try to steal some expired timers.
         val stoleTimers = pool.stealTimers(now, rnd)
+
+        // Callbacks may have submitted local work. Run it before looking for more.
+        if (queue.nonEmpty()) {
+          pool.transitionWorkerFromSearching(rnd)
+          return
+        }
 
         // Try stealing fibers from other worker threads.
         val fiber = pool.stealFromOtherWorkerThread(index, rnd, self)
