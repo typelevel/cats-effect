@@ -243,6 +243,8 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     val element = externalQueue.poll(random)
     if (element.isInstanceOf[Array[Runnable]]) {
       val batch = element.asInstanceOf[Array[Runnable]]
+      // Timer callbacks may have filled the queue since lookForWork entered.
+      destQueue.drainBatch(externalQueue, random)
       destQueue.enqueueBatch(batch, destWorker)
     } else if (element.isInstanceOf[Runnable]) {
       val fiber = element.asInstanceOf[Runnable]
