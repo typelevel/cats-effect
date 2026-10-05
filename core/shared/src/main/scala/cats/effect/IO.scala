@@ -1600,6 +1600,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
     _asyncForIO.parTraverseN_(n)(ta)(f)
 
   /**
+   * Like `Parallel.parFlatTraverse`, but limits the degree of parallelism.
+   */
+  def parFlatTraverseN[T[_]: Traverse: cats.FlatMap, A, B](n: Int)(ta: T[A])(
+      f: A => IO[T[B]]): IO[T[B]] =
+    _asyncForIO.parFlatTraverseN(n)(ta)(f)
+
+  /**
    * Like `Parallel.parSequence`
    */
   def parSequence[T[_]: Traverse, A](tioa: T[IO[A]]): IO[T[A]] =
@@ -1622,6 +1629,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    */
   def parSequenceN_[T[_]: Foldable, A](n: Int)(tma: T[IO[A]]): IO[Unit] =
     _asyncForIO.parSequenceN_(n)(tma)
+
+  /**
+   * Like `Parallel.parFlatSequence`, but limits the degree of parallelism.
+   */
+  def parFlatSequenceN[T[_]: Traverse: cats.FlatMap, A](n: Int)(tmta: T[IO[T[A]]]): IO[T[A]] =
+    _asyncForIO.parFlatSequenceN(n)(tmta)
 
   /**
    * Like `Parallel.parReplicateA`, but limits the degree of parallelism.
