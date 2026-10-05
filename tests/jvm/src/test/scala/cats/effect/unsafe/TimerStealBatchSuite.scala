@@ -18,109 +18,86 @@ package cats.effect.unsafe
 
 import cats.effect.BaseSuite
 
-import java.util.concurrent.{
-  CompletableFuture,
-  CountDownLatch,
-  ThreadLocalRandom,
-  TimeUnit,
-  TimeoutException
-}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.duration._
 
 class TimerStealBatchSuite extends BaseSuite {
 
-  testUnit("make room for an external batch after stolen timer callbacks fill the local queue") {
+  testUnit("run local work submitted by stolen timers before looking for more work") {
     val (compute, _, shutdown) = IORuntime.createWorkStealingComputeThreadPool(
-      threads = 1,
+      threads = 2,
       threadPrefix = "timer-steal-batch-test",
       pollingSystem = SleepSystem,
-      shutdownTimeout = 1.second,
-    )
+      shutdownTimeout = 1.second)
     val pool = compute.asInstanceOf[WorkStealingThreadPool[AnyRef]]
-    val reachedBatch = new CountDownLatch(1)
-    val returned = new CompletableFuture[Unit]()
+    val registered = new CountDownLatch(1)
+    val releaseOwner = new CountDownLatch(1)
+    val ownerFinished = new CountDownLatch(1)
+    val callbacks = new CountDownLatch(512)
     val completed = new CountDownLatch(512)
-    val callbacks = new AtomicInteger()
-    val queueSize = new AtomicInteger()
+    val callbackWorker = new AtomicReference[Thread]()
     val task: Runnable = () => completed.countDown()
 
     try {
       compute.execute(() => {
         try {
-          val worker = pool.getWorkerThread(0)
-          val random = ThreadLocalRandom.current()
-          val heap = pool.sleepers(0)
-          val out = new Array[Right[Nothing, Unit] => Unit](1)
-          val now = System.nanoTime()
-          val delay = 1.second.toNanos
-          val callback: Right[Nothing, Unit] => Unit = _ => {
-            callbacks.incrementAndGet()
-            compute.execute(task)
-          }
-
-          // Reproduce lookForWork's caller sequence on the owning worker. A synthetic
-          // expiry time avoids depending on wall-clock scheduling of a timer burst.
-          assertEquals(pool.localQueues(0).size(), 0)
           var i = 0
           while (i < 512) {
-            heap.insert(now, delay, callback, out)
+            compute.sleep(
+              1.second,
+              () => {
+                callbackWorker.set(Thread.currentThread())
+                compute.execute(task)
+                callbacks.countDown()
+              })
             i += 1
           }
-          assert(pool.stealTimers(now + delay + 1, random))
-          queueSize.set(pool.localQueues(0).size())
-          reachedBatch.countDown()
-
-          // Ordinary enqueue has spilled batches externally, but the local queue
-          // is full again. This call must prepare capacity before enqueueBatch.
-          val next = pool.stealFromOtherWorkerThread(0, random, worker)
-          assert(next ne null)
-          next.run()
-          returned.complete(())
+          registered.countDown()
+          // Hold the timer owner so its peer must steal and invoke the callbacks.
+          releaseOwner.await()
           ()
-        } catch {
-          case t: Throwable =>
-            returned.completeExceptionally(t)
-            reachedBatch.countDown()
-        }
+        } finally ownerFinished.countDown()
       })
 
-      val reached = reachedBatch.await(5, TimeUnit.SECONDS)
+      val ready = registered.await(5, TimeUnit.SECONDS)
+      assert(ready, "worker did not register timers")
+      Thread.sleep(1100)
+      // Wake the peer after all timers have expired. It must enter lookForWork
+      // to steal timers, rather than invoking package-private methods directly.
+      compute.execute(() => ())
+      val invoked = callbacks.await(5, TimeUnit.SECONDS)
+      assert(invoked, s"pending timer callbacks=${callbacks.getCount()}")
+      val finished = completed.await(2, TimeUnit.SECONDS)
+      val stack = callbackWorker.get().getStackTrace.mkString("\n  ")
       assert(
-        reached,
-        s"worker did not reach batch fallback: callbacks=${callbacks.get()}, " +
-          pool.getWorkerThread(0).getStackTrace.mkString("\n  ")
-      )
-      assertEquals(callbacks.get(), 512)
-      assertEquals(queueSize.get(), 256)
-      try returned.get(2, TimeUnit.SECONDS)
-      catch {
-        case _: TimeoutException =>
-          val stack = pool.getWorkerThread(0).getStackTrace.mkString("\n  ")
-          fail(
-            s"Batch fallback did not return: local queue size=${pool.localQueues(0).size()}, " +
-              s"pending tasks=${completed.getCount()}\n  $stack")
-      }
-      assert(completed.await(5, TimeUnit.SECONDS), s"pending tasks=${completed.getCount()}")
+        finished,
+        s"Stolen timer tasks did not complete: pending=${completed.getCount()}\n  $stack")
     } finally {
-      // enqueueBatch's spin ignores interruption. Rescue it through the supported
-      // concurrent-stealer path so a failing test leaves no spinning daemon behind.
       try {
-        if (!returned.isDone && reachedBatch.getCount() == 0) {
-          val rescue = new LocalQueue
-          val worker = pool.getWorkerThread(0)
-          val first = pool.localQueues(0).stealInto(rescue, worker)
-          if (first ne null) first.run()
-          var next = rescue.dequeue(worker)
-          while (next ne null) {
-            next.run()
-            next = rescue.dequeue(worker)
+        // On the buggy implementation, interruption cannot stop enqueueBatch's
+        // spin. Concurrently steal from that queue to make room and release it.
+        var i = 0
+        while (i < 2) {
+          val worker = pool.getWorkerThread(i)
+          if (worker.getStackTrace.exists(_.getMethodName == "enqueueBatch")) {
+            val rescue = new LocalQueue
+            val first = pool.localQueues(i).stealInto(rescue, worker)
+            if (first ne null) first.run()
+            var next = rescue.dequeue(worker)
+            while (next ne null) {
+              next.run()
+              next = rescue.dequeue(worker)
+            }
           }
-          returned.get(5, TimeUnit.SECONDS)
-          assert(completed.await(5, TimeUnit.SECONDS), "rescue did not complete queued tasks")
+          i += 1
         }
-      } finally shutdown()
+      } finally {
+        releaseOwner.countDown()
+        ownerFinished.await(5, TimeUnit.SECONDS)
+        shutdown()
+      }
     }
   }
 }
