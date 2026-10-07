@@ -29,5 +29,6 @@ package object syntax {
   object clock extends kernel.syntax.ClockSyntax
 
   object supervisor extends std.syntax.SupervisorSyntax
+  object retry extends std.syntax.RetrySyntax
   object dispatcher extends DispatcherSyntax
 }
