@@ -114,7 +114,7 @@ Cats effect provides various APIs which have these semantics, such as
 `IO(Thread.sleep(duration))` instead, as this is a thread blocking operation
 whereas `IO.sleep` is only fiber blocking.
 
-The building block for arbitrary semantic blocking is `Deferred`, which is a
+The building block for arbitrary fiber blocking is `Deferred`, which is a
 purely functional promise that can only be completed once.
 
 ```scala
