@@ -143,9 +143,7 @@ import scala.util.Try
  * @see
  *   [[IOApp.Simple]]
  */
-trait IOApp {
-
-  private[this] var _runtime: unsafe.IORuntime = null
+trait IOApp extends IOAppPlatform {
 
   /**
    * The runtime which will be used by `IOApp` to evaluate the [[IO]] produced by the `run`
@@ -160,7 +158,7 @@ trait IOApp {
    *
    * This value is guaranteed to be equal to [[unsafe.IORuntime.global]].
    */
-  protected def runtime: unsafe.IORuntime = _runtime
+  protected def runtime: unsafe.IORuntime = installedRuntime
 
   /**
    * The configuration used to initialize the [[runtime]] which will evaluate the [[IO]]
@@ -202,34 +200,7 @@ trait IOApp {
   def run(args: List[String]): IO[ExitCode]
 
   final def main(args: Array[String]): Unit = {
-    val installed = if (runtime == null) {
-      import unsafe.IORuntime
-
-      val installed = IORuntime installGlobal {
-        val compute = IORuntime.createBatchingMacrotaskExecutor(reportFailure = t =>
-          reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
-
-        IORuntime(
-          compute,
-          compute,
-          IORuntime.defaultScheduler,
-          () => IORuntime.resetGlobal(),
-          runtimeConfig)
-      }
-
-      _runtime = IORuntime.global
-
-      installed
-    } else {
-      unsafe.IORuntime.installGlobal(runtime)
-    }
-
-    if (!installed) {
-      System
-        .err
-        .println(
-          "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
-    }
+    setupGlobalRuntime()
 
     if (LinkingInfo.developmentMode && isStackTracing) {
       val listener: js.Function0[Unit] = () =>

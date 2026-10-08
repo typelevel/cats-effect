@@ -25,7 +25,7 @@ import cats.syntax.all._
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}
 import scala.concurrent.duration._
 
-import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch}
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -140,9 +140,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * @see
  *   [[IOApp.Simple]]
  */
-trait IOApp {
-
-  private[this] var _runtime: unsafe.IORuntime = null
+trait IOApp extends IOAppPlatform {
 
   /**
    * The runtime which will be used by `IOApp` to evaluate the [[cats.effect.IO IO]] produced by
@@ -159,7 +157,7 @@ trait IOApp {
    * This value is guaranteed to be equal to
    * [[cats.effect.unsafe.IORuntime.global unsafe.IORuntime.global]].
    */
-  protected def runtime: unsafe.IORuntime = _runtime
+  protected def runtime: unsafe.IORuntime = installedRuntime
 
   /**
    * The configuration used to initialize the [[runtime]] which will evaluate the
@@ -202,14 +200,6 @@ trait IOApp {
   protected def computeWorkerThreadCount: Int =
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
-  // arbitrary constant is arbitrary
-  private[this] lazy val queue = new ArrayBlockingQueue[AnyRef](32)
-
-  private[this] def handleTerminalFailure(t: Throwable): Unit = {
-    queue.clear()
-    queue.put(t)
-  }
-
   /**
    * Executes the provided actions on the JVM's `main` thread. Note that this is, by definition,
    * a single-threaded executor, and should not be used for anything which requires a meaningful
@@ -225,27 +215,7 @@ trait IOApp {
    * calling thread (for example, LWJGL). In these scenarios, it is recommended that the
    * absolute minimum possible amount of work is handed off to the main thread.
    */
-  protected def MainThread: ExecutionContext =
-    if (queue eq queue)
-      new ExecutionContext {
-        def reportFailure(t: Throwable): Unit =
-          t match {
-            case t if UnsafeNonFatal(t) =>
-              IOApp.this.reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
-
-            case t =>
-              handleTerminalFailure(t)
-          }
-
-        def execute(r: Runnable): Unit =
-          if (!queue.offer(r)) {
-            runtime.blocking.execute(() => queue.put(r))
-          }
-      }
-    else
-      throw new UnsupportedOperationException(
-        "Your IOApp's super class has not been recompiled against Cats Effect 3.4.0+."
-      )
+  protected def MainThread: ExecutionContext = defaultMainThread
 
   /**
    * Configures the action to perform when unhandled errors are caught by the runtime. An
@@ -407,52 +377,7 @@ trait IOApp {
     val isForked = isMainThread(Thread.currentThread())
     if (!isForked) onNonMainThreadDetected()
 
-    val installed = if (runtime == null) {
-      import unsafe.IORuntime
-
-      val installed = IORuntime installGlobal {
-        val (compute, poller, compDown) =
-          IORuntime.createWorkStealingComputeThreadPool(
-            threads = computeWorkerThreadCount,
-            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
-            blockedThreadDetectionEnabled = blockedThreadDetectionEnabled,
-            pollingSystem = pollingSystem,
-            uncaughtExceptionHandler = (_, t) => handleTerminalFailure(t)
-          )
-
-        val (blocking, blockDown) =
-          IORuntime.createDefaultBlockingExecutionContext(
-            threadPrefix = "io-blocking",
-            reportFailure =
-              (t: Throwable) => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
-          )
-
-        IORuntime(
-          compute,
-          blocking,
-          compute,
-          List(poller),
-          { () =>
-            compDown()
-            blockDown()
-            IORuntime.resetGlobal()
-          },
-          runtimeConfig)
-      }
-
-      _runtime = IORuntime.global
-
-      installed
-    } else {
-      unsafe.IORuntime.installGlobal(runtime)
-    }
-
-    if (!installed) {
-      System
-        .err
-        .println(
-          "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
-    }
+    setupGlobalRuntime()
 
     if (isStackTracing) {
       val liveFiberSnapshotSignal = sys
