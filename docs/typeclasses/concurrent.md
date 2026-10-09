@@ -39,11 +39,11 @@ x.unsafeRunSync()
 It is worth considering why `Ref` and `Deferred` are the primitives exposed by `Concurrent`.
 Generally when implementing concurrent data structures we need access to the following:
 - A way of allocating and atomically modifying state
-- A means of waiting on a condition (semantic blocking)
+- A means of waiting on a condition (fiber blocking)
 
 Well this is precisely `Ref` and `Deferred` respectively! Consider for example,
 implementing a `CountDownLatch`, which is instantiated with `n > 0` latches and
-allows fibers to semantically block until all `n` latches are released. We can
+allows fibers to block until all `n` latches are released. We can
 model this situation with the following state
 
 ```scala

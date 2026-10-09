@@ -21,7 +21,7 @@ trait PQueue[F[_], A : Order] {
 ```
 
 A `PQueue` may be constructed as `bounded` or `unbounded`. If bounded then
-`offer` may semantically block if the pqueue is already full. `take` is
+`offer` may block if the pqueue is already full. `take` is
 fiber blocking if the pqueue is empty.
 
 ```scala mdoc

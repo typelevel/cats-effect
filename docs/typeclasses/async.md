@@ -165,7 +165,7 @@ def cont[A]: F[(Either[Throwable, A] => Unit, F[A])]
 where the first element of the tuple `Either[Throwable, A] => Unit` is the
 callback used to obtain the result of the asynchronous computation as before and
 the second element (which we'll call `get`) is similar to a promise and can be
-used to semantically block waiting for the result of the asynchronous
+used to block waiting for the result of the asynchronous
 computation.
 
 We could then define `async` in terms of `cont`

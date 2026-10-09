@@ -5,7 +5,7 @@ title: Count Down Latch
 
 A one-shot concurrency primitive that blocks any fibers that wait on
 it. It is initialized with a positive integer `n` latches and waiting
-fibers are semantically blocked until all `n` latches are released.
+fibers are blocked until all `n` latches are released.
 After this, further `await`s are no-ops (equivalent to `IO.unit`).
 
 ```scala

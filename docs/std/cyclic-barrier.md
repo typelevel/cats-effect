@@ -16,7 +16,7 @@ trait CyclicBarrier[F[_]] {
 ```
 
 A cyclic barrier is initialized with a positive integer `n` and
-fibers which call `await` are semantically blocked until `n` of
+fibers which call `await` are blocked until `n` of
 them have invoked `await`, at which point all of them are unblocked
 and the cyclic barrier is reset.
 

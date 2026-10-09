@@ -14,7 +14,7 @@ Of course this could be achieved by `Sync[F].delay(Thread.sleep(duration))` but
 this is a _very bad_ idea as it will block a thread from the compute pool (see
 the [thread model docs](../thread-model.md) for more details on why this is
 bad).  Instead, `Temporal[F]#sleep` is assigned its own typeclass and is a
-primitive of the implementation that semantically blocks the execution of the
+primitive of the implementation that blocks the execution of the
 calling  fiber by de-scheduling it.  Internally a scheduler is used to wait for
 the specified duration before rescheduling the fiber.
 
