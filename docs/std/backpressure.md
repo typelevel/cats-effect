@@ -9,7 +9,7 @@ In other words, backpressure is needed when there is not enough time or resource
 
 `Backpressure` has two strategies that work as follows:
 - `Lossy` - an effect **will not be** run in the presence of backpressure.
-- `Lossless` - an effect **will run** in the presence of backpressure. However, the effect will semantically block until backpressure is alleviated.
+- `Lossless` - an effect **will run** in the presence of backpressure. However, the effect will block until backpressure is alleviated.
 
 ```scala
 trait Backpressure[F[_]] {
@@ -24,7 +24,7 @@ import cats.effect.IO
 import cats.effect.std.Backpressure
 import scala.concurrent.duration._
 
-val program = 
+val program =
   for {
     backpressure <- Backpressure[IO](Backpressure.Strategy.Lossless, 1)
     f1 <- backpressure.metered(IO.sleep(1.second) *> IO.pure(1)).start

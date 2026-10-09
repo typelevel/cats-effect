@@ -38,7 +38,7 @@ trait Dequeue[F[_], A] extends Queue[F, A] {
 ```
 
 A `Dequeue` may be constructed as `bounded` or `unbounded`. If bounded then
-`offer` may semantically block if the pqueue is already full. `take` is
+`offer` may block if the pqueue is already full. `take` is
 fiber blocking if the pqueue is empty.
 
 ## Variance
