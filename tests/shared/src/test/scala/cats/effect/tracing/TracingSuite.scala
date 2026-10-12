@@ -59,4 +59,41 @@ class TracingSuite extends BaseSuite with TestInstances {
     }
   }
 
+  testUnit("IO.flatMap should generate identical traces") {
+    val f = (_: Int) => IO.unit
+    val a = IO.pure(1).flatMap(f)
+    val b = IO.pure(2).flatMap(f)
+    (a, b) match {
+      case (IO.FlatMap(_, _, eventA), IO.FlatMap(_, _, eventB)) => assert(eventA eq eventB)
+      case _ => fail("expected IO.FlatMap")
+    }
+  }
+
+  testUnit("IO.flatMap should generate unique traces") {
+    val a = IO.pure(1).flatMap(_ => IO.unit)
+    val b = IO.pure(2).flatMap(_ => IO.never[Unit])
+    (a, b) match {
+      case (IO.FlatMap(_, _, eventA), IO.FlatMap(_, _, eventB)) => assert(eventA ne eventB)
+      case _ => fail("expected IO.FlatMap")
+    }
+  }
+
+  testUnit("Async.flatMap should generate identical traces") {
+    val f = (_: Int) => IO.unit
+    val a = Async[IO].flatMap(IO.pure(1))(f)
+    val b = Async[IO].flatMap(IO.pure(2))(f)
+    (a, b) match {
+      case (IO.FlatMap(_, _, eventA), IO.FlatMap(_, _, eventB)) => assert(eventA eq eventB)
+      case _ => fail("expected IO.FlatMap")
+    }
+  }
+
+  testUnit("Async.flatMap should generate unique traces") {
+    val a = Async[IO].flatMap(IO.pure(1))(_ => IO.unit)
+    val b = Async[IO].flatMap(IO.pure(2))(_ => IO.never[Unit])
+    (a, b) match {
+      case (IO.FlatMap(_, _, eventA), IO.FlatMap(_, _, eventB)) => assert(eventA ne eventB)
+      case _ => fail("expected IO.FlatMap")
+    }
+  }
 }

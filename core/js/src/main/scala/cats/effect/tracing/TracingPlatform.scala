@@ -24,22 +24,52 @@ import scala.scalajs.{js, LinkingInfo}
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
-  private[this] val cache = mutable.Map.empty[Any, TracingEvent].withDefaultValue(null)
+  private[this] val cache =
+    mutable.Map.empty[Any, TracingEvent].withDefaultValue(null)
   private[this] val function0Property =
-    js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
+    getFirstPropNameOrNull(() => ())
   private[this] val function1Property =
-    js.Object.getOwnPropertyNames(((_: Unit) => ()).asInstanceOf[js.Object])(0)
+    getFirstPropNameOrNull((_: Unit) => ())
+
+  private[this] final def getFirstPropNameOrNull(x: AnyRef): String = {
+    if (x.isInstanceOf[js.Object]) {
+      js.Object.getOwnPropertyNames(x.asInstanceOf[js.Object]) match {
+        case null => null
+        case arr => if (arr.length > 0) arr(0) else null
+      }
+    } else {
+      null
+    }
+  }
 
   import TracingConstants._
 
   def calculateTracingEvent[A](f: Function0[A]): TracingEvent = {
-    calculateTracingEvent(
-      f.asInstanceOf[js.Dynamic].selectDynamic(function0Property).toString())
+    calculateTracingEventForFunctions(f, function0Property)
   }
 
   def calculateTracingEvent[A, B](f: Function1[A, B]): TracingEvent = {
-    calculateTracingEvent(
-      f.asInstanceOf[js.Dynamic].selectDynamic(function1Property).toString())
+    calculateTracingEventForFunctions(f, function1Property)
+  }
+
+  private[this] final def calculateTracingEventForFunctions(
+      f: AnyRef,
+      propertyName: String): TracingEvent = {
+    if ((propertyName ne null) && f.isInstanceOf[js.Object]) {
+      val jsf = f.asInstanceOf[js.Object]
+      if (jsf.hasOwnProperty(propertyName)) {
+        val value = js.Object.getOwnPropertyDescriptor(jsf, propertyName).value
+        if (value.isEmpty) {
+          null
+        } else {
+          calculateTracingEvent(java.util.Objects.toString(value.get))
+        }
+      } else {
+        null
+      }
+    } else {
+      null
+    }
   }
 
   // We could have a catch-all for non-functions, but explicitly enumerating makes sure we handle each case correctly
