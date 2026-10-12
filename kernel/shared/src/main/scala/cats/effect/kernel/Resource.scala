@@ -467,23 +467,22 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
     case object Nil extends Stack[B]
     final case class Frame[AA, BB](head: AA => Resource[F, BB], tail: Stack[BB])
         extends Stack[AA]
+    F uncancelable { poll =>
+      // Indirection for calling `loop` needed because `loop` must be @tailrec
+      def continue[C](
+          current: Resource[F, C],
+          stack: Stack[C],
+          release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
+        loop(current, stack, release)
 
-    // Indirection for calling `loop` needed because `loop` must be @tailrec
-    def continue[C](
-        current: Resource[F, C],
-        stack: Stack[C],
-        release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
-      loop(current, stack, release)
-
-    // Interpreter that knows how to evaluate a Resource data structure;
-    // Maintains its own stack for dealing with Bind chains
-    @tailrec def loop[C](
-        current: Resource[F, C],
-        stack: Stack[C],
-        release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
-      current match {
-        case Allocate(resource) =>
-          F uncancelable { poll =>
+      // Interpreter that knows how to evaluate a Resource data structure;
+      // Maintains its own stack for dealing with Bind chains
+      @tailrec def loop[C](
+          current: Resource[F, C],
+          stack: Stack[C],
+          release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
+        current match {
+          case Allocate(resource) =>
             resource(poll) flatMap {
               case (b, rel) =>
                 // Insert F.unit to emulate defer for stack-safety
@@ -505,29 +504,29 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
                     F.pure((b, rel2))
 
                   case Frame(head, tail) =>
-                    poll(continue(head(b), tail, rel2))
+                    (poll(F.unit) >> continue(head(b), tail, rel2))
                       .onCancel(rel(ExitCase.Canceled))
                       .onError { case e => rel(ExitCase.Errored(e)).handleError(_ => ()) }
                 }
             }
-          }
 
-        case Bind(source, fs) =>
-          loop(source, Frame(fs, stack), release)
+          case Bind(source, fs) =>
+            loop(source, Frame(fs, stack), release)
 
-        case Pure(v) =>
-          stack match {
-            case Nil =>
-              (v: B, release).pure[F]
-            case Frame(head, tail) =>
-              loop(head(v), tail, release)
-          }
+          case Pure(v) =>
+            stack match {
+              case Nil =>
+                (v: B, release).pure[F]
+              case Frame(head, tail) =>
+                loop(head(v), tail, release)
+            }
 
-        case Eval(fa) =>
-          fa.flatMap(a => continue(Resource.pure(a), stack, release))
-      }
+          case Eval(fa) =>
+            poll(fa).flatMap(a => continue(Resource.pure(a), stack, release))
+        }
 
-    loop(this, Nil, _ => F.unit)
+      loop(this, Nil, _ => F.unit)
+    }
   }
 
   /**
