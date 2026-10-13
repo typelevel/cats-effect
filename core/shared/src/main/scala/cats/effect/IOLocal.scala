@@ -299,7 +299,7 @@ object IOLocal {
     if (fiber ne null) fiber.setLocalState(state)
   }
 
-  private final class IOLocalImpl[A](default: A) extends IOLocal[A] {
+  private[effect] final class IOLocalImpl[A](default: A) extends IOLocal[A] {
 
     def getOrDefault(state: IOLocalState): A =
       state.getOrElse(this, default).asInstanceOf[A]
