@@ -2359,8 +2359,8 @@ private object SyncStep {
         case IO.RealTime => G.realTime.map(a => Right((a, limit)))
         case IO.Monotonic => G.monotonic.map(a => Right((a, limit)))
 
-        // a polled region inside an Uncancelable we walked into (see DeferredPoll). It was built
-        // as `Local(unmask).flatten`, so the continuation is identity and walking `ioc` is enough
+        // a poll(ioc) from DeferredPoll, built as Local(unmask).flatten: the flatMap is
+        // identity, so it is enough to step ioc and wrap what is left in the poll again
         case IO.FlatMap(IO.Local(unmask: DeferredPoll.Unmask[?]), _, _) =>
           interpret(unmask.ioc.asInstanceOf[IO[B]], limit, stepsUntilDefer - 1).map {
             case Left(rest) => Left(unmask.deferred(rest))
@@ -2395,9 +2395,8 @@ private object SyncStep {
             }
             .handleErrorWith(t => interpret(f(t), limit - 1, stepsUntilDefer - 1))
 
-        // a region rebuilt by a previous syncStep that we are stepping again: the body is ours,
-        // so walk the remainder directly instead of applying it, which would put an
-        // unsteppable Local at its head
+        // a region we rebuilt in an earlier step: step its rest directly, since applying Bind
+        // would put a Local at the head that syncStep cannot step past
         case IO.Uncancelable(bind: DeferredPoll.Bind[?], event)
             if G.rootCancelScope == CancelScope.Uncancelable =>
           interpret(bind.rest.asInstanceOf[IO[B]], limit, stepsUntilDefer - 1).map {
@@ -2429,20 +2428,16 @@ private object SyncStep {
     }
   }
 
-  /**
-   * A `Poll` that stands in for the run loop's `Poll` until that one is known.
-   *
-   * The run loop's `Poll` emits `UnmaskRunLoop(ioa, id, self)`, stamped with the mask id and
-   * the fiber it was minted for. While `interpret` walks inside an `Uncancelable` neither is
-   * known yet, so each `poll(ioc)` becomes a `Local` read that, at run time, applies whichever
-   * real `Poll` is bound to this one in the running fiber's state, yielding an ordinary
-   * `UnmaskRunLoop`. If the walk stops inside the region, the remainder is wrapped in a real
-   * `uncancelable` whose body is a `Bind`: the run loop applies it once per run, and it binds
-   * this deferred poll to that run's real `Poll` for the extent of the remainder. Because the
-   * binding is per fiber, concurrent runs and re-stepping cannot interfere, and polls left in
-   * continuations the walk never reached resolve too.
+  /*
+   * The Poll that syncStep hands to an uncancelable body. The real Poll only exists once a
+   * fiber runs the uncancelable, after syncStep has returned, so this one defers to it:
+   *   - if syncStep stops inside the body, the rest goes into a new uncancelable whose body
+   *     (Bind) stores that run's real Poll in an IOLocal while the rest runs
+   *   - poll(io) applies the Poll it finds there, or runs io unchanged if there is none
+   * Each run reads its own fiber's state, so concurrent runs don't see each other's Poll.
    */
   private final class DeferredPoll extends Poll[IO] {
+    // null means unbound
     val local = new IOLocal.IOLocalImpl[Poll[IO]](null)
 
     def apply[C](ioc: IO[C]): IO[C] =
@@ -2454,7 +2449,7 @@ private object SyncStep {
         extends (IOLocalState => (IOLocalState, IO[C])) {
       def apply(s: IOLocalState): (IOLocalState, IO[C]) = {
         val poll = deferred.local.getOrDefault(s)
-        // an unbound deferred poll does nothing
+        // unbound: run ioc unchanged, as a real Poll does outside its region
         (s, if (poll == null) ioc else poll(ioc))
       }
     }
@@ -2464,9 +2459,8 @@ private object SyncStep {
       def apply(poll: Poll[IO]): IO[C] = {
         val local = deferred.local
         val bind = IO.Local[Poll[IO]](s => (local.set(s, poll), local.getOrDefault(s)))
-        // the region is masked, so `attempt` restores on every exit but cancelation, which can
-        // only come from a poll inside `rest`; the fiber then runs its finalizers and ends,
-        // binding and all
+        // attempt, not guarantee: we are masked, so a cancel can only happen at a poll inside
+        // rest, and then the fiber ends, so the skipped restore does not matter
         bind.flatMap { previous =>
           rest.attempt.flatMap { result =>
             val restore = IO.Local[Unit] { s =>

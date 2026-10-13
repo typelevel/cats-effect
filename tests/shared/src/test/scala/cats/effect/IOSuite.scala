@@ -2731,7 +2731,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAsSync(sio.map(_.bimap(_ => (), _ => ())), Right(()))
   }
 
-  testUnit("syncStep - a throwing uncancelable body reaches the program's handler") {
+  testUnit("syncStep - an error thrown in an uncancelable body reaches handleError") {
     val boom = new RuntimeException("boom")
     val program = IO.uncancelable(_ => throw boom).handleError(_ => "recovered")
     assertCompleteAsSync(
@@ -2767,7 +2767,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAsSync(sio.map(_.bimap(_ => (), _ => ())), Right(()))
   }
 
-  // the IO left over after syncStep stops, or the finished value lifted back into IO
+  // the IO that syncStep returns in Left (or the result, lifted back into IO)
   private def remainder[A](io: IO[A], limit: Int = Int.MaxValue): IO[A] =
     io.syncStep(limit).unsafeRunSync().fold(identity, a => IO.pure(a))
 
@@ -2828,8 +2828,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assert(fin)
   }
 
-  ticked(
-    "syncStep - onCancel that finished before the walk stopped is not kept on the remainder") {
+  ticked("syncStep - an onCancel that already finished is not kept on the remainder") {
     implicit ticker =>
       var fin = false
       val io = IO.unit.onCancel(IO { fin = true }) *> IO.never[Unit]
@@ -2844,21 +2843,20 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       assert(!fin)
   }
 
-  ticked("syncStep - concurrent runs of the same remainder each unmask on their own fiber") {
-    implicit ticker =>
-      val io = IO.uncancelable(poll => IO.sleep(1.second) *> poll(IO.never[Unit]))
-      val rest = remainder(io)
-      val test = for {
-        f1 <- rest.start
-        f2 <- rest.start
-        _ <- IO.sleep(2.seconds)
-        _ <- f1.cancel
-        _ <- f2.cancel
-      } yield ()
-      assertCompleteAs(test, ())
+  ticked("syncStep - concurrent runs of the same remainder both unmask") { implicit ticker =>
+    val io = IO.uncancelable(poll => IO.sleep(1.second) *> poll(IO.never[Unit]))
+    val rest = remainder(io)
+    val test = for {
+      f1 <- rest.start
+      f2 <- rest.start
+      _ <- IO.sleep(2.seconds)
+      _ <- f1.cancel
+      _ <- f2.cancel
+    } yield ()
+    assertCompleteAs(test, ())
   }
 
-  ticked("syncStep - stepping a remainder again does not disarm a copy already running") {
+  ticked("syncStep - stepping a remainder while it runs still lets both runs unmask") {
     implicit ticker =>
       val io = IO.uncancelable(poll => IO.sleep(1.second) *> poll(IO.never[Unit]))
       val rest1 = remainder(io)
@@ -2874,7 +2872,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       assertCompleteAs(test, ())
   }
 
-  testUnit("syncStep - deep nesting of poll, uncancelable and onCancel is stack safe") {
+  testUnit("syncStep - stepping deeply nested poll, uncancelable and onCancel is stack safe") {
     def polls(n: Int, acc: IO[Unit], poll: Poll[IO]): IO[Unit] =
       if (n <= 0) acc else polls(n - 1, poll(acc), poll)
     def masks(n: Int, acc: IO[Unit]): IO[Unit] =
@@ -2883,7 +2881,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAsSync(io.syncStep(Int.MaxValue).map(_.bimap(_ => (), _ => ())), Left(()))
   }
 
-  ticked("syncStep - poll in a continuation the walk never reached still unmasks") {
+  ticked("syncStep - a second poll still unmasks after stopping inside the first") {
     implicit ticker =>
       val io = IO.uncancelable(poll => poll(IO.sleep(1.second)) *> poll(IO.never[Unit]))
       val rest = remainder(io)
@@ -2895,7 +2893,8 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       assertCompleteAs(test, ())
   }
 
-  testUnit("syncStep - bounded steps inside a mask keep making progress") {
+  testUnit(
+    "syncStep - repeated small steps through uncancelable run each effect exactly once") {
     var n = 0
     val io = IO.uncancelable(_ =>
       IO(n += 1) >> (IO(n += 1) >> (IO(n += 1) >> (IO(n += 1) >> IO.never[Unit]))))
@@ -2916,7 +2915,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       assertNonTerminate(test)
   }
 
-  ticked("syncStep - poll applied twice under a masked caller does not unmask the caller") {
+  ticked("syncStep - poll applied twice does not unmask an uncancelable caller") {
     implicit ticker =>
       val io = IO.uncancelable(poll => IO.sleep(1.second) *> poll(poll(IO.never[Unit])))
       val rest = remainder(io)
@@ -2928,24 +2927,22 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       assertNonTerminate(test)
   }
 
-  ticked("syncStep - a remainder stepped twice still unmasks on the fiber that runs it") {
-    implicit ticker =>
-      val io = IO.uncancelable(poll => IO.sleep(1.second) *> poll(IO.never[Unit]))
-      val rest = remainder(remainder(io))
-      val test = for {
-        f <- rest.start
-        _ <- IO.sleep(2.seconds)
-        _ <- f.cancel
-      } yield ()
-      assertCompleteAs(test, ())
+  ticked("syncStep - a remainder stepped twice still unmasks") { implicit ticker =>
+    val io = IO.uncancelable(poll => IO.sleep(1.second) *> poll(IO.never[Unit]))
+    val rest = remainder(remainder(io))
+    val test = for {
+      f <- rest.start
+      _ <- IO.sleep(2.seconds)
+      _ <- f.cancel
+    } yield ()
+    assertCompleteAs(test, ())
   }
 
-  ticked("syncStep - a rebuilt region leaves no binding behind in the fiber's local state") {
-    implicit ticker =>
-      val io = IO.uncancelable(poll => IO.cede *> poll(IO.unit))
-      val rest = remainder(io)
-      val stateSize = rest *> IO.Local[Int](state => (state, state.size))
-      assertCompleteAs(stateSize, 0)
+  ticked("syncStep - running a remainder leaves no IOLocal state behind") { implicit ticker =>
+    val io = IO.uncancelable(poll => IO.cede *> poll(IO.unit))
+    val rest = remainder(io)
+    val stateSize = rest *> IO.Local[Int](state => (state, state.size))
+    assertCompleteAs(stateSize, 0)
   }
 
   real("fiber repeated yielding test") {
