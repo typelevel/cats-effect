@@ -2388,9 +2388,13 @@ private object SyncStep {
             .handleErrorWith(t => interpret(f(t), limit - 1, stepsUntilDefer - 1))
 
         case IO.Uncancelable(body, _) if G.rootCancelScope == CancelScope.Uncancelable =>
-          val ioa = body(new Poll[IO] {
+          val poll = new Poll[IO] {
             def apply[C](ioc: IO[C]): IO[C] = ioc
-          })
+          }
+          // a non-fatal throw from the body fails the region, as in the run loop
+          val ioa =
+            try body(poll)
+            catch { case t if UnsafeNonFatal(t) => IO.raiseError[B](t) }
           interpret(ioa, limit, stepsUntilDefer)
 
         case IO.OnCancel(ioa, _) if G.rootCancelScope == CancelScope.Uncancelable =>

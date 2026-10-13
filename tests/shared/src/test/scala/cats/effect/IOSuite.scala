@@ -2731,6 +2731,14 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAsSync(sio.map(_.bimap(_ => (), _ => ())), Right(()))
   }
 
+  testUnit("syncStep - a throwing uncancelable body reaches the program's handler") {
+    val boom = new RuntimeException("boom")
+    val program = IO.uncancelable(_ => throw boom).handleError(_ => "recovered")
+    assertCompleteAsSync(
+      program.syncStep(Int.MaxValue).map(_.bimap(_ => (), identity)),
+      Right("recovered"))
+  }
+
   testUnit("syncStep - handle onCancel") {
     val sio = IO.unit.onCancel(IO.unit).syncStep(Int.MaxValue)
     assertCompleteAsSync(sio.map(_.bimap(_ => (), _ => ())), Right(()))
