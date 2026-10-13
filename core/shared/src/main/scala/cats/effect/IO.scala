@@ -2458,16 +2458,12 @@ private object SyncStep {
         extends (Poll[IO] => IO[C]) {
       def apply(poll: Poll[IO]): IO[C] = {
         val local = deferred.local
-        val bind = IO.Local[Poll[IO]](s => (local.set(s, poll), local.getOrDefault(s)))
-        // attempt, not guarantee: we are masked, so a cancel can only happen at a poll inside
-        // rest, and then the fiber ends, so the skipped restore does not matter
-        bind.flatMap { previous =>
-          rest.attempt.flatMap { result =>
-            val restore = IO.Local[Unit] { s =>
-              (if (previous == null) local.reset(s) else local.set(s, previous), ())
-            }
-            restore.flatMap(_ => IO.fromEither(result))
-          }
+        local.getAndSet(poll).flatMap { previous =>
+          // explicit type needed for Scala 2.12
+          val restore: IO[Unit] = if (previous == null) local.reset else local.set(previous)
+          // attempt, not guarantee: we are masked, so a cancel can only happen at a poll inside
+          // rest, and then the fiber ends, so the skipped restore does not matter
+          (rest.attempt <* restore).rethrow
         }
       }
     }
