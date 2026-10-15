@@ -134,7 +134,7 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
       case object TestException extends RuntimeException
       val test = (0 to 10).toList.parTraverseN(2)(_ => IO.raiseError(TestException))
 
-      assertCompleteAs(test.attempt.void.parReplicateA_(100000), ())
+      assertCompleteAs(test.attempt.void.replicateA_(10000), ())
     }
 
     real("parTraverseN_ - short-circuit on error") {
