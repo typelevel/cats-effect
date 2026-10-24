@@ -47,7 +47,8 @@ import cats.effect.std.{
   SecureRandom,
   Supervisor,
   SystemProperties,
-  UUIDGen
+  UUIDGen,
+  UUIDGenV7
 }
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.effect.unsafe.{IORuntime, UnsafeNonFatal}
@@ -1658,6 +1659,15 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * This is equivalent to `UUIDGen[IO].randomUUID`, just provided as a method for convenience
    */
   def randomUUID: IO[UUID] = UUIDGen[IO].randomUUID
+
+  /**
+   * @return
+   *   a randomly-generated UUIDv7
+   *
+   * This is equivalent to `UUIDGen[IO].randomUUIDv7`, also provided as a method for convenience
+   */
+
+  def randomUUIDv7: IO[UUID] = UUIDGenV7[IO].randomUUID
 
   def realTime: IO[FiniteDuration] = RealTime
 
