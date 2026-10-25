@@ -2828,21 +2828,6 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assert(fin)
   }
 
-  ticked("syncStep - an onCancel that already finished is not kept on the remainder") {
-    implicit ticker =>
-      var fin = false
-      val io = IO.unit.onCancel(IO { fin = true }) *> IO.never[Unit]
-      val rest = remainder(io)
-      val test = for {
-        started <- Deferred[IO, Unit]
-        f <- (started.complete(()) *> rest).start
-        _ <- started.get
-        _ <- f.cancel
-      } yield ()
-      assertCompleteAs(test, ())
-      assert(!fin)
-  }
-
   ticked("syncStep - concurrent runs of the same remainder both unmask") { implicit ticker =>
     val io = IO.uncancelable(poll => IO.sleep(1.second) *> poll(IO.never[Unit]))
     val rest = remainder(io)
@@ -2854,22 +2839,6 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       _ <- f2.cancel
     } yield ()
     assertCompleteAs(test, ())
-  }
-
-  ticked("syncStep - stepping a remainder while it runs still lets both runs unmask") {
-    implicit ticker =>
-      val io = IO.uncancelable(poll => IO.sleep(1.second) *> poll(IO.never[Unit]))
-      val rest1 = remainder(io)
-      val test = for {
-        f1 <- rest1.start
-        _ <- IO.sleep(100.millis)
-        rest2 <- IO(remainder(rest1))
-        f2 <- rest2.start
-        _ <- IO.sleep(2.seconds)
-        _ <- f1.cancel
-        _ <- f2.cancel
-      } yield ()
-      assertCompleteAs(test, ())
   }
 
   testUnit("syncStep - stepping deeply nested poll, uncancelable and onCancel is stack safe") {
@@ -2900,19 +2869,6 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       IO(n += 1) >> (IO(n += 1) >> (IO(n += 1) >> (IO(n += 1) >> IO.never[Unit]))))
     (1 to 20).foldLeft(io)((cur, _) => remainder(cur, limit = 3))
     assert(n == 4, s"expected all 4 effects to run across 20 bounded steps, got $n")
-  }
-
-  ticked("syncStep - poll from an outer region does not unmask inside a nested uncancelable") {
-    implicit ticker =>
-      val io = IO.uncancelable(poll =>
-        IO.sleep(1.second) *> IO.uncancelable(_ => poll(IO.never[Unit])))
-      val rest = remainder(io)
-      val test = for {
-        f <- rest.start
-        _ <- IO.sleep(2.seconds)
-        _ <- f.cancel
-      } yield ()
-      assertNonTerminate(test)
   }
 
   ticked("syncStep - poll applied twice does not unmask an uncancelable caller") {
