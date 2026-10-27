@@ -467,7 +467,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
   .nativeSettings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.7.0"
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.9.0"
   )
 
 /**
