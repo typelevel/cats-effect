@@ -146,6 +146,24 @@ object UUIDGen extends UUIDGenCompanionPlatform {
 
   }
 }
+
+/**
+ * Generates V7 UUIDs as specified in
+ * [[https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-7 RFC 9562]].
+ *
+ * The most significant 48 bits hold the Unix epoch timestamp in milliseconds, taken from
+ * `Clock#realTime`. The remaining 74 bits, excluding the version and variant, are filled from
+ * [[SecureRandom]].
+ *
+ * UUIDs generated in different milliseconds sort in creation order.
+ *
+ * This implementation does not use any of the optional monotonicity methods described in RFC
+ * 9562 section 6.2, so UUIDs generated within the same millisecond have no guaranteed order
+ * relative to each other.
+ *
+ * Applications that generate UUIDs at a high rate and need strict ordering should not rely on
+ * this ordering.
+ */
 object UUIDGenV7 {
   def apply[F[_]: SecureRandom: Clock]: UUIDGen[F] =
     new UUIDGen[F] {
