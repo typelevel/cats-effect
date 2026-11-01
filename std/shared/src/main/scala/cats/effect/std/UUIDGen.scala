@@ -150,7 +150,7 @@ object UUIDGenV7 {
   def apply[F[_]: SecureRandom: Clock]: UUIDGen[F] =
     new UUIDGen[F] {
       override final val randomUUID: F[UUID] =
-        Clock[F].applicative.map2(Clock[F].realTime, SecureRandom[F].nextBytes(16)) {
+        Clock[F].applicative.map2(Clock[F].realTime, SecureRandom[F].nextBytes(10)) {
           (now, buffer) => unsafeUUIDv7Builder(buffer, now.toMillis)
         }
 
@@ -163,13 +163,16 @@ object UUIDGenV7 {
           (buffer(i) << 24) | ((buffer(i + 1) & 0xff) << 16) | ((buffer(
             i + 2) & 0xff) << 8) | (buffer(i + 3) & 0xff)
 
-        val i1 = (epochMillis >>> 16).toInt
-        val i2 =
-          ((epochMillis & 0xffffL).toInt << 16) | 0x00007000 | (intFromBuffer(4) & 0x00000fff)
-        val i3 = (intFromBuffer(8) & ~0xc0000000) | 0x80000000
-        val i4 = intFromBuffer(12)
-        val msb = (i1.toLong << 32) | (i2.toLong & 0xffffffffL)
-        val lsb = (i3.toLong << 32) | (i4.toLong & 0xffffffffL)
+        val unixTimestampMillis = epochMillis & 0xffffffffffffL
+        val version = 0x7L
+        val randomA = ((buffer(0) & 0x0fL) << 8) | (buffer(1) & 0xffL)
+        val variant = 0x2L
+        val randomB =
+          ((intFromBuffer(2).toLong << 32) | (intFromBuffer(6) & 0xffffffffL)) &
+            0x3fffffffffffffffL
+
+        val msb = (unixTimestampMillis << 16) | (version << 12) | randomA
+        val lsb = (variant << 62) | randomB
         new UUID(msb, lsb)
       }
     }
