@@ -148,7 +148,7 @@ object UUIDGen extends UUIDGenCompanionPlatform {
 }
 
 /**
- * Generates V7 UUIDs as specified in
+ * Generates V7 UUIDs as specified in:
  * [[https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-7 RFC 9562]].
  *
  * The most significant 48 bits hold the Unix epoch timestamp in milliseconds, taken from
@@ -177,17 +177,20 @@ object UUIDGenV7 {
           epochMillis: Long
       ): UUID = {
 
-        @inline def intFromBuffer(i: Int): Int =
-          (buffer(i) << 24) | ((buffer(i + 1) & 0xff) << 16) | ((buffer(
-            i + 2) & 0xff) << 8) | (buffer(i + 3) & 0xff)
-
         val unixTimestampMillis = epochMillis & 0xffffffffffffL
         val version = 0x7L
-        val randomA = ((buffer(0) & 0x0fL) << 8) | (buffer(1) & 0xffL)
+        val randomA = ((buffer(8) & 0x0fL) << 8) | (buffer(9) & 0xffL)
         val variant = 0x2L
-        val randomB =
-          ((intFromBuffer(2).toLong << 32) | (intFromBuffer(6) & 0xffffffffL)) &
-            0x3fffffffffffffffL
+        val randomB = (
+          ((buffer(0) & 0xffL) << 56) |
+            ((buffer(1) & 0xffL) << 48) |
+            ((buffer(2) & 0xffL) << 40) |
+            ((buffer(3) & 0xffL) << 32) |
+            ((buffer(4) & 0xffL) << 24) |
+            ((buffer(5) & 0xffL) << 16) |
+            ((buffer(6) & 0xffL) << 8) |
+            (buffer(7) & 0xffL)
+        ) & 0x3fffffffffffffffL
 
         val msb = (unixTimestampMillis << 16) | (version << 12) | randomA
         val lsb = (variant << 62) | randomB

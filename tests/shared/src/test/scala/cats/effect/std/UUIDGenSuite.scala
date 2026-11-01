@@ -93,8 +93,8 @@ class UUIDGenSuite extends BaseSuite {
     val bytes = new Array[Byte](10)
     new SRandom(seed).nextBytes(bytes)
 
-    val randA = ((bytes(0) & 0x0fL) << 8) | (bytes(1) & 0xffL)
-    val randB = bytes.drop(2).foldLeft(0L)((acc, b) => (acc << 8) | (b & 0xffL)) &
+    val randA = ((bytes(8) & 0x0fL) << 8) | (bytes(9) & 0xffL)
+    val randB = bytes.take(8).foldLeft(0L)((acc, b) => (acc << 8) | (b & 0xffL)) &
       0x3fffffffffffffffL
 
     for {
