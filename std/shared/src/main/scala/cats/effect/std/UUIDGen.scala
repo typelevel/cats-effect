@@ -26,6 +26,7 @@ import cats.data.{
   OptionT,
   WriterT
 }
+import cats.effect.kernel.Clock
 import cats.implicits._
 
 import java.util.UUID
@@ -144,4 +145,56 @@ object UUIDGen extends UUIDGenCompanionPlatform {
       f(self.randomUUID)
 
   }
+}
+
+/**
+ * Generates V7 UUIDs as specified in:
+ * [[https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-7 RFC 9562]].
+ *
+ * The most significant 48 bits hold the Unix epoch timestamp in milliseconds, taken from
+ * `Clock#realTime`. The remaining 74 bits, excluding the version and variant, are filled from
+ * [[SecureRandom]].
+ *
+ * UUIDs generated in different milliseconds sort in creation order.
+ *
+ * This implementation does not use any of the optional monotonicity methods described in RFC
+ * 9562 section 6.2, so UUIDs generated within the same millisecond have no guaranteed order
+ * relative to each other.
+ *
+ * Applications that generate UUIDs at a high rate and need strict ordering should not rely on
+ * this ordering.
+ */
+object UUIDGenV7 {
+  def apply[F[_]: SecureRandom: Clock]: UUIDGen[F] =
+    new UUIDGen[F] {
+      override final val randomUUID: F[UUID] =
+        Clock[F].applicative.map2(Clock[F].realTime, SecureRandom[F].nextBytes(10)) {
+          (now, buffer) => unsafeUUIDv7Builder(buffer, now.toMillis)
+        }
+
+      private def unsafeUUIDv7Builder(
+          buffer: Array[Byte],
+          epochMillis: Long
+      ): UUID = {
+
+        val unixTimestampMillis = epochMillis & 0xffffffffffffL
+        val version = 0x7L
+        val randomA = ((buffer(8) & 0x0fL) << 8) | (buffer(9) & 0xffL)
+        val variant = 0x2L
+        val randomB = (
+          ((buffer(0) & 0xffL) << 56) |
+            ((buffer(1) & 0xffL) << 48) |
+            ((buffer(2) & 0xffL) << 40) |
+            ((buffer(3) & 0xffL) << 32) |
+            ((buffer(4) & 0xffL) << 24) |
+            ((buffer(5) & 0xffL) << 16) |
+            ((buffer(6) & 0xffL) << 8) |
+            (buffer(7) & 0xffL)
+        ) & 0x3fffffffffffffffL
+
+        val msb = (unixTimestampMillis << 16) | (version << 12) | randomA
+        val lsb = (variant << 62) | randomB
+        new UUID(msb, lsb)
+      }
+    }
 }
