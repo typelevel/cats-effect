@@ -158,6 +158,7 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
         latch.countDown()
         Thread.sleep(15000)
         interrupted = false
+        42
       }
 
       for {
@@ -165,6 +166,11 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
         _ <- IO.blocking(latch.await())
         _ <- f.cancel
         _ <- IO(assert(interrupted))
+        outcome <- f.join
+        _ <- outcome match {
+          case Outcome.Canceled() => IO.unit
+          case other => IO(fail(s"Expected cancellation, got $other"))
+        }
       } yield ()
     }
 
@@ -199,6 +205,11 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
         _ <- IO.blocking(latch.await())
         _ <- f.cancel
         _ <- IO(assert(interrupted))
+        outcome <- f.join
+        _ <- outcome match {
+          case Outcome.Canceled() => IO.unit
+          case other => IO(fail(s"Expected cancellation, got $other"))
+        }
       } yield ()
     }
 

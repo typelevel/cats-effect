@@ -265,7 +265,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     uncancelable { poll =>
       start(fa) flatMap { fiber =>
         poll(fiber.join)
-          .onCancel(fin.guarantee(fiber.cancel))
+          .onCancelContinueWith(fin.guarantee(fiber.cancel) *> fiber.join)
           .flatMap(_.embed(poll(canceled *> never)))
       }
     }
@@ -342,6 +342,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * the first fiber that completes with an outcome.
    *
    * [[racePair]] is a cancelation-unsafe function; it is recommended to use the safer variants.
+   * On instances with recoverable cancellation, canceling while waiting for a winner cancels
+   * both participants and returns the first terminal outcome with the other fiber.
    *
    * @param fa
    *   the effect for the first racing fiber
@@ -442,8 +444,10 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     uncancelable { poll =>
       poll(racePair(fa, fb)).flatMap {
-        case Left((oc, f)) => poll(f.join).onCancel(f.cancel).tupleLeft(oc)
-        case Right((f, oc)) => poll(f.join).onCancel(f.cancel).tupleRight(oc)
+        case Left((oc, f)) =>
+          poll(f.join).onCancelContinueWith(f.cancel *> f.join).tupleLeft(oc)
+        case Right((f, oc)) =>
+          poll(f.join).onCancelContinueWith(f.cancel *> f.join).tupleRight(oc)
       }
     }
 
@@ -477,24 +481,26 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              poll(f.join).onCancelContinueWith(f.cancel *> f.join).flatMap {
                 case Outcome.Succeeded(fb) => fa.product(fb)
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => poll(canceled) *> never
               }
             case Outcome.Errored(ea) => f.cancel *> raiseError(ea)
-            case Outcome.Canceled() => f.cancel *> poll(canceled) *> never
+            case Outcome.Canceled() =>
+              f.cancel *> poll(canceled) *> never
           }
         case Right((f, oc)) =>
           oc match {
             case Outcome.Succeeded(fb) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              poll(f.join).onCancelContinueWith(f.cancel *> f.join).flatMap {
                 case Outcome.Succeeded(fa) => fa.product(fb)
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => poll(canceled) *> never
               }
             case Outcome.Errored(eb) => f.cancel *> raiseError(eb)
-            case Outcome.Canceled() => f.cancel *> poll(canceled) *> never
+            case Outcome.Canceled() =>
+              f.cancel *> poll(canceled) *> never
           }
       }
     }

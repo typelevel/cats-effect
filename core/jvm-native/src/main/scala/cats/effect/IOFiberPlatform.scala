@@ -42,76 +42,78 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
 
     // we grab this here rather than in the instance to avoid bloating IOFiber's object header
     val RightUnit = IOFiber.RightUnit
+    val noResult = new Object
 
-    IO.async[Any] { nextCb =>
+    IO.asyncContinueWith[Any] { nextCb =>
       for {
         done <- IO(new AtomicBoolean(false))
+        interrupted <- IO(new AtomicBoolean(false))
         cb <- IO(new AtomicReference[Either[Throwable, Unit] => Unit](null))
+        result <- IO(new AtomicReference[Either[Throwable, Any]](null))
 
         canInterrupt <- IO(new juc.Semaphore(0))
         manyDone <- IO(new AtomicBoolean(false))
 
-        target <- IO uncancelable { _ =>
+        target <-
           IO.async[Thread] { initCb =>
             val action = IO blocking {
               initCb(Right(Thread.currentThread()))
 
-              val result =
-                try {
-                  canInterrupt.release()
+              var result0: Either[Throwable, Any] = null
+              try {
+                canInterrupt.release()
 
-                  val back =
-                    try {
-                      Right(cur.thunk())
-                    } catch {
-                      case t if InterruptThrowable.ClosedByInterrupt(t) => throw t
-                      case t if UnsafeNonFatal(t) => Left(t)
-                    }
-
-                  // this is why it has to be a semaphore rather than an atomic boolean
-                  // this needs to hard-block if we're in the process of being interrupted
-                  // once we acquire this lock, we cannot be interrupted
-                  canInterrupt.acquire()
-
-                  if (many) {
-                    manyDone.set(true) // in this case, we weren't interrupted
+                val back =
+                  try {
+                    Right(cur.thunk())
+                  } catch {
+                    case t if InterruptThrowable.ClosedByInterrupt(t) => throw t
+                    case t if UnsafeNonFatal(t) => Left(t)
                   }
 
-                  back
-                } catch {
-                  case t if InterruptThrowable(t) =>
-                    null
-                } finally {
-                  canInterrupt.tryAcquire()
-                  done.set(true)
+                // this is why it has to be a semaphore rather than an atomic boolean
+                // this needs to hard-block if we're in the process of being interrupted
+                // once we acquire this lock, we cannot be interrupted
+                canInterrupt.acquire()
 
-                  if (many) {
-                    // wait for the hot loop to finish
-                    // we can probably also do this with canInterrupt, but that seems confusing
-                    // this needs to be a busy-wait otherwise it will be interrupted
-                    while (!manyDone.get()) {}
-                    Thread.interrupted() // clear the status
-
-                    ()
-                  } else {
-                    val cb0 = cb.getAndSet(null)
-                    if (cb0 != null) {
-                      cb0(RightUnit)
-                    }
-                  }
+                if (many) {
+                  manyDone.set(true) // in this case, we weren't interrupted
                 }
 
-              if (result != null) {
-                nextCb(result)
+                result0 = back
+              } catch {
+                case t if InterruptThrowable(t) => ()
+              } finally {
+                result.set(result0)
+                canInterrupt.tryAcquire()
+                done.set(true)
+
+                if (many) {
+                  // wait for the hot loop to finish
+                  // we can probably also do this with canInterrupt, but that seems confusing
+                  // this needs to be a busy-wait otherwise it will be interrupted
+                  while (!manyDone.get()) {}
+                  Thread.interrupted() // clear the status
+
+                  ()
+                } else {
+                  val cb0 = cb.getAndSet(null)
+                  if (cb0 != null) {
+                    cb0(RightUnit)
+                  }
+                }
+              }
+
+              if (result0 != null) {
+                nextCb(result0)
               }
             }
 
             action.start.as(None)
           }
-        }
       } yield {
         Some {
-          IO async { finCb =>
+          IO.async[Unit] { finCb =>
             val trigger = IO.defer {
               if (!many) {
                 cb.set(finCb)
@@ -125,6 +127,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                   IO.unit // ok, we're done
                 } else if (canInterrupt.tryAcquire()) {
                   try {
+                    interrupted.set(true)
                     target.interrupt()
                   } finally {
                     canInterrupt.release()
@@ -144,6 +147,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                 if (canInterrupt.tryAcquire()) {
                   try {
                     while (!done.get()) {
+                      interrupted.set(true)
                       target.interrupt() // it's hammer time!
                     }
                   } finally {
@@ -172,9 +176,20 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
             }
 
             (trigger *> repeat).as(None)
+          } *> IO.defer[Any] {
+            result.get() match {
+              case null => IO.pure(noResult)
+              case Left(e) if InterruptThrowable(e) => IO.pure(noResult)
+              // Thread interruption can make the thunk fail with an unrelated exception.
+              case Left(_) if interrupted.get() => IO.pure(noResult)
+              case outcome => IO.fromEither(outcome)
+            }
           }
         }
       }
+    }.flatMap {
+      case `noResult` => IO.canceled
+      case result => IO.pure(result)
     }
   }
 }

@@ -348,7 +348,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
         fibA <- start(guaranteeCase(fa)(oc => result.complete(Left(oc)).void))
         fibB <- start(guaranteeCase(fb)(oc => result.complete(Right(oc)).void))
 
-        back <- onCancel(
+        back <- onCancelContinueWith(
           poll(result.get),
           for {
             canA <- start(fibA.cancel)
@@ -356,7 +356,8 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
             _ <- canA.join
             _ <- canB.join
-          } yield ())
+            winner <- result.get
+          } yield winner)
         result <- back match {
           case Left(oc) => fibA.join.as(Left((oc, fibB)))
           case Right(oc) => fibB.join.as(Right((fibA, oc)))

@@ -590,6 +590,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
 
+  /**
+   * Replace this effect with a value if it is canceled, running `continue` as an uncancelable
+   * cancellation handler. If this IO is uncancelable (e.g. created via [[uncancelable]]) then
+   * `continue` won't be fired.
+   *
+   * This is primarily useful inside an `uncancelable` region where a polled effect needs to be
+   * allowed one final attempt to produce a value after cancellation, for example, by cancelling
+   * a fiber and joining it to get its result.
+   *
+   * A successful continuation does not clear the pending cancelation. The resumed program can
+   * use the result while cancelation is masked, but cancelation is observed again when it is
+   * unmasked.
+   */
+  def onCancelContinueWith[B >: A](continue: IO[B]): IO[B] =
+    IO.OnCancelContinueWith(this, continue)
+
   @deprecated("Use onError with PartialFunction argument", "3.6.0")
   private[effect] def onError(f: Throwable => IO[Unit]): IO[A] = {
     val pf: PartialFunction[Throwable, IO[Unit]] = { case t => f(t).reportError }
@@ -1348,6 +1364,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * Note that `asyncCheckAttempt` is uncancelable during its registration.
    *
    * @see
+   *   [[asyncCheckAttemptContinueWith]] for a variant with a continuation action on cancelation
+   * @see
    *   [[async]] for a simplified variant without an option for immediate result
    */
   def asyncCheckAttempt[A](
@@ -1366,6 +1384,93 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
     IOCont(body, Tracing.calculateTracingEvent(k))
   }
+
+  /**
+   * Suspends an asynchronous side effect with an optional immediate result and continuation
+   * action on cancelation in `IO`.
+   *
+   * The given function `k` will be invoked during evaluation of the `IO` to:
+   *   - check if a result is already available;
+   *   - schedule the asynchronous callback. Only the first invocation of the callback will be
+   *     effective; all subsequent invocations will be silently dropped.
+   *
+   * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
+   * `IO[Either[Option[IO[A]], A]]`).
+   *
+   * The effect returns `Either[Option[IO[A]], A]` where:
+   *   - right side `A` is an immediate result of computation (callback invocation will be
+   *     dropped);
+   *   - left side `Option[IO[A]]` is an optional continuation action to be run in the event
+   *     that the fiber running `asyncCheckAttemptContinueWith(k)` is canceled. If provided, the
+   *     continuation is run uncancelably and its result becomes the result of this effect. A
+   *     successful continuation does not clear the pending cancelation. The resumed program can
+   *     use the result while cancelation is masked, but cancelation is observed again when it
+   *     is unmasked.
+   *
+   * Also, note that `asyncCheckAttemptContinueWith` is uncancelable during its registration. If
+   * the continuation fails, the failure is propagated; if it self-cancels, cancelation
+   * continues normally.
+   *
+   * @see
+   *   [[IO.asyncCheckAttempt]] for a variant that runs a finalizer on cancelation instead
+   * @see
+   *   [[IO.asyncContinueWith]] for a variant without an option for immediate result
+   * @see
+   *   [[IO.async]] and [[IO.async_]] for simpler variants without an option for immediate
+   *   result or continuation action on cancelation
+   */
+  def asyncCheckAttemptContinueWith[A](
+      k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[A]], A]]): IO[A] = {
+    val body = new Cont[IO, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { poll =>
+          lift(k(resume)) flatMap {
+            case Right(a) => G.pure(a)
+            case Left(Some(continue)) => G.onCancelContinueWith(poll(get), lift(continue))
+            case Left(None) => get
+          }
+        }
+      }
+    }
+
+    IOCont(body, Tracing.calculateTracingEvent(k))
+  }
+
+  /**
+   * Suspends an asynchronous side effect with an optional continuation action on cancelation in
+   * `IO`.
+   *
+   * The given function `k` will be invoked during evaluation of the `IO` to schedule the
+   * asynchronous callback. Only the first invocation of the callback will be effective; all
+   * subsequent invocations will be silently dropped.
+   *
+   * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
+   * `IO[Option[IO[A]]]`).
+   *
+   * The effect returns `Option[IO[A]]`, an optional continuation action to run when the fiber
+   * running `asyncContinueWith(k)` is canceled. If provided, the continuation runs uncancelably
+   * and its result becomes the result of this `IO`. If no continuation is provided, cancelation
+   * remains masked while waiting. A successful continuation does not clear the pending
+   * cancelation. The resumed program can use the result while cancelation is masked, but
+   * cancelation is observed again when it is unmasked.
+   *
+   * @note
+   *   `asyncContinueWith` is always uncancelable during its registration. The created effect
+   *   will be uncancelable during its execution if the registration callback provides no
+   *   continuation action (i.e. evaluates to `None`). If you need the created task to be
+   *   cancelable, return a finalizer effect upon the registration. In a rare case when there's
+   *   nothing to finalize, you can return `Some(IO.unit)` for that.
+   *
+   * @see
+   *   [[IO.asyncCheckAttemptContinueWith]] for the variant with an optional immediate result
+   * @see
+   *   [[IO.async]] for a variant that runs a finalizer on cancelation
+   * @see
+   *   [[IO.async_]] for a simpler variant without a continuation action on cancelation
+   */
+  def asyncContinueWith[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[A]]]): IO[A] =
+    asyncCheckAttemptContinueWith[A](cb =>
+      k(cb).map(continue => Left(continue): Either[Option[IO[A]], A]))
 
   /**
    * Suspends an asynchronous side effect in `IO`.
@@ -1999,6 +2104,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
         k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
       IO.asyncCheckAttempt(k)
 
+    override def asyncCheckAttemptContinueWith[A](
+        k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[A]], A]]): IO[A] =
+      IO.asyncCheckAttemptContinueWith(k)
+
+    override def asyncContinueWith[A](
+        k: (Either[Throwable, A] => Unit) => IO[Option[IO[A]]]): IO[A] =
+      IO.asyncContinueWith(k)
+
     override def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
       IO.async(k)
 
@@ -2058,6 +2171,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
     def onCancel[A](ioa: IO[A], fin: IO[Unit]): IO[A] =
       ioa.onCancel(fin)
+
+    override def onCancelContinueWith[A](ioa: IO[A], continue: IO[A]): IO[A] =
+      ioa.onCancelContinueWith(continue)
 
     override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
         release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
@@ -2259,6 +2375,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
 
   private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
     def tag = 11
+  }
+
+  private[effect] final case class OnCancelContinueWith[+A](ioa: IO[A], continue: IO[A])
+      extends IO[A] {
+    def tag = 25
   }
 
   private[effect] final case class Uncancelable[+A](

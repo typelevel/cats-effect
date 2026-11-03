@@ -16,7 +16,9 @@
 
 package cats.effect
 
+import cats.data.OptionT
 import cats.effect.implicits._
+import cats.effect.kernel.MonadCancel
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.{TestContext, TestControl}
 import cats.kernel.laws.SerializableLaws.serializable
@@ -674,6 +676,49 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
   }
 
   //
+  // asyncCheckAttemptContinueWith and asyncContinueWith
+  //
+
+  ticked("asyncCheckAttemptContinueWith - return immediate result") { implicit ticker =>
+    assertCompleteAs(IO.asyncCheckAttemptContinueWith[Int](_ => IO.pure(Right(42))), 42)
+  }
+
+  ticked("asyncContinueWith - resume from callback") { implicit ticker =>
+    assertCompleteAs(
+      IO.asyncContinueWith[Int](cb => IO(cb(Right(42))).as(Some(IO.pure(0)))),
+      42)
+  }
+
+  real("asyncContinueWith - continue with the handler result on cancellation") {
+    for {
+      registered <- Deferred[IO, Unit]
+      fiber <- Async[IO]
+        .asyncContinueWith[Int] { _ => registered.complete(()) *> IO.pure(Some(IO.pure(42))) }
+        .start
+      _ <- registered.get
+      _ <- fiber.cancel
+      outcome <- fiber.join
+      _ <- outcome match {
+        case Outcome.Succeeded(value) =>
+          value.flatMap(result => IO(assertEquals(result, 42)))
+        case other => IO(fail(s"Expected successful recovery, got $other"))
+      }
+    } yield ()
+  }
+
+  ticked("asyncCheckAttemptContinueWith - remain uncancelable without a handler") {
+    implicit ticker =>
+      val t = IO.asyncCheckAttemptContinueWith[Int] { _ => IO.pure(Left(None)) }
+      val test = for {
+        fiber <- t.start
+        _ <- IO(ticker.ctx.tick())
+        _ <- fiber.cancel
+      } yield ()
+
+      assertNonTerminate(test)
+  }
+
+  //
   // async
   //
 
@@ -814,6 +859,151 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit)).start.flatMap(_.join)
 
     assertCompleteAs(ioa, Outcome.canceled[IO, Throwable, Unit])
+  }
+
+  real("cancelation - recover from a polled effect and complete") {
+    for {
+      started <- Deferred[IO, Unit]
+      fiber <- IO.uncancelable { poll =>
+        poll(started.complete(()) *> IO.never[Int]).onCancelContinueWith(IO.pure(42))
+      }.start
+      _ <- started.get
+      _ <- fiber.cancel
+      outcome <- fiber.join
+      _ <- outcome match {
+        case Outcome.Succeeded(value) => value.flatMap(result => IO(assertEquals(result, 42)))
+        case other => IO(fail(s"Expected successful outcome, got $other"))
+      }
+    } yield ()
+  }
+
+  real("cancelation - propagate failure from a recovery handler") {
+    val failure = new RuntimeException("recovery failed")
+
+    for {
+      started <- Deferred[IO, Unit]
+      fiber <- IO
+        .uncancelable { poll =>
+          poll(started.complete(()) *> IO.never[Int])
+            .onCancelContinueWith(IO.raiseError[Int](failure))
+        }
+        .handleErrorWith(error => IO.pure(if (error eq failure) 42 else -1))
+        .start
+      _ <- started.get
+      _ <- fiber.cancel
+      outcome <- fiber.join
+      _ <- outcome match {
+        case Outcome.Succeeded(result) => result.flatMap(value => IO(assertEquals(value, 42)))
+        case other => IO(fail(s"Expected recovered error outcome, got $other"))
+      }
+    } yield ()
+  }
+
+  real("cancelation - recover from a polled cancel and subsequently cancel again") {
+    for {
+      events <- Ref[IO].of(List.empty[String])
+      started <- Deferred[IO, Unit]
+      fiber <- (IO.uncancelable { poll =>
+        poll(started.complete(()) *> IO.never[Int])
+          .onCancelContinueWith(IO.pure(42))
+          .flatMap(value => events.update(_ :+ s"recovered:$value"))
+      } *> IO.cede).onCancel(events.update(_ :+ "outer")).start
+      _ <- started.get
+      _ <- fiber.cancel
+      outcome <- fiber.join
+      observed <- events.get
+      _ <- IO {
+        assert(outcome.isCanceled)
+        assertEquals(observed, List("recovered:42", "outer"))
+      }
+    } yield ()
+  }
+
+  real("cancelation - widen the recovered result type") {
+    for {
+      started <- Deferred[IO, Unit]
+      fiber <- IO.uncancelable { poll =>
+        poll(started.complete(()) *> IO.never[Some[Int]])
+          .onCancelContinueWith(IO.pure(None: Option[Int]))
+      }.start
+      _ <- started.get
+      _ <- fiber.cancel
+      outcome <- fiber.join
+      _ <- outcome match {
+        case Outcome.Succeeded(value) => value.flatMap(result => IO(assertEquals(result, None)))
+        case other => IO(fail(s"Expected successful outcome, got $other"))
+      }
+    } yield ()
+  }
+
+  real("cancelation - MonadCancel onCancelContinueWith is derived for OptionT") {
+    val F = MonadCancel[OptionT[IO, *], Throwable]
+
+    for {
+      started <- Deferred[IO, Unit]
+      fiber <- F
+        .uncancelable { poll =>
+          poll(OptionT(started.complete(()) *> IO.never[Option[Int]]))
+            .onCancelContinueWith(OptionT[IO, Int](IO.pure(Some(42))))
+        }
+        .value
+        .start
+      _ <- started.get
+      _ <- fiber.cancel
+      outcome <- fiber.join
+      _ <- outcome match {
+        case Outcome.Succeeded(result) =>
+          result.flatMap(value => IO(assertEquals(value, Some(42))))
+        case other => IO(fail(s"Expected successful outcome, got $other"))
+      }
+    } yield ()
+  }
+
+  real("cancelation - wait for termination after recovering") {
+    for {
+      recovered <- Deferred[IO, Unit]
+      release <- Deferred[IO, Unit]
+      fiber <- IO.uncancelable { poll =>
+        poll(IO.never[Int])
+          .onCancelContinueWith(IO.pure(42))
+          .flatMap(_ => recovered.complete(()) *> release.get)
+      }.start
+      canceler <- fiber.cancel.start
+      _ <- recovered.get
+      race <- IO.race(canceler.join, IO.sleep(10.millis))
+      _ <- race match {
+        case Left(_) =>
+          IO.raiseError(new AssertionError("cancel returned before fiber terminated"))
+        case Right(_) => IO.unit
+      }
+      _ <- release.complete(())
+      cancelOutcome <- canceler.join
+      outcome <- fiber.join
+      _ <- IO {
+        assert(cancelOutcome.isSuccess)
+        assert(outcome.isSuccess || outcome.isCanceled)
+      }
+    } yield ()
+  }
+
+  real("cancelation - continue unwinding when a recovery handler self-cancels") {
+    for {
+      events <- Ref[IO].of(List.empty[String])
+      started <- Deferred[IO, Unit]
+      fiber <- (IO.uncancelable { poll =>
+        poll(started.complete(()) *> IO.never[Int])
+          .onCancel(events.update(_ :+ "inner"))
+          .onCancelContinueWith(events.update(_ :+ "recover") *> IO.canceled *> IO.pure(-1))
+      } *> IO.cede).onCancel(events.update(_ :+ "outer")).start
+      _ <- started.get
+      _ <- fiber.cancel
+      outcome <- fiber.join
+      observed <- events.get
+      _ <- IO {
+        assert(outcome.isCanceled)
+        assertEquals(observed, List("inner", "recover", "outer"))
+      }
+    } yield ()
   }
 
   real("async - invoke multiple joins on fiber completion") {
@@ -1104,6 +1294,25 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
 
       result <- IO(assert((end - start) < 5.seconds))
     } yield result
+  }
+
+  real("racePair completes when canceled") {
+    for {
+      started <- IO.deferred[Unit]
+      racingFiber <- IO
+        .racePair(
+          IO.deferred[Unit]
+            .flatMap(complete =>
+              IO.uncancelable(poll =>
+                started.complete(()) *> poll(complete.get).onCancelContinueWith(
+                  complete.complete(()) *> complete.get))),
+          IO.never.as(())
+        )
+        .start
+      _ <- started.get
+      _ <- racingFiber.cancel
+      outcome <- racingFiber.join
+    } yield assert(outcome.isSuccess, s"racing fiber was unable to complete, was $outcome")
   }
 
   ticked("async - allow for misordered nesting") { implicit ticker =>
