@@ -500,6 +500,59 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAs(test, ())
   }
 
+  ticked("fibers - startAttached returns the result of fb and cancels fa") { implicit ticker =>
+    val test = for {
+      started <- IO.deferred[Unit]
+      cancelled <- IO.deferred[Unit]
+      result <- IO
+        .uncancelable { poll =>
+          started.complete(()) *> poll(IO.never[Unit]).onCancel(cancelled.complete(()).void)
+        }
+        .startAttached(_ => started.get *> IO.pure(42))
+      _ <- cancelled.get
+    } yield result
+
+    assertCompleteAs(test, 42)
+  }
+
+  ticked("fibers - startAttached cancels fa when the parent fiber is canceled") {
+    implicit ticker =>
+      val test = for {
+        started <- IO.deferred[Unit]
+        cancelled <- IO.deferred[Unit]
+        parent <- IO
+          .uncancelable { poll =>
+            started.complete(()) *> poll(IO.never[Unit]).onCancel(cancelled.complete(()).void)
+          }
+          .startAttached(_ => IO.never)
+          .start
+        _ <- IO.sleep(1.milli)
+        _ <- parent.cancel
+        _ <- cancelled.get
+      } yield ()
+
+      assertCompleteAs(test, ())
+  }
+
+  ticked("fibers - startAttached cancels fa before fb when the parent fiber is canceled") {
+    implicit ticker =>
+      val test = for {
+        started <- IO.deferred[Unit]
+        order <- IO.ref(List.empty[String])
+        fiber <- IO
+          .uncancelable { poll =>
+            started.complete(()) *> poll(IO.never[Unit]).onCancel(order.update(_ :+ "fa"))
+          }
+          .startAttached(_ => IO.never.onCancel(order.update(_ :+ "fb")))
+          .start
+        _ <- IO.sleep(1.milli)
+        _ <- fiber.cancel
+        result <- order.get
+      } yield result
+
+      assertCompleteAs(test, List("fa", "fb"))
+  }
+
   //
   // asyncCheckAttempt
   //

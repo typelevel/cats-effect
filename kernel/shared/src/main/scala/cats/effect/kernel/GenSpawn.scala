@@ -191,6 +191,28 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
   /**
+   * Start fiber `fa` for the lifetime of effect `fb` and ensure it is canceled before `fb` is
+   * canceled, or when `fb` terminates.
+   *
+   * @param fa
+   *   the fiber to start
+   * @param fb
+   *   the effect that will use the started fiber
+   * @return
+   *   the result of fb
+   */
+  def startAttached[A, B](fa: F[A])(fb: Fiber[F, E, A] => F[B]): F[B] =
+    F.uncancelable { poll =>
+      for {
+        fiberA <- start(fa)
+        fiberB <- start(fb(fiberA))
+        resultB <- poll(fiberB.join)
+          .guarantee(fiberA.cancel)
+          .onCancelContinueWith(fiberB.cancel *> fiberB.join)
+      } yield resultB
+    }.flatMap(_.embedNever(this))
+
+  /**
    * Returns a [[Resource]] that manages the concurrent execution of a fiber. The inner effect
    * can be used to wait on the outcome of the child fiber; it is effectively a
    * [[Fiber!.join join]].
