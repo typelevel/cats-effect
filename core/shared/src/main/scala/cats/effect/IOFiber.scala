@@ -1118,7 +1118,7 @@ private final class IOFiber[A](
     while (!ByteStack.isEmpty(conts)) {
       (ByteStack.pop(conts): @switch) match {
         case 0 | 1 => // mapK / flatMapK
-          objectState.pop()
+          objectState.pop(): Unit
 
         case 2 => // cancelationLoopK
           ()
@@ -1134,7 +1134,7 @@ private final class IOFiber[A](
           currentCtx = objectState.pop().asInstanceOf[ExecutionContext]
 
         case 5 => // handleErrorWithK
-          objectState.pop()
+          objectState.pop(): Unit
 
         case 6 => // onCancelK
           conts = ByteStack.push(conts, UnwindK)

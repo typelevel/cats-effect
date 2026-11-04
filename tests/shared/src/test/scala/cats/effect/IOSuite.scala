@@ -18,7 +18,6 @@ package cats.effect
 
 import cats.data.OptionT
 import cats.effect.implicits._
-import cats.effect.kernel.MonadCancel
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.{TestContext, TestControl}
 import cats.kernel.laws.SerializableLaws.serializable
