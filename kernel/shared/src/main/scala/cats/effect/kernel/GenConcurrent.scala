@@ -348,7 +348,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
         fibA <- start(guaranteeCase(fa)(oc => result.complete(Left(oc)).void))
         fibB <- start(guaranteeCase(fb)(oc => result.complete(Right(oc)).void))
 
-        back <- onCancelContinueWith(
+        back <- onCancelGraceful(
           poll(result.get),
           for {
             canA <- start(fibA.cancel)

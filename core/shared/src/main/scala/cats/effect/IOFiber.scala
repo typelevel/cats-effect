@@ -1036,9 +1036,9 @@ private final class IOFiber[A](
           runLoop(succeeded(runtime, 0), nextCancelation, nextAutoCede)
 
         case 25 =>
-          val cur = cur0.asInstanceOf[OnCancelContinueWith[Any]]
+          val cur = cur0.asInstanceOf[OnCancelGraceful[Any]]
           objectState.push(EvalOn(cur.continue, currentCtx))
-          conts = ByteStack.push(conts, OnCancelContinueWithK)
+          conts = ByteStack.push(conts, OnCancelGracefulK)
           runLoop(cur.ioa, nextCancelation, nextAutoCede)
       }
     }
@@ -1146,7 +1146,7 @@ private final class IOFiber[A](
         case 10 => // unwindK
           ()
 
-        case 11 => // onCancelContinueWithK
+        case 11 => // onCancelGracefulK
           conts = ByteStack.push(conts, CancelContinueUnwindK)
           return objectState.pop().asInstanceOf[IO[Any]]
 
@@ -1253,7 +1253,7 @@ private final class IOFiber[A](
         objectState.pop()
         succeeded(result, depth + 1)
 
-      case 11 => // onCancelContinueWithSuccessK
+      case 11 => // onCancelGracefulSuccessK
         objectState.pop()
         succeeded(result, depth + 1)
 
@@ -1326,7 +1326,7 @@ private final class IOFiber[A](
         objectState.pop()
         failed(error, depth + 1)
 
-      case 11 => // onCancelContinueWithFailureK
+      case 11 => // onCancelGracefulFailureK
         objectState.pop()
         failed(error, depth + 1)
 

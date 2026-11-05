@@ -282,7 +282,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     uncancelable { poll =>
       start(fa) flatMap { fiber =>
         poll(fiber.join)
-          .onCancelContinueWith(fin.guarantee(fiber.cancel) *> fiber.join)
+          .onCancelGraceful(fin.guarantee(fiber.cancel) *> fiber.join)
           .flatMap(_.embed(poll(canceled *> never)))
       }
     }
@@ -462,9 +462,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     uncancelable { poll =>
       poll(racePair(fa, fb)).flatMap {
         case Left((oc, f)) =>
-          poll(f.join).onCancelContinueWith(f.cancel *> f.join).tupleLeft(oc)
+          F.pollFiberGraceful(poll, f).tupleLeft(oc)
         case Right((f, oc)) =>
-          poll(f.join).onCancelContinueWith(f.cancel *> f.join).tupleRight(oc)
+          F.pollFiberGraceful(poll, f).tupleRight(oc)
       }
     }
 
@@ -498,7 +498,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>
-              poll(f.join).onCancelContinueWith(f.cancel *> f.join).flatMap {
+              pollFiberGraceful(poll, f).flatMap {
                 case Outcome.Succeeded(fb) => fa.product(fb)
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => poll(canceled) *> never
@@ -510,7 +510,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         case Right((f, oc)) =>
           oc match {
             case Outcome.Succeeded(fb) =>
-              poll(f.join).onCancelContinueWith(f.cancel *> f.join).flatMap {
+              pollFiberGraceful(poll, f).flatMap {
                 case Outcome.Succeeded(fa) => fa.product(fb)
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => poll(canceled) *> never

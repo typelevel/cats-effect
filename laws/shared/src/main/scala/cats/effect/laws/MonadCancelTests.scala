@@ -118,12 +118,10 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
       val props = {
         val common: Seq[(String, Prop)] = Seq(
           "guarantee is guaranteeCase" -> forAll(laws.guaranteeIsGuaranteeCase[A] _),
-          "onCancelContinueWith self-cancellation remains canceled" ->
-            laws.onCancelContinueWithSelfCancelIsCanceled,
-          "onCancelContinueWith pure is pure" -> forAll(
-            laws.onCancelContinueWithPureIsPure[A] _),
-          "onCancelContinueWith error is error" -> forAll(
-            laws.onCancelContinueWithErrorIsError[A] _),
+          "onCancelGraceful self-cancellation remains canceled" ->
+            laws.onCancelGracefulSelfCancelIsCanceled,
+          "onCancelGraceful pure is pure" -> forAll(laws.onCancelGracefulPureIsPure[A] _),
+          "onCancelGraceful error is error" -> forAll(laws.onCancelGracefulErrorIsError[A] _),
           "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
           "uncancelable ignored poll eliminates nesting" -> forAll(
             laws.uncancelableIgnoredPollEliminatesNesting[A] _),
@@ -131,15 +129,15 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
             laws.uncancelablePollInverseNestIsUncancelable[A] _),
           "uncancelable eliminates onCancel" -> forAll(
             laws.uncancelableEliminatesOnCancel[A] _),
-          "uncancelable eliminates onCancelContinueWith" -> forAll(
-            laws.uncancelableEliminatesOnCancelContinueWith[A] _),
+          "uncancelable eliminates onCancelGraceful" -> forAll(
+            laws.uncancelableEliminatesOnCancelGraceful[A] _),
           "onCancel associates over uncancelable boundary" -> forAll(
             laws.onCancelAssociatesOverUncancelableBoundary[A] _),
-          "onCancelContinueWith associates over uncancelable boundary" -> forAll(
-            laws.onCancelContinueWithAssociatesOverUncancelableBoundary[A] _),
+          "onCancelGraceful associates over uncancelable boundary" -> forAll(
+            laws.onCancelGracefulAssociatesOverUncancelableBoundary[A] _),
           "onCancel implies uncancelable" -> forAll(laws.onCancelImpliesUncancelable[A] _),
-          "onCancelContinueWith implies uncancelable" -> forAll(
-            laws.onCancelContinueWithImpliesUncancelable[A] _),
+          "onCancelGraceful implies uncancelable" -> forAll(
+            laws.onCancelGracefulImpliesUncancelable[A] _),
           "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
           "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
           "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
@@ -152,8 +150,8 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
             Seq(
               "canceled sequences onCancel in order" -> forAll(
                 laws.canceledSequencesOnCancelInOrder _),
-              "canceled onCancelContinueWith recovers once" -> forAll(
-                laws.canceledOnCancelContinueWithRecoversOnce[A] _),
+              "canceled onCancelGraceful recovers once" -> forAll(
+                laws.canceledOnCancelGracefulRecoversOnce[A] _),
               "uncancelable canceled associates right over flatMap attempt" -> forAll(
                 laws.uncancelableCanceledAssociatesRightOverFlatMapAttempt[A] _),
               "canceled associates left over flatMap" -> forAll(

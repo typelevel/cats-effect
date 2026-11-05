@@ -58,7 +58,7 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
               }
 
               val await =
-                G.onCancelContinueWith(
+                G.onCancelGraceful(
                   poll(get),
                   G.productR(lift(delay(cf.cancel(true))))(get)
                 )

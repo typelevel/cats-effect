@@ -589,11 +589,11 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   def onCancel(fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
     Resource.applyFull { poll => poll(this.allocatedCase).onCancel(fin.use_) }
 
-  def onCancelContinueWith[B >: A](continue: Resource[F, B])(
+  def onCancelGraceful[B >: A](continue: Resource[F, B])(
       implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
     Resource.applyFull { poll =>
       poll(this.allocatedCase.widen[(B, ExitCase => F[Unit])])
-        .onCancelContinueWith(continue.allocatedCase)
+        .onCancelGraceful(continue.allocatedCase)
     }
 
   def guaranteeCase(
@@ -1447,10 +1447,10 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
   def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] =
     fa.onCancel(fin)
 
-  override def onCancelContinueWith[A](
+  override def onCancelGraceful[A](
       fa: Resource[F, A],
       continue: Resource[F, A]): Resource[F, A] =
-    fa.onCancelContinueWith(continue)
+    fa.onCancelGraceful(continue)
 
   def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] =
     Resource.uncancelable(body)

@@ -37,7 +37,7 @@ final class IOFiberConstants {
   static final byte UnmaskK = 8;
   static final byte AttemptK = 9;
   static final byte UnwindK = 10;
-  static final byte OnCancelContinueWithK = 11;
+  static final byte OnCancelGracefulK = 11;
   static final byte CancelContinueUnwindK = 12;
 
   // resume ids

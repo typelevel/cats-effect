@@ -99,7 +99,7 @@ trait Fiber[F[_], E, A] extends Serializable {
   def cancelBefore[B](fb: F[B])(implicit F: GenSpawn[F, E]): F[B] =
     F.uncancelable(poll =>
       F.start(fb).flatMap { fiberB =>
-        F.onCancelContinueWith(poll(fiberB.join), cancel *> fiberB.cancel *> fiberB.join)
+        F.pollGraceful(poll, fiberB.join, cancel *> fiberB.cancel)
       })
       .flatMap(_.embedNever)
 

@@ -35,7 +35,7 @@ private object IOFiberConstants {
   final val UnmaskK = 8
   final val AttemptK = 9
   final val UnwindK = 10
-  final val OnCancelContinueWithK = 11
+  final val OnCancelGracefulK = 11
   final val CancelContinueUnwindK = 12
 
   // resume ids

@@ -917,7 +917,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     for {
       started <- Deferred[IO, Unit]
       fiber <- IO.uncancelable { poll =>
-        poll(started.complete(()) *> IO.never[Int]).onCancelContinueWith(IO.pure(42))
+        poll(started.complete(()) *> IO.never[Int]).onCancelGraceful(IO.pure(42))
       }.start
       _ <- started.get
       _ <- fiber.cancel
@@ -937,7 +937,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       fiber <- IO
         .uncancelable { poll =>
           poll(started.complete(()) *> IO.never[Int])
-            .onCancelContinueWith(IO.raiseError[Int](failure))
+            .onCancelGraceful(IO.raiseError[Int](failure))
         }
         .handleErrorWith(error => IO.pure(if (error eq failure) 42 else -1))
         .start
@@ -957,7 +957,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       started <- Deferred[IO, Unit]
       fiber <- (IO.uncancelable { poll =>
         poll(started.complete(()) *> IO.never[Int])
-          .onCancelContinueWith(IO.pure(42))
+          .onCancelGraceful(IO.pure(42))
           .flatMap(value => events.update(_ :+ s"recovered:$value"))
       } *> IO.cede).onCancel(events.update(_ :+ "outer")).start
       _ <- started.get
@@ -976,7 +976,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       started <- Deferred[IO, Unit]
       fiber <- IO.uncancelable { poll =>
         poll(started.complete(()) *> IO.never[Some[Int]])
-          .onCancelContinueWith(IO.pure(None: Option[Int]))
+          .onCancelGraceful(IO.pure(None: Option[Int]))
       }.start
       _ <- started.get
       _ <- fiber.cancel
@@ -988,7 +988,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield ()
   }
 
-  real("cancelation - MonadCancel onCancelContinueWith is derived for OptionT") {
+  real("cancelation - MonadCancel onCancelGraceful is derived for OptionT") {
     val F = MonadCancel[OptionT[IO, *], Throwable]
 
     for {
@@ -996,7 +996,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       fiber <- F
         .uncancelable { poll =>
           poll(OptionT(started.complete(()) *> IO.never[Option[Int]]))
-            .onCancelContinueWith(OptionT[IO, Int](IO.pure(Some(42))))
+            .onCancelGraceful(OptionT[IO, Int](IO.pure(Some(42))))
         }
         .value
         .start
@@ -1017,7 +1017,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       release <- Deferred[IO, Unit]
       fiber <- IO.uncancelable { poll =>
         poll(IO.never[Int])
-          .onCancelContinueWith(IO.pure(42))
+          .onCancelGraceful(IO.pure(42))
           .flatMap(_ => recovered.complete(()) *> release.get)
       }.start
       canceler <- fiber.cancel.start
@@ -1045,7 +1045,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
       fiber <- (IO.uncancelable { poll =>
         poll(started.complete(()) *> IO.never[Int])
           .onCancel(events.update(_ :+ "inner"))
-          .onCancelContinueWith(events.update(_ :+ "recover") *> IO.canceled *> IO.pure(-1))
+          .onCancelGraceful(events.update(_ :+ "recover") *> IO.canceled *> IO.pure(-1))
       } *> IO.cede).onCancel(events.update(_ :+ "outer")).start
       _ <- started.get
       _ <- fiber.cancel
@@ -1356,7 +1356,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
           IO.deferred[Unit]
             .flatMap(complete =>
               IO.uncancelable(poll =>
-                started.complete(()) *> poll(complete.get).onCancelContinueWith(
+                started.complete(()) *> poll(complete.get).onCancelGraceful(
                   complete.complete(()) *> complete.get))),
           IO.never.as(())
         )

@@ -109,28 +109,13 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   }
 
   /**
-   * Suspends an asynchronous side effect with an optional immediate result and cleanup action
-   * on cancelation in `F`.
+   * Suspends an asynchronous side effect with an optional immediate result and graceful
+   * cancelation in `F`.
    *
-   * The given function `k` will be invoked during evaluation of `F` to:
-   *   - check if a result is already available;
-   *   - schedule the asynchronous callback. Only the first invocation of the callback will be
-   *     effective; all subsequent invocations will be silently dropped.
-   *
-   * The process of registering the callback itself is suspended in `F` (the outer `F` of
-   * `F[Either[Option[F[Unit]], A]]`).
-   *
-   * The effect returns `Either[Option[F[Unit]], A]` where:
-   *   - right side `A` is an immediate result of computation (callback invocation will be
-   *     dropped);
-   *   - left side `Option[F[Unit]]` is an optional cleanup action to be run in the event that
-   *     the fiber running `asyncCheckAttemptGracefulCancel(k)` is canceled. If provided, it
-   *     prompts the asynchronous operation to finish, after which this effect waits for the
-   *     callback. The pending cancelation is still not cleared.
-   *
-   * Also, note that `asyncCheckAttemptGracefulCancel` is uncancelable during its registration.
-   * If the continuation fails, the failure is propagated; if it self-cancels, cancelation
-   * continues normally.
+   * The semantics of this method are the same as [[asyncCheckAttempt]], except that after
+   * running the optional finalizer, the effect waits for the callback to complete. This allows
+   * for an operation that cannot be canceled synchronously to be sent an interruption signal
+   * and get the result of the operation if it completes before it can be canceled.
    *
    * @see
    *   [[asyncCheckAttempt]] for a variant that runs a finalizer on cancelation instead
@@ -147,8 +132,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
         G.uncancelable { poll =>
           lift(k(resume)) flatMap {
             case Right(a) => G.pure(a)
-            case Left(Some(continue)) =>
-              G.onCancelContinueWith(poll(get), lift(continue) *> get)
+            case Left(Some(fin)) => G.pollGraceful(poll, get, lift(fin))
             case Left(None) => get
           }
         }
@@ -159,32 +143,12 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   }
 
   /**
-   * Suspends an asynchronous side effect with an optional continuation action on cancelation in
-   * `F`.
+   * Suspends an asynchronous side effect with graceful cancelation in `F`.
    *
-   * The given function `k` will be invoked during evaluation of the `F` to:
-   *   - check if a result is already available;
-   *   - "schedule" the asynchronous callback, where the callback of type `Either[Throwable, A]
-   *     \=> Unit` is the parameter passed to that function. Only the ''first'' invocation of
-   *     the callback will be effective! All subsequent invocations will be silently dropped.
-   *
-   * The process of registering the callback itself is suspended in `F` (the outer `F` of
-   * `F[Option[F[Unit]]]`).
-   *
-   * The effect returns `Either[Option[F[Unit]], A]` where:
-   *   - right side `A` is an immediate result of computation (callback invocation will be
-   *     dropped);
-   *   - left side `Option[F[Unit]]` is an optional cleanup action to be run in the event that
-   *     the fiber running `asyncCheckAttemptGracefulCancel(k)` is canceled. If provided, it
-   *     prompts the asynchronous operation to finish, after which this effect waits for the
-   *     callback. The pending cancelation is still not cleared.
-   *
-   * @note
-   *   `asyncGracefulCancel` is always uncancelable during its registration. The created effect
-   *   will be uncancelable during its execution if the registration callback provides no
-   *   continuation action (i.e. evaluates to `None`). If you need the created task to be
-   *   cancelable, return a cleanup effect upon the registration. In a rare case when there's
-   *   nothing to do, you can return `Some(F.unit)` for that.
+   * The semantics of this method are the same as [[async]], except that after running the
+   * optional finalizer, the effect waits for the callback to complete. This allows for an
+   * operation that cannot be canceled synchronously to be sent an interruption signal and get
+   * the result of the operation if it completes before it can be canceled.
    *
    * @see
    *   [[asyncCheckAttempt]] for a variant that runs a finalizer on cancelation instead
@@ -196,7 +160,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    */
   def asyncGracefulCancel[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
     asyncCheckAttemptGracefulCancel[A](cb =>
-      map(k(cb))(continue => Left(continue): Either[Option[F[Unit]], A]))
+      map(k(cb))(fin => Left(fin): Either[Option[F[Unit]], A]))
 
   /**
    * Suspends an asynchronous side effect in `F`.

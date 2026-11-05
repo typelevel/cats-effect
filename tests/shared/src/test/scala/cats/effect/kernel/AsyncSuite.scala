@@ -142,8 +142,8 @@ class AsyncSuite extends BaseSuite with DisciplineSuite {
     def onCancel[A](fa: AsyncIO[A], fin: AsyncIO[Unit]): AsyncIO[A] =
       wrapIO(fa)(_.onCancel(fin.io))
 
-    override def onCancelContinueWith[A](fa: AsyncIO[A], continue: AsyncIO[A]): AsyncIO[A] =
-      wrapIO(fa)(_.onCancelContinueWith(continue.io))
+    override def onCancelGraceful[A](fa: AsyncIO[A], continue: AsyncIO[A]): AsyncIO[A] =
+      wrapIO(fa)(_.onCancelGraceful(continue.io))
 
     def sleep(time: FiniteDuration): AsyncIO[Unit] = liftIO(IO.sleep(time))
 

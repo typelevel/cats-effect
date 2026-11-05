@@ -28,14 +28,14 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def guaranteeIsGuaranteeCase[A](fa: F[A], fin: F[Unit]) =
     F.guarantee(fa, fin) <-> F.guaranteeCase(fa)(_ => fin)
 
-  def onCancelContinueWithSelfCancelIsCanceled =
-    F.onCancelContinueWith(F.canceled, F.canceled) <-> F.canceled
+  def onCancelGracefulSelfCancelIsCanceled =
+    F.onCancelGraceful(F.canceled, F.canceled) <-> F.canceled
 
-  def onCancelContinueWithPureIsPure[A](a: A, cont: F[A]) =
-    F.onCancelContinueWith(F.pure(a), cont) <-> F.pure(a)
+  def onCancelGracefulPureIsPure[A](a: A, cont: F[A]) =
+    F.onCancelGraceful(F.pure(a), cont) <-> F.pure(a)
 
-  def onCancelContinueWithErrorIsError[A](e: E, cont: F[A]) =
-    F.onCancelContinueWith(F.raiseError[A](e), cont) <-> F.raiseError[A](e)
+  def onCancelGracefulErrorIsError[A](e: E, cont: F[A]) =
+    F.onCancelGraceful(F.raiseError[A](e), cont) <-> F.raiseError[A](e)
 
   // note that this implies the nested case as well
   def uncancelablePollIsIdentity[A](fa: F[A]) =
@@ -53,8 +53,8 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def uncancelableEliminatesOnCancel[A](fa: F[A], fin: F[Unit]) =
     F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.uncancelable(_ => fa)
 
-  def uncancelableEliminatesOnCancelContinueWith[A](fa: F[A], cont: F[A]) =
-    F.uncancelable(_ => F.onCancelContinueWith(fa, cont)) <-> F.uncancelable(_ => fa)
+  def uncancelableEliminatesOnCancelGraceful[A](fa: F[A], cont: F[A]) =
+    F.uncancelable(_ => F.onCancelGraceful(fa, cont)) <-> F.uncancelable(_ => fa)
 
   /*
    * NB: This is effectively in violation of the monad laws, since
@@ -73,8 +73,8 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def onCancelAssociatesOverUncancelableBoundary[A](fa: F[A], fin: F[Unit]) =
     F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.onCancel(F.uncancelable(_ => fa), fin)
 
-  def onCancelContinueWithAssociatesOverUncancelableBoundary[A](fa: F[A], cont: F[A]) =
-    F.uncancelable(_ => F.onCancelContinueWith(fa, cont)) <-> F.onCancelContinueWith(
+  def onCancelGracefulAssociatesOverUncancelableBoundary[A](fa: F[A], cont: F[A]) =
+    F.uncancelable(_ => F.onCancelGraceful(fa, cont)) <-> F.onCancelGraceful(
       F.uncancelable(_ => fa),
       cont)
 
@@ -83,9 +83,9 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
       F.onCancel(fa, fin1),
       fin2)
 
-  def onCancelContinueWithImpliesUncancelable[A](fa: F[A], cont1: F[A], cont2: F[A]) =
-    F.onCancelContinueWith(F.onCancelContinueWith(fa, F.uncancelable(_ => cont1)), cont2) <-> F
-      .onCancelContinueWith(F.onCancelContinueWith(fa, cont1), cont2)
+  def onCancelGracefulImpliesUncancelable[A](fa: F[A], cont1: F[A], cont2: F[A]) =
+    F.onCancelGraceful(F.onCancelGraceful(fa, F.uncancelable(_ => cont1)), cont2) <-> F
+      .onCancelGraceful(F.onCancelGraceful(fa, cont1), cont2)
 
   def forceRDiscardsPure[A, B](a: A, fa: F[B]) =
     F.forceR(F.pure(a))(fa) <-> fa
@@ -108,9 +108,9 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.onCancel(F.onCancel(F.canceled, fin1), fin2) <->
       F.forceR(F.uncancelable(_ => F.forceR(fin1)(fin2)))(F.canceled)
 
-  def canceledOnCancelContinueWithRecoversOnce[A](fa: F[A], cont1: F[A], cont2: F[A]) =
-    F.onCancelContinueWith(F.onCancelContinueWith(F.canceled *> fa, cont1), cont2) <->
-      F.onCancelContinueWith(F.canceled *> fa, cont1)
+  def canceledOnCancelGracefulRecoversOnce[A](fa: F[A], cont1: F[A], cont2: F[A]) =
+    F.onCancelGraceful(F.onCancelGraceful(F.canceled *> fa, cont1), cont2) <->
+      F.onCancelGraceful(F.canceled *> fa, cont1)
 
   def uncancelableCanceledAssociatesRightOverFlatMapAttempt[A](fa: F[A]) =
     (F.uncancelable(_ => F.canceled >> fa).attempt >> F.unit) <->
