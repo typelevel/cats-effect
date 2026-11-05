@@ -19,7 +19,7 @@ package cats.effect.kernel
 import cats.{~>, Monoid, Semigroup}
 import cats.arrow.FunctionK
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
-import cats.implicits._
+import cats.syntax.all._
 
 import org.typelevel.scalaccompat.annotation.unused
 

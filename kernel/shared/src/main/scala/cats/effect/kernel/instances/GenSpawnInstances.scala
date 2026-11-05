@@ -19,7 +19,7 @@ package cats.effect.kernel.instances
 import cats.{~>, Align, Applicative, CommutativeApplicative, Functor, Id, Monad, Parallel}
 import cats.data.Ior
 import cats.effect.kernel.{GenSpawn, ParallelF}
-import cats.implicits._
+import cats.syntax.all._
 
 trait GenSpawnInstances {
 
@@ -79,7 +79,7 @@ trait GenSpawnInstances {
           f: Ior[A, B] => C): ParallelF[F, C] =
         ParallelF(
           (ParallelF.value(fa).attempt, ParallelF.value(fb).attempt)
-            .parMapN((ea, eb) => catsStdInstancesForEither.alignWith(ea, eb)(f))
+            .parMapN((ea, eb) => Align[Either[E, *]].alignWith(ea, eb)(f))
             .flatMap(F.fromEither)
         )
 
