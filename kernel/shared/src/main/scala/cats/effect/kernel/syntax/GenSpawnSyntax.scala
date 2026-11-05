@@ -48,7 +48,7 @@ final class GenSpawnOps[F[_], A, E] private[syntax] (private val wrapped: F[A]) 
     F.start(wrapped)
 
   def startAttached[B](fb: Fiber[F, E, A] => F[B])(implicit F: GenSpawn[F, E]): F[B] =
-    F.startAttached(wrapped)(fb)
+    F.startAttachedTo(wrapped)(fb)
 
   def background(implicit F: GenSpawn[F, E]): Resource[F, F[Outcome[F, E, A]]] =
     F.background(wrapped)
