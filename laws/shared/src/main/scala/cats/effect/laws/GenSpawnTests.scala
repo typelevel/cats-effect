@@ -118,6 +118,10 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] 
         "fiber error is errored" -> forAll(laws.fiberErrorIsOutcomeErrored _),
         "fiber cancelation is canceled" -> laws.fiberCancelationIsOutcomeCanceled,
         "fiber canceled is canceled" -> laws.fiberCanceledIsOutcomeCanceled,
+        "fiber onCancelContinueWith completed ignores continue" -> forAll(
+          laws.fiberOnCancelContinueWithCompletedIgnoresContinue[A] _),
+        "fiber fiberOnCancelContinueWith masked cancel completes with continue" -> forAll(
+          laws.fiberOnCancelContinueWithMaskedCancelCompletesWithContinue[A] _),
         "fiber never is never" -> laws.fiberNeverIsNever,
         "fiber start of never is unit" -> laws.fiberStartOfNeverIsUnit,
         "never dominates over flatMap" -> forAll(laws.neverDominatesOverFlatMap[A] _),
@@ -206,6 +210,8 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] 
         "fiber error is errored" -> forAll(laws.fiberErrorIsOutcomeErrored _),
         "fiber cancelation is canceled" -> laws.fiberCancelationIsOutcomeCanceled,
         "fiber canceled is canceled" -> laws.fiberCanceledIsOutcomeCanceled,
+        "fiber onCancelContinueWith completed ignores continue" -> forAll(
+          laws.fiberOnCancelContinueWithCompletedIgnoresContinue[A] _),
         "fiber never is never" -> laws.fiberNeverIsNever,
         "fiber start of never is unit" -> laws.fiberStartOfNeverIsUnit,
         "fiber join is guaranteeCase" -> forAll(laws.fiberJoinIsGuaranteeCase[A] _),
