@@ -189,3 +189,9 @@ There is no analogue for this kind of functionality with errors. Second, if you 
 In other words, cancelation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.
 
 Self-cancelation is intended for use-cases such as [supervisor nets](https://erlang.org/doc/man/supervisor.html) and other complex constructs which require the ability to manipulate their own evaluation in this fashion. It isn't something that will be found often in application code.
+
+### Graceful Cancelation
+
+Concurrently running operations, such as other `Fiber`s can potentially complete after we signal them to cancel. If we just use `onCancel` to clean up such operations, we may lose data. 
+
+To handle these cases, `onCancelGraceful` should be used instead. This method let's the fiber temporarily recover from cancelation to cancel the concurrent operation and get its result. This operation is only while cancellation is masked. Cancellation continues as soon as the fiber is unmasked again.
