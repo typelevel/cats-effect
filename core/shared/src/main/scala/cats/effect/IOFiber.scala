@@ -19,14 +19,13 @@ package cats.effect
 import cats.arrow.FunctionK
 import cats.effect.tracing._
 import cats.effect.unsafe._
-import cats.syntax.all._
 
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.AtomicBoolean
 
 import Platform.{static, volatileNative}
 
@@ -896,8 +895,7 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[RacePair[Any, Any]]
           type Result = Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]
 
-          val winner = new AtomicReference[Result](null)
-          val next = IO.asyncContinueWith[Result] { cb =>
+          val next = IO.asyncGracefulCancel[Result] { cb =>
             IO {
               val ec = currentCtx
               val rt = runtime
@@ -905,8 +903,7 @@ private final class IOFiber[A](
               val fiberB = new IOFiber[Any](localState, null, cur.iob, ec, rt)
 
               def complete(result: Result): Unit =
-                if (winner.compareAndSet(null, result))
-                  cb(Right(result))
+                cb(Right(result))
 
               fiberA.setCallback(oc => complete(Left((oc, fiberB))))
               fiberB.setCallback(oc => complete(Right((fiberA, oc))))
@@ -914,10 +911,7 @@ private final class IOFiber[A](
               scheduleFiber(ec, fiberA)
               scheduleFiber(ec, fiberB)
 
-              Some(
-                (fiberA.cancel.start, fiberB.cancel.start).flatMapN((a, b) =>
-                  IO.racePair(a.join, b.join)) *> IO.delay(winner.get())
-              )
+              Some((fiberA.cancel.start *> fiberB.cancel.start).void)
             }
           }
 

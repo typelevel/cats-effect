@@ -1364,7 +1364,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * Note that `asyncCheckAttempt` is uncancelable during its registration.
    *
    * @see
-   *   [[asyncCheckAttemptContinueWith]] for a variant with a continuation action on cancelation
+   *   [[asyncCheckAttemptGracefulCancel]] for a variant that prompts the async operation to
+   *   finish
    * @see
    *   [[async]] for a simplified variant without an option for immediate result
    */
@@ -1395,38 +1396,38 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    *     effective; all subsequent invocations will be silently dropped.
    *
    * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
-   * `IO[Either[Option[IO[A]], A]]`).
+   * `IO[Either[Option[IO[Unit]], A]]`).
    *
-   * The effect returns `Either[Option[IO[A]], A]` where:
+   * The effect returns `Either[Option[IO[Unit]], A]` where:
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
-   *   - left side `Option[IO[A]]` is an optional continuation action to be run in the event
-   *     that the fiber running `asyncCheckAttemptContinueWith(k)` is canceled. If provided, the
-   *     continuation is run uncancelably and its result becomes the result of this effect. A
-   *     successful continuation does not clear the pending cancelation. The resumed program can
-   *     use the result while cancelation is masked, but cancelation is observed again when it
-   *     is unmasked.
+   *   - left side `Option[IO[Unit]]` is an optional continuation action to be run in the event
+   *     that the fiber running `asyncCheckAttemptGracefulCancel(k)` is canceled. If provided,
+   *     the continuation is run uncancelably to prompt the asynchronous operation to finish,
+   *     after which this effect waits for the callback. A successful continuation does not
+   *     clear the pending cancelation.
    *
-   * Also, note that `asyncCheckAttemptContinueWith` is uncancelable during its registration. If
-   * the continuation fails, the failure is propagated; if it self-cancels, cancelation
+   * Also, note that `asyncCheckAttemptGracefulCancel` is uncancelable during its registration.
+   * If the continuation fails, the failure is propagated; if it self-cancels, cancelation
    * continues normally.
    *
    * @see
    *   [[IO.asyncCheckAttempt]] for a variant that runs a finalizer on cancelation instead
    * @see
-   *   [[IO.asyncContinueWith]] for a variant without an option for immediate result
+   *   [[IO.asyncGracefulCancel]] for a variant without an option for immediate result
    * @see
    *   [[IO.async]] and [[IO.async_]] for simpler variants without an option for immediate
    *   result or continuation action on cancelation
    */
-  def asyncCheckAttemptContinueWith[A](
-      k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[A]], A]]): IO[A] = {
+  def asyncCheckAttemptGracefulCancel[A](
+      k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
         G.uncancelable { poll =>
           lift(k(resume)) flatMap {
             case Right(a) => G.pure(a)
-            case Left(Some(continue)) => G.onCancelContinueWith(poll(get), lift(continue))
+            case Left(Some(continue)) =>
+              G.onCancelContinueWith(poll(get), lift(continue) *> get)
             case Left(None) => get
           }
         }
@@ -1445,32 +1446,31 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
    * subsequent invocations will be silently dropped.
    *
    * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
-   * `IO[Option[IO[A]]]`).
+   * `IO[Option[IO[Unit]]]`).
    *
-   * The effect returns `Option[IO[A]]`, an optional continuation action to run when the fiber
-   * running `asyncContinueWith(k)` is canceled. If provided, the continuation runs uncancelably
-   * and its result becomes the result of this `IO`. If no continuation is provided, cancelation
-   * remains masked while waiting. A successful continuation does not clear the pending
-   * cancelation. The resumed program can use the result while cancelation is masked, but
-   * cancelation is observed again when it is unmasked.
+   * The effect returns `Option[IO[Unit]]`, an optional continuation action to run when the
+   * fiber running `asyncGracefulCancel(k)` is canceled. If provided, the continuation runs
+   * uncancelably to prompt the asynchronous operation to finish, after which this `IO` waits
+   * for the callback. If no continuation is provided, cancelation remains masked while waiting.
+   * A successful continuation does not clear the pending cancelation.
    *
    * @note
-   *   `asyncContinueWith` is always uncancelable during its registration. The created effect
+   *   `asyncGracefulCancel` is always uncancelable during its registration. The created effect
    *   will be uncancelable during its execution if the registration callback provides no
    *   continuation action (i.e. evaluates to `None`). If you need the created task to be
-   *   cancelable, return a finalizer effect upon the registration. In a rare case when there's
-   *   nothing to finalize, you can return `Some(IO.unit)` for that.
+   *   cancelable, return a continuation effect upon the registration. In a rare case when
+   *   there's nothing to do, you can return `Some(IO.unit)` for that.
    *
    * @see
-   *   [[IO.asyncCheckAttemptContinueWith]] for the variant with an optional immediate result
+   *   [[IO.asyncCheckAttemptGracefulCancel]] for the variant with an optional immediate result
    * @see
    *   [[IO.async]] for a variant that runs a finalizer on cancelation
    * @see
    *   [[IO.async_]] for a simpler variant without a continuation action on cancelation
    */
-  def asyncContinueWith[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[A]]]): IO[A] =
-    asyncCheckAttemptContinueWith[A](cb =>
-      k(cb).map(continue => Left(continue): Either[Option[IO[A]], A]))
+  def asyncGracefulCancel[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
+    asyncCheckAttemptGracefulCancel[A](cb =>
+      k(cb).map(continue => Left(continue): Either[Option[IO[Unit]], A]))
 
   /**
    * Suspends an asynchronous side effect in `IO`.
@@ -2104,13 +2104,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits with TuplePara
         k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
       IO.asyncCheckAttempt(k)
 
-    override def asyncCheckAttemptContinueWith[A](
-        k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[A]], A]]): IO[A] =
-      IO.asyncCheckAttemptContinueWith(k)
+    override def asyncCheckAttemptGracefulCancel[A](
+        k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
+      IO.asyncCheckAttemptGracefulCancel(k)
 
-    override def asyncContinueWith[A](
-        k: (Either[Throwable, A] => Unit) => IO[Option[IO[A]]]): IO[A] =
-      IO.asyncContinueWith(k)
+    override def asyncGracefulCancel[A](
+        k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
+      IO.asyncGracefulCancel(k)
 
     override def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
       IO.async(k)

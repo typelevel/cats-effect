@@ -728,24 +728,24 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
   }
 
   //
-  // asyncCheckAttemptContinueWith and asyncContinueWith
+  // asyncCheckAttemptGracefulCancel and asyncGracefulCancel
   //
 
-  ticked("asyncCheckAttemptContinueWith - return immediate result") { implicit ticker =>
-    assertCompleteAs(IO.asyncCheckAttemptContinueWith[Int](_ => IO.pure(Right(42))), 42)
+  ticked("asyncCheckAttemptGracefulCancel - return immediate result") { implicit ticker =>
+    assertCompleteAs(IO.asyncCheckAttemptGracefulCancel[Int](_ => IO.pure(Right(42))), 42)
   }
 
-  ticked("asyncContinueWith - resume from callback") { implicit ticker =>
-    assertCompleteAs(
-      IO.asyncContinueWith[Int](cb => IO(cb(Right(42))).as(Some(IO.pure(0)))),
-      42)
+  ticked("asyncGracefulCancel - resume from callback") { implicit ticker =>
+    assertCompleteAs(IO.asyncGracefulCancel[Int](cb => IO(cb(Right(42))).as(Some(IO.unit))), 42)
   }
 
-  real("asyncContinueWith - continue with the handler result on cancellation") {
+  real("asyncGracefulCancel - continuation prompts the async operation to finish") {
     for {
       registered <- Deferred[IO, Unit]
       fiber <- Async[IO]
-        .asyncContinueWith[Int] { _ => registered.complete(()) *> IO.pure(Some(IO.pure(42))) }
+        .asyncGracefulCancel[Int] { cb =>
+          registered.complete(()) *> IO.pure(Some(IO(cb(Right(42)))))
+        }
         .start
       _ <- registered.get
       _ <- fiber.cancel
@@ -758,9 +758,9 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield ()
   }
 
-  ticked("asyncCheckAttemptContinueWith - remain uncancelable without a handler") {
+  ticked("asyncCheckAttemptGracefulCancel - remain uncancelable without a handler") {
     implicit ticker =>
-      val t = IO.asyncCheckAttemptContinueWith[Int] { _ => IO.pure(Left(None)) }
+      val t = IO.asyncCheckAttemptGracefulCancel[Int] { _ => IO.pure(Left(None)) }
       val test = for {
         fiber <- t.start
         _ <- IO(ticker.ctx.tick())

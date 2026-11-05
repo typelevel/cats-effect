@@ -76,7 +76,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * The process of registering the callback itself is suspended in `F` (the outer `F` of
    * `F[Either[Option[F[Unit]], A]]`).
    *
-   * The effect returns `Either[Option[F[A]], A]` where:
+   * The effect returns `Either[Option[F[Unit]], A]` where:
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
    *   - left side `Option[F[Unit]]` is an optional finalizer to be run if the fiber running
@@ -85,7 +85,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * Also, note that `asyncCheckAttempt` is uncancelable during its registration.
    *
    * @see
-   *   [[asyncCheckAttemptContinueWith]] for a variant with a continuation action on cancelation
+   *   [[asyncCheckAttemptGracefulCancel]] for a variant that prompts the async operation to
+   *   finish
    * @see
    *   [[async]] and [[async_]] for simpler variants without an option for immediate result or
    *   finalizer on cancelation
@@ -108,8 +109,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   }
 
   /**
-   * Suspends an asynchronous side effect with an optional immediate result and continuation
-   * action on cancelation in `F`.
+   * Suspends an asynchronous side effect with an optional immediate result and cleanup action
+   * on cancelation in `F`.
    *
    * The given function `k` will be invoked during evaluation of `F` to:
    *   - check if a result is already available;
@@ -117,38 +118,37 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *     effective; all subsequent invocations will be silently dropped.
    *
    * The process of registering the callback itself is suspended in `F` (the outer `F` of
-   * `F[Either[Option[F[A]], A]]`).
+   * `F[Either[Option[F[Unit]], A]]`).
    *
-   * The effect returns `Either[Option[F[A]], A]` where:
+   * The effect returns `Either[Option[F[Unit]], A]` where:
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
-   *   - left side `Option[F[A]]` is an optional continuation action to be run in the event that
-   *     the fiber running `asyncCheckAttemptContinueWith(k)` is canceled. If provided, the
-   *     continuation is run uncancelably and its result becomes the result of this effect. A
-   *     successful continuation does not clear the pending cancelation. The resumed program can
-   *     use the result while cancelation is masked, but cancelation is observed again when it
-   *     is unmasked.
+   *   - left side `Option[F[Unit]]` is an optional cleanup action to be run in the event that
+   *     the fiber running `asyncCheckAttemptGracefulCancel(k)` is canceled. If provided, it
+   *     prompts the asynchronous operation to finish, after which this effect waits for the
+   *     callback. The pending cancelation is still not cleared.
    *
-   * Also, note that `asyncCheckAttemptContinueWith` is uncancelable during its registration. If
-   * the continuation fails, the failure is propagated; if it self-cancels, cancelation
+   * Also, note that `asyncCheckAttemptGracefulCancel` is uncancelable during its registration.
+   * If the continuation fails, the failure is propagated; if it self-cancels, cancelation
    * continues normally.
    *
    * @see
    *   [[asyncCheckAttempt]] for a variant that runs a finalizer on cancelation instead
    * @see
-   *   [[asyncContinueWith]] for a variant without an option for immediate result
+   *   [[asyncGracefulCancel]] for a variant without an option for immediate result
    * @see
    *   [[async]] and [[async_]] for simpler variants without an option for immediate result or
    *   finalizer on cancelation
    */
-  def asyncCheckAttemptContinueWith[A](
-      k: (Either[Throwable, A] => Unit) => F[Either[Option[F[A]], A]]): F[A] = {
+  def asyncCheckAttemptGracefulCancel[A](
+      k: (Either[Throwable, A] => Unit) => F[Either[Option[F[Unit]], A]]): F[A] = {
     val body = new Cont[F, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
         G.uncancelable { poll =>
           lift(k(resume)) flatMap {
             case Right(a) => G.pure(a)
-            case Left(Some(continue)) => G.onCancelContinueWith(poll(get), lift(continue))
+            case Left(Some(continue)) =>
+              G.onCancelContinueWith(poll(get), lift(continue) *> get)
             case Left(None) => get
           }
         }
@@ -169,36 +169,34 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *     the callback will be effective! All subsequent invocations will be silently dropped.
    *
    * The process of registering the callback itself is suspended in `F` (the outer `F` of
-   * `F[Either[Option[F[A]], A]]`).
+   * `F[Option[F[Unit]]]`).
    *
-   * The effect returns `Either[Option[F[A]], A]` where:
+   * The effect returns `Either[Option[F[Unit]], A]` where:
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
-   *   - left side `Option[F[A]]` is an optional continuation action to be run in the event that
-   *     the fiber running `asyncContinueWith(k)` is canceled. If provided, the continuation is
-   *     run uncancelably and its result becomes the result of this `F`. A successful
-   *     continuation does not clear the pending cancelation. The resumed program can use the
-   *     result while cancelation is masked, but cancelation is observed again when it is
-   *     unmasked.
+   *   - left side `Option[F[Unit]]` is an optional cleanup action to be run in the event that
+   *     the fiber running `asyncCheckAttemptGracefulCancel(k)` is canceled. If provided, it
+   *     prompts the asynchronous operation to finish, after which this effect waits for the
+   *     callback. The pending cancelation is still not cleared.
    *
    * @note
-   *   `asyncContinueWith` is always uncancelable during its registration. The created effect
+   *   `asyncGracefulCancel` is always uncancelable during its registration. The created effect
    *   will be uncancelable during its execution if the registration callback provides no
    *   continuation action (i.e. evaluates to `None`). If you need the created task to be
-   *   cancelable, return a finalizer effect upon the registration. In a rare case when there's
-   *   nothing to finalize, you can return `Some(F.unit)` for that.
+   *   cancelable, return a cleanup effect upon the registration. In a rare case when there's
+   *   nothing to do, you can return `Some(F.unit)` for that.
    *
    * @see
    *   [[asyncCheckAttempt]] for a variant that runs a finalizer on cancelation instead
    * @see
-   *   [[asyncContinueWith]] for a variant without an option for immediate result
+   *   [[asyncCheckAttemptGracefulCancel]] for a variant with an optional immediate result
    * @see
    *   [[async]] and [[async_]] for simpler variants without an option for immediate result or
    *   continuation action on cancelation
    */
-  def asyncContinueWith[A](k: (Either[Throwable, A] => Unit) => F[Option[F[A]]]): F[A] =
-    asyncCheckAttemptContinueWith[A](cb =>
-      map(k(cb))(continue => Left(continue): Either[Option[F[A]], A]))
+  def asyncGracefulCancel[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
+    asyncCheckAttemptGracefulCancel[A](cb =>
+      map(k(cb))(continue => Left(continue): Either[Option[F[Unit]], A]))
 
   /**
    * Suspends an asynchronous side effect in `F`.

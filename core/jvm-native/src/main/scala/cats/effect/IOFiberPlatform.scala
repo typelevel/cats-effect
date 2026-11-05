@@ -44,12 +44,11 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
     val RightUnit = IOFiber.RightUnit
     val noResult = new Object
 
-    IO.asyncContinueWith[Any] { nextCb =>
+    IO.asyncGracefulCancel[Any] { nextCb =>
       for {
         done <- IO(new AtomicBoolean(false))
         interrupted <- IO(new AtomicBoolean(false))
         cb <- IO(new AtomicReference[Either[Throwable, Unit] => Unit](null))
-        result <- IO(new AtomicReference[Either[Throwable, Any]](null))
 
         canInterrupt <- IO(new juc.Semaphore(0))
         manyDone <- IO(new AtomicBoolean(false))
@@ -59,53 +58,54 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
             val action = IO blocking {
               initCb(Right(Thread.currentThread()))
 
-              var result0: Either[Throwable, Any] = null
-              try {
-                canInterrupt.release()
+              val result =
+                try {
+                  canInterrupt.release()
 
-                val back =
-                  try {
-                    Right(cur.thunk())
-                  } catch {
-                    case t if InterruptThrowable.ClosedByInterrupt(t) => throw t
-                    case t if UnsafeNonFatal(t) => Left(t)
+                  val back =
+                    try {
+                      Right(cur.thunk())
+                    } catch {
+                      case t if InterruptThrowable.ClosedByInterrupt(t) => throw t
+                      case t if UnsafeNonFatal(t) => Left(t)
+                    }
+
+                  // this is why it has to be a semaphore rather than an atomic boolean
+                  // this needs to hard-block if we're in the process of being interrupted
+                  // once we acquire this lock, we cannot be interrupted
+                  canInterrupt.acquire()
+
+                  if (many) {
+                    manyDone.set(true) // in this case, we weren't interrupted
                   }
 
-                // this is why it has to be a semaphore rather than an atomic boolean
-                // this needs to hard-block if we're in the process of being interrupted
-                // once we acquire this lock, we cannot be interrupted
-                canInterrupt.acquire()
+                  back
+                } catch {
+                  case t if InterruptThrowable(t) => null
+                } finally {
+                  canInterrupt.tryAcquire()
+                  done.set(true)
 
-                if (many) {
-                  manyDone.set(true) // in this case, we weren't interrupted
-                }
+                  if (many) {
+                    // wait for the hot loop to finish
+                    // we can probably also do this with canInterrupt, but that seems confusing
+                    // this needs to be a busy-wait otherwise it will be interrupted
+                    while (!manyDone.get()) {}
+                    Thread.interrupted() // clear the status
 
-                result0 = back
-              } catch {
-                case t if InterruptThrowable(t) => ()
-              } finally {
-                result.set(result0)
-                canInterrupt.tryAcquire()
-                done.set(true)
-
-                if (many) {
-                  // wait for the hot loop to finish
-                  // we can probably also do this with canInterrupt, but that seems confusing
-                  // this needs to be a busy-wait otherwise it will be interrupted
-                  while (!manyDone.get()) {}
-                  Thread.interrupted() // clear the status
-
-                  ()
-                } else {
-                  val cb0 = cb.getAndSet(null)
-                  if (cb0 != null) {
-                    cb0(RightUnit)
+                    ()
+                  } else {
+                    val cb0 = cb.getAndSet(null)
+                    if (cb0 != null) {
+                      cb0(RightUnit)
+                    }
                   }
                 }
-              }
 
-              if (result0 != null) {
-                nextCb(result0)
+              if (interrupted.get()) {
+                nextCb(Right(noResult))
+              } else if (result != null) {
+                nextCb(result)
               }
             }
 
@@ -176,14 +176,6 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
             }
 
             (trigger *> repeat).as(None)
-          } *> IO.defer[Any] {
-            result.get() match {
-              case null => IO.pure(noResult)
-              case Left(e) if InterruptThrowable(e) => IO.pure(noResult)
-              // Thread interruption can make the thunk fail with an unrelated exception.
-              case Left(_) if interrupted.get() => IO.pure(noResult)
-              case outcome => IO.fromEither(outcome)
-            }
           }
         }
       }
