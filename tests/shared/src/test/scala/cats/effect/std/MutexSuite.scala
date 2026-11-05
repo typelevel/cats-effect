@@ -147,7 +147,7 @@ final class MutexSuite extends BaseSuite with DetectPlatform {
     ) {
       val p = mutex.flatMap { m =>
         val short = m.lock.use { _ => IO.sleep(5.millis) }
-        val long = m.lock.use { _ => IO.sleep(20.millis) }
+        val long = m.lock.use { _ => IO.sleep(10.millis) }
         val tsk = IO.race(IO.race(short, short), IO.race(long, long)).flatMap { _ =>
           // this will hang if a cancelled
           // acquire left the mutex in an
@@ -169,11 +169,9 @@ final class MutexSuite extends BaseSuite with DetectPlatform {
           f1 <- m.lock.allocated
           (_, f1Release) = f1
           f2 <- m.lock.use_.start
-          _ <- IO.sleep(5.millis)
           f3 <- m.lock.use_.start
-          _ <- IO.sleep(5.millis)
           f4 <- m.lock.use_.start
-          _ <- IO.sleep(5.millis)
+          _ <- IO.sleep(5.millis) // wait for fibers to start attempting to acquire
           _ <- (f1Release, f2.cancel, f3.cancel).parTupled
           _ <- f4.join
         } yield ()
