@@ -1367,6 +1367,15 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield assert(outcome.isSuccess, s"racing fiber was unable to complete, was $outcome")
   }
 
+  real("racePair - nested timeouts racing completion never hang") {
+    IO.sleep(1.nanosecond)
+      .timeout(1.nanosecond)
+      .timeout(1.nanosecond)
+      .attempt
+      .void
+      .replicateA_(if (isJVM) 1000 else 5)
+  }
+
   ticked("async - allow for misordered nesting") { implicit ticker =>
     var outerR = 0
     var innerR = 0

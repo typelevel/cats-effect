@@ -771,19 +771,22 @@ private final class IOFiber[A](
           objectState.push(fin)
           conts = ByteStack.push(conts, OnCancelK)
 
+          /*
+           * Record the finalizing state at the *suspension* point, which may be
+           * in a different finalizer scope than the cont itself. This must be
+           * written before publishing "waiting", or a racing `cb` could see a
+           * stale value from an earlier `get` and drop the wakeup.
+           */
+          if (state.get() eq null) {
+            state.wasFinalizing = finalizing
+          }
+
           if (state.compareAndSet(null, state.waiting)) {
             /*
              * `state` was "initial" (null), so `get` has arrived before the callback,
              * it needs to set the state to "waiting" and suspend: `cb` will
              * resume with the result once that's ready
              */
-
-            /*
-             * we set the finalizing check to the *suspension* point, which may
-             * be in a different finalizer scope than the cont itself.
-             * `wasFinalizing` is published by a volatile store on `suspended`.
-             */
-            state.wasFinalizing = finalizing
 
             if (isStackTracing) {
               state.handle = monitor()
