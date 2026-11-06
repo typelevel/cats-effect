@@ -624,9 +624,78 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
       F: Concurrent[F]): Resource[F, Fiber[Resource[F, *], Throwable, A @uncheckedVariance]] = {
 
     Resource {
-      Resource.prepareFiber(this).flatMap { tracked =>
-        F.start(tracked.allocated)
-          .map(outer => (tracked.fiber(outer), tracked.release))
+      import Outcome._
+
+      F.ref[Resource.FiberState[F]](Resource.FiberState(F.unit)) flatMap { state =>
+        val finalized: F[A] = F uncancelable { poll =>
+          poll(this.allocated) guaranteeCase {
+            // confirm that we completed and we were asked to clean up
+            // note that this will run even if the inner effect short-circuited
+            case Canceled() | Errored(_) =>
+              state.update { s =>
+                if (s.finalizeOnComplete)
+                  s.copy(confirmedFinalizeOnComplete = true)
+                else
+                  s
+              }
+            case Succeeded(fp) =>
+              // if the inner F has a zero, we lose the finalizers, but there's no avoiding that
+              fp.flatMap {
+                case (_, rel) =>
+                  val action = state.modify { s =>
+                    if (s.finalizeOnComplete) {
+                      // finalize immediately
+                      (s.copy(confirmedFinalizeOnComplete = true), rel.voidError)
+                    } else {
+                      // save the finalizer for later
+                      (s.copy(fin = rel), F.unit)
+                    }
+                  }
+                  action.flatten
+              }
+          } map {
+            case (a, _) =>
+              // Note: we've already saved/used the finalizer, see above
+              a
+          }
+        }
+
+        F.start(finalized)
+          .map { outer =>
+            val fiber = new Fiber[Resource[F, *], Throwable, A] {
+              def cancel =
+                Resource eval {
+                  F uncancelable { poll =>
+                    // technically cancel is uncancelable, but separation of concerns and what not
+                    poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
+                  }
+                }
+
+              def join =
+                Resource eval {
+                  outer.join.flatMap[Outcome[Resource[F, *], Throwable, A]] {
+                    case Canceled() =>
+                      Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
+
+                    case Errored(e) =>
+                      Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
+
+                    case Succeeded(fp) =>
+                      state.get map { s =>
+                        if (s.confirmedFinalizeOnComplete)
+                          Outcome.canceled[Resource[F, *], Throwable, A]
+                        else
+                          Outcome.succeeded(Resource.eval(fp))
+                      }
+                  }
+                }
+            }
+
+            val finalizeOuter =
+              state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
+
+            (fiber, finalizeOuter)
+          }
           .uncancelable
       }
     }
@@ -739,82 +808,6 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       fin: F[Unit],
       finalizeOnComplete: Boolean = false,
       confirmedFinalizeOnComplete: Boolean = false)
-
-  private[effect] def prepareFiber[F[_]: Concurrent, A](
-      resource: Resource[F, A]): F[TrackedFiber[F, A]] =
-    Concurrent[F].ref(FiberState(Concurrent[F].unit)).map(new TrackedFiber(resource, _))
-
-  private[effect] final class TrackedFiber[F[_], A] private[Resource] (
-      resource: Resource[F, A],
-      state: Ref[F, FiberState[F]])(implicit F: Concurrent[F]) {
-    import Outcome._
-
-    val allocated: F[A] = F uncancelable { poll =>
-      poll(resource.allocated) guaranteeCase {
-        // confirm that we completed and we were asked to clean up
-        // note that this will run even if the inner effect short-circuited
-        case Canceled() | Errored(_) =>
-          state.update { s =>
-            if (s.finalizeOnComplete)
-              s.copy(confirmedFinalizeOnComplete = true)
-            else
-              s
-          }
-        case Succeeded(fp) =>
-          // if the inner F has a zero, we lose the finalizers, but there's no avoiding that
-          fp.flatMap {
-            case (_, rel) =>
-              val action = state.modify { s =>
-                if (s.finalizeOnComplete) {
-                  // finalize immediately
-                  (s.copy(confirmedFinalizeOnComplete = true), rel.voidError)
-                } else {
-                  // save the finalizer for later
-                  (s.copy(fin = rel), F.unit)
-                }
-              }
-              action.flatten
-          }
-      } map {
-        case (a, _) =>
-          // Note: we've already saved/used the finalizer, see above
-          a
-      }
-    }
-
-    def outcome(oc: Outcome[F, Throwable, A]): F[Outcome[Resource[F, *], Throwable, A]] =
-      oc match {
-        case Canceled() =>
-          Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
-
-        case Errored(e) =>
-          Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
-
-        case Succeeded(fp) =>
-          state.get map { s =>
-            if (s.confirmedFinalizeOnComplete)
-              Outcome.canceled[Resource[F, *], Throwable, A]
-            else
-              Outcome.succeeded(Resource.eval(fp))
-          }
-      }
-
-    def fiber(outer: Fiber[F, Throwable, A]): Fiber[Resource[F, *], Throwable, A] =
-      new Fiber[Resource[F, *], Throwable, A] {
-        def cancel =
-          Resource eval {
-            F uncancelable { poll =>
-              // technically cancel is uncancelable, but separation of concerns and what not
-              poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
-            }
-          }
-
-        def join = Resource.eval(outer.join.flatMap(outcome))
-      }
-
-    val release: F[Unit] =
-      state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
-  }
 
   /**
    * Creates a resource from an allocating effect.
@@ -1491,18 +1484,75 @@ abstract private[effect] class ResourceConcurrent[F[_]]
     Either[
       (Outcome[Resource[F, *], Throwable, A], Fiber[Resource[F, *], Throwable, B]),
       (Fiber[Resource[F, *], Throwable, A], Outcome[Resource[F, *], Throwable, B])]
-  ] =
-    Resource.uncancelable { poll =>
-      for {
-        left <- Resource.make(Resource.prepareFiber(fa))(_.release)
-        right <- Resource.make(Resource.prepareFiber(fb))(_.release)
-        result <- poll(Resource.eval(F.racePair(left.allocated, right.allocated)))
-        converted <- Resource.eval(result match {
-          case Left((oc, fiber)) => left.outcome(oc).map(oc => Left((oc, right.fiber(fiber))))
-          case Right((fiber, oc)) => right.outcome(oc).map(oc => Right((left.fiber(fiber), oc)))
-        })
-      } yield converted
+  ] = {
+    type Fin = Resource.ExitCase => F[Unit]
+    type Result = Either[
+      (Outcome[Resource[F, *], Throwable, A], Fiber[Resource[F, *], Throwable, B]),
+      (Fiber[Resource[F, *], Throwable, A], Outcome[Resource[F, *], Throwable, B])]
+
+    // (scope closed, finalizer to run when it closes) for each side
+    val open: (Boolean, Fin) = (false, _ => F.unit)
+    val closed: (Boolean, Fin) = (true, _ => F.unit)
+
+    // the loser may finish allocating after the scope has closed: in that case it releases
+    // what it allocated right away and reports cancelation, as `start` does
+    def allocate[C](rc: Resource[F, C], state: Ref[F, (Boolean, Fin)]): F[(C, Fin)] =
+      F.uncancelable { poll =>
+        poll(rc.allocatedCase).flatMap {
+          case (c, fin) =>
+            state.modify {
+              case (true, _) =>
+                (
+                  closed,
+                  fin(Resource.ExitCase.Canceled) *> poll(F.canceled) *> F.never[(C, Fin)])
+              case (false, _) => ((false, fin), F.pure((c, fin)))
+            }.flatten
+        }
+      }
+
+    def release(state: Ref[F, (Boolean, Fin)], ec: Resource.ExitCase): F[Unit] =
+      state.modify { case (_, fin) => (closed, fin(ec)) }.flatten
+
+    def liftOutcome[C](
+        oc: Outcome[F, Throwable, (C, Fin)],
+        state: Ref[F, (Boolean, Fin)]): F[Outcome[Resource[F, *], Throwable, C]] =
+      oc match {
+        case Outcome.Succeeded(fc) =>
+          state.get.flatMap {
+            case (true, _) => F.pure(Outcome.canceled[Resource[F, *], Throwable, C])
+            case (false, _) =>
+              fc.map {
+                case (c, _) => Outcome.succeeded[Resource[F, *], Throwable, C](Resource.pure(c))
+              }
+          }
+        case Outcome.Errored(e) => F.pure(Outcome.errored[Resource[F, *], Throwable, C](e))
+        case Outcome.Canceled() => F.pure(Outcome.canceled[Resource[F, *], Throwable, C])
+      }
+
+    def liftFiber[C](
+        f: Fiber[F, Throwable, (C, Fin)],
+        state: Ref[F, (Boolean, Fin)]): Fiber[Resource[F, *], Throwable, C] =
+      new Fiber[Resource[F, *], Throwable, C] {
+        def cancel = Resource.eval(f.cancel)
+        def join = Resource.eval(f.join.flatMap(liftOutcome(_, state)))
+      }
+
+    Resource.applyFull { poll =>
+      (F.ref(open), F.ref(open)).flatMapN { (left, right) =>
+        val finalizeBoth: Fin = ec => release(left, ec).guarantee(release(right, ec))
+
+        poll(F.racePair(allocate(fa, left), allocate(fb, right)))
+          .flatMap[Result] {
+            case Left((oc, f)) =>
+              liftOutcome(oc, left).map(oc => Left((oc, liftFiber(f, right))))
+            case Right((f, oc)) =>
+              liftOutcome(oc, right).map(oc => Right((liftFiber(f, left), oc)))
+          }
+          .onCancel(finalizeBoth(Resource.ExitCase.Canceled))
+          .map(result => (result, finalizeBoth))
+      }
     }
+  }
 
   override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] =
     fa.memoizedAcquire.map(Resource.eval(_))
