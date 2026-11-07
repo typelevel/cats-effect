@@ -144,7 +144,7 @@ ThisBuild / githubWorkflowJavaVersions := Seq(
   LatestJava,
   LoomJava,
   GraalVM)
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, ArmOS, Windows, MacOS)
+ThisBuild / githubWorkflowOSes := Seq(MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
@@ -283,7 +283,11 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
     javaFilters ++ osFilters
   }
 
-  scalaJavaFilters ++ armFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ nativeJavaAndOSFilters
+  val configuredOSes = (ThisBuild / githubWorkflowOSes).value.toSet
+
+  // sbt-github-actions rejects exclusions on OSes that aren't in the matrix
+  (scalaJavaFilters ++ armFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ nativeJavaAndOSFilters)
+    .filter(_.matching.get("os").forall(configuredOSes.contains))
 }
 
 lazy val useJSEnv =

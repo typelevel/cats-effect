@@ -27,11 +27,7 @@ jobs:
     name: Test
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-          - ubuntu-22.04-arm
-          - windows-2022
-          - macos-15
+        os: [macos-15]
         scala: [3.3.4, 2.12.20, 2.13.18]
         java:
           - temurin@8
@@ -53,22 +49,8 @@ jobs:
             java: temurin@21
           - scala: 2.12.20
             java: graalvm@21
-          - os: ubuntu-22.04-arm
-            java: temurin@8
-          - os: ubuntu-22.04-arm
-            java: temurin@11
-          - os: ubuntu-22.04-arm
-            java: temurin@21
-          - os: ubuntu-22.04-arm
-            java: graalvm@21
-          - os: windows-2022
-            scala: 3.3.4
-            ci: ciJVM
           - os: macos-15
             scala: 3.3.4
-            ci: ciJVM
-          - os: windows-2022
-            scala: 2.12.20
             ci: ciJVM
           - os: macos-15
             scala: 2.12.20
@@ -93,12 +75,6 @@ jobs:
             java: temurin@21
           - ci: ciJS
             java: graalvm@21
-          - os: ubuntu-22.04-arm
-            ci: ciJS
-          - os: windows-2022
-            ci: ciJS
-          - os: macos-15
-            ci: ciJS
           - ci: ciFirefox
             java: temurin@11
           - ci: ciFirefox
@@ -107,12 +83,6 @@ jobs:
             java: temurin@21
           - ci: ciFirefox
             java: graalvm@21
-          - os: ubuntu-22.04-arm
-            ci: ciFirefox
-          - os: windows-2022
-            ci: ciFirefox
-          - os: macos-15
-            ci: ciFirefox
           - ci: ciChrome
             java: temurin@11
           - ci: ciChrome
@@ -121,70 +91,21 @@ jobs:
             java: temurin@21
           - ci: ciChrome
             java: graalvm@21
-          - os: ubuntu-22.04-arm
-            ci: ciChrome
-          - os: windows-2022
-            ci: ciChrome
-          - os: macos-15
-            ci: ciChrome
-          - ci: ciNative
-            java: temurin@11
-            os: ubuntu-latest
-          - ci: ciNative
-            java: temurin@11
-            os: ubuntu-22.04-arm
-          - ci: ciNative
-            java: temurin@11
-            os: windows-2022
           - ci: ciNative
             java: temurin@11
             os: macos-15
-          - ci: ciNative
-            java: temurin@17
-            os: ubuntu-latest
-          - ci: ciNative
-            java: temurin@17
-            os: windows-2022
-          - ci: ciNative
-            java: temurin@21
-            os: ubuntu-latest
-          - ci: ciNative
-            java: temurin@21
-            os: ubuntu-22.04-arm
-          - ci: ciNative
-            java: temurin@21
-            os: windows-2022
           - ci: ciNative
             java: temurin@21
             os: macos-15
           - ci: ciNative
             java: graalvm@21
-            os: ubuntu-latest
-          - ci: ciNative
-            java: graalvm@21
-            os: ubuntu-22.04-arm
-          - ci: ciNative
-            java: graalvm@21
-            os: windows-2022
-          - ci: ciNative
-            java: graalvm@21
             os: macos-15
-          - os: ubuntu-22.04-arm
-            ci: ciNative
-            scala: 2.12.20
-          - os: windows-2022
-            ci: ciNative
           - os: macos-15
             ci: ciNative
             scala: 2.12.20
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
-      - name: Ignore line ending differences in git
-        if: contains(runner.os, 'windows')
-        shell: bash
-        run: git config --global core.autocrlf false
-
       - name: Checkout current branch (full)
         uses: actions/checkout@v6
         with:
@@ -204,7 +125,6 @@ jobs:
 
       - name: sbt update
         if: matrix.java == 'temurin@8' && steps.setup-java-temurin-8.outputs.cache-hit == 'false'
-        shell: bash
         run: sbt +update
 
       - name: Setup Java (temurin@11)
@@ -218,7 +138,6 @@ jobs:
 
       - name: sbt update
         if: matrix.java == 'temurin@11' && steps.setup-java-temurin-11.outputs.cache-hit == 'false'
-        shell: bash
         run: sbt +update
 
       - name: Setup Java (temurin@17)
@@ -232,7 +151,6 @@ jobs:
 
       - name: sbt update
         if: matrix.java == 'temurin@17' && steps.setup-java-temurin-17.outputs.cache-hit == 'false'
-        shell: bash
         run: sbt +update
 
       - name: Setup Java (temurin@21)
@@ -246,7 +164,6 @@ jobs:
 
       - name: sbt update
         if: matrix.java == 'temurin@21' && steps.setup-java-temurin-21.outputs.cache-hit == 'false'
-        shell: bash
         run: sbt +update
 
       - name: Setup Java (graalvm@21)
@@ -260,7 +177,6 @@ jobs:
 
       - name: sbt update
         if: matrix.java == 'graalvm@21' && steps.setup-java-graalvm-21.outputs.cache-hit == 'false'
-        shell: bash
         run: sbt +update
 
       - name: Setup NodeJS v18 LTS
@@ -271,7 +187,6 @@ jobs:
 
       - name: Install jsdom and source-map-support
         if: matrix.ci == 'ciJS'
-        shell: bash
         run: npm install
 
       - name: Configure Windows Pagefile
@@ -283,66 +198,53 @@ jobs:
           timeout: 600
 
       - name: Check that workflows are up to date
-        shell: bash
         run: sbt githubWorkflowCheck
 
       - name: Check that scalafix has been run on JVM
         if: matrix.ci == 'ciJVM' && matrix.scala != '3.3.4' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootJVM/scalafixAll --check'
 
       - name: Check that scalafix has been run on JS
         if: matrix.ci == 'ciJS' && matrix.scala != '3.3.4' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootJS/scalafixAll --check'
 
       - name: Check that scalafix has been run on Native
         if: matrix.ci == 'ciNative' && matrix.scala != '3.3.4' && matrix.java == 'temurin@8' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootNative/scalafixAll --check'
 
-      - shell: bash
-        run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
+      - run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
 
       - if: (matrix.scala == '2.13.18' || matrix.scala == '3.3.4') && matrix.ci == 'ciJVM' && matrix.java == 'temurin@17'
-        shell: bash
         run: sbt '++ ${{ matrix.scala }}' docs/mdoc
 
       - name: Test Example JVM App Within Sbt
         if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: example/test-jvm.sh ${{ matrix.scala }}
 
       - name: Test Example JavaScript App Using Node
         if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Test Example Native App Using Binary
         if: matrix.ci == 'ciNative' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: example/test-native.sh ${{ matrix.scala }}
 
       - name: Test GraalVM Native Image
         if: (matrix.scala == '2.13.18' || matrix.scala == '3.3.4') && matrix.java == 'graalvm@21' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: sbt '++ ${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
 
       - name: Scalafix tests
         if: matrix.scala == '2.13.18' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: |
           cd scalafix
           sbt test
 
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
-        shell: bash
         run: mkdir -p testkit/native/target std/jvm/target kernel-testkit/jvm/target testkit/js/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target kernel-testkit/js/target core/jvm/target kernel/native/target laws/jvm/target std/native/target testkit/jvm/target project/target
 
       - name: Compress target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
-        shell: bash
         run: tar cf targets.tar testkit/native/target std/jvm/target kernel-testkit/jvm/target testkit/js/target core/native/target site-docs/target std/js/target laws/native/target kernel-testkit/native/target kernel/jvm/target core/js/target kernel/js/target laws/js/target kernel-testkit/js/target core/jvm/target kernel/native/target laws/jvm/target std/native/target testkit/jvm/target project/target
 
       - name: Upload target directories
@@ -358,14 +260,10 @@ jobs:
     if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [macos-15]
         java: [temurin@8]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Ignore line ending differences in git
-        if: contains(runner.os, 'windows')
-        run: git config --global core.autocrlf false
-
       - name: Checkout current branch (full)
         uses: actions/checkout@v6
         with:
@@ -438,116 +336,6 @@ jobs:
       - name: sbt update
         if: matrix.java == 'graalvm@21' && steps.setup-java-graalvm-21.outputs.cache-hit == 'false'
         run: sbt +update
-
-      - name: Download target directories (3.3.4, ciJVM)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.4-ciJVM
-
-      - name: Inflate target directories (3.3.4, ciJVM)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (3.3.4, ciNative)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.4-ciNative
-
-      - name: Inflate target directories (3.3.4, ciNative)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (3.3.4, ciJS)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.4-ciJS
-
-      - name: Inflate target directories (3.3.4, ciJS)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.12.20, ciJVM)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.20-ciJVM
-
-      - name: Inflate target directories (2.12.20, ciJVM)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.12.20, ciNative)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.20-ciNative
-
-      - name: Inflate target directories (2.12.20, ciNative)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.12.20, ciJS)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12.20-ciJS
-
-      - name: Inflate target directories (2.12.20, ciJS)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.13.18, ciJVM)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciJVM
-
-      - name: Inflate target directories (2.13.18, ciJVM)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.13.18, ciNative)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciNative
-
-      - name: Inflate target directories (2.13.18, ciNative)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.13.18, ciJS)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciJS
-
-      - name: Inflate target directories (2.13.18, ciJS)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.13.18, ciFirefox)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciFirefox
-
-      - name: Inflate target directories (2.13.18, ciFirefox)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.13.18, ciChrome)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.18-ciChrome
-
-      - name: Inflate target directories (2.13.18, ciChrome)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
 
       - name: Import signing key
         if: env.PGP_SECRET != '' && env.PGP_PASSPHRASE == ''
@@ -587,10 +375,6 @@ jobs:
         java: [temurin@8]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Ignore line ending differences in git
-        if: contains(runner.os, 'windows')
-        run: git config --global core.autocrlf false
-
       - name: Checkout current branch (full)
         uses: actions/checkout@v6
         with:
