@@ -1211,6 +1211,133 @@ class ResourceSuite extends BaseScalaCheckSuite with DisciplineSuite {
     }
   }
 
+  for {
+    acquisition <- List("make", "eval")
+    operation <- List("timeout", "racePair left", "racePair right")
+  } {
+    ticked(s"$operation - does not report handled $acquisition acquisition errors") {
+      implicit ticker =>
+        val error = new RuntimeException("acquisition failed")
+        var reported: List[Throwable] = Nil
+
+        val action = IO.executionContext.flatMap { ec =>
+          val recording = new ExecutionContext {
+            def reportFailure(t: Throwable): Unit = reported ::= t
+            def execute(r: Runnable): Unit = ec.execute(r)
+          }
+          val fail = IO.cede *> IO.raiseError[Unit](error)
+          val resource = acquisition match {
+            case "make" => Resource.make(fail)(_ => IO.unit)
+            case _ => Resource.eval(fail)
+          }
+          val raced = operation match {
+            case "timeout" => resource.timeout(1.hour)
+            case "racePair left" =>
+              Spawn[Resource[IO, *]].racePair(resource, Resource.never[IO, Unit]).flatMap {
+                case Left((outcome, _)) => outcome.embedNever
+                case Right((_, outcome)) => outcome.embedNever
+              }
+            case _ =>
+              Spawn[Resource[IO, *]].racePair(Resource.never[IO, Unit], resource).flatMap {
+                case Left((outcome, _)) => outcome.embedNever
+                case Right((_, outcome)) => outcome.embedNever
+              }
+          }
+          raced.use_.attempt.evalOn(recording)
+        }
+
+        assertCompleteAs(action, Left(error))
+        ticker.ctx.tick()
+        assertEquals(reported, Nil)
+    }
+  }
+
+  for (winnerOnLeft <- List(true, false)) {
+    ticked(s"racePair - retains both successful resources until scope exit ($winnerOnLeft)") {
+      implicit ticker =>
+        val action = IO.ref(List.empty[Int]).flatMap { released =>
+          val winner = Resource.make(IO.pure(1))(i => released.update(i :: _))
+          val loser = Resource.make(IO.sleep(1.second).as(2))(i => released.update(i :: _))
+          val raced =
+            if (winnerOnLeft)
+              Spawn[Resource[IO, *]].racePair(winner, loser)
+            else
+              Spawn[Resource[IO, *]].racePair(loser, winner)
+
+          raced.use { result =>
+            val (outcome, fiber) = result.fold(identity, { case (f, oc) => (oc, f) })
+            outcome.embedNever.use(IO.pure).flatMap(i => IO(assertEquals(i, 1))) *>
+              fiber.joinWithNever.use(IO.pure).flatMap(i => IO(assertEquals(i, 2))) *>
+              released.get.flatMap(rs => IO(assertEquals(rs, Nil)))
+          } *> released.get.map(_.sorted)
+        }
+
+        assertCompleteAs(action, List(1, 2))
+    }
+
+    ticked(s"racePair - finalizes masked loser after scope exit ($winnerOnLeft)") {
+      implicit ticker =>
+        val action = IO.ref(List.empty[Int]).flatMap { released =>
+          val winner = Resource.make(IO.sleep(100.millis).as(1))(i => released.update(i :: _))
+          val loser = Resource.make(IO.sleep(1.second).as(2))(i => released.update(i :: _))
+          val raced =
+            if (winnerOnLeft)
+              Spawn[Resource[IO, *]].racePair(winner, loser)
+            else
+              Spawn[Resource[IO, *]].racePair(loser, winner)
+
+          raced.use(result => IO.pure(result.fold(_._2, _._1))).flatMap { fiber =>
+            released.get.flatMap(rs => IO(assertEquals(rs, List(1)))) *>
+              IO.sleep(2.seconds) *>
+              fiber.join.use(oc => IO(assert(oc.isCanceled))) *>
+              released.get.map(_.sorted)
+          }
+        }
+
+        assertCompleteAs(action, List(1, 2))
+    }
+  }
+
+  ticked("racePair - canceling the loser preserves its canceled join outcome") {
+    implicit ticker =>
+      var released: List[Int] = Nil
+      val winner = Resource.make(IO.sleep(100.millis))(_ => IO { released ::= 1 })
+      val loser = Resource.make(IO.unit)(_ => IO { released ::= 2 }) *> Resource.never[IO, Unit]
+      val action = Spawn[Resource[IO, *]].racePair(winner, loser).use {
+        case Left((_, fiber)) =>
+          (fiber.cancel *> fiber.join).use { oc =>
+            IO {
+              assert(oc.isCanceled)
+              assertEquals(released, List(2))
+            }
+          }
+        case Right(_) => IO(fail("the pending resource won"))
+      }
+
+      assertCompleteAs(action, ())
+      assertEquals(released.sorted, List(1, 2))
+  }
+
+  ticked("racePair - cancellation releases both pending acquisitions") { implicit ticker =>
+    var released = 0
+    val action = (IO.deferred[Unit], IO.deferred[Unit]).tupled.flatMap {
+      case (leftStarted, rightStarted) =>
+        val left = Resource.make(leftStarted.complete(()))(_ => IO { released += 1 }) *>
+          Resource.never[IO, Unit]
+        val right = Resource.make(rightStarted.complete(()))(_ => IO { released += 1 }) *>
+          Resource.never[IO, Unit]
+        for {
+          fiber <- Spawn[Resource[IO, *]].racePair(left, right).use_.start
+          _ <- leftStarted.get *> rightStarted.get
+          _ <- fiber.cancel
+          outcome <- fiber.join
+        } yield assert(outcome.isCanceled)
+    }
+
+    assertCompleteAs(action, ())
+    assertEquals(released, 2)
+  }
+
   // issue #4489 repro (1)
   real("timeout finalizer (start/release race)") {
     val test: IO[Unit] = IO.ref(false).flatMap { ref =>

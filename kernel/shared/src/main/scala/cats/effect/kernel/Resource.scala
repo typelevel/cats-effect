@@ -1479,6 +1479,91 @@ abstract private[effect] class ResourceConcurrent[F[_]]
   override def race[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, Either[A, B]] =
     fa.race(fb)
 
+  /*
+   * The fiber returned for the side still running is not canceled when the scope
+   * containing `racePair` closes, matching `start`:
+   * 1. If it finished allocating before the scope closes, its finalizers run when
+   *    the scope closes
+   * 2. If it is still allocating when the scope closes, it keeps running and releases
+   *    what it allocated as soon as it finishes; `join` then results in `Canceled()`
+   * 3. If it never finishes allocating, the fiber leaks, so cancel it before the
+   *    scope closes if that can happen
+   */
+  override def racePair[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[
+    F,
+    Either[
+      (Outcome[Resource[F, *], Throwable, A], Fiber[Resource[F, *], Throwable, B]),
+      (Fiber[Resource[F, *], Throwable, A], Outcome[Resource[F, *], Throwable, B])]
+  ] = {
+    type Fin = Resource.ExitCase => F[Unit]
+    type Result = Either[
+      (Outcome[Resource[F, *], Throwable, A], Fiber[Resource[F, *], Throwable, B]),
+      (Fiber[Resource[F, *], Throwable, A], Outcome[Resource[F, *], Throwable, B])]
+
+    // (scope closed, finalizer to run when it closes) for each side
+    val open: (Boolean, Fin) = (false, _ => F.unit)
+    val closed: (Boolean, Fin) = (true, _ => F.unit)
+
+    // the loser may finish allocating after the scope has closed: in that case it releases
+    // what it allocated right away and reports cancelation, as `start` does
+    def allocate[C](rc: Resource[F, C], state: Ref[F, (Boolean, Fin)]): F[(C, Fin)] =
+      F.uncancelable { poll =>
+        poll(rc.allocatedCase).flatMap {
+          case (c, fin) =>
+            state.modify {
+              case (true, _) =>
+                (
+                  closed,
+                  fin(Resource.ExitCase.Canceled) *> poll(F.canceled) *> F.never[(C, Fin)])
+              case (false, _) => ((false, fin), F.pure((c, fin)))
+            }.flatten
+        }
+      }
+
+    def release(state: Ref[F, (Boolean, Fin)], ec: Resource.ExitCase): F[Unit] =
+      state.modify { case (_, fin) => (closed, fin(ec)) }.flatten
+
+    def liftOutcome[C](
+        oc: Outcome[F, Throwable, (C, Fin)],
+        state: Ref[F, (Boolean, Fin)]): F[Outcome[Resource[F, *], Throwable, C]] =
+      oc match {
+        case Outcome.Succeeded(fc) =>
+          state.get.flatMap {
+            case (true, _) => F.pure(Outcome.canceled[Resource[F, *], Throwable, C])
+            case (false, _) =>
+              fc.map {
+                case (c, _) => Outcome.succeeded[Resource[F, *], Throwable, C](Resource.pure(c))
+              }
+          }
+        case Outcome.Errored(e) => F.pure(Outcome.errored[Resource[F, *], Throwable, C](e))
+        case Outcome.Canceled() => F.pure(Outcome.canceled[Resource[F, *], Throwable, C])
+      }
+
+    def liftFiber[C](
+        f: Fiber[F, Throwable, (C, Fin)],
+        state: Ref[F, (Boolean, Fin)]): Fiber[Resource[F, *], Throwable, C] =
+      new Fiber[Resource[F, *], Throwable, C] {
+        def cancel = Resource.eval(f.cancel)
+        def join = Resource.eval(f.join.flatMap(liftOutcome(_, state)))
+      }
+
+    Resource.applyFull { poll =>
+      (F.ref(open), F.ref(open)).flatMapN { (left, right) =>
+        val finalizeBoth: Fin = ec => release(left, ec).guarantee(release(right, ec))
+
+        poll(F.racePair(allocate(fa, left), allocate(fb, right)))
+          .flatMap[Result] {
+            case Left((oc, f)) =>
+              liftOutcome(oc, left).map(oc => Left((oc, liftFiber(f, right))))
+            case Right((f, oc)) =>
+              liftOutcome(oc, right).map(oc => Right((liftFiber(f, left), oc)))
+          }
+          .onCancel(finalizeBoth(Resource.ExitCase.Canceled))
+          .map(result => (result, finalizeBoth))
+      }
+    }
+  }
+
   override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] =
     fa.memoizedAcquire.map(Resource.eval(_))
 }
