@@ -1479,6 +1479,16 @@ abstract private[effect] class ResourceConcurrent[F[_]]
   override def race[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, Either[A, B]] =
     fa.race(fb)
 
+  /*
+   * The fiber returned for the side still running is not canceled when the scope
+   * containing `racePair` closes, matching `start`:
+   * 1. If it finished allocating before the scope closes, its finalizers run when
+   *    the scope closes
+   * 2. If it is still allocating when the scope closes, it keeps running and releases
+   *    what it allocated as soon as it finishes; `join` then results in `Canceled()`
+   * 3. If it never finishes allocating, the fiber leaks, so cancel it before the
+   *    scope closes if that can happen
+   */
   override def racePair[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[
     F,
     Either[
