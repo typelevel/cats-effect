@@ -625,7 +625,7 @@ private final class IOFiber[A](
            * should run the finalisers (i.e. call `asyncCancel`).
            *
            */
-          val state = new ContState(finalizing)
+          val state = new ContState(false)
 
           val cb: Either[Throwable, Any] => Unit = { e =>
             // if someone called `cb` with `null`,
@@ -652,8 +652,8 @@ private final class IOFiber[A](
               /* try to take ownership of the runloop */
               if (resume()) {
                 // `resume()` is a volatile read of `suspended` through which
-                // `wasFinalizing` and `handle` are published
-                if (finalizing == state.wasFinalizing) {
+                // `pending` and `handle` are published
+                if (state.pending) {
                   if (isStackTracing) {
                     state.handle.deregister()
                   }
@@ -679,17 +679,14 @@ private final class IOFiber[A](
                   scheduleFiber(ec, this)
                 } else {
                   /*
-                   * we were canceled while suspended, then our finalizer suspended,
-                   * then we hit this line, so we shouldn't own the runloop at all
+                   * The wait was canceled and this suspension belongs to another operation.
                    */
                   suspend()
                 }
-              } else if (finalizing == state.wasFinalizing && !shouldFinalize() && outcome == null) {
+              } else if (state.pending && !shouldFinalize() && outcome == null) {
                 /*
-                 * If we aren't canceled or completed, and we're
-                 * still in the same finalization state, loop on
-                 * `suspended` to wait until `get` has released
-                 * ownership of the runloop.
+                 * If the wait is still pending and we aren't canceled or completed, loop on
+                 * `suspended` to wait until `get` has released ownership of the runloop.
                  */
                 loop()
               }
@@ -760,11 +757,11 @@ private final class IOFiber[A](
           val state = cur.state
 
           /*
-           * If get gets canceled but the result hasn't been computed yet,
-           * restore the state to "initial" (null) to ensure a subsequent `Get` in
-           * a finalizer still works with the same logic.
+           * Invalidate this wait even if the callback has already stored a result.
+           * Otherwise, reset "waiting" to "initial" so a subsequent `get` can wait.
            */
           val fin = IO {
+            state.pending = false
             state.compareAndSet(state.waiting, null)
             ()
           }
@@ -772,13 +769,11 @@ private final class IOFiber[A](
           conts = ByteStack.push(conts, OnCancelK)
 
           /*
-           * Record the finalizing state at the *suspension* point, which may be
-           * in a different finalizer scope than the cont itself. This must be
-           * written before publishing "waiting", or a racing `cb` could see a
-           * stale value from an earlier `get` and drop the wakeup.
+           * Publish the pending wait before publishing "waiting", so a racing callback
+           * cannot mistake it for a canceled wait.
            */
           if (state.get() eq null) {
-            state.wasFinalizing = finalizing
+            state.pending = true
           }
 
           if (state.compareAndSet(null, state.waiting)) {
