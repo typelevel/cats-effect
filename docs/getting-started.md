@@ -3,16 +3,54 @@ id: getting-started
 title: Getting Started
 ---
 
-Add the following to your **build.sbt**:
+## Scala REPL
+
+You can try out Cats Effect directly in the Scala 3 REPL. Start a session, and add the dependency:
+
+```scala
+:dep org.typelevel::cats-effect:3.7.1
+```
+
+Then paste in the following script:
+
+```scala
+import cats.effect.unsafe.implicits._
+import cats.effect.IO
+
+val program = IO.println("Hello, World!")
+program.unsafeRunSync()
+```
+
+Congratulations, you've just run your first `IO` within the REPL! 
+
+The `unsafeRunSync()` let's use run an `IO` outside a full Cats Effect application. It is very useful for REPL-based experimentation and sometimes useful for testing, but as the name suggests, its implementation is unsafe to use for production code.
+
+### Cancelling a long-running REPL task
+
+`unsafeRunCancelable()` is another variant to launch a task, that allows a long-running task to be cancelled. This can be useful to clean up long or infinite tasks that have been spawned from the REPL.
+
+```scala
+import cats.effect.unsafe.implicits._
+import cats.effect.IO
+
+lazy val loop: IO[Unit] = IO.println("loop until cancel..") >> IO.sleep(2.seconds) >> loop
+val cancel = loop.unsafeRunCancelable()
+```
+
+`unsafeRunCancelable` starts the loop task running, but also emits an invocable handle value which when invoked (ie `cancel()`) cancels the loop. This can be useful when running in SBT with the `console` command, where by default terminating the REPL doesn't terminate the process, and thus the task will remain executing in the background.
+
+## SBT
+
+Alternatively, you can use the Cats Effect 3 Giter8 template to create a new project, which sets up some basic project infrastructure:
+
+```bash
+$ sbt new typelevel/ce3.g8
+```
+
+To add Cats Effect to an existing SBT project, add the following to your **build.sbt**:
 
 ```scala
 libraryDependencies += "org.typelevel" %% "cats-effect" % "3.7.1"
-```
-
-Naturally, if you're using ScalaJS, you should replace the double `%%` with a triple `%%%`. If you're on Scala 2, it is *highly* recommended that you enable the [better-monadic-for](https://github.com/oleg-py/better-monadic-for) plugin, which fixes a number of surprising elements of the `for`-comprehension syntax in the Scala language:
-
-```scala
-addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
 ```
 
 It is recommended to enable warnings for non-unit statements (see [FAQ](./faq.md#what-do-non-unit-statement-warnings-mean)):
@@ -20,14 +58,21 @@ It is recommended to enable warnings for non-unit statements (see [FAQ](./faq.md
 ```scala
 scalacOptions += "-Wnonunit-statement"
 ```
+### Scala 2
 
-Alternatively, you can use the Cats Effect 3 Giter8 template, which sets up some basic project infrastructure:
+If you're on Scala 2, it is *highly* recommended that you enable the [better-monadic-for](https://github.com/oleg-py/better-monadic-for) plugin, which fixes a number of surprising elements of the Scala 2 `for`-comprehension syntax:
 
-```bash
-$ sbt new typelevel/ce3.g8
+```scala
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
 ```
 
-To create a new Cats Effect application, place the following contents into a new Scala file within your project:
+### SBT 1.x
+
+Cats Effect supports Scala JS and Scala Native. If you are using SBT 1.x and want to build for these targets, make sure you replace the double `%%` with a triple `%%%` in your `libraryDependencies`. 
+
+## Creating an IOApp
+
+`IOApp`, and `IOApp.Simple` provide helpful scaffolding to initialize Cats Effect applications. To create a new Cats Effect application, place the following contents into a new Scala file within your project:
 
 ```scala mdoc
 import cats.effect.{IO, IOApp}
@@ -44,7 +89,7 @@ import cats.effect.{IO, IOApp}
 import scala.concurrent.duration._
 
 // obviously this isn't actually the problem definition, but it's kinda fun
-object StupidFizzBuzz extends IOApp.Simple {
+object FiberFizzBuzz extends IOApp.Simple {
   val run =
     for {
       ctr <- IO.ref(0)
@@ -62,36 +107,6 @@ object StupidFizzBuzz extends IOApp.Simple {
 ```
 
 We will learn more about constructs like `start` and `*>` in later pages, but for now notice how easy it is to compose together concurrent programs based on simple building blocks. Additionally, note the reuse of the `wait` and `poll` programs. Because we're describing our program *as a value* (an `IO`), we can reuse that value as part of many different programs, and it will continue to behave the same regardless of this duplication.
-
-## REPL
-
-Of course, the easiest way to play with Cats Effect is to try it out in a Scala REPL. We recommend using [Ammonite](https://ammonite.io/#Ammonite-REPL) for this kind of thing. To get started, run the following lines (if not using Ammonite, skip the first line and make sure that Cats Effect and its dependencies are correctly configured on the classpath):
-
-```scala
-import $ivy.`org.typelevel::cats-effect:3.7.1`
-
-import cats.effect.unsafe.implicits._
-import cats.effect.IO
-
-val program = IO.println("Hello, World!")
-program.unsafeRunSync()
-```
-
-Congratulations, you've just run your first `IO` within the REPL! The `unsafeRunSync()` function is not meant to be used within a normal application. As the name suggests, its implementation is unsafe in several ways, but it is very useful for REPL-based experimentation and sometimes useful for testing.
-
-### Cancelling a long-running REPL task
-
-`unsafeRunCancelable()` is another variant to launch a task, that allows a long-running task to be cancelled. This can be useful to clean up long or infinite tasks that have been spawned from the REPL.
-
-```scala
-import cats.effect.unsafe.implicits._
-import cats.effect.IO
-
-lazy val loop: IO[Unit] = IO.println("loop until cancel..") >> IO.sleep(2.seconds) >> loop
-val cancel = loop.unsafeRunCancelable()
-```
-
-`unsafeRunCancelable` starts the loop task running, but also emits an invocable handle value which when invoked (ie `cancel()`) cancels the loop. This can be useful when running in SBT with the `console` command, where by default terminating the REPL doesn't terminate the process, and thus the task will remain executing in the background.
 
 ## Testing
 
