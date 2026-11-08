@@ -1,6 +1,6 @@
 ---
 id: migration-guide
-title: Migration Guide
+title: Migrating From CE 2.x
 ---
 
 ## Summary
