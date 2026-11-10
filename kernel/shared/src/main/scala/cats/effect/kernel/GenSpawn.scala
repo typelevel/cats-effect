@@ -191,6 +191,23 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
   /**
+   * Start fiber `fa` for the lifetime of effect `fb` and ensure it is canceled before `fb` is
+   * canceled, or when `fb` terminates.
+   *
+   * @param fa
+   *   the fiber to start
+   * @param fb
+   *   the effect that will use the started fiber
+   * @return
+   *   the result of fb
+   */
+  def startAttachedTo[A, B](fa: F[A])(fb: Fiber[F, E, A] => F[B]): F[B] =
+    F.uncancelable { poll =>
+      start(fa).flatMap(fiberA =>
+        F.onCancel(poll(fiberA.attachedTo(fb(fiberA))(this)), fiberA.cancel))
+    }
+
+  /**
    * Returns a [[Resource]] that manages the concurrent execution of a fiber. The inner effect
    * can be used to wait on the outcome of the child fiber; it is effectively a
    * [[Fiber!.join join]].
@@ -265,7 +282,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     uncancelable { poll =>
       start(fa) flatMap { fiber =>
         poll(fiber.join)
-          .onCancel(fin.guarantee(fiber.cancel))
+          .onCancelGraceful(fin.guarantee(fiber.cancel) *> fiber.join)
           .flatMap(_.embed(poll(canceled *> never)))
       }
     }
@@ -342,6 +359,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * the first fiber that completes with an outcome.
    *
    * [[racePair]] is a cancelation-unsafe function; it is recommended to use the safer variants.
+   * On instances with recoverable cancellation, canceling while waiting for a winner cancels
+   * both participants and returns the first terminal outcome with the other fiber.
    *
    * @param fa
    *   the effect for the first racing fiber
@@ -442,8 +461,10 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     uncancelable { poll =>
       poll(racePair(fa, fb)).flatMap {
-        case Left((oc, f)) => poll(f.join).onCancel(f.cancel).tupleLeft(oc)
-        case Right((f, oc)) => poll(f.join).onCancel(f.cancel).tupleRight(oc)
+        case Left((oc, f)) =>
+          F.pollFiberGraceful(poll, f).tupleLeft(oc)
+        case Right((f, oc)) =>
+          F.pollFiberGraceful(poll, f).tupleRight(oc)
       }
     }
 
@@ -477,24 +498,26 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              pollFiberGraceful(poll, f).flatMap {
                 case Outcome.Succeeded(fb) => fa.product(fb)
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => poll(canceled) *> never
               }
             case Outcome.Errored(ea) => f.cancel *> raiseError(ea)
-            case Outcome.Canceled() => f.cancel *> poll(canceled) *> never
+            case Outcome.Canceled() =>
+              f.cancel *> poll(canceled) *> never
           }
         case Right((f, oc)) =>
           oc match {
             case Outcome.Succeeded(fb) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              pollFiberGraceful(poll, f).flatMap {
                 case Outcome.Succeeded(fa) => fa.product(fb)
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => poll(canceled) *> never
               }
             case Outcome.Errored(eb) => f.cancel *> raiseError(eb)
-            case Outcome.Canceled() => f.cancel *> poll(canceled) *> never
+            case Outcome.Canceled() =>
+              f.cancel *> poll(canceled) *> never
           }
       }
     }

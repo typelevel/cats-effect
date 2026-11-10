@@ -115,6 +115,14 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
   def fiberPureIsOutcomeCompletedPure[A](a: A) =
     F.start(F.pure(a)).flatMap(_.join) <-> F.pure(Outcome.Succeeded(F.pure(a)))
 
+  def fiberOnCancelGracefulCompletedIgnoresContinue[A](a: A, cont: F[A]) =
+    F.start(F.onCancelGraceful(F.pure(a), cont)).flatMap(_.join) <->
+      F.pure(Outcome.Succeeded(F.pure(a)))
+
+  def fiberOnCancelGracefulMaskedCancelCompletesWithContinue[A](a: A, cont: F[A]) =
+    F.start(F.uncancelable(_ => F.onCancelGraceful(F.canceled *> F.pure(a), cont)))
+      .flatMap(_.join) <-> F.pure(Outcome.Succeeded(cont))
+
   def fiberErrorIsOutcomeErrored(e: E) =
     F.start(F.raiseError[Unit](e)).flatMap(_.join) <-> F.pure(Outcome.Errored(e))
 

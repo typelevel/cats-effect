@@ -48,11 +48,15 @@ final class MonadCancelOps_[F[_], A] private[syntax] (private val wrapped: F[A])
   def onCancel(fin: F[Unit])(implicit F: MonadCancel[F, ?]): F[A] =
     F.onCancel(wrapped, fin)
 
+  def onCancelGraceful(continue: F[A])(implicit F: MonadCancel[F, ?]): F[A] =
+    F.onCancelGraceful(wrapped, continue)
+
   def guarantee(fin: F[Unit])(implicit F: MonadCancel[F, ?]): F[A] =
     F.guarantee(wrapped, fin)
 
   def bracket[B](use: A => F[B])(release: A => F[Unit])(implicit F: MonadCancel[F, ?]): F[B] =
     F.bracket(wrapped)(use)(release)
+
 }
 
 final class MonadCancelOps[F[_], A, E] private[syntax] (private val wrapped: F[A])

@@ -27,4 +27,5 @@ package object syntax {
   object async extends AsyncSyntax
   object resource extends ResourceSyntax
   object clock extends ClockSyntax
+  object poll extends PollSyntax
 }

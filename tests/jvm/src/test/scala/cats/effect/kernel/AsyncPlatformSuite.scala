@@ -22,7 +22,7 @@ import cats.effect.unsafe.IORuntimeConfig
 
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CancellationException, CompletableFuture}
+import java.util.concurrent.{CancellationException, CompletableFuture, CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 
 class AsyncPlatformSuite extends BaseSuite {
@@ -66,5 +66,29 @@ class AsyncPlatformSuite extends BaseSuite {
       .recover { case _: TestControl.NonTerminationException => true }
       .replicateA(1000)
       .map(r => assert(r.forall(identity(_))))
+  }
+
+  real("recover result when CompletableFuture refuses cancellation") {
+    val cancelRequested = new CountDownLatch(1)
+    val cf = new CompletableFuture[Int] {
+      override def cancel(mayInterruptIfRunning: Boolean): Boolean = {
+        cancelRequested.countDown()
+        false
+      }
+    }
+
+    for {
+      fiber <- IO.fromCompletableFuture(IO(cf)).start
+      cancelFiber <- fiber.cancel.start
+      canceled <- IO.blocking(cancelRequested.await(5, TimeUnit.SECONDS))
+      _ <- IO(assert(canceled))
+      _ <- IO(cf.complete(42))
+      _ <- cancelFiber.join
+      outcome <- fiber.join
+      _ <- outcome match {
+        case Outcome.Succeeded(value) => value.flatMap(result => IO(assertEquals(result, 42)))
+        case other => IO(fail(s"Expected successful completion, got $other"))
+      }
+    } yield ()
   }
 }

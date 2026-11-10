@@ -85,7 +85,6 @@ private final class IOFiber[A](
   private[this] var localState: IOLocalState = initState
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
-  private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
   private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack.of(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
@@ -101,7 +100,6 @@ private final class IOFiber[A](
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0
-  private[this] var finalizing: Boolean = false
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
@@ -142,36 +140,24 @@ private final class IOFiber[A](
   private[this] var _cancel: IO[Unit] = IO uncancelable { _ =>
     canceled = true
 
-    // println(s"${name}: attempting cancelation")
-
     /* check to see if the target fiber is suspended */
     if (resume()) {
       /* ...it was! was it masked? */
       if (isUnmasked()) {
-        /* ...nope! take over the target fiber's runloop and run the finalizers */
-        // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
-
-        /* if we have async finalizers, runLoop may return early */
-        IO.async_[Unit] { fin =>
-          // println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
-          val ec = currentCtx
-          resumeTag = AsyncContinueCanceledWithFinalizerR
-          objectState.push(fin)
-          scheduleFiber(ec, this)
-        }
+        /* ...nope! take over the target fiber's runloop and unwind its continuations */
+        val ec = currentCtx
+        resumeTag = AsyncContinueCanceledWithFinalizerR
+        scheduleFiber(ec, this)
       } else {
         /*
          * it was masked, so we need to wait for it to finish whatever
-         * it was doing  and cancel itself
+         * it was doing and cancel itself
          */
         suspend() /* allow someone else to take the runloop */
-        join.void
       }
-    } else {
-      // println(s"${name}: had to join")
-      /* it's already being run somewhere; await the finalizers */
-      join.void
     }
+
+    join.void
   }
 
   /* this is swapped for an `IO.pure(outcome)` when we complete */
@@ -240,7 +226,7 @@ private final class IOFiber[A](
     }
 
     if (shouldFinalize()) {
-      val fin = prepareFiberForCancelation(null)
+      val fin = unwind()
       runLoop(fin, nextCancelation, nextAutoCede)
     } else {
       /* Null IO, blow up but keep the failure within IO */
@@ -533,7 +519,7 @@ private final class IOFiber[A](
           canceled = true
           if (isUnmasked()) {
             /* run finalizers immediately */
-            val fin = prepareFiberForCancelation(null)
+            val fin = unwind()
             runLoop(fin, nextCancelation, nextAutoCede)
           } else {
             runLoop(succeeded((), 0), nextCancelation, nextAutoCede)
@@ -542,8 +528,7 @@ private final class IOFiber[A](
         case 11 =>
           val cur = cur0.asInstanceOf[OnCancel[Any]]
 
-          finalizers.push(EvalOn(cur.fin, currentCtx))
-          // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
+          objectState.push(EvalOn(cur.fin, currentCtx))
 
           /*
            * the OnCancelK marker is used by `succeeded` to remove the
@@ -639,7 +624,7 @@ private final class IOFiber[A](
            * should run the finalisers (i.e. call `asyncCancel`).
            *
            */
-          val state = new ContState(finalizing)
+          val state = new ContState(false)
 
           val cb: Either[Throwable, Any] => Unit = { e =>
             // if someone called `cb` with `null`,
@@ -666,8 +651,8 @@ private final class IOFiber[A](
               /* try to take ownership of the runloop */
               if (resume()) {
                 // `resume()` is a volatile read of `suspended` through which
-                // `wasFinalizing` and `handle` are published
-                if (finalizing == state.wasFinalizing) {
+                // `pending` and `handle` are published
+                if (state.pending) {
                   if (isStackTracing) {
                     state.handle.deregister()
                   }
@@ -693,17 +678,14 @@ private final class IOFiber[A](
                   scheduleFiber(ec, this)
                 } else {
                   /*
-                   * we were canceled while suspended, then our finalizer suspended,
-                   * then we hit this line, so we shouldn't own the runloop at all
+                   * The wait was canceled and this suspension belongs to another operation.
                    */
                   suspend()
                 }
-              } else if (finalizing == state.wasFinalizing && !shouldFinalize() && outcome == null) {
+              } else if (state.pending && !shouldFinalize() && outcome == null) {
                 /*
-                 * If we aren't canceled or completed, and we're
-                 * still in the same finalization state, loop on
-                 * `suspended` to wait until `get` has released
-                 * ownership of the runloop.
+                 * If the wait is still pending and we aren't canceled or completed, loop on
+                 * `suspended` to wait until `get` has released ownership of the runloop.
                  */
                 loop()
               }
@@ -774,16 +756,24 @@ private final class IOFiber[A](
           val state = cur.state
 
           /*
-           * If get gets canceled but the result hasn't been computed yet,
-           * restore the state to "initial" (null) to ensure a subsequent `Get` in
-           * a finalizer still works with the same logic.
+           * Invalidate this wait even if the callback has already stored a result.
+           * Otherwise, reset "waiting" to "initial" so a subsequent `get` can wait.
            */
           val fin = IO {
+            state.pending = false
             state.compareAndSet(state.waiting, null)
             ()
           }
-          finalizers.push(fin)
+          objectState.push(fin)
           conts = ByteStack.push(conts, OnCancelK)
+
+          /*
+           * Publish the pending wait before publishing "waiting", so a racing callback
+           * cannot mistake it for a canceled wait.
+           */
+          if (state.get() eq null) {
+            state.pending = true
+          }
 
           if (state.compareAndSet(null, state.waiting)) {
             /*
@@ -792,16 +782,9 @@ private final class IOFiber[A](
              * resume with the result once that's ready
              */
 
-            /*
-             * we set the finalizing check to the *suspension* point, which may
-             * be in a different finalizer scope than the cont itself.
-             * `wasFinalizing` is published by a volatile store on `suspended`.
-             */
-            state.wasFinalizing = finalizing
-
             if (isStackTracing) {
               state.handle = monitor()
-              finalizers.push(IO {
+              objectState.push(IO {
                 state.handle.deregister()
                 ()
               })
@@ -833,7 +816,7 @@ private final class IOFiber[A](
                */
               if (resume()) {
                 if (shouldFinalize()) {
-                  val fin = prepareFiberForCancelation(null)
+                  val fin = unwind()
                   runLoop(fin, nextCancelation, nextAutoCede)
                 } else {
                   suspend()
@@ -877,12 +860,11 @@ private final class IOFiber[A](
                * we were canceled, but `cancel` cannot run the finalisers
                * because the runloop was not suspended, so we have to run them
                */
-              val fin = prepareFiberForCancelation(null)
+              val fin = unwind()
               runLoop(fin, nextCancelation, nextAutoCede)
             }
           }
 
-        /* Cede */
         case 16 =>
           resumeTag = CedeR
           rescheduleFiber(currentCtx, this)
@@ -907,47 +889,27 @@ private final class IOFiber[A](
 
         case 18 =>
           val cur = cur0.asInstanceOf[RacePair[Any, Any]]
+          type Result = Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]
 
-          val next =
-            IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
-              cb =>
-                IO {
-                  val ec = currentCtx
-                  val rt = runtime
+          val next = IO.asyncGracefulCancel[Result] { cb =>
+            IO {
+              val ec = currentCtx
+              val rt = runtime
+              val fiberA = new IOFiber[Any](localState, null, cur.ioa, ec, rt)
+              val fiberB = new IOFiber[Any](localState, null, cur.iob, ec, rt)
 
-                  val fiberA = new IOFiber[Any](
-                    localState,
-                    null,
-                    cur.ioa,
-                    ec,
-                    rt
-                  )
+              def complete(result: Result): Unit =
+                cb(Right(result))
 
-                  val fiberB = new IOFiber[Any](
-                    localState,
-                    null,
-                    cur.iob,
-                    ec,
-                    rt
-                  )
+              fiberA.setCallback(oc => complete(Left((oc, fiberB))))
+              fiberB.setCallback(oc => complete(Right((fiberA, oc))))
 
-                  fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
-                  fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
+              scheduleFiber(ec, fiberA)
+              scheduleFiber(ec, fiberB)
 
-                  scheduleFiber(ec, fiberA)
-                  scheduleFiber(ec, fiberB)
-
-                  val cancel =
-                    for {
-                      cancelA <- fiberA.cancel.start
-                      cancelB <- fiberB.cancel.start
-                      _ <- cancelA.join
-                      _ <- cancelB.join
-                    } yield ()
-
-                  Some(cancel)
-                }
+              Some((fiberA.cancel.start *> fiberB.cancel.start).void)
             }
+          }
 
           runLoop(next, nextCancelation, nextAutoCede)
 
@@ -1068,6 +1030,12 @@ private final class IOFiber[A](
         /* ReadRT */
         case 24 =>
           runLoop(succeeded(runtime, 0), nextCancelation, nextAutoCede)
+
+        case 25 =>
+          val cur = cur0.asInstanceOf[OnCancelGraceful[Any]]
+          objectState.push(EvalOn(cur.continue, currentCtx))
+          conts = ByteStack.push(conts, OnCancelGracefulK)
+          runLoop(cur.ioa, nextCancelation, nextAutoCede)
       }
     }
   }
@@ -1117,7 +1085,6 @@ private final class IOFiber[A](
 
     conts = null
     objectState.invalidate()
-    finalizers.invalidate()
     currentCtx = null
 
     if (isStackTracing) {
@@ -1126,41 +1093,61 @@ private final class IOFiber[A](
   }
 
   /**
-   * Overwrites the whole execution state of the fiber and prepares for executing finalizers
-   * because cancelation has been triggered.
+   * Begins unwinding the active continuation stack after cancellation has been triggered.
    */
-  private[this] def prepareFiberForCancelation(cb: Either[Throwable, Unit] => Unit): IO[Any] = {
-    if (!finalizers.isEmpty()) {
-      if (!finalizing) {
-        // Do not nuke the fiber execution state repeatedly.
-        finalizing = true
+  private[this] def unwind(): IO[Any] = {
+    while (!ByteStack.isEmpty(conts)) {
+      (ByteStack.pop(conts): @switch) match {
+        case 0 | 1 => // mapK / flatMapK
+          val _ = objectState.pop()
 
-        conts = ByteStack.create(8)
-        conts = ByteStack.push(conts, CancelationLoopK)
+        case 2 => // cancelationLoopK
+          ()
 
-        objectState.init(16)
-        objectState.push(cb)
+        case 3 => // runTerminusK
+          done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+          return IO.EndFiber
 
-        /* suppress all subsequent cancelation on this fiber */
-        masks += 1
+        case 4 => // evalOnK
+          if (isStackTracing) {
+            objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
+          }
+          currentCtx = objectState.pop().asInstanceOf[ExecutionContext]
+
+        case 5 => // handleErrorWithK
+          val _ = objectState.pop()
+
+        case 6 => // onCancelK
+          masks += 1
+          conts = ByteStack.push(conts, UnwindK)
+          return objectState.pop().asInstanceOf[IO[Unit]]
+
+        case 7 => // uncancelableK
+          masks -= 1
+
+        case 8 => // unmaskK
+          masks += 1
+
+        case 9 => // attemptK
+          ()
+
+        case 10 => // unwindK
+          masks -= 1
+
+        case 11 => // onCancelGracefulK
+          masks += 1
+          conts = ByteStack.push(conts, CancelContinueUnwindK)
+          return objectState.pop().asInstanceOf[IO[Any]]
+
+        case 12 => // cancelContinueUnwindK
+          masks -= 1
       }
-
-      // Return the first finalizer for execution.
-      finalizers.pop()
-    } else {
-      // There are no finalizers to execute.
-
-      // Unblock the canceler of this fiber.
-      if (cb ne null) {
-        cb(RightUnit)
-      }
-
-      // Unblock the joiners of this fiber.
-      done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
-
-      // Exit from the run loop after this. The fiber is finished.
-      IO.EndFiber
     }
+
+    done(
+      Outcome.Errored(
+        new IllegalStateException("IOFiber continuation stack missing run terminus")))
+    IO.EndFiber
   }
 
   /*
@@ -1242,9 +1229,14 @@ private final class IOFiber[A](
             onFatalFailure(t)
         }
 
-      case 2 => cancelationLoopSuccessK()
-      case 3 => runTerminusSuccessK(result)
-      case 4 => evalOnSuccessK(result)
+      case 2 => // cancelationLoopK
+        unwind()
+
+      case 3 => // runTerminusK
+        runTerminusSuccessK(result)
+
+      case 4 => // evalOnK
+        evalOnSuccessK(result)
 
       case 5 => // handleErrorWithK
         // this is probably faster than the pre-scan we do in failed, since handlers are rarer than flatMaps
@@ -1252,7 +1244,11 @@ private final class IOFiber[A](
         succeeded(result, depth)
 
       case 6 => // onCancelSuccessK
-        finalizers.pop()
+        objectState.pop()
+        succeeded(result, depth + 1)
+
+      case 11 => // onCancelGracefulSuccessK
+        objectState.pop()
         succeeded(result, depth + 1)
 
       case 7 => // uncancelableSuccessK
@@ -1265,6 +1261,13 @@ private final class IOFiber[A](
 
       case 9 => // attemptK
         succeeded(Right(result), depth)
+
+      case 10 => // unwindK
+        masks -= 1
+        unwind()
+
+      case 12 => // cancelContinueUnwindK
+        cancelRecoverSuccessK(result, depth)
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -1299,9 +1302,15 @@ private final class IOFiber[A](
         objectState.pop()
         failed(error, depth)
 
-      case 2 => cancelationLoopFailureK(error)
-      case 3 => runTerminusFailureK(error)
-      case 4 => evalOnFailureK(error)
+      case 2 => // cancelationLoopK
+        currentCtx.reportFailure(error)
+        unwind()
+
+      case 3 => // runTerminusK
+        runTerminusFailureK(error)
+
+      case 4 => // evalOnK
+        evalOnFailureK(error)
 
       case 5 => // handleErrorWithK
         val f = objectState.pop().asInstanceOf[Throwable => IO[Any]]
@@ -1315,7 +1324,11 @@ private final class IOFiber[A](
         }
 
       case 6 => // onCancelFailureK
-        finalizers.pop()
+        objectState.pop()
+        failed(error, depth + 1)
+
+      case 11 => // onCancelGracefulFailureK
+        objectState.pop()
         failed(error, depth + 1)
 
       case 7 => // uncancelableFailureK
@@ -1327,6 +1340,15 @@ private final class IOFiber[A](
         failed(error, depth + 1)
 
       case 9 => succeeded(Left(error), depth) // attemptK
+
+      case 10 => // unwindK
+        masks -= 1
+        currentCtx.reportFailure(error)
+        unwind()
+
+      case 12 => // cancelContinueUnwindK
+        masks -= 1
+        failed(error, depth + 1)
     }
   }
 
@@ -1392,7 +1414,6 @@ private final class IOFiber[A](
       conts = ByteStack.push(conts, RunTerminusK)
 
       objectState.init(16)
-      finalizers.init(16)
 
       val io = resumeIO
       resumeIO = null
@@ -1411,13 +1432,12 @@ private final class IOFiber[A](
   }
 
   private[this] def asyncContinueCanceledR(): Unit = {
-    val fin = prepareFiberForCancelation(null)
+    val fin = unwind()
     runLoop(fin, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def asyncContinueCanceledWithFinalizerR(): Unit = {
-    val cb = objectState.pop().asInstanceOf[Either[Throwable, Unit] => Unit]
-    val fin = prepareFiberForCancelation(cb)
+    val fin = unwind()
     runLoop(fin, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
@@ -1462,31 +1482,10 @@ private final class IOFiber[A](
 
   /* Implementations of continuations */
 
-  private[this] def cancelationLoopSuccessK(): IO[Any] = {
-    if (!finalizers.isEmpty()) {
-      // There are still remaining finalizers to execute. Continue.
-      conts = ByteStack.push(conts, CancelationLoopK)
-      finalizers.pop()
-    } else {
-      // The last finalizer is done executing.
+  private[this] def cancelRecoverSuccessK(result: Any, depth: Int): IO[Any] = {
+    masks -= 1
 
-      // Unblock the canceler of this fiber.
-      val cb = objectState.pop()
-      if (cb != null) {
-        cb.asInstanceOf[Either[Throwable, Unit] => Unit](RightUnit)
-      }
-
-      // Unblock the joiners of this fiber.
-      done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
-
-      // Exit from the run loop after this. The fiber is finished.
-      IO.EndFiber
-    }
-  }
-
-  private[this] def cancelationLoopFailureK(t: Throwable): IO[Any] = {
-    currentCtx.reportFailure(t)
-    cancelationLoopSuccessK()
+    succeeded(result, depth + 1)
   }
 
   private[this] def runTerminusSuccessK(result: Any): IO[Any] = {
@@ -1513,7 +1512,7 @@ private final class IOFiber[A](
       scheduleOnForeignEC(ec, this)
       IO.EndFiber
     } else {
-      prepareFiberForCancelation(null)
+      unwind()
     }
   }
 
@@ -1531,7 +1530,7 @@ private final class IOFiber[A](
       scheduleOnForeignEC(ec, this)
       IO.EndFiber
     } else {
-      prepareFiberForCancelation(null)
+      unwind()
     }
   }
 
