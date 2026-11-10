@@ -913,7 +913,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     assertCompleteAs(ioa, Outcome.canceled[IO, Throwable, Unit])
   }
 
-  real("cancelation - recover from a polled effect and complete") {
+  real("cancelation - graceful - continue from a polled effect and complete") {
     for {
       started <- Deferred[IO, Unit]
       fiber <- IO.uncancelable { poll =>
@@ -929,18 +929,16 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield ()
   }
 
-  real("cancelation - propagate failure from a recovery handler") {
+  real("cancelation - graceful - propagate failure from a recovery handler") {
     val failure = new RuntimeException("recovery failed")
 
     for {
       started <- Deferred[IO, Unit]
-      fiber <- IO
-        .uncancelable { poll =>
-          poll(started.complete(()) *> IO.never[Int])
-            .onCancelGraceful(IO.raiseError[Int](failure))
-        }
-        .handleErrorWith(error => IO.pure(if (error eq failure) 42 else -1))
-        .start
+      fiber <- IO.uncancelable { poll =>
+        poll(started.complete(()) *> IO.never[Int])
+          .onCancelGraceful(IO.raiseError[Int](failure))
+          .handleErrorWith(error => IO.pure(if (error eq failure) 42 else -1))
+      }.start
       _ <- started.get
       _ <- fiber.cancel
       outcome <- fiber.join
@@ -949,6 +947,21 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
         case other => IO(fail(s"Expected recovered error outcome, got $other"))
       }
     } yield ()
+  }
+
+  ticked("cancelation - graceful - cancel after error recovery") { implicit ticker =>
+    val failure = new RuntimeException("recovery failed")
+    var errorHandled = false
+    var finalized = false
+
+    val test = IO
+      .uncancelable { poll => poll(IO.canceled).onCancelGraceful(IO.raiseError[Unit](failure)) }
+      .handleErrorWith(_ => IO { errorHandled = true })
+      .onCancel(IO { finalized = true })
+
+    assertSelfCancel(test)
+    assert(!errorHandled)
+    assert(finalized)
   }
 
   real("cancelation - recover from a polled cancel and subsequently cancel again") {
@@ -971,7 +984,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield ()
   }
 
-  real("cancelation - widen the recovered result type") {
+  real("cancelation - graceful - widen the recovered result type") {
     for {
       started <- Deferred[IO, Unit]
       fiber <- IO.uncancelable { poll =>
@@ -988,7 +1001,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield ()
   }
 
-  real("cancelation - MonadCancel onCancelGraceful is derived for OptionT") {
+  real("cancelation - graceful - MonadCancel onCancelGraceful is derived for OptionT") {
     val F = MonadCancel[OptionT[IO, *], Throwable]
 
     for {
@@ -1011,7 +1024,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield ()
   }
 
-  real("cancelation - wait for termination after recovering") {
+  real("cancelation - graceful - wait for termination after recovering") {
     for {
       recovered <- Deferred[IO, Unit]
       release <- Deferred[IO, Unit]
@@ -1038,7 +1051,7 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield ()
   }
 
-  real("cancelation - continue unwinding when a recovery handler self-cancels") {
+  real("cancelation - graceful - continue unwinding when a recovery handler self-cancels") {
     for {
       events <- Ref[IO].of(List.empty[String])
       started <- Deferred[IO, Unit]
