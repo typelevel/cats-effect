@@ -372,7 +372,8 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    *
    * A successful continuation does not clear the pending cancelation. The resumed program can
    * use the result while cancelation is masked, but cancelation is observed again when it is
-   * unmasked.
+   * unmasked. If the continuation fails, the error is propagated up the stack while cancelation
+   * remains masked; after unmasking, pending cancelation can interrupt error recovery.
    *
    * The default implementation runs `continue` as an ordinary cancellation finalizer and
    * discards its result, making it effectively `onCancel`.

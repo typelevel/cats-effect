@@ -601,7 +601,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *
    * A successful continuation does not clear the pending cancelation. The resumed program can
    * use the result while cancelation is masked, but cancelation is observed again when it is
-   * unmasked.
+   * unmasked. If the continuation fails, the error is propagated up the stack while cancelation
+   * remains masked; after unmasking, pending cancelation can interrupt error recovery.
    */
   def onCancelGraceful[B >: A](continue: IO[B]): IO[B] =
     IO.OnCancelGraceful(this, continue)
