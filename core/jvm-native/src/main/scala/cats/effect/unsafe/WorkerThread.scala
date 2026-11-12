@@ -331,7 +331,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
      * directly. In this case, there is less bookkeeping to be done compared to the case where a
      * worker was searching for work prior to parking.
      *
-     * STEP 2 (conditional): The `WorkerThread` has been allowed to steal fibers and timersfrom
+     * STEP 2 (conditional): The `WorkerThread` has been allowed to steal fibers and timers from
      * other worker threads. If the attempt is successful, the first stolen fiber is executed
      * directly and the `WorkerThread` transitions to executing fibers from the local queue. If
      * the attempt is unsuccessful, the worker thread announces to the pool that it was unable
