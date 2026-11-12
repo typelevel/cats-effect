@@ -234,8 +234,8 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
 
       i += 1
     }
-    
-    null  
+
+    null
   }
 
   /**
@@ -406,7 +406,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
   private[unsafe] def transitionWorkerFromSearching(random: ThreadLocalRandom): Unit = {
     // Decrement the number of searching worker threads.
     val prev = state.getAndDecrement()
-    if (prev == 1) {
+    if ((prev & SearchMask) == 1) {
       // If this was the only searching thread, wake a thread up to potentially help out
       // with the local work queue.
       notifyParked(random)
