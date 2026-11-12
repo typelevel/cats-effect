@@ -316,7 +316,7 @@ private[effect] final class WorkerThread[P <: AnyRef](
 
     val done = pool.done
 
-    /**
+    /*
      * This method is called when the local queue is empty, and will return only when work is
      * found.
      *
@@ -357,17 +357,16 @@ private[effect] final class WorkerThread[P <: AnyRef](
      * Whenever stealing, fibers are stolen first, as these are stolen in a batch, so we must
      * guarantee that there is room in the local queue. Stealing timers invokes callbacks, which
      * generally also enqueue new fibers in the local queue. But this happens one at a time, so
-     * the existing logic in [[LocalQueue.enqueue]] will spill excess work into the external
+     * the existing logic in `LocalQueue.enqueue` will spill excess work into the external
      * queue.
      *
      * This ordering is important to ensure that we actually do steal fibers, even if there are
      * always many timers available to steal. If timers were stolen first, the local queue could
      * chronically end up with no room left to steal fibers.
      *
-     * @note
-     *   Some of the steps seem like they have overlapping logic. This is indeed true, but it is
-     *   a conscious decision. The logic is carefully unrolled and compiled into a shallow while
-     *   loop.
+     * Note: Some of the steps seem like they have overlapping logic. This is indeed true, but
+     * it is a conscious decision. The logic is carefully unrolled and compiled into a shallow
+     * while loop.
      */
     def lookForWork(): Unit = {
       val permissionToSteal = {
