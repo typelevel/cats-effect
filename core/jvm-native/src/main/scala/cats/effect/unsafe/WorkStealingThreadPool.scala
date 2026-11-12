@@ -31,7 +31,6 @@ package cats.effect
 package unsafe
 
 import cats.effect.tracing.Tracing.captureTrace
-import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
@@ -79,7 +78,6 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
     with UnsealedPollingContext[P]
     with WorkStealingThreadPoolPlatform[P] {
 
-  import TracingConstants._
   import WorkStealingThreadPoolConstants._
 
   // a unique identifier of the thread pool within a JVM
@@ -200,8 +198,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
 
   /**
    * Tries to steal work from other worker threads. This method does a linear search of the
-   * worker threads starting at a random index. If the stealing attempt was unsuccessful, this
-   * method falls back to checking the external queue.
+   * worker threads starting at a random index.
    *
    * @param dest
    *   the index of the worker thread attempting to steal work from other worker threads (used
@@ -238,24 +235,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
       i += 1
     }
 
-    // The worker thread could not steal any work. Fall back to checking the
-    // external queue.
-    val element = externalQueue.poll(random)
-    if (element.isInstanceOf[Array[Runnable]]) {
-      val batch = element.asInstanceOf[Array[Runnable]]
-      destQueue.enqueueBatch(batch, destWorker)
-    } else if (element.isInstanceOf[Runnable]) {
-      val fiber = element.asInstanceOf[Runnable]
-
-      if (isStackTracing) {
-        destWorker.active = fiber
-        parkedSignals(dest).lazySet(ParkedSignal.Unparked)
-      }
-
-      fiber
-    } else {
-      null
-    }
+    null
   }
 
   /**
@@ -426,7 +406,7 @@ private[effect] final class WorkStealingThreadPool[P <: AnyRef](
   private[unsafe] def transitionWorkerFromSearching(random: ThreadLocalRandom): Unit = {
     // Decrement the number of searching worker threads.
     val prev = state.getAndDecrement()
-    if (prev == 1) {
+    if ((prev & SearchMask) == 1) {
       // If this was the only searching thread, wake a thread up to potentially help out
       // with the local work queue.
       notifyParked(random)

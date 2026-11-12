@@ -331,11 +331,11 @@ private[effect] final class WorkerThread[P <: AnyRef](
      * directly. In this case, there is less bookkeeping to be done compared to the case where a
      * worker was searching for work prior to parking.
      *
-     * STEP 2 (conditional): The `WorkerThread` has been allowed to steal fibers from other
-     * worker threads. If the attempt is successful, the first fiber is executed directly and
-     * the `WorkerThread` transitions to executing fibers from the local queue. If the attempt
-     * is unsuccessful, the worker thread announces to the pool that it was unable to find any
-     * work and parks.
+     * STEP 2 (conditional): The `WorkerThread` has been allowed to steal fibers and timers from
+     * other worker threads. If the attempt is successful, the first stolen fiber is executed
+     * directly and the `WorkerThread` transitions to executing fibers from the local queue. If
+     * the attempt is unsuccessful, the worker thread announces to the pool that it was unable
+     * to find any work and parks.
      *
      * STEP 3 (while loop): After the worker thread has been unparked, it transitions to looking
      * for work in the external queue while also holding a permission to steal fibers from other
@@ -348,14 +348,25 @@ private[effect] final class WorkerThread[P <: AnyRef](
      * other worker threads because the permission to steal is implicitly held by threads that
      * have been unparked.
      *
-     * STEP 3.2: The `WorkerThread` has been allowed to steal fibers from other worker threads.
-     * If the attempt is successful, the first fiber is executed directly and the `WorkerThread`
-     * transitions to executing fibers from the local queue. If the attempt is unsuccessful, the
-     * worker thread announces to the pool that it was unable to find any work and parks.
+     * STEP 3.2: The `WorkerThread` has been allowed to steal fibers and timers from other
+     * worker threads. If the attempt is successful, the first stolen fiber is executed directly
+     * and the `WorkerThread` transitions to executing fibers from the local queue. If the
+     * attempt is unsuccessful, the worker thread announces to the pool that it was unable to
+     * find any work and parks.
      *
-     * A note on the implementation. Some of the steps seem like they have overlapping logic.
-     * This is indeed true, but it is a conscious decision. The logic is carefully unrolled and
-     * compiled into a shallow while loop.
+     * Whenever stealing, fibers are stolen first, as these are stolen in a batch, so we must
+     * guarantee that there is room in the local queue. Stealing timers invokes callbacks, which
+     * generally also enqueue new fibers in the local queue. But this happens one at a time, so
+     * the existing logic in `LocalQueue.enqueue` will spill excess work into the external
+     * queue.
+     *
+     * This ordering is important to ensure that we actually do steal fibers, even if there are
+     * always many timers available to steal. If timers were stolen first, the local queue could
+     * chronically end up with no room left to steal fibers.
+     *
+     * Note: Some of the steps seem like they have overlapping logic. This is indeed true, but
+     * it is a conscious decision. The logic is carefully unrolled and compiled into a shallow
+     * while loop.
      */
     def lookForWork(): Unit = {
       val permissionToSteal = {
@@ -429,11 +440,11 @@ private[effect] final class WorkerThread[P <: AnyRef](
         // update the current time
         now = System.nanoTime()
 
-        // First try to steal some expired timers.
-        val stoleTimers = pool.stealTimers(now, rnd)
-
         // Try stealing fibers from other worker threads.
         val fiber = pool.stealFromOtherWorkerThread(index, rnd, self)
+
+        // Try to steal some expired timers.
+        val stoleTimers = pool.stealTimers(now, rnd)
 
         if (stoleTimers || (fiber ne null)) {
           // Successful steal. Announce that the current thread is no longer
@@ -533,11 +544,11 @@ private[effect] final class WorkerThread[P <: AnyRef](
         // update the current time
         now = System.nanoTime()
 
-        // First try to steal some expired timers.
-        val stoleTimers = pool.stealTimers(now, rnd)
-
         // Try stealing fibers from other worker threads.
         val fiber = pool.stealFromOtherWorkerThread(index, rnd, self)
+
+        // Try to steal some expired timers.
+        val stoleTimers = pool.stealTimers(now, rnd)
 
         if (stoleTimers || (fiber ne null)) {
           // Successful steal. Announce that the current thread is no longer

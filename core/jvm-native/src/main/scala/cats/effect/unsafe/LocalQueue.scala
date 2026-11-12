@@ -180,8 +180,8 @@ private final class LocalQueue extends LocalQueuePadding {
    *   1. There is not enough free capacity and some other thread is concurrently stealing from
    *      this queue, in which case the fiber will be enqueued on the `external` queue.
    *   1. There is not enough free capacity in this queue and no other thread is stealing from
-   *      it, in which case, half of this queue, including the new fiber will be offloaded to
-   *      the `batched` queue as a bulk operation.
+   *      it, in which case, half of this queue will be offloaded to the `batched` queue as a
+   *      bulk operation.
    *
    * @param fiber
    *   the fiber to be added to the local queue
