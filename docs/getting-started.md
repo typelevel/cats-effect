@@ -23,7 +23,7 @@ program.unsafeRunSync()
 
 Congratulations, you've just run your first `IO` within the REPL! 
 
-The `unsafeRunSync()` let's use run an `IO` outside a full Cats Effect application. It is very useful for REPL-based experimentation and sometimes useful for testing, but as the name suggests, its implementation is unsafe to use for production code.
+The `unsafeRunSync()` let's use run an `IO` outside a full Cats Effect application. It is very useful for REPL-based experimentation and sometimes useful for testing, but as the name suggests, it should not be used in production code.
 
 ### Cancelling a long-running REPL task
 
@@ -72,7 +72,7 @@ Cats Effect supports Scala JS and Scala Native. If you are using SBT 1.x and wan
 
 ## Creating an IOApp
 
-`IOApp`, and `IOApp.Simple` provide helpful scaffolding to initialize Cats Effect applications. To create a new Cats Effect application, place the following contents into a new Scala file within your project:
+`IOApp` and `IOApp.Simple` provide helpful scaffolding to initialize Cats Effect applications. To create a new Cats Effect application, place the following contents into a new Scala file within your project:
 
 ```scala mdoc
 import cats.effect.{IO, IOApp}
