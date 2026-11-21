@@ -790,11 +790,10 @@ private final class IOFiber[A](
            * be in a different finalizer scope than the cont itself. This must be
            * written before publishing "waiting", or a racing `cb` could see a
            * stale value from an earlier `get` and drop the wakeup.
-           * `wasFinalizing` is published by a volatile store on `suspended`, below.
+           * `wasFinalizing` is published by the state CAS, below.
            */
-          if (state.get() eq null) {
-            state.wasFinalizing = finalizing
-          }
+
+          state.wasFinalizing = finalizing
 
           if (state.compareAndSet(null, state.waiting)) {
             /*
