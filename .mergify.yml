@@ -26,3 +26,11 @@ pull_request_rules:
     actions:
       merge:
         method: merge
+  - name: mistargeted doc PRs
+    conditions:
+      - base == series/3.x
+      - files ~= ^docs/
+      - -files ~= ^(?!docs/)
+    actions:
+      comment: 
+        message: "Documentation updates should target the current minor series branch, not series/3.x directly."
