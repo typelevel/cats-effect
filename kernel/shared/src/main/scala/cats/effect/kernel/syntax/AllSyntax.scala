@@ -24,3 +24,4 @@ trait AllSyntax
     with AsyncSyntax
     with ResourceSyntax
     with ClockSyntax
+    with PollSyntax

@@ -26,6 +26,7 @@ import cats.arrow.FunctionK
 import cats.syntax.all._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
 class BoundedQueueSuite extends BaseSuite with QueueTests[Queue] with DetectPlatform {
@@ -848,6 +849,24 @@ trait QueueTests[Q[_[_], _]] { self: BaseSuite =>
       // even if we replicate the "cancelation in the middle", we might not hit a race condition
       // replicate this a bunch of times to build confidence that it works
       loop(0).replicateA_(100)
+    }
+
+    real(s"$name - not lose data on nested timeouts of take #4571") {
+      val delay = 1.nanosecond
+
+      val check = for {
+        q <- constructor(100)
+        _ <- (IO.sleep(delay) *> offer(q, 42)).start
+        _ <- take(q).timeout(delay).timeout(delay).recoverWith {
+          case _: TimeoutException =>
+            // timed out, so the element must still be in the queue
+            take(q).timeout(1.second).adaptError {
+              case _: TimeoutException => new RuntimeException("Element was lost!")
+            }
+        }
+      } yield ()
+
+      check.replicateA_(1000)
     }
 
     real(s"$name - ensure takers are awakened under all circumstances") {

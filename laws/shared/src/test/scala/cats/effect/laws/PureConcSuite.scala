@@ -76,6 +76,20 @@ class PureConcSuite extends DisciplineSuite with BaseSuite {
 
       pure.run(fa.start.flatMap(_.cancel))
     }
+
+    test("cancel waits for finalizers".fail /* PureConc not running finalizers #3430 */ ) {
+      val fa = for {
+        ref <- F.ref(0)
+        latch <- F.deferred[Unit]
+        fiber <- F.start(
+          F.onCancel(latch.complete(()) *> F.never[Unit], ref.update(_ + 1).void))
+        _ <- latch.get
+        _ <- fiber.cancel
+        value <- ref.get
+      } yield value
+
+      assertEquals(pure.run(fa), Outcome.Succeeded[Option, Int, Int](Some(1)))
+    }
   }
 
   checkAll(

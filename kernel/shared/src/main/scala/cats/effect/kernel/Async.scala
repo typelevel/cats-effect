@@ -64,10 +64,11 @@ import java.util.concurrent.atomic.AtomicReference
 trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   /**
-   * Suspends an asynchronous side effect with optional immediate result in `F`.
+   * Suspends an asynchronous side effect with an optional immediate result and finalizer on
+   * cancelation in `F`.
    *
-   * The given function `k` will be invoked during evaluation of `F` to:
-   *   - check if result is already available;
+   * The given function `k` will be invoked during evaluation of the `F` to:
+   *   - check if a result is already available;
    *   - "schedule" the asynchronous callback, where the callback of type `Either[Throwable, A]
    *     \=> Unit` is the parameter passed to that function. Only the ''first'' invocation of
    *     the callback will be effective! All subsequent invocations will be silently dropped.
@@ -78,15 +79,17 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * The effect returns `Either[Option[F[Unit]], A]` where:
    *   - right side `A` is an immediate result of computation (callback invocation will be
    *     dropped);
-   *   - left side `Option[F[Unit]]` is an optional finalizer to be run in the event that the
-   *     fiber running `asyncCheckAttempt(k)` is canceled.
+   *   - left side `Option[F[Unit]]` is an optional finalizer to be run if the fiber running
+   *     `asyncCheckAttempt(k)` is canceled.
    *
    * Also, note that `asyncCheckAttempt` is uncancelable during its registration.
    *
    * @see
-   *   [[async]] for a simplified variant without an option for immediate result
+   *   [[asyncCheckAttemptGracefulCancel]] for a variant that prompts the async operation to
+   *   finish
    * @see
-   *   [[async_]] for a simplified variant without an option for immediate result or finalizer
+   *   [[async]] and [[async_]] for simpler variants without an option for immediate result or
+   *   finalizer on cancelation
    */
   def asyncCheckAttempt[A](
       k: (Either[Throwable, A] => Unit) => F[Either[Option[F[Unit]], A]]): F[A] = {
@@ -104,6 +107,60 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
     cont(body)
   }
+
+  /**
+   * Suspends an asynchronous side effect with an optional immediate result and graceful
+   * cancelation in `F`.
+   *
+   * The semantics of this method are the same as [[asyncCheckAttempt]], except that after
+   * running the optional finalizer, the effect waits for the callback to complete. This allows
+   * for an operation that cannot be canceled synchronously to be sent an interruption signal
+   * and get the result of the operation if it completes before it can be canceled.
+   *
+   * @see
+   *   [[asyncCheckAttempt]] for a variant that runs a finalizer on cancelation instead
+   * @see
+   *   [[asyncGracefulCancel]] for a variant without an option for immediate result
+   * @see
+   *   [[async]] and [[async_]] for simpler variants without an option for immediate result or
+   *   finalizer on cancelation
+   */
+  def asyncCheckAttemptGracefulCancel[A](
+      k: (Either[Throwable, A] => Unit) => F[Either[Option[F[Unit]], A]]): F[A] = {
+    val body = new Cont[F, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { poll =>
+          lift(k(resume)) flatMap {
+            case Right(a) => G.pure(a)
+            case Left(Some(fin)) => G.pollGraceful(poll, get, lift(fin))
+            case Left(None) => get
+          }
+        }
+      }
+    }
+
+    cont(body)
+  }
+
+  /**
+   * Suspends an asynchronous side effect with graceful cancelation in `F`.
+   *
+   * The semantics of this method are the same as [[async]], except that after running the
+   * optional finalizer, the effect waits for the callback to complete. This allows for an
+   * operation that cannot be canceled synchronously to be sent an interruption signal and get
+   * the result of the operation if it completes before it can be canceled.
+   *
+   * @see
+   *   [[asyncCheckAttempt]] for a variant that runs a finalizer on cancelation instead
+   * @see
+   *   [[asyncCheckAttemptGracefulCancel]] for a variant with an optional immediate result
+   * @see
+   *   [[async]] and [[async_]] for simpler variants without an option for immediate result or
+   *   continuation action on cancelation
+   */
+  def asyncGracefulCancel[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
+    asyncCheckAttemptGracefulCancel[A](cb =>
+      map(k(cb))(fin => Left(fin): Either[Option[F[Unit]], A]))
 
   /**
    * Suspends an asynchronous side effect in `F`.

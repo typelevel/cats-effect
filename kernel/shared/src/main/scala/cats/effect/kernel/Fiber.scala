@@ -84,4 +84,35 @@ trait Fiber[F[_], E, A] extends Serializable {
     val _ = ev
     joinWith(F.unit.asInstanceOf[F[A]])
   }
+
+  /**
+   * Intercept external cancelation and ensure the fiber is canceled before the effect `fb` is
+   * canceled.
+   *
+   * @param fb
+   *   the effect to which the fiber is attached
+   * @param F
+   *   an implicit [[GenSpawn]] instance
+   * @return
+   *   the result of `fb`
+   */
+  def cancelBefore[B](fb: F[B])(implicit F: GenSpawn[F, E]): F[B] =
+    F.uncancelable(poll =>
+      F.start(fb).flatMap { fiberB =>
+        F.pollGraceful(poll, fiberB.join, cancel *> fiberB.cancel)
+      })
+      .flatMap(_.embedNever)
+
+  /**
+   * Attaches the fiber to the lifetime of the effect `fb` and ensures it is canceled before
+   * `fb` is canceled, and is canceled if `fb` completes or errors.
+   * @param fb
+   *   the effect to which the fiber is attached
+   * @param F
+   *   an implicit [[GenSpawn]] instance
+   * @return
+   *   the result of `fb`
+   */
+  def attachedTo[B](fb: F[B])(implicit F: GenSpawn[F, E]): F[B] =
+    F.uncancelable(poll => F.guarantee(poll(cancelBefore(fb)), cancel))
 }

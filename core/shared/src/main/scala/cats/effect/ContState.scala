@@ -32,10 +32,10 @@ import Platform.static
  * `waitingSentinel` is private, so that can also be differentiated from a result (by object
  * identity).
  *
- * `wasFinalizing` and `handle` are published in terms of the `suspended` atomic variable in
- * `IOFiber`
+ * `pending` is volatile because a callback can check it without owning the runloop. `handle` is
+ * published in terms of the `suspended` atomic variable in `IOFiber`.
  */
-private final class ContState(var wasFinalizing: Boolean)
+private final class ContState(var pending: Boolean)
     extends AtomicReference[Either[Throwable, Any]] {
 
   val waiting: Either[Throwable, Any] =

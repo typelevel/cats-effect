@@ -742,7 +742,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.unsafe.WorkerThread.getSuspendedFiberCount"),
       // protected constructor modified when fixing #4359
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.IORuntimeBuilder.<init>$default$10")
+        "cats.effect.unsafe.IORuntimeBuilder.<init>$default$10"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.wasFinalizing"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.ContState.wasFinalizing_=")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions

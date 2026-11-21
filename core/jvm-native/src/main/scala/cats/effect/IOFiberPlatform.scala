@@ -42,16 +42,18 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
 
     // we grab this here rather than in the instance to avoid bloating IOFiber's object header
     val RightUnit = IOFiber.RightUnit
+    val noResult = new Object
 
-    IO.async[Any] { nextCb =>
+    IO.asyncGracefulCancel[Any] { nextCb =>
       for {
         done <- IO(new AtomicBoolean(false))
+        interrupted <- IO(new AtomicBoolean(false))
         cb <- IO(new AtomicReference[Either[Throwable, Unit] => Unit](null))
 
         canInterrupt <- IO(new juc.Semaphore(0))
         manyDone <- IO(new AtomicBoolean(false))
 
-        target <- IO uncancelable { _ =>
+        target <-
           IO.async[Thread] { initCb =>
             val action = IO blocking {
               initCb(Right(Thread.currentThread()))
@@ -79,8 +81,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
 
                   back
                 } catch {
-                  case t if InterruptThrowable(t) =>
-                    null
+                  case t if InterruptThrowable(t) => null
                 } finally {
                   canInterrupt.tryAcquire()
                   done.set(true)
@@ -101,17 +102,18 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                   }
                 }
 
-              if (result != null) {
+              if (interrupted.get()) {
+                nextCb(Right(noResult))
+              } else if (result != null) {
                 nextCb(result)
               }
             }
 
             action.start.as(None)
           }
-        }
       } yield {
         Some {
-          IO async { finCb =>
+          IO.async[Unit] { finCb =>
             val trigger = IO.defer {
               if (!many) {
                 cb.set(finCb)
@@ -125,6 +127,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                   IO.unit // ok, we're done
                 } else if (canInterrupt.tryAcquire()) {
                   try {
+                    interrupted.set(true)
                     target.interrupt()
                   } finally {
                     canInterrupt.release()
@@ -144,6 +147,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                 if (canInterrupt.tryAcquire()) {
                   try {
                     while (!done.get()) {
+                      interrupted.set(true)
                       target.interrupt() // it's hammer time!
                     }
                   } finally {
@@ -175,6 +179,9 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
           }
         }
       }
+    }.flatMap {
+      case `noResult` => IO.canceled
+      case result => IO.pure(result)
     }
   }
 }

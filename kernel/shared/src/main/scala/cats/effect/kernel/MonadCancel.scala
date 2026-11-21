@@ -154,6 +154,44 @@ import cats.syntax.all._
  * [[MonadCancel!.onCancel onCancel]]. If a fiber is canceled while running that effect, the
  * registered finalizer is guaranteed to be run before terminating.
  *
+ * ==Graceful Finalization==
+ *
+ * Not all finalization operations can be completed synchronously. For example, cleaning up
+ * started fibers requires sending a signal to the other fiber, which may complete before it can
+ * actually be canceled. If [[MonadCancel!.onCancel onCancel]] is used for this cleanup, the
+ * result of that fiber may be lost.
+ *
+ * [[MonadCancel!.onCancelGraceful onCancelGraceful]] should be used instead for this sort of
+ * asynchronous finalization. If a fiber is canceled while running that effect, the registered
+ * action is guaranteed to be run and return a value before terminating. Use of this method
+ * typically takes the shape of polling on an operation, and using `onCancelGraceful` to execute
+ * a cancelation action followed by the same operation again:
+ *
+ * {{{
+ *   F.uncancelable( poll =>
+ *     for {
+ *      fiber <- start(fa)
+ *      outcome <- poll(fiber.join).onCancelGraceful(fiber.cancel *> fiber.join)
+ *     } yield outcome
+ *   )
+ * }}}
+ *
+ * Syntax on `Poll` is included to capture this idiom:
+ *
+ * {{{
+ *   import cats.effect.kernel.syntax.all._
+ *
+ *   F.uncancelable( poll =>
+ *     for {
+ *      fiber <- start(fa)
+ *      outcome <- poll.fiberGraceful(fiber)
+ *     } yield outcome
+ *   )
+ * }}}
+ *
+ * A `graceful extention method is also provided for the more general case of handling
+ * cancelation of arbitrary asynchronous effects.
+ *
  * ==Bracket pattern==
  *
  * The aforementioned concepts work together to unlock a powerful pattern for safely interacting
@@ -322,6 +360,35 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    *   The finalizer to register before evaluating `fa`.
    */
   def onCancel[A](fa: F[A], fin: F[Unit]): F[A]
+
+  /**
+   * Replaces the result of `fa` with the result of `continue` when cancellation is observed.
+   * The continuation action is run as an uncancelable cancellation handler. If `fa` is
+   * uncancelable (e.g. created via [[uncancelable]]) then `continue` won't be fired.
+   *
+   * This is primarily useful inside an `uncancelable` region where a polled effect should be
+   * allowed one final attempt to produce a value after cancellation, for example, by cancelling
+   * a fiber and joining it to get its result.
+   *
+   * A successful continuation does not clear the pending cancelation. The resumed program can
+   * use the result while cancelation is masked, but cancelation is observed again when it is
+   * unmasked. If the continuation fails, the error is propagated up the stack while cancelation
+   * remains masked; after unmasking, pending cancelation can interrupt error recovery.
+   *
+   * The default implementation runs `continue` as an ordinary cancellation finalizer and
+   * discards its result, making it effectively `onCancel`.
+   *
+   * @note
+   *   Implementations with recoverable cancellation semantics should override this method.
+   */
+  def onCancelGraceful[A](fa: F[A], continue: F[A]): F[A] =
+    onCancel(fa, continue.void)
+
+  def pollGraceful[A](poll: Poll[F], wait: F[A], cancel: F[Unit]): F[A] =
+    onCancelGraceful(poll(wait), cancel *> wait)
+
+  def pollFiberGraceful[A](poll: Poll[F], fiber: Fiber[F, E, A]): F[Outcome[F, E, A]] =
+    pollGraceful(poll, fiber.join, fiber.cancel)
 
   /**
    * Specifies an effect that is always invoked after evaluation of `fa` completes, regardless
@@ -631,6 +698,11 @@ object MonadCancel {
     def onCancel[A](fa: OptionT[F, A], fin: OptionT[F, Unit]): OptionT[F, A] =
       OptionT(F.onCancel(fa.value, fin.value.void))
 
+    override def onCancelGraceful[A](
+        fa: OptionT[F, A],
+        continue: OptionT[F, A]): OptionT[F, A] =
+      OptionT(F.onCancelGraceful(fa.value, continue.value))
+
     def forceR[A, B](fa: OptionT[F, A])(fb: OptionT[F, B]): OptionT[F, B] =
       OptionT(
         F.forceR(fa.value)(fb.value)
@@ -684,6 +756,11 @@ object MonadCancel {
 
     def onCancel[A](fa: EitherT[F, E0, A], fin: EitherT[F, E0, Unit]): EitherT[F, E0, A] =
       EitherT(F.onCancel(fa.value, fin.value.void))
+
+    override def onCancelGraceful[A](
+        fa: EitherT[F, E0, A],
+        continue: EitherT[F, E0, A]): EitherT[F, E0, A] =
+      EitherT(F.onCancelGraceful(fa.value, continue.value))
 
     def forceR[A, B](fa: EitherT[F, E0, A])(fb: EitherT[F, E0, B]): EitherT[F, E0, B] =
       EitherT(
@@ -739,6 +816,11 @@ object MonadCancel {
     def onCancel[A](fa: IorT[F, L, A], fin: IorT[F, L, Unit]): IorT[F, L, A] =
       IorT(F.onCancel(fa.value, fin.value.void))
 
+    override def onCancelGraceful[A](
+        fa: IorT[F, L, A],
+        continue: IorT[F, L, A]): IorT[F, L, A] =
+      IorT(F.onCancelGraceful(fa.value, continue.value))
+
     def forceR[A, B](fa: IorT[F, L, A])(fb: IorT[F, L, B]): IorT[F, L, B] =
       IorT(
         F.forceR(fa.value)(fb.value)
@@ -793,6 +875,11 @@ object MonadCancel {
     def onCancel[A](fa: Kleisli[F, R, A], fin: Kleisli[F, R, Unit]): Kleisli[F, R, A] =
       Kleisli { r => F.onCancel(fa.run(r), fin.run(r)) }
 
+    override def onCancelGraceful[A](
+        fa: Kleisli[F, R, A],
+        continue: Kleisli[F, R, A]): Kleisli[F, R, A] =
+      Kleisli(r => F.onCancelGraceful(fa.run(r), continue.run(r)))
+
     def forceR[A, B](fa: Kleisli[F, R, A])(fb: Kleisli[F, R, B]): Kleisli[F, R, B] =
       Kleisli(r => F.forceR(fa.run(r))(fb.run(r)))
 
@@ -846,6 +933,11 @@ object MonadCancel {
     // Note that this does not preserve the log from the finalizer
     def onCancel[A](fa: WriterT[F, L, A], fin: WriterT[F, L, Unit]): WriterT[F, L, A] =
       WriterT(F.onCancel(fa.run, fin.value.void))
+
+    override def onCancelGraceful[A](
+        fa: WriterT[F, L, A],
+        continue: WriterT[F, L, A]): WriterT[F, L, A] =
+      WriterT(F.onCancelGraceful(fa.run, continue.run))
 
     def forceR[A, B](fa: WriterT[F, L, A])(fb: WriterT[F, L, B]): WriterT[F, L, B] =
       WriterT(
@@ -908,6 +1000,11 @@ object MonadCancel {
     // discards state changes in fin, also fin cannot observe state changes in fa
     def onCancel[A](fa: StateT[F, S, A], fin: StateT[F, S, Unit]): StateT[F, S, A] =
       StateT[F, S, A](s => F.onCancel(fa.run(s), fin.runA(s)))
+
+    override def onCancelGraceful[A](
+        fa: StateT[F, S, A],
+        continue: StateT[F, S, A]): StateT[F, S, A] =
+      StateT[F, S, A](s => F.onCancelGraceful(fa.run(s), continue.run(s)))
 
     def uncancelable[A](body: Poll[StateT[F, S, *]] => StateT[F, S, A]): StateT[F, S, A] =
       StateT[F, S, A] { s =>
@@ -973,6 +1070,12 @@ object MonadCancel {
         fa: ReaderWriterStateT[F, E0, L, S, A],
         fin: ReaderWriterStateT[F, E0, L, S, Unit]): ReaderWriterStateT[F, E0, L, S, A] =
       ReaderWriterStateT[F, E0, L, S, A]((e, s) => F.onCancel(fa.run(e, s), fin.runA(e, s)))
+
+    override def onCancelGraceful[A](
+        fa: ReaderWriterStateT[F, E0, L, S, A],
+        continue: ReaderWriterStateT[F, E0, L, S, A]): ReaderWriterStateT[F, E0, L, S, A] =
+      ReaderWriterStateT[F, E0, L, S, A]((e, s) =>
+        F.onCancelGraceful(fa.run(e, s), continue.run(e, s)))
 
     def uncancelable[A](
         body: Poll[ReaderWriterStateT[F, E0, L, S, *]] => ReaderWriterStateT[F, E0, L, S, A])

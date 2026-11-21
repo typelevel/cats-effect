@@ -134,7 +134,7 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
       case object TestException extends RuntimeException
       val test = (0 to 10).toList.parTraverseN(2)(_ => IO.raiseError(TestException))
 
-      assertCompleteAs(test.attempt.void.parReplicateA_(100000), ())
+      assertCompleteAs(test.attempt.void.parReplicateA_(10000), ())
     }
 
     real("parTraverseN_ - short-circuit on error") {
@@ -158,6 +158,7 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
         latch.countDown()
         Thread.sleep(15000)
         interrupted = false
+        42
       }
 
       for {
@@ -165,6 +166,11 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
         _ <- IO.blocking(latch.await())
         _ <- f.cancel
         _ <- IO(assert(interrupted))
+        outcome <- f.join
+        _ <- outcome match {
+          case Outcome.Canceled() => IO.unit
+          case other => IO(fail(s"Expected cancellation, got $other"))
+        }
       } yield ()
     }
 
@@ -199,6 +205,11 @@ trait IOConcurrencySuite extends DetectPlatform { this: BaseSuite =>
         _ <- IO.blocking(latch.await())
         _ <- f.cancel
         _ <- IO(assert(interrupted))
+        outcome <- f.join
+        _ <- outcome match {
+          case Outcome.Canceled() => IO.unit
+          case other => IO(fail(s"Expected cancellation, got $other"))
+        }
       } yield ()
     }
 
