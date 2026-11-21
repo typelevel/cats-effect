@@ -31,7 +31,7 @@ jobs:
           - ubuntu-latest
           - ubuntu-22.04-arm
           - windows-2022
-          - macos-14
+          - macos-15
         scala: [3.3.4, 2.12.20, 2.13.18]
         java:
           - temurin@8
@@ -64,18 +64,18 @@ jobs:
           - os: windows-2022
             scala: 3.3.4
             ci: ciJVM
-          - os: macos-14
+          - os: macos-15
             scala: 3.3.4
             ci: ciJVM
           - os: windows-2022
             scala: 2.12.20
             ci: ciJVM
-          - os: macos-14
+          - os: macos-15
             scala: 2.12.20
             ci: ciJVM
-          - os: macos-14
+          - os: macos-15
             java: temurin@8
-          - os: macos-14
+          - os: macos-15
             java: temurin@11
           - ci: ciFirefox
             scala: 3.3.4
@@ -97,7 +97,7 @@ jobs:
             ci: ciJS
           - os: windows-2022
             ci: ciJS
-          - os: macos-14
+          - os: macos-15
             ci: ciJS
           - ci: ciFirefox
             java: temurin@11
@@ -111,7 +111,7 @@ jobs:
             ci: ciFirefox
           - os: windows-2022
             ci: ciFirefox
-          - os: macos-14
+          - os: macos-15
             ci: ciFirefox
           - ci: ciChrome
             java: temurin@11
@@ -125,7 +125,7 @@ jobs:
             ci: ciChrome
           - os: windows-2022
             ci: ciChrome
-          - os: macos-14
+          - os: macos-15
             ci: ciChrome
           - ci: ciNative
             java: temurin@11
@@ -138,7 +138,7 @@ jobs:
             os: windows-2022
           - ci: ciNative
             java: temurin@11
-            os: macos-14
+            os: macos-15
           - ci: ciNative
             java: temurin@17
             os: ubuntu-latest
@@ -156,7 +156,7 @@ jobs:
             os: windows-2022
           - ci: ciNative
             java: temurin@21
-            os: macos-14
+            os: macos-15
           - ci: ciNative
             java: graalvm@21
             os: ubuntu-latest
@@ -168,13 +168,13 @@ jobs:
             os: windows-2022
           - ci: ciNative
             java: graalvm@21
-            os: macos-14
+            os: macos-15
           - os: ubuntu-22.04-arm
             ci: ciNative
             scala: 2.12.20
           - os: windows-2022
             ci: ciNative
-          - os: macos-14
+          - os: macos-15
             ci: ciNative
             scala: 2.12.20
     runs-on: ${{ matrix.os }}

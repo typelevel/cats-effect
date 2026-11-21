@@ -1106,6 +1106,26 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     } yield result
   }
 
+  // a second `get` in a finalizer must not miss a callback that races with cancelation
+  real("cont - second get in onCancel finalizer does not hang") {
+    val cont = IO.cont[Unit, Unit](new Cont[IO, Unit, Unit] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { poll =>
+          lift(IO.cede.productR(IO(resume(Right(())))).start) *>
+            poll(get).onCancel(get)
+        }
+      }
+    })
+
+    val one = for {
+      fiber <- cont.start
+      _ <- IO.cede
+      _ <- fiber.cancel
+    } yield ()
+
+    one.parReplicateA_(if (!isJS) 8 else 1).replicateA_(50000)
+  }
+
   ticked("async - allow for misordered nesting") { implicit ticker =>
     var outerR = 0
     var innerR = 0
