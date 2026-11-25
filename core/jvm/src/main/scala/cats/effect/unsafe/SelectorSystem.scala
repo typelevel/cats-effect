@@ -40,7 +40,8 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
     poller.selector.close()
 
   def poll(poller: Poller, nanos: Long): PollResult = {
-    val millis = if (nanos >= 0) nanos / 1000000 else -1
+    // Round up to avoid spinning on selectNow() for positive sub-millisecond waits (#4729).
+    val millis = if (nanos > 0) 1L + (nanos - 1L) / 1000000L else if (nanos == 0) 0L else -1L
     val selector = poller.selector
 
     if (millis == 0) selector.selectNow()
