@@ -2540,6 +2540,18 @@ class IOSuite extends BaseScalaCheckSuite with DisciplineSuite with IOPlatformSu
     }
   }
 
+  real("timeoutTo - cancel fallback") {
+    for {
+      ready <- Deferred[IO, Unit]
+      fiber <- IO
+        .never
+        .timeoutTo(Duration.Zero, IO.uncancelable(poll => ready.complete(()) *> poll(IO.never)))
+        .start
+      _ <- ready.get
+      _ <- fiber.cancel
+    } yield ()
+  }
+
   real("timeoutAndForget - terminate on an uncancelable fiber") {
     IO.never[Unit].uncancelable.timeoutAndForget(1.second).attempt flatMap { r =>
       IO {

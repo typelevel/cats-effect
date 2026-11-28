@@ -853,7 +853,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         poll(racePair(IO.sleep(finiteDuration))) flatMap {
           case Left((oc, f)) => f.cancel *> oc.embed(poll(IO.canceled) *> IO.never)
           case Right((f, _)) =>
-            f.cancel *> f.join.flatMap { oc => oc.fold(fallback, IO.raiseError, identity) }
+            f.cancel *> f.join.flatMap { oc =>
+              oc.fold(poll(fallback), IO.raiseError, identity)
+            }
         }
       }
     }

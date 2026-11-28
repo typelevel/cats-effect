@@ -102,7 +102,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
 
       poll(racePair(fa, sleep(duration))) flatMap {
         case Left((oc, f)) => f.cancel *> oc.embed(poll(F.canceled) *> F.never)
-        case Right((f, _)) => f.cancel *> f.join.flatMap { oc => oc.embed(fallback) }
+        case Right((f, _)) => f.cancel *> f.join.flatMap { oc => oc.embed(poll(fallback)) }
       }
     }
 
